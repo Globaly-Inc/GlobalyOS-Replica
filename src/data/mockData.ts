@@ -1,0 +1,110 @@
+import { Employee, Kudos, Update } from "@/types/employee";
+
+export const employees: Employee[] = [
+  {
+    id: "1",
+    name: "Sadiksha Ghimire",
+    email: "sadikshya.ghimire@globalyhub.com",
+    position: "Project Assistant",
+    department: "Project Management",
+    manager: "Amit Ranjitkar",
+    joinDate: "2025-04-15",
+    phone: "9745944427",
+    location: "Satungal, Chandragiri",
+    superpowers: ["Project Coordination", "Team Communication", "Client Management"],
+  },
+  {
+    id: "2",
+    name: "Amit Ranjitkar",
+    email: "amit.ranjitkar@globalyhub.com",
+    position: "Senior Project Manager",
+    department: "Project Management",
+    joinDate: "2020-01-15",
+    location: "Kathmandu",
+    superpowers: ["Leadership", "Strategic Planning", "Stakeholder Management"],
+  },
+  {
+    id: "3",
+    name: "Priya Sharma",
+    email: "priya.sharma@globalyhub.com",
+    position: "Software Engineer",
+    department: "Engineering",
+    manager: "Amit Ranjitkar",
+    joinDate: "2023-06-20",
+    location: "Lalitpur",
+    superpowers: ["Full Stack Development", "Problem Solving", "Code Review"],
+  },
+  {
+    id: "4",
+    name: "Rajesh Kumar",
+    email: "rajesh.kumar@globalyhub.com",
+    position: "UI/UX Designer",
+    department: "Design",
+    manager: "Amit Ranjitkar",
+    joinDate: "2022-03-10",
+    location: "Bhaktapur",
+    superpowers: ["User Research", "Visual Design", "Prototyping"],
+  },
+];
+
+export const kudosData: Kudos[] = [
+  {
+    id: "1",
+    employeeId: "1",
+    employeeName: "Sadiksha Ghimire",
+    givenBy: "Amit Ranjitkar",
+    comment: "She has been performing exceptionally well. She demonstrates strong management and planning skills, and I would encourage her to continue the great work she is doing.",
+    date: "2025-11-10",
+  },
+  {
+    id: "2",
+    employeeId: "3",
+    employeeName: "Priya Sharma",
+    givenBy: "Rajesh Kumar",
+    comment: "Amazing collaboration on the new dashboard design. Her attention to detail made all the difference!",
+    date: "2025-11-08",
+  },
+  {
+    id: "3",
+    employeeId: "4",
+    employeeName: "Rajesh Kumar",
+    givenBy: "Priya Sharma",
+    comment: "Created beautiful, user-friendly designs that significantly improved our product experience.",
+    date: "2025-11-05",
+  },
+];
+
+export const updates: Update[] = [
+  {
+    id: "1",
+    employeeId: "1",
+    employeeName: "Sadiksha Ghimire",
+    content: "Successfully coordinated the launch of three new product features this week. Great teamwork from everyone involved!",
+    date: "2025-11-11",
+    type: "win",
+  },
+  {
+    id: "2",
+    employeeId: "3",
+    employeeName: "Priya Sharma",
+    content: "Completed the backend refactoring project. Performance improvements are showing 40% faster load times!",
+    date: "2025-11-10",
+    type: "achievement",
+  },
+  {
+    id: "3",
+    employeeId: "4",
+    employeeName: "Rajesh Kumar",
+    content: "Presented our new design system to the team. Looking forward to implementing it across all products.",
+    date: "2025-11-09",
+    type: "update",
+  },
+  {
+    id: "4",
+    employeeId: "2",
+    employeeName: "Amit Ranjitkar",
+    content: "Proud to announce that our team exceeded Q4 targets by 25%. Incredible work by everyone!",
+    date: "2025-11-08",
+    type: "win",
+  },
+];
