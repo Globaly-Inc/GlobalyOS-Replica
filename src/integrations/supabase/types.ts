@@ -59,6 +59,7 @@ export type Database = {
           manager_id: string | null
           phone: string | null
           position: string
+          salary: number | null
           superpowers: string[] | null
           updated_at: string
           user_id: string
@@ -72,6 +73,7 @@ export type Database = {
           manager_id?: string | null
           phone?: string | null
           position: string
+          salary?: number | null
           superpowers?: string[] | null
           updated_at?: string
           user_id: string
@@ -85,6 +87,7 @@ export type Database = {
           manager_id?: string | null
           phone?: string | null
           position?: string
+          salary?: number | null
           superpowers?: string[] | null
           updated_at?: string
           user_id?: string
@@ -139,6 +142,66 @@ export type Database = {
           {
             foreignKeyName: "kudos_given_by_id_fkey"
             columns: ["given_by_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      position_history: {
+        Row: {
+          change_type: string
+          created_at: string
+          department: string
+          effective_date: string
+          employee_id: string
+          end_date: string | null
+          id: string
+          manager_id: string | null
+          notes: string | null
+          position: string
+          salary: number | null
+          updated_at: string
+        }
+        Insert: {
+          change_type: string
+          created_at?: string
+          department: string
+          effective_date: string
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          manager_id?: string | null
+          notes?: string | null
+          position: string
+          salary?: number | null
+          updated_at?: string
+        }
+        Update: {
+          change_type?: string
+          created_at?: string
+          department?: string
+          effective_date?: string
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          manager_id?: string | null
+          notes?: string | null
+          position?: string
+          salary?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "position_history_manager_id_fkey"
+            columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -230,6 +293,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_employee_sensitive_data: {
+        Args: { _employee_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

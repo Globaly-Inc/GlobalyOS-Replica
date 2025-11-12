@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AdminSetup } from "@/components/AdminSetup";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface FeedItem {
   id: string;
@@ -48,6 +49,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
+  const { isHR } = useUserRole();
 
   useEffect(() => {
     checkEmployeeProfile();
@@ -140,7 +142,7 @@ const Home = () => {
         </div>
 
         {/* Action Buttons */}
-        {!hasEmployeeProfile && (
+        {!hasEmployeeProfile && isHR && (
           <Card className="p-6 border-accent/50 bg-accent-light/50">
             <div className="flex items-center justify-between">
               <div>
@@ -153,6 +155,19 @@ const Home = () => {
                 checkEmployeeProfile();
                 loadFeed();
               }} />
+            </div>
+          </Card>
+        )}
+
+        {!hasEmployeeProfile && !isHR && (
+          <Card className="p-6 border-amber-200 bg-amber-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-foreground">Employee Profile Not Found</h3>
+                <p className="text-sm text-muted-foreground">
+                  Contact your HR department to set up your employee profile so you can start posting updates and giving kudos
+                </p>
+              </div>
             </div>
           </Card>
         )}

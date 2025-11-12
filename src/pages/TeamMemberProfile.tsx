@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
 import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
+import { PositionTimeline } from "@/components/PositionTimeline";
+import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -15,13 +17,54 @@ const TeamMemberProfile = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canViewSensitiveData, setCanViewSensitiveData] = useState(false);
+  const [positionHistory, setPositionHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
       loadEmployee();
       loadKudos();
+      checkPermissions();
+      loadPositionHistory();
     }
   }, [id]);
+
+  const checkPermissions = async () => {
+    if (!id) return;
+    
+    const { data, error } = await supabase.rpc('can_view_employee_sensitive_data', {
+      _employee_id: id
+    });
+
+    if (!error && data) {
+      setCanViewSensitiveData(true);
+    }
+  };
+
+  const loadPositionHistory = async () => {
+    if (!id) return;
+
+    const { data } = await supabase
+      .from("position_history")
+      .select(`
+        id,
+        position,
+        department,
+        salary,
+        manager_id,
+        effective_date,
+        end_date,
+        change_type,
+        notes,
+        manager:employees!position_history_manager_id_fkey(
+          profiles!inner(full_name)
+        )
+      `)
+      .eq("employee_id", id)
+      .order("effective_date", { ascending: false });
+
+    if (data) setPositionHistory(data);
+  };
 
   const loadEmployee = async () => {
     const { data } = await supabase
@@ -30,6 +73,7 @@ const TeamMemberProfile = () => {
         id,
         position,
         department,
+        salary,
         join_date,
         phone,
         location,
@@ -186,6 +230,29 @@ const TeamMemberProfile = () => {
                   ))}
                 </div>
               </Card>
+            )}
+
+            {canViewSensitiveData && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Career Timeline
+                  </h2>
+                  <AddPositionHistoryDialog 
+                    employeeId={id!} 
+                    onSuccess={() => {
+                      loadPositionHistory();
+                      loadEmployee();
+                    }} 
+                  />
+                </div>
+                <PositionTimeline 
+                  entries={positionHistory}
+                  currentPosition={employee.position}
+                  currentDepartment={employee.department}
+                  currentSalary={employee.salary}
+                />
+              </div>
             )}
 
             <div>
