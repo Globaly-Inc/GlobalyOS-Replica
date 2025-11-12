@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
+import { AdminSetup } from "@/components/AdminSetup";
 
 interface FeedItem {
   id: string;
@@ -122,6 +123,8 @@ const Home = () => {
   return (
     <Layout>
       <div className="space-y-8">
+        <AdminSetup />
+        
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary-dark to-primary p-8 text-primary-foreground shadow-lg">
           <div className="relative z-10 max-w-3xl">
