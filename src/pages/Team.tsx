@@ -1,15 +1,61 @@
 import { Layout } from "@/components/Layout";
 import { EmployeeCard } from "@/components/EmployeeCard";
-import { employees } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Employee {
+  id: string;
+  position: string;
+  department: string;
+  join_date: string;
+  phone: string | null;
+  location: string | null;
+  manager_id: string | null;
+  profiles: {
+    full_name: string;
+    email: string;
+    avatar_url: string | null;
+  };
+}
 
 const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const loadEmployees = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("employees")
+      .select(`
+        id,
+        position,
+        department,
+        join_date,
+        phone,
+        location,
+        manager_id,
+        profiles!inner(
+          full_name,
+          email,
+          avatar_url
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (data) setEmployees(data as Employee[]);
+    setLoading(false);
+  };
 
   const filteredEmployees = employees.filter((employee) =>
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -34,16 +80,37 @@ const Team = () => {
           />
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredEmployees.map((employee) => (
-            <EmployeeCard key={employee.id} employee={employee} />
-          ))}
-        </div>
+        {loading ? (
+          <Card className="p-12 text-center">
+            <p className="text-muted-foreground">Loading team members...</p>
+          </Card>
+        ) : (
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredEmployees.map((employee) => (
+                <EmployeeCard
+                  key={employee.id}
+                  employee={{
+                    id: employee.id,
+                    name: employee.profiles.full_name,
+                    email: employee.profiles.email,
+                    position: employee.position,
+                    department: employee.department,
+                    joinDate: employee.join_date,
+                    phone: employee.phone || undefined,
+                    location: employee.location || undefined,
+                    avatar: employee.profiles.avatar_url || undefined,
+                  }}
+                />
+              ))}
+            </div>
 
-        {filteredEmployees.length === 0 && (
-          <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
-            <p className="text-muted-foreground">No employees found matching your search.</p>
-          </div>
+            {filteredEmployees.length === 0 && (
+              <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                <p className="text-muted-foreground">No employees found matching your search.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

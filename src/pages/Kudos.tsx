@@ -1,10 +1,63 @@
 import { Layout } from "@/components/Layout";
 import { KudosCard } from "@/components/KudosCard";
-import { kudosData } from "@/data/mockData";
-import { Button } from "@/components/ui/button";
-import { Heart, Plus } from "lucide-react";
+import { Heart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
+import { Card } from "@/components/ui/card";
+
+interface KudosItem {
+  id: string;
+  comment: string;
+  created_at: string;
+  employee: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+  given_by: {
+    profiles: {
+      full_name: string;
+    };
+  };
+}
 
 const Kudos = () => {
+  const [kudos, setKudos] = useState<KudosItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadKudos();
+  }, []);
+
+  const loadKudos = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("kudos")
+      .select(`
+        id,
+        comment,
+        created_at,
+        employee:employees!kudos_employee_id_fkey(
+          id,
+          profiles!inner(
+            full_name,
+            avatar_url
+          )
+        ),
+        given_by:employees!kudos_given_by_id_fkey(
+          profiles!inner(
+            full_name
+          )
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (data) setKudos(data as KudosItem[]);
+    setLoading(false);
+  };
   return (
     <Layout>
       <div className="space-y-8">
@@ -15,16 +68,28 @@ const Kudos = () => {
               Celebrate and recognize your amazing teammates
             </p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Give Kudos
-          </Button>
+          <GiveKudosDialog onSuccess={loadKudos} />
         </div>
 
-        {kudosData.length > 0 ? (
+        {loading ? (
+          <Card className="p-12 text-center">
+            <p className="text-muted-foreground">Loading kudos...</p>
+          </Card>
+        ) : kudos.length > 0 ? (
           <div className="space-y-4">
-            {kudosData.map((kudos) => (
-              <KudosCard key={kudos.id} kudos={kudos} />
+            {kudos.map((kudosItem) => (
+              <KudosCard
+                key={kudosItem.id}
+                kudos={{
+                  id: kudosItem.id,
+                  employeeId: kudosItem.employee.id,
+                  employeeName: kudosItem.employee.profiles.full_name,
+                  givenBy: kudosItem.given_by.profiles.full_name,
+                  comment: kudosItem.comment,
+                  date: kudosItem.created_at,
+                  avatar: kudosItem.employee.profiles.avatar_url || undefined,
+                }}
+              />
             ))}
           </div>
         ) : (

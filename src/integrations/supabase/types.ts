@@ -14,7 +14,196 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: {
+          achieved_at: string
+          created_at: string
+          description: string
+          employee_id: string
+          id: string
+          title: string
+        }
+        Insert: {
+          achieved_at: string
+          created_at?: string
+          description: string
+          employee_id: string
+          id?: string
+          title: string
+        }
+        Update: {
+          achieved_at?: string
+          created_at?: string
+          description?: string
+          employee_id?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "achievements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          department: string
+          id: string
+          join_date: string
+          location: string | null
+          manager_id: string | null
+          phone: string | null
+          position: string
+          superpowers: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          id?: string
+          join_date: string
+          location?: string | null
+          manager_id?: string | null
+          phone?: string | null
+          position: string
+          superpowers?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          id?: string
+          join_date?: string
+          location?: string | null
+          manager_id?: string | null
+          phone?: string | null
+          position?: string
+          superpowers?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kudos: {
+        Row: {
+          comment: string
+          created_at: string
+          employee_id: string
+          given_by_id: string
+          id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          employee_id: string
+          given_by_id: string
+          id?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          employee_id?: string
+          given_by_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kudos_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_given_by_id_fkey"
+            columns: ["given_by_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      updates: {
+        Row: {
+          content: string
+          created_at: string
+          employee_id: string
+          id: string
+          type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "updates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -8,7 +8,9 @@ import Team from "./pages/Team";
 import TeamMemberProfile from "./pages/TeamMemberProfile";
 import Kudos from "./pages/Kudos";
 import Growth from "./pages/Growth";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -19,11 +21,12 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/team" element={<Team />} />
-          <Route path="/team/:id" element={<TeamMemberProfile />} />
-          <Route path="/kudos" element={<Kudos />} />
-          <Route path="/growth" element={<Growth />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
+          <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
+          <Route path="/kudos" element={<ProtectedRoute><Kudos /></ProtectedRoute>} />
+          <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
