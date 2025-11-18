@@ -148,6 +148,59 @@ export type Database = {
           },
         ]
       }
+      learning_development: {
+        Row: {
+          completion_date: string | null
+          cost: number | null
+          created_at: string
+          description: string | null
+          employee_id: string
+          expiry_date: string | null
+          id: string
+          provider: string | null
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          completion_date?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          expiry_date?: string | null
+          id?: string
+          provider?: string | null
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          completion_date?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          expiry_date?: string | null
+          id?: string
+          provider?: string | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_development_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       position_history: {
         Row: {
           change_type: string
