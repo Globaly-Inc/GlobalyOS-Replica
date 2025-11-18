@@ -7,6 +7,8 @@ import { KudosCard } from "@/components/KudosCard";
 import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
 import { PositionTimeline } from "@/components/PositionTimeline";
 import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
+import { LearningDevelopment } from "@/components/LearningDevelopment";
+import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -254,6 +256,16 @@ const TeamMemberProfile = () => {
                 />
               </div>
             )}
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-foreground">
+                  Learning & Development
+                </h2>
+                <AddLearningDialog employeeId={id!} />
+              </div>
+              <LearningDevelopment employeeId={id!} />
+            </div>
 
             <div>
               <h2 className="mb-4 text-2xl font-bold text-foreground">
