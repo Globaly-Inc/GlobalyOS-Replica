@@ -49,6 +49,53 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          work_hours: number | null
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          work_hours?: number | null
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          work_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           created_at: string
@@ -444,7 +491,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      attendance_summary: {
+        Row: {
+          absent_days: number | null
+          avg_work_hours: number | null
+          employee_id: string | null
+          half_days: number | null
+          late_days: number | null
+          month: string | null
+          present_days: number | null
+          total_days: number | null
+          total_work_hours: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_view_employee_sensitive_data: {

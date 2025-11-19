@@ -11,6 +11,7 @@ import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
+import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -277,6 +278,13 @@ const TeamMemberProfile = () => {
                 <AddLeaveRequestDialog employeeId={id!} />
               </div>
               <LeaveManagement employeeId={id!} />
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">
+                Attendance Tracking
+              </h2>
+              <AttendanceTracker employeeId={id!} showCheckIn={true} />
             </div>
 
             <div>
