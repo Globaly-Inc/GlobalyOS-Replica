@@ -1,5 +1,5 @@
 import { NavLink } from "./NavLink";
-import { Users, Home, Award, TrendingUp, Menu, LogOut } from "lucide-react";
+import { Users, Home, Award, TrendingUp, Menu, LogOut, Building2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 const navigation = [
   { name: "Home", href: "/", icon: Home },
   { name: "Team", href: "/team", icon: Users },
+  { name: "Org Chart", href: "/org-chart", icon: Building2 },
   { name: "Kudos", href: "/kudos", icon: Award },
   { name: "Growth", href: "/growth", icon: TrendingUp },
 ];
