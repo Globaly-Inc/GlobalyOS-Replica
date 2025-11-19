@@ -515,6 +515,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_exists: { Args: never; Returns: boolean }
       can_view_employee_sensitive_data: {
         Args: { _employee_id: string }
         Returns: boolean
