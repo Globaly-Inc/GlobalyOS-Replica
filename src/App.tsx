@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Team from "./pages/Team";
 import TeamMemberProfile from "./pages/TeamMemberProfile";
+import OrgChart from "./pages/OrgChart";
 import Kudos from "./pages/Kudos";
 import Growth from "./pages/Growth";
 import Auth from "./pages/Auth";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
           <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
+          <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
           <Route path="/kudos" element={<ProtectedRoute><Kudos /></ProtectedRoute>} />
           <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
