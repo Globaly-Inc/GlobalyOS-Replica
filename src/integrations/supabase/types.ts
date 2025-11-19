@@ -201,6 +201,107 @@ export type Database = {
           },
         ]
       }
+      leave_balances: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          pto_days: number
+          sick_days: number
+          updated_at: string
+          vacation_days: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          pto_days?: number
+          sick_days?: number
+          updated_at?: string
+          vacation_days?: number
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          pto_days?: number
+          sick_days?: number
+          updated_at?: string
+          vacation_days?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_requests: {
+        Row: {
+          created_at: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_count?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       position_history: {
         Row: {
           change_type: string

@@ -9,6 +9,8 @@ import { PositionTimeline } from "@/components/PositionTimeline";
 import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
+import { LeaveManagement } from "@/components/LeaveManagement";
+import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -265,6 +267,16 @@ const TeamMemberProfile = () => {
                 <AddLearningDialog employeeId={id!} />
               </div>
               <LearningDevelopment employeeId={id!} />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-foreground">
+                  Leave Management
+                </h2>
+                <AddLeaveRequestDialog employeeId={id!} />
+              </div>
+              <LeaveManagement employeeId={id!} />
             </div>
 
             <div>
