@@ -72,6 +72,27 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   useEffect(() => {
     if (currentOrg) {
       loadPendingRequests();
+
+      // Set up realtime subscription for leave_requests
+      const channel = supabase
+        .channel('pending-leave-requests')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'leave_requests',
+            filter: `organization_id=eq.${currentOrg.id}`,
+          },
+          () => {
+            loadPendingRequests();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [currentOrg?.id]);
 
