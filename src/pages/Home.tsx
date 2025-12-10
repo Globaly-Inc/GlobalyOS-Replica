@@ -382,19 +382,30 @@ const Home = () => {
         <AdminSetup />
         
         {/* Page Title */}
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {(() => {
-              const hour = new Date().getHours();
-              if (hour < 12) return "Good morning";
-              if (hour < 17) return "Good afternoon";
-              return "Good evening";
-            })()}{currentUserName ? `, ${currentUserName}` : ""}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
-          </p>
-        </div>
+        {(() => {
+          const hour = new Date().getHours();
+          let greeting = "Good evening";
+          let gradientClass = "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500"; // Evening
+          
+          if (hour < 12) {
+            greeting = "Good morning";
+            gradientClass = "bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300"; // Morning
+          } else if (hour < 17) {
+            greeting = "Good afternoon";
+            gradientClass = "bg-gradient-to-r from-sky-400 via-blue-500 to-cyan-400"; // Afternoon
+          }
+          
+          return (
+            <div className={`${gradientClass} rounded-xl p-6 shadow-md`}>
+              <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
+                {greeting}{currentUserName ? `, ${currentUserName}` : ""}
+              </h1>
+              <p className="text-sm text-white/80 mt-1">
+                {format(new Date(), "EEEE, MMMM d, yyyy")}
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Action Buttons */}
         {!hasEmployeeProfile && isHR && (
