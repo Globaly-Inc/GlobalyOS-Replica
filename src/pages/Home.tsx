@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -385,24 +385,45 @@ const Home = () => {
         {(() => {
           const hour = new Date().getHours();
           let greeting = "Good evening";
-          let gradientClass = "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500"; // Evening
+          let gradientClass = "from-indigo-600 via-purple-600 to-pink-500"; // Evening
+          let TimeIcon = Moon;
           
           if (hour < 12) {
             greeting = "Good morning";
-            gradientClass = "bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300"; // Morning
+            gradientClass = "from-amber-400 via-orange-400 to-yellow-300"; // Morning
+            TimeIcon = Sunrise;
           } else if (hour < 17) {
             greeting = "Good afternoon";
-            gradientClass = "bg-gradient-to-r from-sky-400 via-blue-500 to-cyan-400"; // Afternoon
+            gradientClass = "from-sky-400 via-blue-500 to-cyan-400"; // Afternoon
+            TimeIcon = Sun;
           }
           
           return (
-            <div className={`${gradientClass} rounded-xl p-6 shadow-md`}>
-              <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
-                {greeting}{currentUserName ? `, ${currentUserName}` : ""}
-              </h1>
-              <p className="text-sm text-white/80 mt-1">
-                {format(new Date(), "EEEE, MMMM d, yyyy")}
-              </p>
+            <div 
+              className={`relative overflow-hidden rounded-xl p-6 shadow-md bg-gradient-to-r ${gradientClass} animate-fade-in`}
+              style={{
+                backgroundSize: '200% 200%',
+                animation: 'gradient-shift 8s ease infinite, fade-in 0.3s ease-out',
+              }}
+            >
+              <style>{`
+                @keyframes gradient-shift {
+                  0% { background-position: 0% 50%; }
+                  50% { background-position: 100% 50%; }
+                  100% { background-position: 0% 50%; }
+                }
+              `}</style>
+              <div className="flex items-center gap-3">
+                <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
+                <div>
+                  <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
+                    {greeting}{currentUserName ? `, ${currentUserName}` : ""}
+                  </h1>
+                  <p className="text-sm text-white/80 mt-1">
+                    {format(new Date(), "EEEE, MMMM d, yyyy")}
+                  </p>
+                </div>
+              </div>
             </div>
           );
         })()}
