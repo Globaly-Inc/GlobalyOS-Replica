@@ -2,11 +2,12 @@ import { Layout } from "@/components/Layout";
 import { EmployeeCard } from "@/components/EmployeeCard";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
-import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 
 interface Employee {
   id: string;
@@ -28,6 +29,7 @@ const Team = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useUserRole();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadEmployees();
@@ -74,7 +76,10 @@ const Team = () => {
             </p>
           </div>
           {isAdmin && (
-            <InviteTeamMemberDialog onSuccess={loadEmployees} />
+            <Button onClick={() => navigate('/team/invite')} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Invite Team Member
+            </Button>
           )}
         </div>
 
