@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Clock, Check, X } from "lucide-react";
+import { Clock, Check, X, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -37,12 +37,22 @@ interface PendingLeaveRequest {
   };
 }
 
+interface OwnPendingRequest {
+  id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  reason: string | null;
+}
+
 interface PendingLeaveApprovalsProps {
   onApprovalChange?: () => void;
 }
 
 export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApprovalsProps) => {
   const [pendingRequests, setPendingRequests] = useState<PendingLeaveRequest[]>([]);
+  const [ownPendingRequests, setOwnPendingRequests] = useState<OwnPendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [isManagerOnLeave, setIsManagerOnLeave] = useState(false);
@@ -52,6 +62,10 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     request: PendingLeaveRequest | null;
     action: "approve" | "reject";
   }>({ open: false, request: null, action: "approve" });
+  const [cancelDialog, setCancelDialog] = useState<{
+    open: boolean;
+    request: OwnPendingRequest | null;
+  }>({ open: false, request: null });
   const { currentOrg } = useOrganization();
   const { isHR } = useUserRole();
 
@@ -84,6 +98,16 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       return;
     }
 
+    // Load user's own pending requests
+    const { data: ownRequests } = await supabase
+      .from("leave_requests")
+      .select("id, leave_type, start_date, end_date, days_count, reason")
+      .eq("employee_id", currentEmployee.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
+
+    setOwnPendingRequests(ownRequests || []);
+
     const today = format(new Date(), "yyyy-MM-dd");
 
     // Check if current user (as manager) is on leave today
@@ -98,7 +122,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
     setIsManagerOnLeave(!!managerLeave);
 
-    // If manager is on leave and user is not HR, don't show anything
+    // If manager is on leave and user is not HR, don't show approval requests
     if (managerLeave && !isHR) {
       setPendingRequests([]);
       setLoading(false);
@@ -319,6 +343,26 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     setConfirmDialog({ open: false, request: null, action: "approve" });
   };
 
+  const handleCancelRequest = async (requestId: string) => {
+    setProcessing(requestId);
+
+    const { error } = await supabase
+      .from("leave_requests")
+      .delete()
+      .eq("id", requestId);
+
+    if (error) {
+      toast.error("Failed to cancel leave request");
+    } else {
+      toast.success("Leave request cancelled");
+      loadPendingRequests();
+      onApprovalChange?.();
+    }
+
+    setProcessing(null);
+    setCancelDialog({ open: false, request: null });
+  };
+
   const openConfirmDialog = (request: PendingLeaveRequest, action: "approve" | "reject") => {
     setConfirmDialog({ open: true, request, action });
   };
@@ -343,86 +387,145 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     return null;
   }
 
-  if (pendingRequests.length === 0) {
+  if (pendingRequests.length === 0 && ownPendingRequests.length === 0) {
     return null;
   }
 
   return (
-    <Card className="p-6 border-amber-200 bg-amber-50/50">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-        <Clock className="h-5 w-5 text-amber-600" />
-        Pending Leave Requests
-        {showAsHR && (
-          <Badge variant="secondary" className="ml-2 text-xs">
-            Manager Unavailable
-          </Badge>
-        )}
-      </h3>
-      <div className="space-y-4">
-        {pendingRequests.map((request) => (
-          <div
-            key={request.id}
-            className="rounded-lg bg-background p-4 shadow-sm border"
-          >
-            <div className="flex items-start gap-3">
-              <Link to={`/team/${request.employee.id}`}>
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              <div className="flex-1 min-w-0">
-                <Link 
-                  to={`/team/${request.employee.id}`}
-                  className="text-sm font-medium text-foreground hover:underline"
-                >
-                  {request.employee.profiles.full_name}
-                </Link>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline" className="text-xs">
-                    {getLeaveTypeLabel(request.leave_type)}
+    <>
+      {/* User's Own Pending Requests */}
+      {ownPendingRequests.length > 0 && (
+        <Card className="p-6 border-blue-200 bg-blue-50/50">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Send className="h-5 w-5 text-blue-600" />
+            Your Pending Requests
+          </h3>
+          <div className="space-y-4">
+            {ownPendingRequests.map((request) => (
+              <div
+                key={request.id}
+                className="rounded-lg bg-background p-4 shadow-sm border"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge variant="outline">
+                        {getLeaveTypeLabel(request.leave_type)}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
+                      </span>
+                      <span className="text-muted-foreground">
+                        ({request.days_count} {request.days_count === 1 ? "day" : "days"})
+                      </span>
+                    </div>
+                    {request.reason && (
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {request.reason}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">
+                    Pending
                   </Badge>
-                  <span>
-                    {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
-                  </span>
-                  <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
                 </div>
-                {request.reason && (
-                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                    {request.reason}
-                  </p>
-                )}
+                <div className="mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setCancelDialog({ open: true, request })}
+                    disabled={processing === request.id}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    Cancel Request
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                className="flex-1"
-                onClick={() => openConfirmDialog(request, "approve")}
-                disabled={processing === request.id}
-              >
-                <Check className="mr-1 h-3 w-3" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1"
-                onClick={() => openConfirmDialog(request, "reject")}
-                disabled={processing === request.id}
-              >
-                <X className="mr-1 h-3 w-3" />
-                Reject
-              </Button>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </Card>
+      )}
 
-      {/* Confirmation Dialog */}
+      {/* Pending Requests for Approval (Manager/HR) */}
+      {pendingRequests.length > 0 && (
+        <Card className="p-6 border-amber-200 bg-amber-50/50">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Clock className="h-5 w-5 text-amber-600" />
+            Pending Leave Requests
+            {showAsHR && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                Manager Unavailable
+              </Badge>
+            )}
+          </h3>
+          <div className="space-y-4">
+            {pendingRequests.map((request) => (
+              <div
+                key={request.id}
+                className="rounded-lg bg-background p-4 shadow-sm border"
+              >
+                <div className="flex items-start gap-3">
+                  <Link to={`/team/${request.employee.id}`}>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link 
+                      to={`/team/${request.employee.id}`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      {request.employee.profiles.full_name}
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs">
+                        {getLeaveTypeLabel(request.leave_type)}
+                      </Badge>
+                      <span>
+                        {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
+                      </span>
+                      <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
+                    </div>
+                    {request.reason && (
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {request.reason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="flex-1"
+                    onClick={() => openConfirmDialog(request, "approve")}
+                    disabled={processing === request.id}
+                  >
+                    <Check className="mr-1 h-3 w-3" />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => openConfirmDialog(request, "reject")}
+                    disabled={processing === request.id}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Approval Confirmation Dialog */}
       <AlertDialog 
         open={confirmDialog.open} 
         onOpenChange={(open) => !open && setConfirmDialog({ open: false, request: null, action: "approve" })}
@@ -457,6 +560,39 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+
+      {/* Cancel Request Confirmation Dialog */}
+      <AlertDialog 
+        open={cancelDialog.open} 
+        onOpenChange={(open) => !open && setCancelDialog({ open: false, request: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Leave Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelDialog.request && (
+                <>
+                  Are you sure you want to cancel your{" "}
+                  {getLeaveTypeLabel(cancelDialog.request.leave_type).toLowerCase()} request for{" "}
+                  {cancelDialog.request.days_count} {cancelDialog.request.days_count === 1 ? "day" : "days"} (
+                  {format(parseISO(cancelDialog.request.start_date), "MMM d")} -{" "}
+                  {format(parseISO(cancelDialog.request.end_date), "MMM d")})?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!processing}>Keep Request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cancelDialog.request && handleCancelRequest(cancelDialog.request.id)}
+              disabled={!!processing}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {processing ? "Cancelling..." : "Cancel Request"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
