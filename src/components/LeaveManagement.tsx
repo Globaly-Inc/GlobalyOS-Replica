@@ -8,6 +8,8 @@ import { Calendar, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
+import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
+import { LeaveBalanceLogsDialog } from "@/components/dialogs/LeaveBalanceLogsDialog";
 
 interface LeaveManagementProps {
   employeeId: string;
@@ -15,10 +17,11 @@ interface LeaveManagementProps {
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const queryClient = useQueryClient();
-  const { isHR } = useUserRole();
+  const { isHR, isAdmin } = useUserRole();
   const currentYear = new Date().getFullYear();
+  const canManageLeave = isHR || isAdmin;
 
-  const { data: balance } = useQuery({
+  const { data: balance, refetch: refetchBalance } = useQuery({
     queryKey: ["leave-balance", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,9 +29,9 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         .select("*")
         .eq("employee_id", employeeId)
         .eq("year", currentYear)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data;
     },
   });
@@ -60,7 +63,7 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         .from("employees")
         .select("id")
         .eq("user_id", currentUser.user?.id)
-        .single();
+        .maybeSingle();
 
       const { error } = await supabase
         .from("leave_requests")
@@ -106,15 +109,36 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     }
   };
 
+  const handleLeaveBalanceUpdate = () => {
+    refetchBalance();
+    queryClient.invalidateQueries({ queryKey: ["leave-balance", employeeId] });
+  };
+
   return (
     <div className="space-y-6">
       {/* Leave Balances */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Leave Balances ({currentYear})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Leave Balances ({currentYear})
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <LeaveBalanceLogsDialog employeeId={employeeId} />
+              {canManageLeave && (
+                <AddLeaveBalanceDialog
+                  employeeId={employeeId}
+                  currentBalance={balance ? {
+                    vacation_days: balance.vacation_days,
+                    sick_days: balance.sick_days,
+                    pto_days: balance.pto_days,
+                  } : null}
+                  onSuccess={handleLeaveBalanceUpdate}
+                />
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
