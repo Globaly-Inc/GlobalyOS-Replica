@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, CreditCard, Save, Upload, Loader2 } from "lucide-react";
+import { Building2, Users, CreditCard, Save, Upload, Loader2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PageHeader } from "@/components/PageHeader";
+import { LeaveSettings } from "@/components/LeaveSettings";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -161,6 +162,10 @@ const Settings = () => {
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
+          <TabsTrigger value="leave" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Leave
+          </TabsTrigger>
           <TabsTrigger value="billing" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Billing
@@ -265,6 +270,10 @@ const Settings = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="leave" className="space-y-6">
+          <LeaveSettings />
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-6">
