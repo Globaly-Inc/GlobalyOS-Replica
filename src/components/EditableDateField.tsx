@@ -19,6 +19,7 @@ interface EditableDateFieldProps {
   canEdit?: boolean;
   className?: string;
   showAge?: boolean;
+  allowFutureDates?: boolean;
 }
 
 export const EditableDateField = ({
@@ -30,6 +31,7 @@ export const EditableDateField = ({
   canEdit = true,
   className,
   showAge = false,
+  allowFutureDates = false,
 }: EditableDateFieldProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(
@@ -114,7 +116,7 @@ export const EditableDateField = ({
                   selected={editDate}
                   onSelect={setEditDate}
                   disabled={(date) =>
-                    date > new Date() || date < new Date("1900-01-01")
+                    (!allowFutureDates && date > new Date()) || date < new Date("1900-01-01")
                   }
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}

@@ -364,19 +364,7 @@ const TeamMemberProfile = () => {
                   </div>
                 </div>
                 <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Date of Birth" value={employee.date_of_birth} onSave={value => updateEmployeeField("date_of_birth", value)} canEdit={canViewSensitiveData} showAge />
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Join Date</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {new Date(employee.join_date).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric"
-                    })}
-                    </p>
-                  </div>
-                </div>
+                <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Join Date" value={employee.join_date} onSave={value => updateEmployeeField("join_date", value)} canEdit={canViewSensitiveData} allowFutureDates />
                 <div className="flex items-start gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
