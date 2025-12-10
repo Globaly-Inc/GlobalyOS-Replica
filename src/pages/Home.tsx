@@ -14,6 +14,7 @@ import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialo
 import { AdminSetup } from "@/components/AdminSetup";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
+import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { Link } from "react-router-dom";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
 
@@ -626,6 +627,9 @@ const Home = () => {
 
           {/* Right Column - Leave Sidebar (1/3) */}
           <div className="space-y-6">
+            {/* Pending Leave Approvals for Managers/HR */}
+            <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+
             {/* People on Leave Today */}
             <Card className="p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
