@@ -8,6 +8,8 @@ export interface Employee {
   joinDate: string;
   avatar?: string;
   phone?: string;
+  city?: string;
+  country?: string;
   superpowers?: string[];
   status?: 'invited' | 'active' | 'inactive';
 }

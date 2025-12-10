@@ -20,7 +20,8 @@ interface Employee {
   department: string;
   join_date: string;
   phone: string | null;
-  location: string | null;
+  city: string | null;
+  country: string | null;
   manager_id: string | null;
   status: 'invited' | 'active' | 'inactive';
   profiles: {
@@ -61,6 +62,8 @@ const Team = () => {
         department,
         join_date,
         phone,
+        city,
+        country,
         manager_id,
         status,
         profiles!inner(
@@ -178,6 +181,8 @@ const Team = () => {
                     department: employee.department,
                     joinDate: employee.join_date,
                     phone: employee.phone || undefined,
+                    city: employee.city || undefined,
+                    country: employee.country || undefined,
                     avatar: employee.profiles.avatar_url || undefined,
                     status: employee.status,
                   }}
