@@ -147,7 +147,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-start">
                     <span className="text-sm font-medium text-foreground">
                       {userProfile?.fullName || "Loading..."}
                     </span>
