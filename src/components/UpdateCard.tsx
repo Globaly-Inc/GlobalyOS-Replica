@@ -2,7 +2,7 @@ import { Update } from "@/types/employee";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Trophy, MessageSquare, TrendingUp } from "lucide-react";
+import { Trophy, Megaphone } from "lucide-react";
 
 interface UpdateCardProps {
   update: Update;
@@ -19,9 +19,9 @@ const typeConfig = {
     badge: "Achievement",
     className: "bg-success/10 text-success border-success/20",
   },
-  update: {
-    icon: MessageSquare,
-    badge: "Update",
+  announcement: {
+    icon: Megaphone,
+    badge: "Announcement",
     className: "bg-primary-light text-primary border-primary/20",
   },
 };

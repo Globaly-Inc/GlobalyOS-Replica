@@ -31,7 +31,7 @@ export interface Update {
   content: string;
   date: string;
   avatar?: string;
-  type: "win" | "update" | "achievement";
+  type: "win" | "announcement" | "achievement";
 }
 
 export interface Achievement {
