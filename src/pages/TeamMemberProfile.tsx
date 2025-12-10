@@ -1,6 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { useParams, Link } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
@@ -191,6 +191,7 @@ const TeamMemberProfile = () => {
         <Card className="p-6">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <Avatar className="h-24 w-24 border-4 border-primary/10">
+              <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
                 {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
               </AvatarFallback>
