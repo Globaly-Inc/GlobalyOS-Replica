@@ -3,11 +3,14 @@ import { EmployeeCard } from "@/components/EmployeeCard";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+
+type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
 interface Employee {
   id: string;
@@ -27,6 +30,7 @@ interface Employee {
 
 const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useUserRole();
@@ -61,11 +65,24 @@ const Team = () => {
     setLoading(false);
   };
 
-  const filteredEmployees = employees.filter((employee) =>
-    employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getStatusCounts = () => {
+    return {
+      all: employees.length,
+      active: employees.filter(e => e.status === 'active').length,
+      invited: employees.filter(e => e.status === 'invited').length,
+      inactive: employees.filter(e => e.status === 'inactive').length,
+    };
+  };
+
+  const statusCounts = getStatusCounts();
+
+  const filteredEmployees = employees
+    .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)
+    .filter((employee) =>
+      employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      employee.department.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   return (
     <Layout>
@@ -85,14 +102,33 @@ const Team = () => {
           )}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, position, or department..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
+            <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
+              <TabsTrigger value="all" className="gap-1.5">
+                All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
+              </TabsTrigger>
+              <TabsTrigger value="active" className="gap-1.5">
+                Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
+              </TabsTrigger>
+              <TabsTrigger value="invited" className="gap-1.5">
+                Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
+              </TabsTrigger>
+              <TabsTrigger value="inactive" className="gap-1.5">
+                Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, position, or department..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         {loading ? (
