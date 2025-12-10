@@ -61,7 +61,6 @@ const Team = () => {
         department,
         join_date,
         phone,
-        location,
         manager_id,
         status,
         profiles!inner(
@@ -179,7 +178,6 @@ const Team = () => {
                     department: employee.department,
                     joinDate: employee.join_date,
                     phone: employee.phone || undefined,
-                    location: employee.location || undefined,
                     avatar: employee.profiles.avatar_url || undefined,
                     status: employee.status,
                   }}

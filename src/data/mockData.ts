@@ -10,7 +10,6 @@ export const employees: Employee[] = [
     manager: "Amit Ranjitkar",
     joinDate: "2025-04-15",
     phone: "9745944427",
-    location: "Satungal, Chandragiri",
     superpowers: ["Project Coordination", "Team Communication", "Client Management"],
   },
   {
@@ -20,7 +19,6 @@ export const employees: Employee[] = [
     position: "Senior Project Manager",
     department: "Project Management",
     joinDate: "2020-01-15",
-    location: "Kathmandu",
     superpowers: ["Leadership", "Strategic Planning", "Stakeholder Management"],
   },
   {
@@ -31,7 +29,6 @@ export const employees: Employee[] = [
     department: "Engineering",
     manager: "Amit Ranjitkar",
     joinDate: "2023-06-20",
-    location: "Lalitpur",
     superpowers: ["Full Stack Development", "Problem Solving", "Code Review"],
   },
   {
@@ -42,7 +39,6 @@ export const employees: Employee[] = [
     department: "Design",
     manager: "Amit Ranjitkar",
     joinDate: "2022-03-10",
-    location: "Bhaktapur",
     superpowers: ["User Research", "Visual Design", "Prototyping"],
   },
 ];
