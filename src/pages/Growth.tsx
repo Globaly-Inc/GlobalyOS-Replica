@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, BookOpen, Target, Award } from "lucide-react";
@@ -6,13 +7,11 @@ import { TrendingUp, BookOpen, Target, Award } from "lucide-react";
 const Growth = () => {
   return (
     <Layout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="mb-2 text-4xl font-bold text-foreground">Growth & Development</h1>
-          <p className="text-muted-foreground">
-            Track your professional journey and achievements
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader 
+          title="Growth & Development" 
+          subtitle="Track your professional journey and achievements"
+        />
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="p-6">

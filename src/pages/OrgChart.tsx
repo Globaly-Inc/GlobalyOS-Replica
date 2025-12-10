@@ -1,11 +1,12 @@
 import { Layout } from "@/components/Layout";
+import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Building2, Users } from "lucide-react";
+import { Users } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -153,18 +154,11 @@ const OrgChart = () => {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Organization Chart</h1>
-            <p className="text-muted-foreground mt-1">
-              Company hierarchy and reporting structure
-            </p>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <PageHeader 
+          title="Organization Chart" 
+          subtitle="Company hierarchy and reporting structure"
+        />
 
         {loading ? (
           <Card className="p-12 text-center">
