@@ -156,7 +156,13 @@ const TeamMemberProfile = () => {
           `)
           .eq("id", data.manager_id)
           .single();
-        if (managerData) setManager(managerData);
+        if (managerData) {
+          setManager(managerData);
+        } else {
+          setManager(null);
+        }
+      } else {
+        setManager(null);
       }
       // Load office employee count
       if (data.office_id) {
