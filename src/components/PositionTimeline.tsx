@@ -58,16 +58,7 @@ export const PositionTimeline = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Position Timeline & Salary Progression
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          This information is only visible to managers and HR officers
-        </p>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         {/* Current Position */}
         <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
           <div className="flex items-center gap-2 mb-2">
