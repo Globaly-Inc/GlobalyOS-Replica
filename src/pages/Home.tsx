@@ -4,7 +4,7 @@ import { KudosCard } from "@/components/KudosCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Heart, MessageSquare, Plus, RefreshCw } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -44,13 +44,19 @@ interface KudosItem {
   };
 }
 
+// Map database type to UI type (database uses "update", UI uses "announcement")
+const mapDbTypeToUiType = (dbType: string): "win" | "announcement" | "achievement" => {
+  if (dbType === "update") return "announcement";
+  return dbType as "win" | "announcement" | "achievement";
+};
+
 const Home = () => {
   const [updates, setUpdates] = useState<FeedItem[]>([]);
   const [kudos, setKudos] = useState<KudosItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
-  const { isHR } = useUserRole();
+  const { isHR, isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
@@ -198,9 +204,9 @@ const Home = () => {
                   <Heart className="h-4 w-4" />
                   Kudos
                 </TabsTrigger>
-                <TabsTrigger value="updates" className="gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Updates
+                <TabsTrigger value="announcements" className="gap-2">
+                  <Megaphone className="h-4 w-4" />
+                  Announcements
                 </TabsTrigger>
               </TabsList>
               {hasEmployeeProfile && (
@@ -250,7 +256,7 @@ const Home = () => {
                               employeeName: updateItem.employee.profiles.full_name,
                               content: updateItem.content,
                               date: updateItem.created_at,
-                              type: updateItem.type as "win" | "update" | "achievement",
+                              type: mapDbTypeToUiType(updateItem.type),
                               avatar: updateItem.employee.profiles.avatar_url || undefined,
                             }}
                           />
@@ -310,7 +316,7 @@ const Home = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="updates" className="space-y-4">
+            <TabsContent value="announcements" className="space-y-4">
               {regularUpdates.map((update) => (
                 <UpdateCard
                   key={update.id}
@@ -320,14 +326,14 @@ const Home = () => {
                     employeeName: update.employee.profiles.full_name,
                     content: update.content,
                     date: update.created_at,
-                    type: "update",
+                    type: "announcement",
                     avatar: update.employee.profiles.avatar_url || undefined,
                   }}
                 />
               ))}
               {regularUpdates.length === 0 && (
                 <Card className="p-12 text-center">
-                  <p className="text-muted-foreground">No updates yet!</p>
+                  <p className="text-muted-foreground">No announcements yet!</p>
                 </Card>
               )}
             </TabsContent>
@@ -339,6 +345,7 @@ const Home = () => {
         open={postDialogOpen}
         onOpenChange={setPostDialogOpen}
         onSuccess={loadFeed}
+        canPostAnnouncement={isAdmin || isHR}
       />
     </Layout>
   );

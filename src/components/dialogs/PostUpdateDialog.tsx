@@ -9,24 +9,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  content: z.string().trim().min(10, "Update must be at least 10 characters").max(1000, "Update must be less than 1000 characters"),
-  type: z.enum(["win", "update", "achievement"], { errorMap: () => ({ message: "Please select a type" }) }),
+  content: z.string().trim().min(10, "Content must be at least 10 characters").max(1000, "Content must be less than 1000 characters"),
+  type: z.enum(["win", "announcement", "achievement"], { errorMap: () => ({ message: "Please select a type" }) }),
 });
 
 interface PostUpdateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  canPostAnnouncement?: boolean;
 }
 
-export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDialogProps) => {
+export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnouncement = false }: PostUpdateDialogProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     content: "",
-    type: "update" as "win" | "update" | "achievement",
+    type: "win" as "win" | "announcement" | "achievement",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +42,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
       if (!user) {
         toast({
           title: "Error",
-          description: "You must be logged in to post updates",
+          description: "You must be logged in to post",
           variant: "destructive",
         });
         return;
@@ -63,10 +64,13 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
         return;
       }
 
+      // Map announcement to update type for database compatibility
+      const dbType = validated.type === "announcement" ? "update" : validated.type;
+
       const { error } = await supabase.from("updates").insert({
         employee_id: employee.id,
         content: validated.content,
-        type: validated.type,
+        type: dbType,
         organization_id: employee.organization_id,
       });
 
@@ -79,11 +83,13 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
       } else {
         toast({
           title: "Posted! 🎉",
-          description: "Your update has been shared with the team",
+          description: validated.type === "announcement" 
+            ? "Your announcement has been shared with the team"
+            : "Your update has been shared with the team",
         });
         setFormData({
           content: "",
-          type: "update",
+          type: "win",
         });
         onOpenChange(false);
         onSuccess?.();
@@ -107,14 +113,14 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Share an Update</DialogTitle>
+          <DialogTitle>Share with Team</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="type">Type *</Label>
             <Select
               value={formData.type}
-              onValueChange={(value: "win" | "update" | "achievement") => 
+              onValueChange={(value: "win" | "announcement" | "achievement") => 
                 setFormData({ ...formData, type: value })
               }
             >
@@ -124,19 +130,27 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
               <SelectContent>
                 <SelectItem value="win">🏆 Win</SelectItem>
                 <SelectItem value="achievement">✨ Achievement</SelectItem>
-                <SelectItem value="update">💬 Update</SelectItem>
+                {canPostAnnouncement && (
+                  <SelectItem value="announcement">📢 Announcement</SelectItem>
+                )}
               </SelectContent>
             </Select>
             {errors.type && <p className="text-sm text-destructive">{errors.type}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content">Your Update *</Label>
+            <Label htmlFor="content">
+              {formData.type === "announcement" ? "Announcement" : "Your Update"} *
+            </Label>
             <Textarea
               id="content"
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Share what you've been working on, a win, or an achievement..."
+              placeholder={
+                formData.type === "announcement"
+                  ? "Share an important announcement with the team..."
+                  : "Share what you've been working on, a win, or an achievement..."
+              }
               rows={5}
               required
             />
@@ -151,7 +165,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Posting..." : "Post Update"}
+              {loading ? "Posting..." : "Post"}
             </Button>
           </div>
         </form>

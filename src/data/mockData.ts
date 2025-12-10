@@ -93,7 +93,7 @@ export const updates: Update[] = [
     employeeName: "Rajesh Kumar",
     content: "Presented our new design system to the team. Looking forward to implementing it across all products.",
     date: "2025-11-09",
-    type: "update",
+    type: "announcement",
   },
   {
     id: "4",
