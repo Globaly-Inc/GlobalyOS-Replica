@@ -13,6 +13,7 @@ export interface Employee {
   superpowers?: string[];
   status?: 'invited' | 'active' | 'inactive';
   officeName?: string;
+  officeEmployeeCount?: number;
 }
 
 export interface Kudos {

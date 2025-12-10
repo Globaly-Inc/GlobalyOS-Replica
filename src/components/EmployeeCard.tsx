@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Mail, Calendar, Send, MapPin, Building2 } from "lucide-react";
+import { Mail, Calendar, Send, MapPin, Building2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -145,6 +145,12 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <Building2 className="h-3 w-3" />
                   <span>{employee.officeName}</span>
+                  {employee.officeEmployeeCount !== undefined && (
+                    <span className="flex items-center gap-1 text-muted-foreground/70">
+                      <Users className="h-3 w-3" />
+                      {employee.officeEmployeeCount}
+                    </span>
+                  )}
                 </div>
               )}
               {(employee.city || employee.country) && (

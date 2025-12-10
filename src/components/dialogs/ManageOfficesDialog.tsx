@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Building2, Plus, Trash2, Loader2, MapPin } from "lucide-react";
+import { Building2, Plus, Trash2, Loader2, MapPin, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ interface Office {
   address: string | null;
   city: string | null;
   country: string | null;
+  employeeCount: number;
 }
 
 interface ManageOfficesDialogProps {
@@ -70,9 +71,31 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setOffices(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch active employee counts per office
+    const { data: employeeCounts } = await supabase
+      .from("employees")
+      .select("office_id")
+      .eq("organization_id", currentOrg.id)
+      .eq("status", "active")
+      .not("office_id", "is", null);
+
+    const countMap: Record<string, number> = {};
+    employeeCounts?.forEach((e) => {
+      if (e.office_id) {
+        countMap[e.office_id] = (countMap[e.office_id] || 0) + 1;
+      }
+    });
+
+    const officesWithCount = (data || []).map((office) => ({
+      ...office,
+      employeeCount: countMap[office.id] || 0,
+    }));
+
+    setOffices(officesWithCount);
     setLoading(false);
   };
 
@@ -225,12 +248,18 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
                         </div>
                         <div>
                           <p className="font-medium text-sm">{office.name}</p>
-                          {(office.city || office.country) && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {[office.city, office.country].filter(Boolean).join(", ")}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {(office.city || office.country) && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {[office.city, office.country].filter(Boolean).join(", ")}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {office.employeeCount} {office.employeeCount === 1 ? 'employee' : 'employees'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <Button
