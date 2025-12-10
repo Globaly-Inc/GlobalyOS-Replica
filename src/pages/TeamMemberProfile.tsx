@@ -456,7 +456,17 @@ const TeamMemberProfile = () => {
                 loadEmployee();
               }} />
                 </div>
-                <PositionTimeline entries={positionHistory} currentPosition={employee.position} currentDepartment={employee.department} currentSalary={employee.salary} />
+                <PositionTimeline 
+                  entries={positionHistory} 
+                  currentPosition={employee.position} 
+                  currentDepartment={employee.department} 
+                  currentSalary={employee.salary}
+                  canEdit={canViewSensitiveData}
+                  onRefresh={() => {
+                    loadPositionHistory();
+                    loadEmployee();
+                  }}
+                />
               </div>}
 
             <div className="space-y-4">
