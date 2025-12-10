@@ -64,6 +64,13 @@ const inviteSchema = z.object({
 
 type FormDataType = z.infer<typeof inviteSchema>;
 
+interface TeamMember {
+  id: string;
+  profiles: {
+    full_name: string;
+  };
+}
+
 const InviteTeamMember = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -74,6 +81,7 @@ const InviteTeamMember = () => {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [departments, setDepartments] = useState<string[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isAddingNewDepartment, setIsAddingNewDepartment] = useState(false);
@@ -82,7 +90,7 @@ const InviteTeamMember = () => {
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormDataType & { personalEmail: string }>({
+  const [formData, setFormData] = useState<FormDataType & { personalEmail: string; managerId: string }>({
     email: "",
     personalEmail: "",
     phone: "",
@@ -104,11 +112,13 @@ const InviteTeamMember = () => {
     emergencyContactPhone: "",
     emergencyContactRelationship: "",
     role: "user",
+    managerId: "",
   });
 
   useEffect(() => {
     loadDepartments();
     loadPositions();
+    loadTeamMembers();
   }, []);
 
   const loadDepartments = async () => {
@@ -131,6 +141,20 @@ const InviteTeamMember = () => {
     
     if (data) {
       setPositions(data.map(p => p.name));
+    }
+  };
+
+  const loadTeamMembers = async () => {
+    const { data } = await supabase
+      .from('employees')
+      .select(`
+        id,
+        profiles!inner(full_name)
+      `)
+      .order('created_at');
+    
+    if (data) {
+      setTeamMembers(data as TeamMember[]);
     }
   };
 
@@ -249,6 +273,7 @@ const InviteTeamMember = () => {
           ...validated,
           fullName: `${validated.firstName} ${validated.lastName}`,
           avatarUrl,
+          managerId: formData.managerId || null,
         },
       });
 
@@ -373,6 +398,9 @@ const InviteTeamMember = () => {
                       <p><span className="text-muted-foreground">Personal Email:</span> {formData.personalEmail}</p>
                     )}
                     <p><span className="text-muted-foreground">Personal Phone:</span> {formData.phone}</p>
+                    {formData.managerId && (
+                      <p><span className="text-muted-foreground">Manager:</span> {teamMembers.find(m => m.id === formData.managerId)?.profiles.full_name}</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -822,6 +850,26 @@ const InviteTeamMember = () => {
                       {errors.position}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="manager">Manager</Label>
+                  <Select
+                    value={formData.managerId}
+                    onValueChange={(value) => handleChange('managerId', value === '__none__' ? '' : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No manager</SelectItem>
+                      {teamMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.profiles.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
