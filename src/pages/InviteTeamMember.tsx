@@ -45,7 +45,7 @@ const inviteSchema = z.object({
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
   street: z.string().trim().min(2, "Street address is required").max(200),
   city: z.string().trim().min(2, "City is required").max(100),
-  postcode: z.string().trim().min(2, "Postcode is required").max(20),
+  postcode: z.string().trim().max(20).optional(),
   state: z.string().trim().min(2, "State is required").max(100),
   country: z.string().trim().min(2, "Country is required").max(100),
   department: z.string().trim().min(2, "Please select a department").max(100),
@@ -596,22 +596,6 @@ const InviteTeamMember = () => {
                   touched={touched.city}
                 />
                 <FormInputField
-                  id="postcode"
-                  label="Postcode"
-                  value={formData.postcode}
-                  onChange={(value) => handleChange('postcode', value)}
-                  onBlur={() => {
-                    handleBlur('postcode');
-                    validateField('postcode', formData.postcode);
-                  }}
-                  required
-                  placeholder="10001"
-                  error={errors.postcode}
-                  touched={touched.postcode}
-                />
-              </div>
-              <div className="grid gap-6 sm:grid-cols-2">
-                <FormInputField
                   id="state"
                   label="State / Province"
                   value={formData.state}
@@ -624,6 +608,18 @@ const InviteTeamMember = () => {
                   placeholder="New York"
                   error={errors.state}
                   touched={touched.state}
+                />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <FormInputField
+                  id="postcode"
+                  label="Postcode"
+                  value={formData.postcode}
+                  onChange={(value) => handleChange('postcode', value)}
+                  onBlur={() => handleBlur('postcode')}
+                  placeholder="10001"
+                  error={errors.postcode}
+                  touched={touched.postcode}
                 />
                 <div className="space-y-2">
                   <Label htmlFor="country" className="flex items-center gap-1">
