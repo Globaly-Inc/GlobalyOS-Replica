@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Heart } from "lucide-react";
 import { z } from "zod";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const kudosSchema = z.object({
   employeeId: z.string().uuid("Please select an employee"),
@@ -26,6 +27,7 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSucces
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const { toast } = useToast();
+  const { currentOrg } = useOrganization();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
@@ -46,12 +48,14 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSucces
   }, [preselectedEmployeeId]);
 
   const loadEmployees = async () => {
+    if (!currentOrg) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data, error } = await supabase
       .from("employees")
       .select("id, profiles!inner(full_name)")
+      .eq("organization_id", currentOrg.id)
       .neq("user_id", user.id);
 
     if (!error && data) {
@@ -80,8 +84,9 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSucces
       // Get the current user's employee record
       const { data: giverEmployee, error: giverError } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, organization_id")
         .eq("user_id", user.id)
+        .eq("organization_id", currentOrg?.id)
         .single();
 
       if (giverError || !giverEmployee) {
@@ -97,6 +102,7 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSucces
         employee_id: validated.employeeId,
         given_by_id: giverEmployee.id,
         comment: validated.comment,
+        organization_id: giverEmployee.organization_id,
       });
 
       if (error) {

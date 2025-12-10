@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "./useOrganization";
 
 export type UserRole = 'admin' | 'hr' | 'user' | null;
 
 export const useUserRole = () => {
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    checkUserRole();
-  }, []);
+    if (currentOrg) {
+      checkUserRole();
+    }
+  }, [currentOrg?.id]);
 
   const checkUserRole = async () => {
+    if (!currentOrg) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -23,9 +32,10 @@ export const useUserRole = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
+        .eq('organization_id', currentOrg.id)
         .order('role', { ascending: true }) // admin < hr < user alphabetically
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error checking role:', error);

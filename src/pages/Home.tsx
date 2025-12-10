@@ -11,6 +11,7 @@ import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AdminSetup } from "@/components/AdminSetup";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface FeedItem {
   id: string;
@@ -50,13 +51,17 @@ const Home = () => {
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const { isHR } = useUserRole();
+  const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    checkEmployeeProfile();
-    loadFeed();
-  }, []);
+    if (currentOrg) {
+      checkEmployeeProfile();
+      loadFeed();
+    }
+  }, [currentOrg?.id]);
 
   const checkEmployeeProfile = async () => {
+    if (!currentOrg) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -64,12 +69,14 @@ const Home = () => {
       .from("employees")
       .select("id")
       .eq("user_id", user.id)
-      .single();
+      .eq("organization_id", currentOrg.id)
+      .maybeSingle();
 
     setHasEmployeeProfile(!!data);
   };
 
   const loadFeed = async () => {
+    if (!currentOrg) return;
     setLoading(true);
     
     // Load updates
@@ -87,6 +94,7 @@ const Home = () => {
           )
         )
       `)
+      .eq("organization_id", currentOrg.id)
       .order("created_at", { ascending: false });
 
     // Load kudos
@@ -109,6 +117,7 @@ const Home = () => {
           )
         )
       `)
+      .eq("organization_id", currentOrg.id)
       .order("created_at", { ascending: false });
 
     if (updatesData) setUpdates(updatesData as FeedItem[]);

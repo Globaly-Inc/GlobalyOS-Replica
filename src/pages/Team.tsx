@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useOrganization } from "@/hooks/useOrganization";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
@@ -43,13 +44,17 @@ const Team = () => {
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useUserRole();
+  const { currentOrg } = useOrganization();
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
+    if (currentOrg) {
+      loadEmployees();
+    }
+  }, [currentOrg?.id]);
 
   const loadEmployees = async () => {
+    if (!currentOrg) return;
     setLoading(true);
     
     // Fetch employees
@@ -72,6 +77,7 @@ const Team = () => {
           avatar_url
         )
       `)
+      .eq("organization_id", currentOrg.id)
       .order("created_at", { ascending: false });
 
     if (employeeData) {
@@ -82,6 +88,7 @@ const Team = () => {
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("user_id, role")
+        .eq("organization_id", currentOrg.id)
         .in("user_id", userIds);
       
       if (rolesData) {
