@@ -353,6 +353,67 @@ export type Database = {
           },
         ]
       }
+      leave_balance_logs: {
+        Row: {
+          change_amount: number
+          created_at: string
+          created_by: string
+          employee_id: string
+          id: string
+          leave_type: string
+          new_balance: number
+          organization_id: string | null
+          previous_balance: number
+          reason: string | null
+        }
+        Insert: {
+          change_amount: number
+          created_at?: string
+          created_by: string
+          employee_id: string
+          id?: string
+          leave_type: string
+          new_balance: number
+          organization_id?: string | null
+          previous_balance?: number
+          reason?: string | null
+        }
+        Update: {
+          change_amount?: number
+          created_at?: string
+          created_by?: string
+          employee_id?: string
+          id?: string
+          leave_type?: string
+          new_balance?: number
+          organization_id?: string | null
+          previous_balance?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balance_logs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           created_at: string
