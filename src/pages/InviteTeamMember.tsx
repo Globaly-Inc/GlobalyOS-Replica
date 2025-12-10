@@ -73,6 +73,11 @@ interface TeamMember {
   };
 }
 
+interface Office {
+  id: string;
+  name: string;
+}
+
 const InviteTeamMember = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -84,6 +89,7 @@ const InviteTeamMember = () => {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [departments, setDepartments] = useState<string[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -93,7 +99,7 @@ const InviteTeamMember = () => {
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormDataType & { personalEmail: string; managerId: string }>({
+  const [formData, setFormData] = useState<FormDataType & { personalEmail: string; managerId: string; officeId: string }>({
     email: "",
     personalEmail: "",
     phone: "",
@@ -116,6 +122,7 @@ const InviteTeamMember = () => {
     emergencyContactRelationship: "",
     role: "user",
     managerId: "",
+    officeId: "",
   });
 
   useEffect(() => {
@@ -123,6 +130,7 @@ const InviteTeamMember = () => {
       loadDepartments();
       loadPositions();
       loadTeamMembers();
+      loadOffices();
     }
   }, [currentOrg?.id]);
 
@@ -166,6 +174,19 @@ const InviteTeamMember = () => {
     
     if (data) {
       setTeamMembers(data as TeamMember[]);
+    }
+  };
+
+  const loadOffices = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('offices')
+      .select('id, name')
+      .eq('organization_id', currentOrg.id)
+      .order('name');
+    
+    if (data) {
+      setOffices(data);
     }
   };
 
@@ -285,6 +306,7 @@ const InviteTeamMember = () => {
           fullName: `${validated.firstName} ${validated.lastName}`,
           avatarUrl,
           managerId: formData.managerId || null,
+          officeId: formData.officeId || null,
           organizationId: currentOrg?.id,
         },
       });
@@ -878,6 +900,26 @@ const InviteTeamMember = () => {
                       {teamMembers.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.profiles.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="office">Office</Label>
+                  <Select
+                    value={formData.officeId}
+                    onValueChange={(value) => handleChange('officeId', value === '__none__' ? '' : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select office (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No office assigned</SelectItem>
+                      {offices.map((office) => (
+                        <SelectItem key={office.id} value={office.id}>
+                          {office.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

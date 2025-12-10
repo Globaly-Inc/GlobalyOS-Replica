@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, Building2 } from "lucide-react";
+import { Search, UserPlus, Building2, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
+import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
@@ -25,11 +26,15 @@ interface Employee {
   country: string | null;
   manager_id: string | null;
   status: 'invited' | 'active' | 'inactive';
+  office_id: string | null;
   profiles: {
     full_name: string;
     email: string;
     avatar_url: string | null;
   };
+  offices: {
+    name: string;
+  } | null;
 }
 
 interface UserRole {
@@ -43,6 +48,7 @@ const Team = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
   const { isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
@@ -57,7 +63,7 @@ const Team = () => {
     if (!currentOrg) return;
     setLoading(true);
     
-    // Fetch employees
+    // Fetch employees with office data
     const { data: employeeData } = await supabase
       .from("employees")
       .select(`
@@ -71,10 +77,14 @@ const Team = () => {
         country,
         manager_id,
         status,
+        office_id,
         profiles!inner(
           full_name,
           email,
           avatar_url
+        ),
+        offices(
+          name
         )
       `)
       .eq("organization_id", currentOrg.id)
@@ -119,7 +129,8 @@ const Team = () => {
     .filter((employee) =>
       employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchQuery.toLowerCase())
+      employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (employee.offices?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
   return (
@@ -134,10 +145,16 @@ const Team = () => {
             Org Chart
           </Button>
           {isAdmin && (
-            <Button onClick={() => navigate('/team/invite')} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Invite Team Member
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="gap-2">
+                <Settings className="h-4 w-4" />
+                Manage Offices
+              </Button>
+              <Button onClick={() => navigate('/team/invite')} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Invite Team Member
+              </Button>
+            </>
           )}
         </PageHeader>
 
@@ -162,7 +179,7 @@ const Team = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name, position, or department..."
+              placeholder="Search by name, position, department, or office..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -192,6 +209,7 @@ const Team = () => {
                     country: employee.country || undefined,
                     avatar: employee.profiles.avatar_url || undefined,
                     status: employee.status,
+                    officeName: employee.offices?.name,
                   }}
                   showResendInvite={isAdmin}
                   role={userRoles[employee.user_id]}
@@ -207,6 +225,12 @@ const Team = () => {
           </>
         )}
       </div>
+
+      <ManageOfficesDialog
+        open={officesDialogOpen}
+        onOpenChange={setOfficesDialogOpen}
+        onOfficesChange={loadEmployees}
+      />
     </Layout>
   );
 };

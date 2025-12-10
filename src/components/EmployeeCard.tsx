@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Mail, Calendar, Send, MapPin } from "lucide-react";
+import { Mail, Calendar, Send, MapPin, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,6 +141,12 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
                 <Mail className="h-3 w-3" />
                 <span className="truncate">{employee.email}</span>
               </div>
+              {employee.officeName && (
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Building2 className="h-3 w-3" />
+                  <span>{employee.officeName}</span>
+                </div>
+              )}
               {(employee.city || employee.country) && (
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3" />

@@ -130,6 +130,7 @@ export type Database = {
           id_number: string | null
           join_date: string
           manager_id: string | null
+          office_id: string | null
           organization_id: string | null
           personal_email: string | null
           phone: string | null
@@ -159,6 +160,7 @@ export type Database = {
           id_number?: string | null
           join_date: string
           manager_id?: string | null
+          office_id?: string | null
           organization_id?: string | null
           personal_email?: string | null
           phone?: string | null
@@ -188,6 +190,7 @@ export type Database = {
           id_number?: string | null
           join_date?: string
           manager_id?: string | null
+          office_id?: string | null
           organization_id?: string | null
           personal_email?: string | null
           phone?: string | null
@@ -210,6 +213,13 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
             referencedColumns: ["id"]
           },
           {
@@ -457,6 +467,47 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offices: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
