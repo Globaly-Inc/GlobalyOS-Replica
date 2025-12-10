@@ -10,17 +10,36 @@ interface EmployeeCardProps {
 }
 
 export const EmployeeCard = ({ employee }: EmployeeCardProps) => {
+  const getStatusConfig = (status?: string) => {
+    switch (status) {
+      case 'active':
+        return { label: 'Active', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' };
+      case 'inactive':
+        return { label: 'Inactive', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
+      case 'invited':
+      default:
+        return { label: 'Invited', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+    }
+  };
+
+  const statusConfig = getStatusConfig(employee.status);
+
   return (
     <Link to={`/team/${employee.id}`}>
       <Card className="group overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer">
         <div className="p-6">
           <div className="flex flex-col items-center space-y-4 text-center">
-            <Avatar className="h-24 w-24 border-4 border-primary/10 transition-transform group-hover:scale-105">
-              {employee.avatar && <AvatarImage src={employee.avatar} alt={employee.name} />}
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
-                {employee.name.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-24 w-24 border-4 border-primary/10 transition-transform group-hover:scale-105">
+                {employee.avatar && <AvatarImage src={employee.avatar} alt={employee.name} />}
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
+                  {employee.name.split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-medium rounded-full ${statusConfig.className}`}>
+                {statusConfig.label}
+              </span>
+            </div>
             
             <div className="space-y-2 w-full">
               <h3 className="font-bold text-lg text-foreground">{employee.name}</h3>

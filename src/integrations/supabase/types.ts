@@ -118,6 +118,7 @@ export type Database = {
           remuneration_currency: string | null
           salary: number | null
           state: string | null
+          status: string
           street: string | null
           superpowers: string[] | null
           tax_number: string | null
@@ -145,6 +146,7 @@ export type Database = {
           remuneration_currency?: string | null
           salary?: number | null
           state?: string | null
+          status?: string
           street?: string | null
           superpowers?: string[] | null
           tax_number?: string | null
@@ -172,6 +174,7 @@ export type Database = {
           remuneration_currency?: string | null
           salary?: number | null
           state?: string | null
+          status?: string
           street?: string | null
           superpowers?: string[] | null
           tax_number?: string | null
