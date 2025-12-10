@@ -65,7 +65,7 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const getBalanceForType = (leaveTypeName: string) => {
     if (!balance) return 0;
     const name = leaveTypeName.toLowerCase();
-    if (name.includes('vacation')) return balance.vacation_days || 0;
+    if (name.includes('vacation') || name.includes('annual')) return balance.vacation_days || 0;
     if (name.includes('sick')) return balance.sick_days || 0;
     return balance.pto_days || 0;
   };
