@@ -365,9 +365,13 @@ const Home = () => {
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-6">
         <AdminSetup />
         
+        {/* Page Title */}
+        <h1 className="text-2xl font-semibold text-foreground">
+          Welcome to {currentOrg?.name || "TeamHub"}
+        </h1>
 
         {/* Action Buttons */}
         {!hasEmployeeProfile && isHR && (
