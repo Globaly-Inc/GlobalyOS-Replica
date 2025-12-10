@@ -29,6 +29,7 @@ interface InviteRequest {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelationship?: string;
+  avatarUrl?: string;
   role: 'admin' | 'hr' | 'user';
 }
 
@@ -45,7 +46,7 @@ serve(async (req: Request) => {
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
-      role 
+      avatarUrl, role 
     } = data;
 
     // Validate required fields
@@ -126,6 +127,14 @@ serve(async (req: Request) => {
         emergency_contact_phone: emergencyContactPhone?.trim() || null,
         emergency_contact_relationship: emergencyContactRelationship?.trim() || null,
       });
+
+    // Update profile with avatar URL if provided
+    if (avatarUrl) {
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', userId);
+    }
 
     if (employeeError) {
       console.error('Error creating employee:', employeeError);
