@@ -12,7 +12,7 @@ import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AttendanceTracker } from "@/components/AttendanceTracker";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,8 @@ const TeamMemberProfile = () => {
   const [loading, setLoading] = useState(true);
   const [canViewSensitiveData, setCanViewSensitiveData] = useState(false);
   const [positionHistory, setPositionHistory] = useState<any[]>([]);
+  const [manager, setManager] = useState<any>(null);
+  const [directReports, setDirectReports] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -31,6 +33,7 @@ const TeamMemberProfile = () => {
       loadKudos();
       checkPermissions();
       loadPositionHistory();
+      loadDirectReports();
     }
   }, [id]);
 
@@ -83,6 +86,7 @@ const TeamMemberProfile = () => {
         phone,
         location,
         superpowers,
+        manager_id,
         profiles!inner(
           full_name,
           email,
@@ -92,8 +96,38 @@ const TeamMemberProfile = () => {
       .eq("id", id)
       .single();
 
-    if (data) setEmployee(data);
+    if (data) {
+      setEmployee(data);
+      // Load manager if exists
+      if (data.manager_id) {
+        const { data: managerData } = await supabase
+          .from("employees")
+          .select(`
+            id,
+            position,
+            profiles!inner(full_name, avatar_url)
+          `)
+          .eq("id", data.manager_id)
+          .single();
+        if (managerData) setManager(managerData);
+      }
+    }
     setLoading(false);
+  };
+
+  const loadDirectReports = async () => {
+    if (!id) return;
+    
+    const { data } = await supabase
+      .from("employees")
+      .select(`
+        id,
+        position,
+        profiles!inner(full_name, avatar_url)
+      `)
+      .eq("manager_id", id);
+    
+    if (data) setDirectReports(data);
   };
 
   const loadKudos = async () => {
@@ -214,6 +248,36 @@ const TeamMemberProfile = () => {
                   </p>
                 </div>
               </div>
+              {manager && (
+                <div className="flex items-start gap-3">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Manager</p>
+                    <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
+                      {manager.profiles.full_name}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">{manager.position}</p>
+                  </div>
+                </div>
+              )}
+              {directReports.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Manages ({directReports.length})</p>
+                    <div className="space-y-1 mt-1">
+                      {directReports.map((report) => (
+                        <div key={report.id}>
+                          <Link to={`/team/${report.id}`} className="text-sm font-medium text-primary hover:underline">
+                            {report.profiles.full_name}
+                          </Link>
+                          <span className="text-xs text-muted-foreground ml-1">• {report.position}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
