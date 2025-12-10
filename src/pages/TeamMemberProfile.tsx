@@ -14,6 +14,7 @@ import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialo
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
+import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2 } from "lucide-react";
@@ -312,6 +313,56 @@ const TeamMemberProfile = () => {
                 </div>
                 <EditableField icon={<Mail className="h-5 w-5" />} label="Personal Email" value={employee.personal_email} onSave={value => updateEmployeeField("personal_email", value)} canEdit={canViewSensitiveData} placeholder="Not specified" />
                 <EditableField icon={<Phone className="h-5 w-5" />} label="Phone" value={employee.phone} onSave={value => updateEmployeeField("phone", value)} canEdit={canViewSensitiveData} />
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Full Address</p>
+                      {canViewSensitiveData && (
+                        <EditAddressDialog
+                          address={{
+                            street: employee.street,
+                            city: employee.city,
+                            state: employee.state,
+                            postcode: employee.postcode,
+                            country: employee.country,
+                          }}
+                          onSave={async (address) => {
+                            const { error } = await supabase
+                              .from("employees")
+                              .update({
+                                street: address.street || null,
+                                city: address.city || null,
+                                state: address.state || null,
+                                postcode: address.postcode || null,
+                                country: address.country || null,
+                              })
+                              .eq("id", id);
+                            if (error) {
+                              toast({
+                                title: "Update failed",
+                                description: error.message,
+                                variant: "destructive",
+                              });
+                            } else {
+                              toast({ title: "Address updated" });
+                              loadEmployee();
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                    {employee.street || employee.city || employee.state || employee.postcode || employee.country ? (
+                      <p className="text-sm font-medium text-foreground">
+                        {[employee.street, employee.city, employee.state, employee.postcode, employee.country]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">Not specified</p>
+                    )}
+                  </div>
+                </div>
                 <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Date of Birth" value={employee.date_of_birth} onSave={value => updateEmployeeField("date_of_birth", value)} canEdit={canViewSensitiveData} showAge />
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -350,20 +401,6 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-            {/* Address */}
-            <Card className="p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                <MapPin className="h-5 w-5 text-primary" />
-                Address
-              </h2>
-              <div className="space-y-4">
-                <EditableField label="Street" value={employee.street} onSave={value => updateEmployeeField("street", value)} canEdit={canViewSensitiveData} />
-                <EditableField label="City" value={employee.city} onSave={value => updateEmployeeField("city", value)} canEdit={canViewSensitiveData} />
-                <EditableField label="State" value={employee.state} onSave={value => updateEmployeeField("state", value)} canEdit={canViewSensitiveData} />
-                <EditableField label="Postcode" value={employee.postcode} onSave={value => updateEmployeeField("postcode", value)} canEdit={canViewSensitiveData} />
-                <EditableField label="Country" value={employee.country} onSave={value => updateEmployeeField("country", value)} canEdit={canViewSensitiveData} />
-              </div>
-            </Card>
 
             {/* Tax & Banking */}
             {canViewSensitiveData && <Card className="p-6">
