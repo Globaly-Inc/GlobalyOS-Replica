@@ -113,6 +113,16 @@ const Team = () => {
     setLoading(false);
   };
 
+  // Compute office employee counts (only active employees)
+  const officeEmployeeCounts = employees
+    .filter(e => e.status === 'active' && e.office_id)
+    .reduce((acc, e) => {
+      if (e.office_id) {
+        acc[e.office_id] = (acc[e.office_id] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
   const getStatusCounts = () => {
     return {
       all: employees.length,
@@ -210,6 +220,7 @@ const Team = () => {
                     avatar: employee.profiles.avatar_url || undefined,
                     status: employee.status,
                     officeName: employee.offices?.name,
+                    officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
                   }}
                   showResendInvite={isAdmin}
                   role={userRoles[employee.user_id]}

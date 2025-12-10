@@ -31,6 +31,7 @@ const TeamMemberProfile = () => {
   const [positionHistory, setPositionHistory] = useState<any[]>([]);
   const [manager, setManager] = useState<any>(null);
   const [directReports, setDirectReports] = useState<any[]>([]);
+  const [officeEmployeeCount, setOfficeEmployeeCount] = useState<number>(0);
 
   const updateEmployeeField = async (field: string, value: string) => {
     if (!id) return;
@@ -154,6 +155,17 @@ const TeamMemberProfile = () => {
           .eq("id", data.manager_id)
           .single();
         if (managerData) setManager(managerData);
+      }
+      // Load office employee count
+      if (data.office_id) {
+        const { count } = await supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("office_id", data.office_id)
+          .eq("status", "active");
+        setOfficeEmployeeCount(count || 0);
+      } else {
+        setOfficeEmployeeCount(0);
       }
     }
     setLoading(false);
@@ -308,11 +320,19 @@ const TeamMemberProfile = () => {
                     {employee.offices ? (
                       <>
                         <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
-                        {(employee.offices.city || employee.offices.country) && (
-                          <p className="text-xs text-muted-foreground">
-                            {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {(employee.offices.city || employee.offices.country) && (
+                            <span>
+                              {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
+                            </span>
+                          )}
+                          {officeEmployeeCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {officeEmployeeCount} {officeEmployeeCount === 1 ? 'employee' : 'employees'}
+                            </span>
+                          )}
+                        </div>
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">No office assigned</p>
