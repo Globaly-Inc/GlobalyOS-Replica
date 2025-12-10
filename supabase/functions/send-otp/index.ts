@@ -9,6 +9,8 @@ const corsHeaders = {
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
+const MAX_REQUESTS_PER_HOUR = 3;
+
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -29,12 +31,37 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating OTP for:', email);
+    const normalizedEmail = email.toLowerCase();
+    console.log('Generating OTP for:', normalizedEmail);
 
     // Create Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting: Check requests in the last hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    
+    const { count, error: countError } = await supabase
+      .from('otp_codes')
+      .select('*', { count: 'exact', head: true })
+      .eq('email', normalizedEmail)
+      .gte('created_at', oneHourAgo);
+
+    if (countError) {
+      console.error('Error checking rate limit:', countError);
+    } else if (count !== null && count >= MAX_REQUESTS_PER_HOUR) {
+      console.log(`Rate limit exceeded for ${normalizedEmail}: ${count} requests in last hour`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many requests. Please try again in an hour.',
+          retryAfter: 3600
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Rate limit check passed: ${count || 0}/${MAX_REQUESTS_PER_HOUR} requests in last hour`);
 
     // Generate 6-digit OTP
     const otpCode = generateOTP();
@@ -42,17 +69,11 @@ serve(async (req) => {
 
     console.log('Generated OTP code, expires at:', expiresAt.toISOString());
 
-    // Clean up old OTPs for this email
-    await supabase
-      .from('otp_codes')
-      .delete()
-      .eq('email', email.toLowerCase());
-
-    // Store OTP in database
+    // Store OTP in database (don't delete old ones - we need them for rate limiting)
     const { error: insertError } = await supabase
       .from('otp_codes')
       .insert({
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         code: otpCode,
         expires_at: expiresAt.toISOString(),
       });
