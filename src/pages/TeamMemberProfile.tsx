@@ -153,22 +153,19 @@ const TeamMemberProfile = () => {
           </Button>
         </Link>
 
-        <Card className="overflow-hidden">
-          <div className="h-32 bg-gradient-to-r from-primary via-primary-dark to-primary" />
-          <div className="relative px-6 pb-6">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-              <Avatar className="absolute -top-16 h-32 w-32 border-4 border-card">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-4xl font-bold">
-                  {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="mt-20 flex-1 sm:mt-0 sm:ml-36">
-                <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
-                <p className="text-lg font-medium text-primary">{employee.position}</p>
-                <Badge className="mt-2" variant="secondary">{employee.department}</Badge>
-              </div>
-              <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} />
+        <Card className="p-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <Avatar className="h-24 w-24 border-4 border-primary/10">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
+                {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
+              <p className="text-lg font-medium text-primary">{employee.position}</p>
+              <Badge className="mt-2" variant="secondary">{employee.department}</Badge>
             </div>
+            <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} />
           </div>
         </Card>
 
