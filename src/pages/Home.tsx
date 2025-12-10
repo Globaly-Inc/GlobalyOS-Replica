@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -96,6 +96,7 @@ const Home = () => {
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
+  const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
   const { isHR, isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
 
@@ -105,8 +106,35 @@ const Home = () => {
       loadFeed();
       loadLeaveData();
       loadUpcomingEvents();
+      loadDailyQuote();
     }
   }, [currentOrg?.id]);
+
+  const loadDailyQuote = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quote`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setDailyQuote(data);
+      }
+    } catch (error) {
+      console.error("Failed to load quote:", error);
+      // Fallback quote
+      setDailyQuote({
+        quote: "Alone we can do so little; together we can do so much.",
+        author: "Helen Keller"
+      });
+    }
+  };
 
   const checkEmployeeProfile = async () => {
     if (!currentOrg) return;
@@ -413,16 +441,36 @@ const Home = () => {
                   100% { background-position: 0% 50%; }
                 }
               `}</style>
-              <div className="flex items-center gap-3">
-                <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
-                <div>
-                  <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
-                    {greeting}{currentUserName ? `, ${currentUserName}` : ""}
-                  </h1>
-                  <p className="text-sm text-white/80 mt-1">
-                    {format(new Date(), "EEEE, MMMM d, yyyy")}
-                  </p>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                {/* Left side - Greeting */}
+                <div className="flex items-center gap-3">
+                  <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
+                  <div>
+                    <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
+                      {greeting}{currentUserName ? `, ${currentUserName}` : ""}
+                    </h1>
+                    <p className="text-sm text-white/80 mt-1">
+                      {format(new Date(), "EEEE, MMMM d, yyyy")}
+                    </p>
+                  </div>
                 </div>
+                
+                {/* Right side - Quote */}
+                {dailyQuote && (
+                  <div className="md:text-right md:max-w-md">
+                    <div className="flex md:justify-end gap-2 items-start">
+                      <Quote className="h-4 w-4 text-white/60 flex-shrink-0 mt-1 hidden md:block" />
+                      <div>
+                        <p className="text-sm text-white/90 italic leading-relaxed">
+                          "{dailyQuote.quote}"
+                        </p>
+                        <p className="text-xs text-white/70 mt-1">
+                          — {dailyQuote.author}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
