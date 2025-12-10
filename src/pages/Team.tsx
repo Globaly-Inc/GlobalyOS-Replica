@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, Building2, Settings } from "lucide-react";
+import { Search, UserPlus, Building2, Settings, Upload } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
+import { BulkImportDialog } from "@/components/dialogs/BulkImportDialog";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
@@ -49,6 +50,7 @@ const Team = () => {
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
+  const [bulkImportDialogOpen, setBulkImportDialogOpen] = useState(false);
   const { isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
@@ -160,6 +162,10 @@ const Team = () => {
                 <Settings className="h-4 w-4" />
                 Manage Offices
               </Button>
+              <Button variant="outline" onClick={() => setBulkImportDialogOpen(true)} className="gap-2">
+                <Upload className="h-4 w-4" />
+                Bulk Import
+              </Button>
               <Button onClick={() => navigate('/team/invite')} className="gap-2">
                 <UserPlus className="h-4 w-4" />
                 Invite Team Member
@@ -241,6 +247,12 @@ const Team = () => {
         open={officesDialogOpen}
         onOpenChange={setOfficesDialogOpen}
         onOfficesChange={loadEmployees}
+      />
+
+      <BulkImportDialog
+        open={bulkImportDialogOpen}
+        onOpenChange={setBulkImportDialogOpen}
+        onSuccess={loadEmployees}
       />
     </Layout>
   );
