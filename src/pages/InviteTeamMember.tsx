@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, UserPlus, Check, AlertCircle, User, MapPin, Briefcase, Calendar, Shield, Phone, Upload, Camera, ArrowRight, Edit } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, User, MapPin, Briefcase, Shield, Phone, Upload, Camera, ArrowRight, Edit } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { FormInputField } from "@/components/FormInputField";
 
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh",
@@ -60,6 +61,8 @@ const inviteSchema = z.object({
   role: z.enum(['admin', 'hr', 'user']),
 });
 
+type FormDataType = z.infer<typeof inviteSchema>;
+
 const InviteTeamMember = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -72,9 +75,11 @@ const InviteTeamMember = () => {
   const [positions, setPositions] = useState<string[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [newDepartment, setNewDepartment] = useState("");
+  const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataType>({
     email: "",
     phone: "",
     firstName: "",
@@ -94,7 +99,7 @@ const InviteTeamMember = () => {
     emergencyContactName: "",
     emergencyContactPhone: "",
     emergencyContactRelationship: "",
-    role: "user" as 'admin' | 'hr' | 'user',
+    role: "user",
   });
 
   useEffect(() => {
@@ -145,31 +150,36 @@ const InviteTeamMember = () => {
     }
   };
 
-  const validateField = (field: string, value: string) => {
+  const validateField = useCallback((field: string, value: string) => {
     try {
       const fieldSchema = inviteSchema.shape[field as keyof typeof inviteSchema.shape];
       if (fieldSchema) {
         fieldSchema.parse(value);
-        setErrors(prev => ({ ...prev, [field]: "" }));
+        setErrors(prev => {
+          if (prev[field] === "") return prev;
+          return { ...prev, [field]: "" };
+        });
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        setErrors(prev => ({ ...prev, [field]: error.errors[0].message }));
+        setErrors(prev => {
+          if (prev[field] === error.errors[0].message) return prev;
+          return { ...prev, [field]: error.errors[0].message };
+        });
       }
     }
-  };
+  }, []);
 
-  const handleBlur = (field: string) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    validateField(field, formData[field as keyof typeof formData] as string);
-  };
+  const handleBlur = useCallback((field: string) => {
+    setTouched(prev => {
+      if (prev[field]) return prev;
+      return { ...prev, [field]: true };
+    });
+  }, []);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = useCallback((field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (touched[field]) {
-      validateField(field, value);
-    }
-  };
+  }, []);
 
   const validateForm = () => {
     try {
@@ -214,7 +224,6 @@ const InviteTeamMember = () => {
 
       let avatarUrl = null;
 
-      // Upload avatar if selected
       if (avatarFile) {
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -286,59 +295,6 @@ const InviteTeamMember = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const InputField = ({ 
-    id, 
-    label, 
-    required = false, 
-    type = "text",
-    placeholder,
-    className
-  }: { 
-    id: keyof typeof formData; 
-    label: string; 
-    required?: boolean;
-    type?: string;
-    placeholder?: string;
-    className?: string;
-  }) => {
-    const hasError = touched[id] && errors[id];
-    const isValid = touched[id] && !errors[id] && formData[id];
-
-    return (
-      <div className={cn("space-y-2", className)}>
-        <Label htmlFor={id} className="flex items-center gap-1">
-          {label} {required && <span className="text-destructive">*</span>}
-        </Label>
-        <div className="relative">
-          <Input
-            id={id}
-            type={type}
-            value={formData[id] as string}
-            onChange={(e) => handleChange(id, e.target.value)}
-            onBlur={() => handleBlur(id)}
-            placeholder={placeholder}
-            className={cn(
-              "pr-10 transition-all duration-200",
-              hasError && "border-destructive focus-visible:ring-destructive",
-              isValid && "border-green-500 focus-visible:ring-green-500"
-            )}
-          />
-          {isValid && (
-            <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500 animate-scale-in" />
-          )}
-          {hasError && (
-            <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive animate-scale-in" />
-          )}
-        </div>
-        {hasError && (
-          <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
-            {errors[id]}
-          </p>
-        )}
-      </div>
-    );
   };
 
   const getRoleLabel = (role: string) => {
@@ -524,6 +480,7 @@ const InviteTeamMember = () => {
                     accept="image/*"
                     onChange={handleFileSelect}
                     className="hidden"
+                    tabIndex={-1}
                   />
                 </div>
                 <div>
@@ -533,12 +490,66 @@ const InviteTeamMember = () => {
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="firstName" label="First Name" required placeholder="John" />
-                <InputField id="lastName" label="Last Name" required placeholder="Doe" />
+                <FormInputField
+                  id="firstName"
+                  label="First Name"
+                  value={formData.firstName}
+                  onChange={(value) => handleChange('firstName', value)}
+                  onBlur={() => {
+                    handleBlur('firstName');
+                    validateField('firstName', formData.firstName);
+                  }}
+                  required
+                  placeholder="John"
+                  error={errors.firstName}
+                  touched={touched.firstName}
+                />
+                <FormInputField
+                  id="lastName"
+                  label="Last Name"
+                  value={formData.lastName}
+                  onChange={(value) => handleChange('lastName', value)}
+                  onBlur={() => {
+                    handleBlur('lastName');
+                    validateField('lastName', formData.lastName);
+                  }}
+                  required
+                  placeholder="Doe"
+                  error={errors.lastName}
+                  touched={touched.lastName}
+                />
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="email" label="Email" required type="email" placeholder="john@example.com" />
-                <InputField id="phone" label="Phone" required type="tel" placeholder="+1 234 567 8900" />
+                <FormInputField
+                  id="email"
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(value) => handleChange('email', value)}
+                  onBlur={() => {
+                    handleBlur('email');
+                    validateField('email', formData.email);
+                  }}
+                  required
+                  placeholder="john@example.com"
+                  error={errors.email}
+                  touched={touched.email}
+                />
+                <FormInputField
+                  id="phone"
+                  label="Phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(value) => handleChange('phone', value)}
+                  onBlur={() => {
+                    handleBlur('phone');
+                    validateField('phone', formData.phone);
+                  }}
+                  required
+                  placeholder="+1 234 567 8900"
+                  error={errors.phone}
+                  touched={touched.phone}
+                />
               </div>
             </CardContent>
           </Card>
@@ -553,13 +564,65 @@ const InviteTeamMember = () => {
               <CardDescription>Full residential address</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <InputField id="street" label="Street Address" required placeholder="123 Main Street" />
+              <FormInputField
+                id="street"
+                label="Street Address"
+                value={formData.street}
+                onChange={(value) => handleChange('street', value)}
+                onBlur={() => {
+                  handleBlur('street');
+                  validateField('street', formData.street);
+                }}
+                required
+                placeholder="123 Main Street"
+                error={errors.street}
+                touched={touched.street}
+              />
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="city" label="City" required placeholder="New York" />
-                <InputField id="postcode" label="Postcode" required placeholder="10001" />
+                <FormInputField
+                  id="city"
+                  label="City"
+                  value={formData.city}
+                  onChange={(value) => handleChange('city', value)}
+                  onBlur={() => {
+                    handleBlur('city');
+                    validateField('city', formData.city);
+                  }}
+                  required
+                  placeholder="New York"
+                  error={errors.city}
+                  touched={touched.city}
+                />
+                <FormInputField
+                  id="postcode"
+                  label="Postcode"
+                  value={formData.postcode}
+                  onChange={(value) => handleChange('postcode', value)}
+                  onBlur={() => {
+                    handleBlur('postcode');
+                    validateField('postcode', formData.postcode);
+                  }}
+                  required
+                  placeholder="10001"
+                  error={errors.postcode}
+                  touched={touched.postcode}
+                />
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="state" label="State / Province" required placeholder="New York" />
+                <FormInputField
+                  id="state"
+                  label="State / Province"
+                  value={formData.state}
+                  onChange={(value) => handleChange('state', value)}
+                  onBlur={() => {
+                    handleBlur('state');
+                    validateField('state', formData.state);
+                  }}
+                  required
+                  placeholder="New York"
+                  error={errors.state}
+                  touched={touched.state}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="country" className="flex items-center gap-1">
                     Country <span className="text-destructive">*</span>
@@ -585,7 +648,7 @@ const InviteTeamMember = () => {
                     </SelectContent>
                   </Select>
                   {touched.country && errors.country && (
-                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       {errors.country}
                     </p>
                   )}
@@ -610,8 +673,11 @@ const InviteTeamMember = () => {
                     Department <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={formData.department}
+                    value={formData.department === '__new__' ? '__new__' : formData.department}
                     onValueChange={(value) => {
+                      if (value === '__new__') {
+                        setNewDepartment("");
+                      }
                       handleChange('department', value);
                       setTouched(prev => ({ ...prev, department: true }));
                     }}
@@ -619,7 +685,7 @@ const InviteTeamMember = () => {
                     <SelectTrigger className={cn(
                       "transition-all duration-200",
                       touched.department && errors.department && "border-destructive",
-                      touched.department && !errors.department && formData.department && "border-green-500"
+                      touched.department && !errors.department && formData.department && formData.department !== '__new__' && "border-green-500"
                     )}>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
@@ -635,16 +701,19 @@ const InviteTeamMember = () => {
                   {formData.department === '__new__' && (
                     <Input
                       placeholder="Enter new department name"
-                      className="mt-2 animate-fade-in"
+                      className="mt-2"
+                      value={newDepartment}
                       onChange={(e) => {
+                        setNewDepartment(e.target.value);
                         if (e.target.value) {
                           setFormData(prev => ({ ...prev, department: e.target.value }));
                         }
                       }}
+                      autoFocus
                     />
                   )}
                   {touched.department && errors.department && (
-                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       {errors.department}
                     </p>
                   )}
@@ -655,8 +724,11 @@ const InviteTeamMember = () => {
                     Position <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={formData.position}
+                    value={formData.position === '__new__' ? '__new__' : formData.position}
                     onValueChange={(value) => {
+                      if (value === '__new__') {
+                        setNewPosition("");
+                      }
                       handleChange('position', value);
                       setTouched(prev => ({ ...prev, position: true }));
                     }}
@@ -664,7 +736,7 @@ const InviteTeamMember = () => {
                     <SelectTrigger className={cn(
                       "transition-all duration-200",
                       touched.position && errors.position && "border-destructive",
-                      touched.position && !errors.position && formData.position && "border-green-500"
+                      touched.position && !errors.position && formData.position && formData.position !== '__new__' && "border-green-500"
                     )}>
                       <SelectValue placeholder="Select position" />
                     </SelectTrigger>
@@ -680,16 +752,19 @@ const InviteTeamMember = () => {
                   {formData.position === '__new__' && (
                     <Input
                       placeholder="Enter new position title"
-                      className="mt-2 animate-fade-in"
+                      className="mt-2"
+                      value={newPosition}
                       onChange={(e) => {
+                        setNewPosition(e.target.value);
                         if (e.target.value) {
                           setFormData(prev => ({ ...prev, position: e.target.value }));
                         }
                       }}
+                      autoFocus
                     />
                   )}
                   {touched.position && errors.position && (
-                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       {errors.position}
                     </p>
                   )}
@@ -701,15 +776,34 @@ const InviteTeamMember = () => {
                   <Label htmlFor="joinDate">Join Date</Label>
                   <Input
                     id="joinDate"
+                    name="joinDate"
                     type="date"
                     value={formData.joinDate}
                     onChange={(e) => handleChange('joinDate', e.target.value)}
                   />
                 </div>
-                <InputField id="idNumber" label="ID Number" placeholder="e.g., Employee ID" />
+                <FormInputField
+                  id="idNumber"
+                  label="ID Number"
+                  value={formData.idNumber || ""}
+                  onChange={(value) => handleChange('idNumber', value)}
+                  onBlur={() => handleBlur('idNumber')}
+                  placeholder="e.g., Employee ID"
+                  error={errors.idNumber}
+                  touched={touched.idNumber}
+                />
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="taxNumber" label="Personal Tax Number" placeholder="Tax identification number" />
+                <FormInputField
+                  id="taxNumber"
+                  label="Personal Tax Number"
+                  value={formData.taxNumber || ""}
+                  onChange={(value) => handleChange('taxNumber', value)}
+                  onBlur={() => handleBlur('taxNumber')}
+                  placeholder="Tax identification number"
+                  error={errors.taxNumber}
+                  touched={touched.taxNumber}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="remuneration">Current Remuneration</Label>
                   <div className="flex gap-2">
@@ -730,6 +824,7 @@ const InviteTeamMember = () => {
                     </Select>
                     <Input
                       id="remuneration"
+                      name="remuneration"
                       type="number"
                       value={formData.remuneration}
                       onChange={(e) => handleChange('remuneration', e.target.value)}
@@ -754,9 +849,37 @@ const InviteTeamMember = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 sm:grid-cols-3">
-                <InputField id="emergencyContactName" label="Contact Name" placeholder="Jane Doe" />
-                <InputField id="emergencyContactPhone" label="Contact Phone" type="tel" placeholder="+1 234 567 8900" />
-                <InputField id="emergencyContactRelationship" label="Relationship" placeholder="e.g., Spouse, Parent" />
+                <FormInputField
+                  id="emergencyContactName"
+                  label="Contact Name"
+                  value={formData.emergencyContactName || ""}
+                  onChange={(value) => handleChange('emergencyContactName', value)}
+                  onBlur={() => handleBlur('emergencyContactName')}
+                  placeholder="Jane Doe"
+                  error={errors.emergencyContactName}
+                  touched={touched.emergencyContactName}
+                />
+                <FormInputField
+                  id="emergencyContactPhone"
+                  label="Contact Phone"
+                  type="tel"
+                  value={formData.emergencyContactPhone || ""}
+                  onChange={(value) => handleChange('emergencyContactPhone', value)}
+                  onBlur={() => handleBlur('emergencyContactPhone')}
+                  placeholder="+1 234 567 8900"
+                  error={errors.emergencyContactPhone}
+                  touched={touched.emergencyContactPhone}
+                />
+                <FormInputField
+                  id="emergencyContactRelationship"
+                  label="Relationship"
+                  value={formData.emergencyContactRelationship || ""}
+                  onChange={(value) => handleChange('emergencyContactRelationship', value)}
+                  onBlur={() => handleBlur('emergencyContactRelationship')}
+                  placeholder="e.g., Spouse, Parent"
+                  error={errors.emergencyContactRelationship}
+                  touched={touched.emergencyContactRelationship}
+                />
               </div>
             </CardContent>
           </Card>
