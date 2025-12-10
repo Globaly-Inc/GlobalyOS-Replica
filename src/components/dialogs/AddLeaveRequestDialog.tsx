@@ -92,6 +92,35 @@ export const AddLeaveRequestDialog = ({
       });
 
       if (error) throw error;
+
+      // Get employee name for notification
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("profiles!inner(full_name)")
+        .eq("id", employeeId)
+        .single();
+
+      const employeeName = (employee?.profiles as any)?.full_name || "Team member";
+
+      // Send notification to manager and HR
+      try {
+        await supabase.functions.invoke("notify-leave-request", {
+          body: {
+            employee_id: employeeId,
+            employee_name: employeeName,
+            leave_type: values.leave_type,
+            start_date: format(values.start_date, "yyyy-MM-dd"),
+            end_date: format(values.end_date, "yyyy-MM-dd"),
+            days_count: daysCount,
+            reason: values.reason || null,
+            organization_id: currentOrg?.id,
+          },
+        });
+        console.log("Leave notification sent successfully");
+      } catch (notifyError) {
+        console.error("Failed to send notification:", notifyError);
+        // Don't throw - the leave request was still created successfully
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
