@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Users } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -15,7 +15,7 @@ import { AdminSetup } from "@/components/AdminSetup";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
 
 interface FeedItem {
   id: string;
@@ -66,6 +66,17 @@ interface PersonOnLeave {
   leave_type: string;
 }
 
+interface UpcomingEvent {
+  id: string;
+  date: Date;
+  daysUntil: number;
+  yearsCount?: number;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
 // Map database type to UI type (database uses "update", UI uses "announcement")
 const mapDbTypeToUiType = (dbType: string): "win" | "announcement" | "achievement" => {
   if (dbType === "update") return "announcement";
@@ -82,6 +93,8 @@ const Home = () => {
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
+  const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const { isHR, isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
 
@@ -90,6 +103,7 @@ const Home = () => {
       checkEmployeeProfile();
       loadFeed();
       loadLeaveData();
+      loadUpcomingEvents();
     }
   }, [currentOrg?.id]);
 
@@ -107,6 +121,93 @@ const Home = () => {
 
     setHasEmployeeProfile(!!data);
     setCurrentEmployeeId(data?.id || null);
+  };
+
+  const loadUpcomingEvents = async () => {
+    if (!currentOrg) return;
+    
+    const today = new Date();
+    const nextDays = 30; // Look ahead 30 days
+    
+    // Load all employees with their dates
+    const { data: employees } = await supabase
+      .from("employees")
+      .select(`
+        id,
+        date_of_birth,
+        join_date,
+        profiles!inner(
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq("organization_id", currentOrg.id)
+      .eq("status", "active");
+
+    if (!employees) return;
+
+    const birthdays: UpcomingEvent[] = [];
+    const anniversaries: UpcomingEvent[] = [];
+
+    employees.forEach((emp: any) => {
+      // Check birthday
+      if (emp.date_of_birth) {
+        const dob = parseISO(emp.date_of_birth);
+        const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+        
+        // If birthday has passed this year, check next year
+        if (thisYearBirthday < today && !isSameDay(thisYearBirthday, today)) {
+          thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        }
+        
+        const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysUntil >= 0 && daysUntil <= nextDays) {
+          birthdays.push({
+            id: emp.id,
+            date: thisYearBirthday,
+            daysUntil,
+            profiles: emp.profiles,
+          });
+        }
+      }
+
+      // Check work anniversary
+      if (emp.join_date) {
+        const joinDate = parseISO(emp.join_date);
+        const yearsWorked = differenceInYears(today, joinDate);
+        
+        // Only show if they've worked at least 1 year
+        if (yearsWorked >= 1) {
+          const thisYearAnniversary = new Date(today.getFullYear(), joinDate.getMonth(), joinDate.getDate());
+          
+          // If anniversary has passed this year, check next year
+          if (thisYearAnniversary < today && !isSameDay(thisYearAnniversary, today)) {
+            thisYearAnniversary.setFullYear(today.getFullYear() + 1);
+          }
+          
+          const daysUntil = Math.ceil((thisYearAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          const upcomingYears = thisYearAnniversary.getFullYear() - joinDate.getFullYear();
+          
+          if (daysUntil >= 0 && daysUntil <= nextDays) {
+            anniversaries.push({
+              id: emp.id,
+              date: thisYearAnniversary,
+              daysUntil,
+              yearsCount: upcomingYears,
+              profiles: emp.profiles,
+            });
+          }
+        }
+      }
+    });
+
+    // Sort by days until event
+    birthdays.sort((a, b) => a.daysUntil - b.daysUntil);
+    anniversaries.sort((a, b) => a.daysUntil - b.daysUntil);
+
+    setUpcomingBirthdays(birthdays.slice(0, 5));
+    setUpcomingAnniversaries(anniversaries.slice(0, 5));
   };
 
   const loadLeaveData = async () => {
@@ -501,6 +602,78 @@ const Home = () => {
                 </Button>
               </Card>
             )}
+
+            {/* Upcoming Birthdays */}
+            <Card className="p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Cake className="h-5 w-5 text-primary" />
+                Upcoming Birthdays
+              </h3>
+              {upcomingBirthdays.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingBirthdays.map((birthday) => (
+                    <Link
+                      key={birthday.id}
+                      to={`/team/${birthday.id}`}
+                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={birthday.profiles.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {birthday.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {birthday.profiles.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {birthday.daysUntil === 0 ? "Today! 🎉" : birthday.daysUntil === 1 ? "Tomorrow" : `In ${birthday.daysUntil} days`}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No upcoming birthdays</p>
+              )}
+            </Card>
+
+            {/* Work Anniversaries */}
+            <Card className="p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Award className="h-5 w-5 text-primary" />
+                Work Anniversaries
+              </h3>
+              {upcomingAnniversaries.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingAnniversaries.map((anniversary) => (
+                    <Link
+                      key={anniversary.id}
+                      to={`/team/${anniversary.id}`}
+                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={anniversary.profiles.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {anniversary.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {anniversary.profiles.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {anniversary.yearsCount} {anniversary.yearsCount === 1 ? "year" : "years"} · {anniversary.daysUntil === 0 ? "Today! 🎉" : anniversary.daysUntil === 1 ? "Tomorrow" : `In ${anniversary.daysUntil} days`}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>
+              )}
+            </Card>
           </div>
         </div>
       </div>
