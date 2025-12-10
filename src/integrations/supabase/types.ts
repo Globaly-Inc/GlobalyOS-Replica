@@ -110,6 +110,7 @@ export type Database = {
           join_date: string
           location: string | null
           manager_id: string | null
+          personal_email: string | null
           phone: string | null
           position: string
           postcode: string | null
@@ -136,6 +137,7 @@ export type Database = {
           join_date: string
           location?: string | null
           manager_id?: string | null
+          personal_email?: string | null
           phone?: string | null
           position: string
           postcode?: string | null
@@ -162,6 +164,7 @@ export type Database = {
           join_date?: string
           location?: string | null
           manager_id?: string | null
+          personal_email?: string | null
           phone?: string | null
           position?: string
           postcode?: string | null

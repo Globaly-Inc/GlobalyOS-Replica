@@ -10,13 +10,14 @@ const corsHeaders = {
 
 interface InviteRequest {
   email: string;
+  personalEmail?: string;
   phone: string;
   fullName: string;
   firstName: string;
   lastName: string;
   street: string;
   city: string;
-  postcode: string;
+  postcode?: string;
   state: string;
   country: string;
   position: string;
@@ -41,7 +42,7 @@ serve(async (req: Request) => {
   try {
     const data: InviteRequest = await req.json();
     const { 
-      email, phone, fullName, firstName, lastName,
+      email, personalEmail, phone, fullName, firstName, lastName,
       street, city, postcode, state, country,
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
@@ -49,8 +50,8 @@ serve(async (req: Request) => {
       avatarUrl, role 
     } = data;
 
-    // Validate required fields
-    if (!email || !phone || !firstName || !lastName || !street || !city || !postcode || !state || !country || !position || !department || !role) {
+    // Validate required fields (postcode is now optional)
+    if (!email || !phone || !firstName || !lastName || !street || !city || !state || !country || !position || !department || !role) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -119,6 +120,7 @@ serve(async (req: Request) => {
         postcode: postcode?.trim() || null,
         state: state?.trim() || null,
         country: country?.trim() || null,
+        personal_email: personalEmail?.trim() || null,
         id_number: idNumber?.trim() || null,
         tax_number: taxNumber?.trim() || null,
         salary: remuneration ? parseFloat(remuneration) : null,
