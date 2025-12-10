@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Team from "./pages/Team";
 import TeamMemberProfile from "./pages/TeamMemberProfile";
+import InviteTeamMember from "./pages/InviteTeamMember";
 import OrgChart from "./pages/OrgChart";
 import Kudos from "./pages/Kudos";
 import Growth from "./pages/Growth";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
+          <Route path="/team/invite" element={<ProtectedRoute><InviteTeamMember /></ProtectedRoute>} />
           <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
           <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
           <Route path="/kudos" element={<ProtectedRoute><Kudos /></ProtectedRoute>} />
