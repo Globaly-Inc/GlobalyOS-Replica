@@ -535,6 +535,89 @@ export type Database = {
           },
         ]
       }
+      leave_type_offices: {
+        Row: {
+          created_at: string
+          id: string
+          leave_type_id: string
+          office_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leave_type_id: string
+          office_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leave_type_id?: string
+          office_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_type_offices_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_type_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_types: {
+        Row: {
+          applies_to_all_offices: boolean
+          category: string
+          created_at: string
+          default_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to_all_offices?: boolean
+          category?: string
+          created_at?: string
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to_all_offices?: boolean
+          category?: string
+          created_at?: string
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offices: {
         Row: {
           address: string | null
