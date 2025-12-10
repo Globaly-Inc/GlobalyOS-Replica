@@ -228,7 +228,7 @@ serve(async (req: Request) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'TeamHub <onboarding@resend.dev>',
+          from: 'TeamHub <hello@globalyhub.com>',
           to: [normalizedEmail],
           subject: 'Welcome to TeamHub - You\'ve been invited!',
           html: emailHtml,
