@@ -19,7 +19,6 @@ import { supabase } from "@/integrations/supabase/client";
 const navigation = [
   { name: "Home", href: "/", icon: Home },
   { name: "Team", href: "/team", icon: Users },
-  { name: "Org Chart", href: "/org-chart", icon: Building2 },
   { name: "Kudos", href: "/kudos", icon: Award },
   { name: "Growth", href: "/growth", icon: TrendingUp },
 ];
