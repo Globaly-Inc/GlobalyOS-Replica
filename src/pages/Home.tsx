@@ -190,23 +190,23 @@ const Home = () => {
         {/* Feed Section */}
         <div>
           <Tabs defaultValue="all" className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <TabsList className="grid w-full max-w-md grid-cols-4">
-                <TabsTrigger value="all" className="gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  All
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <TabsList className="h-auto p-1.5">
+                <TabsTrigger value="all" className="px-3 py-2">
+                  <MessageSquare className="h-4 w-4 shrink-0" />
+                  <span>All</span>
                 </TabsTrigger>
-                <TabsTrigger value="wins" className="gap-2">
-                  <Trophy className="h-4 w-4" />
-                  Wins
+                <TabsTrigger value="wins" className="px-3 py-2">
+                  <Trophy className="h-4 w-4 shrink-0" />
+                  <span>Wins</span>
                 </TabsTrigger>
-                <TabsTrigger value="kudos" className="gap-2">
-                  <Heart className="h-4 w-4" />
-                  Kudos
+                <TabsTrigger value="kudos" className="px-3 py-2">
+                  <Heart className="h-4 w-4 shrink-0" />
+                  <span>Kudos</span>
                 </TabsTrigger>
-                <TabsTrigger value="announcements" className="gap-2">
-                  <Megaphone className="h-4 w-4" />
-                  Announcements
+                <TabsTrigger value="announcements" className="px-3 py-2">
+                  <Megaphone className="h-4 w-4 shrink-0" />
+                  <span>Announcements</span>
                 </TabsTrigger>
               </TabsList>
               {hasEmployeeProfile && (
