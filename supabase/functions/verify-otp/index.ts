@@ -156,24 +156,34 @@ serve(async (req) => {
 
     // Update employee status from 'invited' to 'active' if applicable
     if (user) {
+      console.log('Looking for employee with user_id:', user.id);
+      
       const { data: employee, error: employeeError } = await supabase
         .from('employees')
-        .select('id, status')
+        .select('id, status, user_id')
         .eq('user_id', user.id)
-        .eq('status', 'invited')
         .single();
 
-      if (employee && !employeeError) {
-        const { error: updateError } = await supabase
-          .from('employees')
-          .update({ status: 'active' })
-          .eq('id', employee.id);
+      console.log('Employee lookup result:', { employee, error: employeeError?.message });
 
-        if (updateError) {
-          console.error('Failed to update employee status:', updateError);
+      if (employee && !employeeError) {
+        if (employee.status === 'invited') {
+          const { data: updated, error: updateError } = await supabase
+            .from('employees')
+            .update({ status: 'active' })
+            .eq('id', employee.id)
+            .select();
+
+          if (updateError) {
+            console.error('Failed to update employee status:', updateError);
+          } else {
+            console.log('Employee status update result:', updated);
+          }
         } else {
-          console.log('Employee status updated to active for user:', user.id);
+          console.log('Employee already has status:', employee.status);
         }
+      } else if (employeeError) {
+        console.log('No employee record found for this user');
       }
     }
 
