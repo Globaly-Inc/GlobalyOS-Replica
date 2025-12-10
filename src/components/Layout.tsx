@@ -118,13 +118,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Desktop Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center px-4 md:px-8">
-          <div className="mr-4 flex items-center space-x-2">
+          <div className="mr-4 flex items-center">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
               <Users className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="hidden text-xl font-bold text-foreground sm:inline-block">
-              TeamHub
-            </span>
           </div>
 
           <div className="hidden md:block mr-4">
