@@ -10,6 +10,7 @@ export interface Employee {
   phone?: string;
   location?: string;
   superpowers?: string[];
+  status?: 'invited' | 'active' | 'inactive';
 }
 
 export interface Kudos {

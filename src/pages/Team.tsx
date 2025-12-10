@@ -17,6 +17,7 @@ interface Employee {
   phone: string | null;
   location: string | null;
   manager_id: string | null;
+  status: 'invited' | 'active' | 'inactive';
   profiles: {
     full_name: string;
     email: string;
@@ -47,6 +48,7 @@ const Team = () => {
         phone,
         location,
         manager_id,
+        status,
         profiles!inner(
           full_name,
           email,
@@ -113,6 +115,7 @@ const Team = () => {
                     phone: employee.phone || undefined,
                     location: employee.location || undefined,
                     avatar: employee.profiles.avatar_url || undefined,
+                    status: employee.status,
                   }}
                 />
               ))}
