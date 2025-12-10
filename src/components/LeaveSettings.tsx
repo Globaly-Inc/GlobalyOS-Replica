@@ -43,6 +43,7 @@ interface LeaveType {
   category: string;
   description: string | null;
   default_days: number;
+  min_days_advance: number;
   applies_to_all_offices: boolean;
   is_active: boolean;
   office_ids?: string[];
@@ -67,6 +68,7 @@ export const LeaveSettings = () => {
   const [formCategory, setFormCategory] = useState<string>("paid");
   const [formDescription, setFormDescription] = useState("");
   const [formDefaultDays, setFormDefaultDays] = useState("0");
+  const [formMinDaysAdvance, setFormMinDaysAdvance] = useState("0");
   const [formAppliesToAll, setFormAppliesToAll] = useState(true);
   const [formSelectedOffices, setFormSelectedOffices] = useState<string[]>([]);
   
@@ -137,6 +139,7 @@ export const LeaveSettings = () => {
     setFormCategory("paid");
     setFormDescription("");
     setFormDefaultDays("0");
+    setFormMinDaysAdvance("0");
     setFormAppliesToAll(true);
     setFormSelectedOffices([]);
     setEditingType(null);
@@ -148,6 +151,7 @@ export const LeaveSettings = () => {
     setFormCategory(leaveType.category);
     setFormDescription(leaveType.description || "");
     setFormDefaultDays(String(leaveType.default_days));
+    setFormMinDaysAdvance(String(leaveType.min_days_advance));
     setFormAppliesToAll(leaveType.applies_to_all_offices);
     setFormSelectedOffices(leaveType.office_ids || []);
     setDialogOpen(true);
@@ -173,6 +177,7 @@ export const LeaveSettings = () => {
         category: formCategory,
         description: formDescription.trim() || null,
         default_days: parseFloat(formDefaultDays) || 0,
+        min_days_advance: parseInt(formMinDaysAdvance) || 0,
         applies_to_all_offices: formAppliesToAll,
       };
 
@@ -327,7 +332,7 @@ export const LeaveSettings = () => {
                     onChange={(e) => setFormName(e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="category">Category *</Label>
                     <Select value={formCategory} onValueChange={setFormCategory}>
@@ -341,7 +346,7 @@ export const LeaveSettings = () => {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="defaultDays">Default Days/Year</Label>
+                    <Label htmlFor="defaultDays">Default Days</Label>
                     <Input
                       id="defaultDays"
                       type="number"
@@ -349,6 +354,17 @@ export const LeaveSettings = () => {
                       step="0.5"
                       value={formDefaultDays}
                       onChange={(e) => setFormDefaultDays(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="minDaysAdvance">Min. Days Advance</Label>
+                    <Input
+                      id="minDaysAdvance"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formMinDaysAdvance}
+                      onChange={(e) => setFormMinDaysAdvance(e.target.value)}
                     />
                   </div>
                 </div>
@@ -447,6 +463,7 @@ export const LeaveSettings = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Default Days</TableHead>
+                <TableHead>Min. Advance</TableHead>
                 <TableHead>Applies To</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
@@ -473,6 +490,7 @@ export const LeaveSettings = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>{leaveType.default_days}</TableCell>
+                  <TableCell>{leaveType.min_days_advance} days</TableCell>
                   <TableCell>
                     {leaveType.applies_to_all_offices ? (
                       <Badge variant="outline" className="gap-1">

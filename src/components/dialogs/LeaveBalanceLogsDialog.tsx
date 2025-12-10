@@ -35,6 +35,7 @@ interface LeaveRequest {
   start_date: string;
   end_date: string;
   days_count: number;
+  half_day_type: string;
   reason: string | null;
   status: string;
   created_at: string;
@@ -91,6 +92,7 @@ export const LeaveBalanceLogsDialog = ({
           start_date,
           end_date,
           days_count,
+          half_day_type,
           reason,
           status,
           created_at,
@@ -209,9 +211,18 @@ export const LeaveBalanceLogsDialog = ({
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
-                        {format(new Date(request.end_date), "MMM d, yyyy")}
-                        <span className="ml-2">({request.days_count} {request.days_count === 1 ? 'day' : 'days'})</span>
+                        {format(new Date(request.start_date), "MMM d, yyyy")}
+                        {request.start_date !== request.end_date && (
+                          <> - {format(new Date(request.end_date), "MMM d, yyyy")}</>
+                        )}
+                        <span className="ml-2">
+                          ({request.days_count} {request.days_count === 1 ? 'day' : 'days'})
+                          {request.half_day_type !== 'full' && (
+                            <span className="text-primary ml-1">
+                              • {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {request.reason && (
                         <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">

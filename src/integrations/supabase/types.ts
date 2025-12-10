@@ -471,10 +471,11 @@ export type Database = {
           days_count: number
           employee_id: string
           end_date: string
+          half_day_type: string
           id: string
           leave_type: string
           organization_id: string | null
-          reason: string | null
+          reason: string
           reviewed_at: string | null
           reviewed_by: string | null
           start_date: string
@@ -486,10 +487,11 @@ export type Database = {
           days_count: number
           employee_id: string
           end_date: string
+          half_day_type?: string
           id?: string
           leave_type: string
           organization_id?: string | null
-          reason?: string | null
+          reason: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           start_date: string
@@ -501,10 +503,11 @@ export type Database = {
           days_count?: number
           employee_id?: string
           end_date?: string
+          half_day_type?: string
           id?: string
           leave_type?: string
           organization_id?: string | null
-          reason?: string | null
+          reason?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           start_date?: string
@@ -580,6 +583,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          min_days_advance: number
           name: string
           organization_id: string
           updated_at: string
@@ -592,6 +596,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          min_days_advance?: number
           name: string
           organization_id: string
           updated_at?: string
@@ -604,6 +609,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          min_days_advance?: number
           name?: string
           organization_id?: string
           updated_at?: string
