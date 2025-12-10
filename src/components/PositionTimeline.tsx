@@ -81,13 +81,10 @@ export const PositionTimeline = ({
         </div>
 
         {/* Timeline */}
-        <div className="space-y-4">
-          {sortedEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No position history available
-            </p>
-          ) : (
+        {sortedEntries.length > 0 && (
+          <div className="space-y-4">
             <div className="relative">
+              {/* Timeline line */}
               {/* Timeline line */}
               <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
 
@@ -143,8 +140,8 @@ export const PositionTimeline = ({
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
