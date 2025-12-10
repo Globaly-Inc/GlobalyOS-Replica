@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, CreditCard, Save } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Building2, Users, CreditCard, Save, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PageHeader } from "@/components/PageHeader";
@@ -17,8 +18,10 @@ const Settings = () => {
   const { toast } = useToast();
   const { currentOrg, orgRole, refreshOrganizations } = useOrganization();
   const [loading, setLoading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [memberCount, setMemberCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentOrg) {
@@ -34,6 +37,74 @@ const Settings = () => {
       .select("*", { count: "exact", head: true })
       .eq("organization_id", currentOrg.id);
     setMemberCount(count || 0);
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !currentOrg) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `org-logos/${currentOrg.id}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      // Update organization with logo URL
+      const { error: updateError } = await supabase
+        .from("organizations")
+        .update({ logo_url: urlData.publicUrl })
+        .eq("id", currentOrg.id);
+
+      if (updateError) throw updateError;
+
+      await refreshOrganizations();
+      toast({
+        title: "Logo uploaded",
+        description: "Organization logo has been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error uploading logo",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const handleSaveOrg = async () => {
@@ -107,7 +178,49 @@ const Settings = () => {
                 Manage your organization's basic information
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Logo Upload Section */}
+              <div className="space-y-3">
+                <Label>Organization Logo</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 rounded-lg">
+                    <AvatarImage src={currentOrg?.logo_url || ""} alt={currentOrg?.name} className="object-cover" />
+                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-lg font-semibold">
+                      {currentOrg?.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isOwner && (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        id="logo-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingLogo}
+                        className="gap-2"
+                      >
+                        {uploadingLogo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Square image recommended. Max 2MB.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="orgName">Organization Name</Label>
