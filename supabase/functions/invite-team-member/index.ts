@@ -35,6 +35,11 @@ interface InviteRequest {
   managerId?: string;
 }
 
+// Generate a 6-digit OTP code
+function generateOtpCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -172,8 +177,29 @@ serve(async (req: Request) => {
       // Continue anyway - role can be assigned later
     }
 
+    // Generate invitation code (OTP)
+    const inviteCode = generateOtpCode();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days expiry for invitation codes
+    
+    // Store the invitation code in otp_codes table
+    const { error: otpError } = await supabase
+      .from('otp_codes')
+      .insert({
+        email: normalizedEmail,
+        code: inviteCode,
+        expires_at: expiresAt.toISOString(),
+      });
+
+    if (otpError) {
+      console.error('Error storing invitation code:', otpError);
+      // Continue anyway - they can request a new code
+    }
+
+    console.log('Generated invitation code for:', normalizedEmail);
+
     // Get the app URL from environment or use default
     const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
+    const joinUrl = `${appUrl}/join?email=${encodeURIComponent(normalizedEmail)}`;
 
     // Send invitation email via Resend API
     const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Team Member';
@@ -190,9 +216,11 @@ serve(async (req: Request) => {
           .details { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; }
           .details p { margin: 8px 0; }
           .details strong { color: #64748b; }
+          .code-box { background: #6366f1; color: white; font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; border-radius: 8px; margin: 20px 0; }
           .cta { text-align: center; margin: 30px 0; }
           .button { display: inline-block; background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; }
           .footer { text-align: center; color: #64748b; font-size: 14px; }
+          .note { background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #92400e; }
         </style>
       </head>
       <body>
@@ -209,9 +237,14 @@ serve(async (req: Request) => {
               <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
               <p><strong>Role:</strong> ${roleLabel}</p>
             </div>
-            <p>To get started, click the button below and use the OTP login with your email address:</p>
+            <p style="text-align: center; font-weight: 600;">Your Invitation Code:</p>
+            <div class="code-box">${inviteCode}</div>
+            <p>Click the button below and enter this code to join the team:</p>
             <div class="cta">
-              <a href="${appUrl}/auth" class="button">Join TeamHub</a>
+              <a href="${joinUrl}" class="button">Join TeamHub</a>
+            </div>
+            <div class="note">
+              <strong>Note:</strong> This code is valid for 7 days. If it expires, contact your administrator to resend the invitation.
             </div>
           </div>
           <div class="footer">
@@ -232,7 +265,7 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           from: 'TeamHub <hello@globalyhub.com>',
           to: [normalizedEmail],
-          subject: 'Welcome to TeamHub - You\'ve been invited!',
+          subject: 'Welcome to TeamHub - Your Invitation Code Inside!',
           html: emailHtml,
         }),
       });
