@@ -208,9 +208,13 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Get current employee and their profile for reviewer name
     const { data: currentEmployee } = await supabase
       .from("employees")
-      .select("id")
+      .select(`
+        id,
+        profiles!inner(full_name)
+      `)
       .eq("user_id", user.id)
       .eq("organization_id", currentOrg?.id)
       .maybeSingle();
@@ -228,6 +232,22 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       toast.error("Failed to update leave request");
     } else {
       toast.success(`Leave request ${approved ? "approved" : "rejected"}`);
+      
+      // Send notification email to employee
+      try {
+        const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
+        await supabase.functions.invoke("notify-leave-decision", {
+          body: {
+            request_id: requestId,
+            decision: approved ? "approved" : "rejected",
+            reviewer_name: reviewerName,
+          },
+        });
+      } catch (notifyError) {
+        console.error("Failed to send notification:", notifyError);
+        // Don't show error to user - notification is not critical
+      }
+      
       loadPendingRequests();
       onApprovalChange?.();
     }
