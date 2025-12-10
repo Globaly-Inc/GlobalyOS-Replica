@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { PageHeader } from "@/components/PageHeader";
 import { KudosCard } from "@/components/KudosCard";
 import { Heart } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -60,16 +61,13 @@ const Kudos = () => {
   };
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="mb-2 text-4xl font-bold text-foreground">Team Kudos</h1>
-            <p className="text-muted-foreground">
-              Celebrate and recognize your amazing teammates
-            </p>
-          </div>
+      <div className="space-y-6">
+        <PageHeader 
+          title="Team Kudos" 
+          subtitle="Celebrate and recognize your amazing teammates"
+        >
           <GiveKudosDialog onSuccess={loadKudos} />
-        </div>
+        </PageHeader>
 
         {loading ? (
           <Card className="p-12 text-center">

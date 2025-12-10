@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { PageHeader } from "@/components/PageHeader";
 import { EmployeeCard } from "@/components/EmployeeCard";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -114,27 +115,22 @@ const Team = () => {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="mb-2 text-4xl font-bold text-foreground">Team Directory</h1>
-            <p className="text-muted-foreground">
-              Meet our amazing team of {employees.length} members
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/org-chart')} className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Org Chart
+      <div className="space-y-6">
+        <PageHeader 
+          title="Team Directory" 
+          subtitle={`Meet our amazing team of ${employees.length} members`}
+        >
+          <Button variant="outline" onClick={() => navigate('/org-chart')} className="gap-2">
+            <Building2 className="h-4 w-4" />
+            Org Chart
+          </Button>
+          {isAdmin && (
+            <Button onClick={() => navigate('/team/invite')} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Invite Team Member
             </Button>
-            {isAdmin && (
-              <Button onClick={() => navigate('/team/invite')} className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                Invite Team Member
-              </Button>
-            )}
-          </div>
-        </div>
+          )}
+        </PageHeader>
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
