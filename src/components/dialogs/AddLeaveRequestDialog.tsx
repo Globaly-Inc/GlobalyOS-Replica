@@ -47,10 +47,24 @@ const formSchema = z.object({
 
 interface AddLeaveRequestDialogProps {
   employeeId: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onSuccess?: () => void;
+  trigger?: React.ReactNode;
 }
 
-export const AddLeaveRequestDialog = ({ employeeId }: AddLeaveRequestDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const AddLeaveRequestDialog = ({ 
+  employeeId, 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange,
+  onSuccess,
+  trigger 
+}: AddLeaveRequestDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+  
   const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -81,6 +95,7 @@ export const AddLeaveRequestDialog = ({ employeeId }: AddLeaveRequestDialogProps
       toast.success("Leave request submitted successfully");
       setOpen(false);
       form.reset();
+      onSuccess?.();
     },
     onError: () => {
       toast.error("Failed to submit leave request");
@@ -93,12 +108,16 @@ export const AddLeaveRequestDialog = ({ employeeId }: AddLeaveRequestDialogProps
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Request Leave
-        </Button>
-      </DialogTrigger>
+      {trigger !== undefined ? (
+        trigger
+      ) : (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Request Leave
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Request Time Off</DialogTitle>
