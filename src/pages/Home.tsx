@@ -91,6 +91,7 @@ const Home = () => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
@@ -111,6 +112,18 @@ const Home = () => {
     if (!currentOrg) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Get user's profile name
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileData) {
+      const firstName = profileData.full_name.split(" ")[0];
+      setCurrentUserName(firstName);
+    }
 
     const { data } = await supabase
       .from("employees")
@@ -376,7 +389,7 @@ const Home = () => {
               if (hour < 12) return "Good morning";
               if (hour < 17) return "Good afternoon";
               return "Good evening";
-            })()}, welcome to {currentOrg?.name || "TeamHub"}
+            })()}{currentUserName ? `, ${currentUserName}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
