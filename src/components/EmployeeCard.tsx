@@ -2,14 +2,22 @@ import { Employee } from "@/types/employee";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
-import { Mail, MapPin, Calendar } from "lucide-react";
+import { Button } from "./ui/button";
+import { Mail, MapPin, Calendar, Send } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface EmployeeCardProps {
   employee: Employee;
+  showResendInvite?: boolean;
 }
 
-export const EmployeeCard = ({ employee }: EmployeeCardProps) => {
+export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCardProps) => {
+  const [resending, setResending] = useState(false);
+  const { toast } = useToast();
+
   const getStatusConfig = (status?: string) => {
     switch (status) {
       case 'active':
@@ -23,6 +31,39 @@ export const EmployeeCard = ({ employee }: EmployeeCardProps) => {
   };
 
   const statusConfig = getStatusConfig(employee.status);
+
+  const handleResendInvite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-invite', {
+        body: { employeeId: employee.id },
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Failed to resend invite",
+          description: data?.error || error?.message || "Please try again later",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Invitation Resent",
+          description: `A reminder email has been sent to ${employee.email}`,
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to resend invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <Link to={`/team/${employee.id}`}>
@@ -70,6 +111,19 @@ export const EmployeeCard = ({ employee }: EmployeeCardProps) => {
                 </span>
               </div>
             </div>
+
+            {showResendInvite && employee.status === 'invited' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 gap-2"
+                onClick={handleResendInvite}
+                disabled={resending}
+              >
+                <Send className="h-3 w-3" />
+                {resending ? 'Sending...' : 'Resend Invite'}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

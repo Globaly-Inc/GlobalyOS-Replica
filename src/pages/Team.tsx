@@ -117,6 +117,7 @@ const Team = () => {
                     avatar: employee.profiles.avatar_url || undefined,
                     status: employee.status,
                   }}
+                  showResendInvite={isAdmin}
                 />
               ))}
             </div>
