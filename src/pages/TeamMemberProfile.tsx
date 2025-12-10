@@ -21,10 +21,13 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
 const TeamMemberProfile = () => {
-  const { id } = useParams();
-  const { toast } = useToast();
+  const {
+    id
+  } = useParams();
+  const {
+    toast
+  } = useToast();
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,27 +36,26 @@ const TeamMemberProfile = () => {
   const [manager, setManager] = useState<any>(null);
   const [directReports, setDirectReports] = useState<any[]>([]);
   const [officeEmployeeCount, setOfficeEmployeeCount] = useState<number>(0);
-
   const updateEmployeeField = async (field: string, value: string) => {
     if (!id) return;
-    const { error } = await supabase
-      .from("employees")
-      .update({ [field]: value || null })
-      .eq("id", id);
-    
+    const {
+      error
+    } = await supabase.from("employees").update({
+      [field]: value || null
+    }).eq("id", id);
     if (error) {
       toast({
         title: "Update failed",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
       throw error;
     }
-    
-    toast({ title: "Updated successfully" });
+    toast({
+      title: "Updated successfully"
+    });
     loadEmployee();
   };
-
   useEffect(() => {
     if (id) {
       loadEmployee();
@@ -63,25 +65,23 @@ const TeamMemberProfile = () => {
       loadDirectReports();
     }
   }, [id]);
-
   const checkPermissions = async () => {
     if (!id) return;
-    
-    const { data, error } = await supabase.rpc('can_view_employee_sensitive_data', {
+    const {
+      data,
+      error
+    } = await supabase.rpc('can_view_employee_sensitive_data', {
       _employee_id: id
     });
-
     if (!error && data) {
       setCanViewSensitiveData(true);
     }
   };
-
   const loadPositionHistory = async () => {
     if (!id) return;
-
-    const { data } = await supabase
-      .from("position_history")
-      .select(`
+    const {
+      data
+    } = await supabase.from("position_history").select(`
         id,
         position,
         department,
@@ -94,17 +94,15 @@ const TeamMemberProfile = () => {
         manager:employees!position_history_manager_id_fkey(
           profiles!inner(full_name)
         )
-      `)
-      .eq("employee_id", id)
-      .order("effective_date", { ascending: false });
-
+      `).eq("employee_id", id).order("effective_date", {
+      ascending: false
+    });
     if (data) setPositionHistory(data);
   };
-
   const loadEmployee = async () => {
-    const { data } = await supabase
-      .from("employees")
-      .select(`
+    const {
+      data
+    } = await supabase.from("employees").select(`
         id,
         position,
         department,
@@ -139,23 +137,18 @@ const TeamMemberProfile = () => {
           city,
           country
         )
-      `)
-      .eq("id", id)
-      .single();
-
+      `).eq("id", id).single();
     if (data) {
       setEmployee(data);
       // Load manager if exists
       if (data.manager_id) {
-        const { data: managerData } = await supabase
-          .from("employees")
-          .select(`
+        const {
+          data: managerData
+        } = await supabase.from("employees").select(`
             id,
             position,
             profiles!inner(full_name, avatar_url)
-          `)
-          .eq("id", data.manager_id)
-          .single();
+          `).eq("id", data.manager_id).single();
         if (managerData) {
           setManager(managerData);
         } else {
@@ -166,11 +159,12 @@ const TeamMemberProfile = () => {
       }
       // Load office employee count
       if (data.office_id) {
-        const { count } = await supabase
-          .from("employees")
-          .select("id", { count: "exact", head: true })
-          .eq("office_id", data.office_id)
-          .eq("status", "active");
+        const {
+          count
+        } = await supabase.from("employees").select("id", {
+          count: "exact",
+          head: true
+        }).eq("office_id", data.office_id).eq("status", "active");
         setOfficeEmployeeCount(count || 0);
       } else {
         setOfficeEmployeeCount(0);
@@ -178,26 +172,21 @@ const TeamMemberProfile = () => {
     }
     setLoading(false);
   };
-
   const loadDirectReports = async () => {
     if (!id) return;
-    
-    const { data } = await supabase
-      .from("employees")
-      .select(`
+    const {
+      data
+    } = await supabase.from("employees").select(`
         id,
         position,
         profiles!inner(full_name, avatar_url)
-      `)
-      .eq("manager_id", id);
-    
+      `).eq("manager_id", id);
     if (data) setDirectReports(data);
   };
-
   const loadKudos = async () => {
-    const { data } = await supabase
-      .from("kudos")
-      .select(`
+    const {
+      data
+    } = await supabase.from("kudos").select(`
         id,
         comment,
         created_at,
@@ -208,26 +197,20 @@ const TeamMemberProfile = () => {
         given_by:employees!kudos_given_by_id_fkey(
           profiles!inner(full_name)
         )
-      `)
-      .eq("employee_id", id)
-      .order("created_at", { ascending: false });
-
+      `).eq("employee_id", id).order("created_at", {
+      ascending: false
+    });
     if (data) setKudos(data);
   };
-
   if (loading) {
-    return (
-      <Layout>
+    return <Layout>
         <Card className="p-12 text-center">
           <p className="text-muted-foreground">Loading...</p>
         </Card>
-      </Layout>
-    );
+      </Layout>;
   }
-
   if (!employee) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="text-center py-12">
           <p className="text-muted-foreground">Employee not found</p>
           <Link to="/team">
@@ -237,12 +220,9 @@ const TeamMemberProfile = () => {
             </Button>
           </Link>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <div className="space-y-8">
         <Link to="/team" className="-mb-6 block">
           <Button variant="ghost" size="sm">
@@ -268,8 +248,7 @@ const TeamMemberProfile = () => {
                 {/* Manager */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Manager:</span>
-                  {manager ? (
-                    <div className="flex items-center gap-2">
+                  {manager ? <div className="flex items-center gap-2">
                       <Link to={`/team/${manager.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <Avatar className="h-7 w-7 border-2 border-background">
                           <AvatarImage src={manager.profiles.avatar_url || undefined} />
@@ -279,61 +258,36 @@ const TeamMemberProfile = () => {
                         </Avatar>
                         <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
                       </Link>
-                      {canViewSensitiveData && (
-                        <EditManagerDialog
-                          employeeId={id!}
-                          currentManagerId={employee.manager_id}
-                          onSuccess={() => {
-                            loadEmployee();
-                            loadDirectReports();
-                          }}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
+                      {canViewSensitiveData && <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                    loadEmployee();
+                    loadDirectReports();
+                  }} />}
+                    </div> : <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground italic">Not assigned</span>
-                      {canViewSensitiveData && (
-                        <EditManagerDialog
-                          employeeId={id!}
-                          currentManagerId={employee.manager_id}
-                          onSuccess={() => {
-                            loadEmployee();
-                            loadDirectReports();
-                          }}
-                        />
-                      )}
-                    </div>
-                  )}
+                      {canViewSensitiveData && <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                    loadEmployee();
+                    loadDirectReports();
+                  }} />}
+                    </div>}
                 </div>
                 
                 {/* Direct Reports */}
-                {directReports.length > 0 && (
-                  <div className="flex items-center gap-2">
+                {directReports.length > 0 && <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Manages:</span>
                     <div className="flex items-center">
-                      {directReports.slice(0, 5).map((report, index) => (
-                        <Link
-                          key={report.id}
-                          to={`/team/${report.id}`}
-                          className="hover:z-10 transition-transform hover:scale-110"
-                          style={{ marginLeft: index === 0 ? 0 : '-20%' }}
-                          title={report.profiles.full_name}
-                        >
+                      {directReports.slice(0, 5).map((report, index) => <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" style={{
+                    marginLeft: index === 0 ? 0 : '-20%'
+                  }} title={report.profiles.full_name}>
                           <Avatar className="h-7 w-7 border-2 border-background shadow-sm">
                             <AvatarImage src={report.profiles.avatar_url || undefined} />
                             <AvatarFallback className="text-xs bg-muted">
                               {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
-                        </Link>
-                      ))}
-                      {directReports.length > 5 && (
-                        <span className="ml-2 text-sm text-muted-foreground">+{directReports.length - 5}</span>
-                      )}
+                        </Link>)}
+                      {directReports.length > 5 && <span className="ml-2 text-sm text-muted-foreground">+{directReports.length - 5}</span>}
                     </div>
-                  </div>
-                )}
+                  </div>}
               </div>
             </div>
             <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} />
@@ -356,39 +310,19 @@ const TeamMemberProfile = () => {
                     <p className="text-sm font-medium text-foreground">{employee.profiles.email}</p>
                   </div>
                 </div>
-                <EditableField
-                  icon={<Mail className="h-5 w-5" />}
-                  label="Personal Email"
-                  value={employee.personal_email}
-                  onSave={(value) => updateEmployeeField("personal_email", value)}
-                  canEdit={canViewSensitiveData}
-                  placeholder="Not specified"
-                />
-                <EditableField
-                  icon={<Phone className="h-5 w-5" />}
-                  label="Phone"
-                  value={employee.phone}
-                  onSave={(value) => updateEmployeeField("phone", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableDateField
-                  icon={<Calendar className="h-5 w-5" />}
-                  label="Date of Birth"
-                  value={employee.date_of_birth}
-                  onSave={(value) => updateEmployeeField("date_of_birth", value)}
-                  canEdit={canViewSensitiveData}
-                  showAge
-                />
+                <EditableField icon={<Mail className="h-5 w-5" />} label="Personal Email" value={employee.personal_email} onSave={value => updateEmployeeField("personal_email", value)} canEdit={canViewSensitiveData} placeholder="Not specified" />
+                <EditableField icon={<Phone className="h-5 w-5" />} label="Phone" value={employee.phone} onSave={value => updateEmployeeField("phone", value)} canEdit={canViewSensitiveData} />
+                <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Date of Birth" value={employee.date_of_birth} onSave={value => updateEmployeeField("date_of_birth", value)} canEdit={canViewSensitiveData} showAge />
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Join Date</p>
                     <p className="text-sm font-medium text-foreground">
                       {new Date(employee.join_date).toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
                     </p>
                   </div>
                 </div>
@@ -397,34 +331,20 @@ const TeamMemberProfile = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Office</p>
-                      {canViewSensitiveData && (
-                        <EditOfficeDialog
-                          employeeId={id!}
-                          currentOfficeId={employee.office_id}
-                          onSuccess={loadEmployee}
-                        />
-                      )}
+                      {canViewSensitiveData && <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={loadEmployee} />}
                     </div>
-                    {employee.offices ? (
-                      <>
+                    {employee.offices ? <>
                         <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {(employee.offices.city || employee.offices.country) && (
-                            <span>
+                          {(employee.offices.city || employee.offices.country) && <span>
                               {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
-                            </span>
-                          )}
-                          {officeEmployeeCount > 0 && (
-                            <span className="flex items-center gap-1">
+                            </span>}
+                          {officeEmployeeCount > 0 && <span className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
                               {officeEmployeeCount} {officeEmployeeCount === 1 ? 'employee' : 'employees'}
-                            </span>
-                          )}
+                            </span>}
                         </div>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No office assigned</p>
-                    )}
+                      </> : <p className="text-sm text-muted-foreground">No office assigned</p>}
                   </div>
                 </div>
               </div>
@@ -437,85 +357,35 @@ const TeamMemberProfile = () => {
                 Address
               </h2>
               <div className="space-y-4">
-                <EditableField
-                  label="Street"
-                  value={employee.street}
-                  onSave={(value) => updateEmployeeField("street", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="City"
-                  value={employee.city}
-                  onSave={(value) => updateEmployeeField("city", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="State"
-                  value={employee.state}
-                  onSave={(value) => updateEmployeeField("state", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="Postcode"
-                  value={employee.postcode}
-                  onSave={(value) => updateEmployeeField("postcode", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="Country"
-                  value={employee.country}
-                  onSave={(value) => updateEmployeeField("country", value)}
-                  canEdit={canViewSensitiveData}
-                />
+                <EditableField label="Street" value={employee.street} onSave={value => updateEmployeeField("street", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="City" value={employee.city} onSave={value => updateEmployeeField("city", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="State" value={employee.state} onSave={value => updateEmployeeField("state", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="Postcode" value={employee.postcode} onSave={value => updateEmployeeField("postcode", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="Country" value={employee.country} onSave={value => updateEmployeeField("country", value)} canEdit={canViewSensitiveData} />
               </div>
             </Card>
 
             {/* Tax & Banking */}
-            {canViewSensitiveData && (
-              <Card className="p-6">
+            {canViewSensitiveData && <Card className="p-6">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
                   <CreditCard className="h-5 w-5 text-primary" />
                   Tax & Banking
                 </h2>
                 <div className="space-y-4">
-                  <EditableField
-                    icon={<FileText className="h-5 w-5" />}
-                    label="ID Number"
-                    value={employee.id_number}
-                    onSave={(value) => updateEmployeeField("id_number", value)}
-                    canEdit={canViewSensitiveData}
-                  />
-                  <EditableField
-                    icon={<FileText className="h-5 w-5" />}
-                    label="Tax Number"
-                    value={employee.tax_number}
-                    onSave={(value) => updateEmployeeField("tax_number", value)}
-                    canEdit={canViewSensitiveData}
-                  />
+                  <EditableField icon={<FileText className="h-5 w-5" />} label="ID Number" value={employee.id_number} onSave={value => updateEmployeeField("id_number", value)} canEdit={canViewSensitiveData} />
+                  <EditableField icon={<FileText className="h-5 w-5" />} label="Tax Number" value={employee.tax_number} onSave={value => updateEmployeeField("tax_number", value)} canEdit={canViewSensitiveData} />
                   <div className="flex items-start gap-3">
                     <CreditCard className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">Remuneration</p>
                       <p className="text-sm font-medium text-foreground">
-                        {employee.remuneration 
-                          ? `${employee.remuneration_currency || 'USD'} ${Number(employee.remuneration).toLocaleString()}`
-                          : <span className="text-muted-foreground italic">Not specified</span>
-                        }
+                        {employee.remuneration ? `${employee.remuneration_currency || 'USD'} ${Number(employee.remuneration).toLocaleString()}` : <span className="text-muted-foreground italic">Not specified</span>}
                       </p>
                     </div>
                   </div>
-                  <EditableField
-                    icon={<Building className="h-5 w-5" />}
-                    label="Bank Details"
-                    value={employee.bank_details}
-                    onSave={(value) => updateEmployeeField("bank_details", value)}
-                    type="textarea"
-                    canEdit={canViewSensitiveData}
-                    placeholder="Enter bank account details"
-                  />
+                  <EditableField icon={<Building className="h-5 w-5" />} label="Bank Details" value={employee.bank_details} onSave={value => updateEmployeeField("bank_details", value)} type="textarea" canEdit={canViewSensitiveData} placeholder="Enter bank account details" />
                 </div>
-              </Card>
-            )}
+              </Card>}
 
             {/* Emergency Contact */}
             <Card className="p-6">
@@ -524,67 +394,38 @@ const TeamMemberProfile = () => {
                 Emergency Contact
               </h2>
               <div className="space-y-4">
-                <EditableField
-                  label="Contact Name"
-                  value={employee.emergency_contact_name}
-                  onSave={(value) => updateEmployeeField("emergency_contact_name", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="Contact Phone"
-                  value={employee.emergency_contact_phone}
-                  onSave={(value) => updateEmployeeField("emergency_contact_phone", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="Relationship"
-                  value={employee.emergency_contact_relationship}
-                  onSave={(value) => updateEmployeeField("emergency_contact_relationship", value)}
-                  canEdit={canViewSensitiveData}
-                />
+                <EditableField label="Contact Name" value={employee.emergency_contact_name} onSave={value => updateEmployeeField("emergency_contact_name", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="Contact Phone" value={employee.emergency_contact_phone} onSave={value => updateEmployeeField("emergency_contact_phone", value)} canEdit={canViewSensitiveData} />
+                <EditableField label="Relationship" value={employee.emergency_contact_relationship} onSave={value => updateEmployeeField("emergency_contact_relationship", value)} canEdit={canViewSensitiveData} />
               </div>
             </Card>
           </div>
 
           <div className="space-y-6 lg:col-span-2">
-            {employee.superpowers && employee.superpowers.length > 0 && (
-              <Card className="p-6">
+            {employee.superpowers && employee.superpowers.length > 0 && <Card className="p-6">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
                   <Sparkles className="h-5 w-5 text-accent" />
                   Superpowers
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {employee.superpowers.map((power: string, index: number) => (
-                    <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
+                  {employee.superpowers.map((power: string, index: number) => <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
                       {power}
-                    </Badge>
-                  ))}
+                    </Badge>)}
                 </div>
-              </Card>
-            )}
+              </Card>}
 
-            {canViewSensitiveData && (
-              <div className="space-y-4">
+            {canViewSensitiveData && <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-foreground">
-                    Career Timeline
+                    Position Timeline
                   </h2>
-                  <AddPositionHistoryDialog 
-                    employeeId={id!} 
-                    onSuccess={() => {
-                      loadPositionHistory();
-                      loadEmployee();
-                    }} 
-                  />
+                  <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
+                loadPositionHistory();
+                loadEmployee();
+              }} />
                 </div>
-                <PositionTimeline 
-                  entries={positionHistory}
-                  currentPosition={employee.position}
-                  currentDepartment={employee.department}
-                  currentSalary={employee.salary}
-                />
-              </div>
-            )}
+                <PositionTimeline entries={positionHistory} currentPosition={employee.position} currentDepartment={employee.department} currentSalary={employee.salary} />
+              </div>}
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -617,33 +458,22 @@ const TeamMemberProfile = () => {
               <h2 className="mb-4 text-2xl font-bold text-foreground">
                 Kudos Received ({kudos.length})
               </h2>
-              {kudos.length > 0 ? (
-                <div className="space-y-4">
-                  {kudos.map((k) => (
-                    <KudosCard
-                      key={k.id}
-                      kudos={{
-                        id: k.id,
-                        employeeId: k.employee.id,
-                        employeeName: k.employee.profiles.full_name,
-                        givenBy: k.given_by.profiles.full_name,
-                        comment: k.comment,
-                        date: k.created_at,
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Card className="p-12 text-center">
+              {kudos.length > 0 ? <div className="space-y-4">
+                  {kudos.map(k => <KudosCard key={k.id} kudos={{
+                id: k.id,
+                employeeId: k.employee.id,
+                employeeName: k.employee.profiles.full_name,
+                givenBy: k.given_by.profiles.full_name,
+                comment: k.comment,
+                date: k.created_at
+              }} />)}
+                </div> : <Card className="p-12 text-center">
                   <p className="text-muted-foreground">No kudos yet!</p>
-                </Card>
-              )}
+                </Card>}
             </div>
           </div>
         </div>
       </div>
-    </Layout>
-  );
+    </Layout>;
 };
-
 export default TeamMemberProfile;
