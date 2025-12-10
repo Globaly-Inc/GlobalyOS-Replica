@@ -813,7 +813,7 @@ const InviteTeamMember = () => {
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 items-end">
                 <div className="space-y-2">
                   <Label htmlFor="joinDate">Join Date</Label>
                   <Input
@@ -834,8 +834,6 @@ const InviteTeamMember = () => {
                   error={errors.idNumber}
                   touched={touched.idNumber}
                 />
-              </div>
-              <div className="grid gap-6 sm:grid-cols-2">
                 <FormInputField
                   id="taxNumber"
                   label="Personal Tax Number"
@@ -853,7 +851,7 @@ const InviteTeamMember = () => {
                       value={formData.remunerationCurrency}
                       onValueChange={(value) => handleChange('remunerationCurrency', value)}
                     >
-                      <SelectTrigger className="w-28">
+                      <SelectTrigger className="w-24 shrink-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
