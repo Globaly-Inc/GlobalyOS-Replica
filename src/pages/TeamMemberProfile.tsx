@@ -108,7 +108,6 @@ const TeamMemberProfile = () => {
         salary,
         join_date,
         phone,
-        location,
         superpowers,
         manager_id,
         personal_email,
@@ -370,12 +369,6 @@ const TeamMemberProfile = () => {
                   label="Country"
                   value={employee.country}
                   onSave={(value) => updateEmployeeField("country", value)}
-                  canEdit={canViewSensitiveData}
-                />
-                <EditableField
-                  label="Location"
-                  value={employee.location}
-                  onSave={(value) => updateEmployeeField("location", value)}
                   canEdit={canViewSensitiveData}
                 />
               </div>
