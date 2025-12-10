@@ -146,7 +146,7 @@ const TeamMemberProfile = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <Link to="/team">
+        <Link to="/team" className="-mb-6 block">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Team
