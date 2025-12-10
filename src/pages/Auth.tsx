@@ -37,6 +37,15 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -145,6 +154,34 @@ const Auth = () => {
     }
   };
 
+  const sendOtpRequest = async (email: string) => {
+    const response = await supabase.functions.invoke('send-otp', {
+      body: { email }
+    });
+
+    if (response.error) {
+      toast({
+        title: "Failed to send OTP",
+        description: response.error.message || "Please try again",
+        variant: "destructive",
+      });
+      return false;
+    } else if (response.data?.error) {
+      toast({
+        title: "Failed to send OTP",
+        description: response.data.error,
+        variant: "destructive",
+      });
+      return false;
+    } else {
+      toast({
+        title: "OTP Sent!",
+        description: "Check your email for the 6-digit code.",
+      });
+      return true;
+    }
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -153,28 +190,10 @@ const Auth = () => {
       const validated = otpEmailSchema.parse({ email: otpEmail });
       setLoading(true);
 
-      const response = await supabase.functions.invoke('send-otp', {
-        body: { email: validated.email }
-      });
-
-      if (response.error) {
-        toast({
-          title: "Failed to send OTP",
-          description: response.error.message || "Please try again",
-          variant: "destructive",
-        });
-      } else if (response.data?.error) {
-        toast({
-          title: "Failed to send OTP",
-          description: response.data.error,
-          variant: "destructive",
-        });
-      } else {
+      const success = await sendOtpRequest(validated.email);
+      if (success) {
         setOtpSent(true);
-        toast({
-          title: "OTP Sent!",
-          description: "Check your email for the 6-digit code.",
-        });
+        setResendCooldown(60); // 60 second cooldown
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -189,6 +208,18 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    
+    setLoading(true);
+    const success = await sendOtpRequest(otpEmail);
+    if (success) {
+      setResendCooldown(60);
+      setOtpCode("");
+    }
+    setLoading(false);
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -251,6 +282,13 @@ const Auth = () => {
     setOtpSent(false);
     setOtpCode("");
     setErrors({});
+    setResendCooldown(0);
+  };
+
+  const formatCooldown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
   };
 
   return (
@@ -358,9 +396,20 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
                   {loading ? "Verifying..." : "Verify & Sign In"}
                 </Button>
-                <Button type="button" variant="ghost" className="w-full" onClick={resetOtpFlow}>
-                  Use different email
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleResendOtp}
+                    disabled={loading || resendCooldown > 0}
+                  >
+                    {resendCooldown > 0 ? `Resend in ${formatCooldown(resendCooldown)}` : "Resend Code"}
+                  </Button>
+                  <Button type="button" variant="ghost" className="flex-1" onClick={resetOtpFlow}>
+                    Different email
+                  </Button>
+                </div>
               </form>
             )}
           </TabsContent>
