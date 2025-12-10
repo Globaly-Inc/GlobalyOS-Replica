@@ -108,6 +108,62 @@ const Home = () => {
       loadLeaveData();
       loadUpcomingEvents();
       loadDailyQuote();
+
+      // Set up real-time subscriptions for auto-refresh
+      const updatesChannel = supabase
+        .channel('home-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'updates',
+            filter: `organization_id=eq.${currentOrg.id}`
+          },
+          () => {
+            loadFeed();
+          }
+        )
+        .subscribe();
+
+      const kudosChannel = supabase
+        .channel('home-kudos')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'kudos',
+            filter: `organization_id=eq.${currentOrg.id}`
+          },
+          () => {
+            loadFeed();
+          }
+        )
+        .subscribe();
+
+      const leaveChannel = supabase
+        .channel('home-leave')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'leave_requests',
+            filter: `organization_id=eq.${currentOrg.id}`
+          },
+          () => {
+            loadLeaveData();
+          }
+        )
+        .subscribe();
+
+      // Cleanup subscriptions on unmount
+      return () => {
+        supabase.removeChannel(updatesChannel);
+        supabase.removeChannel(kudosChannel);
+        supabase.removeChannel(leaveChannel);
+      };
     }
   }, [currentOrg?.id]);
 
