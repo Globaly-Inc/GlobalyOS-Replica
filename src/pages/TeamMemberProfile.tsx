@@ -260,20 +260,46 @@ const TeamMemberProfile = () => {
               
               <div className="mt-4 flex flex-wrap items-center gap-6">
                 {/* Manager */}
-                {manager && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Manager:</span>
-                    <Link to={`/team/${manager.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                      <Avatar className="h-7 w-7 border-2 border-background">
-                        <AvatarImage src={manager.profiles.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs bg-muted">
-                          {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
-                    </Link>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Manager:</span>
+                  {manager ? (
+                    <div className="flex items-center gap-2">
+                      <Link to={`/team/${manager.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                        <Avatar className="h-7 w-7 border-2 border-background">
+                          <AvatarImage src={manager.profiles.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs bg-muted">
+                            {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
+                      </Link>
+                      {canViewSensitiveData && (
+                        <EditManagerDialog
+                          employeeId={id!}
+                          currentManagerId={employee.manager_id}
+                          onSuccess={() => {
+                            loadEmployee();
+                            loadDirectReports();
+                          }}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground italic">Not assigned</span>
+                      {canViewSensitiveData && (
+                        <EditManagerDialog
+                          employeeId={id!}
+                          currentManagerId={employee.manager_id}
+                          onSuccess={() => {
+                            loadEmployee();
+                            loadDirectReports();
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Direct Reports */}
                 {directReports.length > 0 && (
