@@ -3,6 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Clock, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -37,6 +47,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const [processing, setProcessing] = useState<string | null>(null);
   const [isManagerOnLeave, setIsManagerOnLeave] = useState(false);
   const [showAsHR, setShowAsHR] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    request: PendingLeaveRequest | null;
+    action: "approve" | "reject";
+  }>({ open: false, request: null, action: "approve" });
   const { currentOrg } = useOrganization();
   const { isHR } = useUserRole();
 
@@ -218,6 +233,17 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     }
 
     setProcessing(null);
+    setConfirmDialog({ open: false, request: null, action: "approve" });
+  };
+
+  const openConfirmDialog = (request: PendingLeaveRequest, action: "approve" | "reject") => {
+    setConfirmDialog({ open: true, request, action });
+  };
+
+  const confirmApproval = () => {
+    if (confirmDialog.request) {
+      handleApproval(confirmDialog.request.id, confirmDialog.action === "approve");
+    }
   };
 
   const getLeaveTypeLabel = (type: string) => {
@@ -292,7 +318,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                 size="sm"
                 variant="default"
                 className="flex-1"
-                onClick={() => handleApproval(request.id, true)}
+                onClick={() => openConfirmDialog(request, "approve")}
                 disabled={processing === request.id}
               >
                 <Check className="mr-1 h-3 w-3" />
@@ -302,7 +328,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                onClick={() => handleApproval(request.id, false)}
+                onClick={() => openConfirmDialog(request, "reject")}
                 disabled={processing === request.id}
               >
                 <X className="mr-1 h-3 w-3" />
@@ -312,6 +338,42 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           </div>
         ))}
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog 
+        open={confirmDialog.open} 
+        onOpenChange={(open) => !open && setConfirmDialog({ open: false, request: null, action: "approve" })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog.action === "approve" ? "Approve" : "Reject"} Leave Request?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.request && (
+                <>
+                  Are you sure you want to {confirmDialog.action}{" "}
+                  <span className="font-medium">{confirmDialog.request.employee.profiles.full_name}'s</span>{" "}
+                  {getLeaveTypeLabel(confirmDialog.request.leave_type).toLowerCase()} request for{" "}
+                  {confirmDialog.request.days_count} {confirmDialog.request.days_count === 1 ? "day" : "days"} (
+                  {format(parseISO(confirmDialog.request.start_date), "MMM d")} -{" "}
+                  {format(parseISO(confirmDialog.request.end_date), "MMM d")})?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!processing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmApproval}
+              disabled={!!processing}
+              className={confirmDialog.action === "reject" ? "bg-destructive hover:bg-destructive/90" : ""}
+            >
+              {processing ? "Processing..." : confirmDialog.action === "approve" ? "Approve" : "Reject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
