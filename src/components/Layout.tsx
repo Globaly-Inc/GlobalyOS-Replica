@@ -1,10 +1,19 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Award, TrendingUp, Menu, LogOut, Building2 } from "lucide-react";
+import { Users, Home, Award, TrendingUp, Menu, LogOut, Building2, User, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -14,13 +23,66 @@ const navigation = [
   { name: "Growth", href: "/growth", icon: TrendingUp },
 ];
 
+interface UserProfile {
+  fullName: string;
+  position: string;
+  avatarUrl: string | null;
+  employeeId: string | null;
+}
+
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user?.id) return;
+
+      // Get profile and employee data
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("id, position")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        setUserProfile({
+          fullName: profile.full_name,
+          position: employee?.position || "",
+          avatarUrl: profile.avatar_url,
+          employeeId: employee?.id || null,
+        });
+      }
+    };
+
+    loadUserProfile();
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleViewProfile = () => {
+    if (userProfile?.employeeId) {
+      navigate(`/team/${userProfile.employeeId}`);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -51,16 +113,41 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             ))}
           </nav>
 
-          <div className="hidden md:flex md:items-center md:gap-4">
-            <Avatar className="h-9 w-9 border-2 border-primary/10">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold">
-                {user?.email?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+          <div className="hidden md:flex md:items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 px-2">
+                  <Avatar className="h-8 w-8 border-2 border-primary/10">
+                    {userProfile?.avatarUrl ? (
+                      <AvatarImage src={userProfile.avatarUrl} alt={userProfile.fullName} />
+                    ) : null}
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
+                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col items-start text-left">
+                    <span className="text-sm font-medium text-foreground">
+                      {userProfile?.fullName || "Loading..."}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {userProfile?.position || ""}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-popover">
+                <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  View Profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Mobile Navigation */}
@@ -73,7 +160,25 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-64">
-                <nav className="flex flex-col space-y-2 pt-6">
+                <div className="flex items-center gap-3 border-b border-border pb-4 pt-2">
+                  <Avatar className="h-10 w-10 border-2 border-primary/10">
+                    {userProfile?.avatarUrl ? (
+                      <AvatarImage src={userProfile.avatarUrl} alt={userProfile.fullName} />
+                    ) : null}
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold">
+                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {userProfile?.fullName || "Loading..."}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {userProfile?.position || ""}
+                    </span>
+                  </div>
+                </div>
+                <nav className="flex flex-col space-y-2 pt-4">
                   {navigation.map((item) => (
                     <NavLink
                       key={item.name}
@@ -85,6 +190,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       {item.name}
                     </NavLink>
                   ))}
+                  <div className="border-t border-border pt-2 mt-2">
+                    <button
+                      onClick={handleViewProfile}
+                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      <User className="h-5 w-5" />
+                      View Profile
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-secondary"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Logout
+                    </button>
+                  </div>
                 </nav>
               </SheetContent>
             </Sheet>
