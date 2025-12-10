@@ -66,7 +66,7 @@ serve(async (req: Request) => {
     const joinDate = employee.join_date;
 
     // Get the app URL from environment or use default
-    const appUrl = Deno.env.get('APP_URL') || 'https://teamhub.lovable.app';
+    const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
 
     // Send invitation email via Resend API
     const emailHtml = `

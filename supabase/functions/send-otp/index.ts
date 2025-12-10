@@ -90,7 +90,7 @@ serve(async (req) => {
 
     // Send email with OTP
     const { error: emailError } = await resend.emails.send({
-      from: 'TeamHub <onboarding@resend.dev>',
+      from: 'TeamHub <hello@globalyhub.com>',
       to: [email],
       subject: `Your TeamHub verification code: ${otpCode}`,
       html: `

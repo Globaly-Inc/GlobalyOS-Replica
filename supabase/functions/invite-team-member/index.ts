@@ -171,7 +171,7 @@ serve(async (req: Request) => {
     }
 
     // Get the app URL from environment or use default
-    const appUrl = Deno.env.get('APP_URL') || 'https://teamhub.lovable.app';
+    const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
 
     // Send invitation email via Resend API
     const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Team Member';
