@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, UserPlus, Check, AlertCircle, User, MapPin, Briefcase, Calendar, Shield, Phone } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, AlertCircle, User, MapPin, Briefcase, Calendar, Shield, Phone, Upload, Camera, ArrowRight, Edit } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+
+const countries = [
+  "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh",
+  "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia", "Czech Republic", "Denmark",
+  "Egypt", "Finland", "France", "Germany", "Ghana", "Greece", "Hong Kong", "Hungary", "India",
+  "Indonesia", "Ireland", "Israel", "Italy", "Japan", "Kenya", "Malaysia", "Mexico",
+  "Netherlands", "New Zealand", "Nigeria", "Norway", "Pakistan", "Peru", "Philippines",
+  "Poland", "Portugal", "Romania", "Russia", "Saudi Arabia", "Singapore", "South Africa",
+  "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
+  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+];
+
+const currencies = [
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+];
 
 const inviteSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(255),
@@ -35,28 +60,19 @@ const inviteSchema = z.object({
   role: z.enum(['admin', 'hr', 'user']),
 });
 
-const currencies = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-];
-
 const InviteTeamMember = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [departments, setDepartments] = useState<string[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -109,6 +125,26 @@ const InviteTeamMember = () => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const validateField = (field: string, value: string) => {
     try {
       const fieldSchema = inviteSchema.shape[field as keyof typeof inviteSchema.shape];
@@ -135,18 +171,71 @@ const InviteTeamMember = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    try {
+      inviteSchema.parse(formData);
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        const allTouched: Record<string, boolean> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+            allTouched[err.path[0] as string] = true;
+          }
+        });
+        setErrors(fieldErrors);
+        setTouched(prev => ({ ...prev, ...allTouched }));
+      }
+      return false;
+    }
+  };
+
+  const handlePreview = (e: React.FormEvent) => {
     e.preventDefault();
+    if (validateForm()) {
+      setShowPreview(true);
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields correctly",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
     setErrors({});
 
     try {
       const validated = inviteSchema.parse(formData);
       setLoading(true);
 
+      let avatarUrl = null;
+
+      // Upload avatar if selected
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile);
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+          avatarUrl = publicUrl;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('invite-team-member', {
         body: {
           ...validated,
           fullName: `${validated.firstName} ${validated.lastName}`,
+          avatarUrl,
         },
       });
 
@@ -181,15 +270,12 @@ const InviteTeamMember = () => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        const allTouched: Record<string, boolean> = {};
         error.errors.forEach((err) => {
           if (err.path[0]) {
             fieldErrors[err.path[0] as string] = err.message;
-            allTouched[err.path[0] as string] = true;
           }
         });
         setErrors(fieldErrors);
-        setTouched(prev => ({ ...prev, ...allTouched }));
       } else {
         toast({
           title: "Error",
@@ -255,6 +341,18 @@ const InviteTeamMember = () => {
     );
   };
 
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrator';
+      case 'hr': return 'HR Manager';
+      default: return 'Team Member';
+    }
+  };
+
+  const getCurrencySymbol = (code: string) => {
+    return currencies.find(c => c.code === code)?.symbol || '$';
+  };
+
   if (success) {
     return (
       <Layout>
@@ -275,6 +373,111 @@ const InviteTeamMember = () => {
     );
   }
 
+  if (showPreview) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setShowPreview(false)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Review & Confirm</h1>
+              <p className="text-muted-foreground">Review the details before sending the invitation</p>
+            </div>
+          </div>
+
+          <Card className="animate-fade-in">
+            <CardHeader className="flex flex-row items-center gap-6 pb-6">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarPreview || undefined} />
+                <AvatarFallback className="text-2xl bg-primary/10">
+                  {formData.firstName[0]}{formData.lastName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-2xl font-bold">{formData.firstName} {formData.lastName}</h2>
+                <p className="text-muted-foreground">{formData.position} • {formData.department}</p>
+                <span className="inline-flex items-center mt-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                  {getRoleLabel(formData.role)}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Contact Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="text-muted-foreground">Email:</span> {formData.email}</p>
+                    <p><span className="text-muted-foreground">Phone:</span> {formData.phone}</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Address</h3>
+                  <div className="space-y-1 text-sm">
+                    <p>{formData.street}</p>
+                    <p>{formData.city}, {formData.state} {formData.postcode}</p>
+                    <p>{formData.country}</p>
+                  </div>
+                </div>
+              </div>
+
+              {(formData.joinDate || formData.idNumber || formData.taxNumber || formData.remuneration) && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Employment Details</h3>
+                  <div className="grid gap-4 md:grid-cols-2 text-sm">
+                    {formData.joinDate && (
+                      <p><span className="text-muted-foreground">Join Date:</span> {new Date(formData.joinDate).toLocaleDateString()}</p>
+                    )}
+                    {formData.idNumber && (
+                      <p><span className="text-muted-foreground">ID Number:</span> {formData.idNumber}</p>
+                    )}
+                    {formData.taxNumber && (
+                      <p><span className="text-muted-foreground">Tax Number:</span> {formData.taxNumber}</p>
+                    )}
+                    {formData.remuneration && (
+                      <p><span className="text-muted-foreground">Remuneration:</span> {getCurrencySymbol(formData.remunerationCurrency)}{Number(formData.remuneration).toLocaleString()} {formData.remunerationCurrency}/year</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(formData.emergencyContactName || formData.emergencyContactPhone) && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Emergency Contact</h3>
+                  <div className="text-sm">
+                    <p>{formData.emergencyContactName} {formData.emergencyContactRelationship && `(${formData.emergencyContactRelationship})`}</p>
+                    {formData.emergencyContactPhone && <p>{formData.emergencyContactPhone}</p>}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={() => setShowPreview(false)} className="flex-1">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Details
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </span>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Confirm & Send Invitation
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
@@ -288,8 +491,8 @@ const InviteTeamMember = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Personal Information */}
+        <form onSubmit={handlePreview} className="space-y-6">
+          {/* Profile Photo & Personal Information */}
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -299,6 +502,36 @@ const InviteTeamMember = () => {
               <CardDescription>Basic information about the team member</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <Avatar className="h-24 w-24 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <AvatarImage src={avatarPreview || undefined} />
+                    <AvatarFallback className="bg-muted">
+                      <Camera className="h-8 w-8 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 h-8 w-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+                <div>
+                  <p className="font-medium">Profile Photo</p>
+                  <p className="text-sm text-muted-foreground">Click to upload a photo (max 5MB)</p>
+                </div>
+              </div>
+
               <div className="grid gap-6 sm:grid-cols-2">
                 <InputField id="firstName" label="First Name" required placeholder="John" />
                 <InputField id="lastName" label="Last Name" required placeholder="Doe" />
@@ -326,20 +559,49 @@ const InviteTeamMember = () => {
                 <InputField id="postcode" label="Postcode" required placeholder="10001" />
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
-                <InputField id="state" label="State" required placeholder="New York" />
-                <InputField id="country" label="Country" required placeholder="United States" />
+                <InputField id="state" label="State / Province" required placeholder="New York" />
+                <div className="space-y-2">
+                  <Label htmlFor="country" className="flex items-center gap-1">
+                    Country <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.country}
+                    onValueChange={(value) => {
+                      handleChange('country', value);
+                      setTouched(prev => ({ ...prev, country: true }));
+                    }}
+                  >
+                    <SelectTrigger className={cn(
+                      "transition-all duration-200",
+                      touched.country && errors.country && "border-destructive",
+                      touched.country && !errors.country && formData.country && "border-green-500"
+                    )}>
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country}>{country}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {touched.country && errors.country && (
+                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
+                      {errors.country}
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Department & Position */}
+          {/* Employment Details (includes Department & Position) */}
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Briefcase className="h-5 w-5" />
-                Department & Position
+                Employment Details
               </CardTitle>
-              <CardDescription>Work role and department assignment</CardDescription>
+              <CardDescription>Work role and employment information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 sm:grid-cols-2">
@@ -433,20 +695,7 @@ const InviteTeamMember = () => {
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Employment Details (Optional) */}
-          <Card className="animate-fade-in">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Employment Details
-                <span className="text-sm font-normal text-muted-foreground ml-2">(Optional)</span>
-              </CardTitle>
-              <CardDescription>Additional employment information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="joinDate">Join Date</Label>
@@ -553,18 +802,9 @@ const InviteTeamMember = () => {
             <Button type="button" variant="outline" onClick={() => navigate('/team')} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Sending...
-                </span>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Send Invitation
-                </>
-              )}
+            <Button type="submit" className="flex-1">
+              Review & Continue
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
         </form>
