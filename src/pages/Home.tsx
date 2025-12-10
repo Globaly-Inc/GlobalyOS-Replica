@@ -181,44 +181,35 @@ const Home = () => {
           </Card>
         )}
 
-        {hasEmployeeProfile && (
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-foreground">Share an Update</h2>
-              <Button onClick={loadFeed} variant="ghost" size="icon">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setPostDialogOpen(true)} className="flex-1">
-                <Plus className="mr-2 h-4 w-4" />
-                Post Update
-              </Button>
-            </div>
-          </Card>
-        )}
-
         {/* Feed Section */}
         <div>
           <Tabs defaultValue="all" className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-4">
-              <TabsTrigger value="all" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                All
-              </TabsTrigger>
-              <TabsTrigger value="wins" className="gap-2">
-                <Trophy className="h-4 w-4" />
-                Wins
-              </TabsTrigger>
-              <TabsTrigger value="kudos" className="gap-2">
-                <Heart className="h-4 w-4" />
-                Kudos
-              </TabsTrigger>
-              <TabsTrigger value="updates" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Updates
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between gap-4">
+              <TabsList className="grid w-full max-w-md grid-cols-4">
+                <TabsTrigger value="all" className="gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="wins" className="gap-2">
+                  <Trophy className="h-4 w-4" />
+                  Wins
+                </TabsTrigger>
+                <TabsTrigger value="kudos" className="gap-2">
+                  <Heart className="h-4 w-4" />
+                  Kudos
+                </TabsTrigger>
+                <TabsTrigger value="updates" className="gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Updates
+                </TabsTrigger>
+              </TabsList>
+              {hasEmployeeProfile && (
+                <Button onClick={() => setPostDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Post Update
+                </Button>
+              )}
+            </div>
 
             <TabsContent value="all" className="space-y-4">
               {loading ? (
