@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.notify-leave-decision]
 verify_jwt = false
+
+[functions.bulk-import-employees]
+verify_jwt = false
