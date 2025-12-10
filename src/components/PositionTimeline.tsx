@@ -1,7 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, ArrowRight, DollarSign, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 
 interface TimelineEntry {
   id: string;
@@ -25,6 +28,8 @@ interface PositionTimelineProps {
   currentPosition: string;
   currentDepartment: string;
   currentSalary: number | null;
+  canEdit?: boolean;
+  onRefresh?: () => void;
 }
 
 const changeTypeConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -39,8 +44,13 @@ export const PositionTimeline = ({
   entries, 
   currentPosition, 
   currentDepartment,
-  currentSalary 
+  currentSalary,
+  canEdit = false,
+  onRefresh
 }: PositionTimelineProps) => {
+  const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
   // Sort entries by effective_date descending (most recent first)
   const sortedEntries = [...entries].sort((a, b) => 
     new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
@@ -56,84 +66,112 @@ export const PositionTimeline = ({
     }).format(salary);
   };
 
+  const handleEdit = (entry: TimelineEntry) => {
+    setEditingEntry(entry);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    onRefresh?.();
+  };
+
   return (
-    <Card>
-      <CardContent className="pt-6">
-        {/* Current Position */}
-        <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="default">Current</Badge>
+    <>
+      <Card>
+        <CardContent className="pt-6">
+          {/* Current Position */}
+          <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="default">Current</Badge>
+            </div>
+            <h3 className="font-semibold text-lg">{currentPosition}</h3>
+            <p className="text-sm text-muted-foreground">{currentDepartment}</p>
+            {currentSalary && (
+              <p className="text-sm font-medium mt-1">{formatSalary(currentSalary)}</p>
+            )}
           </div>
-          <h3 className="font-semibold text-lg">{currentPosition}</h3>
-          <p className="text-sm text-muted-foreground">{currentDepartment}</p>
-          {currentSalary && (
-            <p className="text-sm font-medium mt-1">{formatSalary(currentSalary)}</p>
-          )}
-        </div>
 
-        {/* Timeline */}
-        {sortedEntries.length > 0 && (
-          <div className="space-y-4">
-            <div className="relative">
-              {/* Timeline line */}
-              {/* Timeline line */}
-              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+          {/* Timeline */}
+          {sortedEntries.length > 0 && (
+            <div className="space-y-4">
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
 
-              {sortedEntries.map((entry, index) => {
-                const config = changeTypeConfig[entry.change_type] || changeTypeConfig.initial;
-                const Icon = config.icon;
-                const isLast = index === sortedEntries.length - 1;
+                {sortedEntries.map((entry, index) => {
+                  const config = changeTypeConfig[entry.change_type] || changeTypeConfig.initial;
+                  const Icon = config.icon;
+                  const isLast = index === sortedEntries.length - 1;
 
-                return (
-                  <div key={entry.id} className="relative pl-12 pb-6 last:pb-0">
-                    {/* Timeline dot */}
-                    <div className={`absolute left-2 top-1 w-4 h-4 rounded-full ${config.color} border-4 border-background`} />
+                  return (
+                    <div key={entry.id} className="relative pl-12 pb-6 last:pb-0 group">
+                      {/* Timeline dot */}
+                      <div className={`absolute left-2 top-1 w-4 h-4 rounded-full ${config.color} border-4 border-background`} />
 
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">
-                              <Icon className="h-3 w-3 mr-1" />
-                              {config.label}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {format(new Date(entry.effective_date), 'MMM d, yyyy')}
-                              {entry.end_date && !isLast && (
-                                <> - {format(new Date(entry.end_date), 'MMM d, yyyy')}</>
-                              )}
-                            </span>
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-xs">
+                                <Icon className="h-3 w-3 mr-1" />
+                                {config.label}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(entry.effective_date), 'MMM d, yyyy')}
+                                {entry.end_date && !isLast && (
+                                  <> - {format(new Date(entry.end_date), 'MMM d, yyyy')}</>
+                                )}
+                              </span>
+                            </div>
+                            <h4 className="font-semibold">{entry.position}</h4>
+                            <p className="text-sm text-muted-foreground">{entry.department}</p>
+                            
+                            {entry.salary && (
+                              <p className="text-sm font-medium mt-1">
+                                {formatSalary(entry.salary)}
+                              </p>
+                            )}
+                            
+                            {entry.manager && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Manager: {entry.manager.profiles.full_name}
+                              </p>
+                            )}
+
+                            {entry.notes && (
+                              <p className="text-sm text-muted-foreground mt-2 italic">
+                                {entry.notes}
+                              </p>
+                            )}
                           </div>
-                          <h4 className="font-semibold">{entry.position}</h4>
-                          <p className="text-sm text-muted-foreground">{entry.department}</p>
                           
-                          {entry.salary && (
-                            <p className="text-sm font-medium mt-1">
-                              {formatSalary(entry.salary)}
-                            </p>
-                          )}
-                          
-                          {entry.manager && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Manager: {entry.manager.profiles.full_name}
-                            </p>
-                          )}
-
-                          {entry.notes && (
-                            <p className="text-sm text-muted-foreground mt-2 italic">
-                              {entry.notes}
-                            </p>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleEdit(entry)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      <EditPositionHistoryDialog
+        entry={editingEntry}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={handleEditSuccess}
+      />
+    </>
   );
 };
