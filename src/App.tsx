@@ -11,6 +11,7 @@ import OrgChart from "./pages/OrgChart";
 import Kudos from "./pages/Kudos";
 import Growth from "./pages/Growth";
 import Auth from "./pages/Auth";
+import Join from "./pages/Join";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -24,6 +25,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/join" element={<Join />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
           <Route path="/team/invite" element={<ProtectedRoute><InviteTeamMember /></ProtectedRoute>} />
