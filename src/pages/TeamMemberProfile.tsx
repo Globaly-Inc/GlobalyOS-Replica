@@ -312,6 +312,7 @@ const TeamMemberProfile = () => {
                   value={employee.date_of_birth}
                   onSave={(value) => updateEmployeeField("date_of_birth", value)}
                   canEdit={canViewSensitiveData}
+                  showAge
                 />
                 <div className="flex items-start gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />

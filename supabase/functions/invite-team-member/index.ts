@@ -15,6 +15,7 @@ interface InviteRequest {
   fullName: string;
   firstName: string;
   lastName: string;
+  dateOfBirth?: string;
   street: string;
   city: string;
   postcode?: string;
@@ -50,7 +51,7 @@ serve(async (req: Request) => {
   try {
     const data: InviteRequest = await req.json();
     const { 
-      email, personalEmail, phone, fullName, firstName, lastName,
+      email, personalEmail, phone, fullName, firstName, lastName, dateOfBirth,
       street, city, postcode, state, country,
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
@@ -123,6 +124,7 @@ serve(async (req: Request) => {
         position: position.trim(),
         department: department.trim(),
         join_date: joinDate || new Date().toISOString().split('T')[0],
+        date_of_birth: dateOfBirth || null,
         phone: phone?.trim() || null,
         street: street?.trim() || null,
         city: city?.trim() || null,

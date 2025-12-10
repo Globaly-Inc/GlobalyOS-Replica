@@ -46,6 +46,7 @@ const inviteSchema = z.object({
   phone: z.string().trim().min(5, "Please enter a valid phone number").max(20),
   firstName: z.string().trim().min(2, "First name must be at least 2 characters").max(50),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
+  dateOfBirth: z.string().optional(),
   street: z.string().trim().min(2, "Street address is required").max(200),
   city: z.string().trim().min(2, "City is required").max(100),
   postcode: z.string().trim().max(20).optional(),
@@ -105,6 +106,7 @@ const InviteTeamMember = () => {
     phone: "",
     firstName: "",
     lastName: "",
+    dateOfBirth: "",
     street: "",
     city: "",
     postcode: "",
@@ -587,6 +589,18 @@ const InviteTeamMember = () => {
                   error={errors.lastName}
                   touched={touched.lastName}
                 />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                    className="transition-all duration-200"
+                  />
+                </div>
               </div>
               <div className="grid gap-6 sm:grid-cols-3">
                 <FormInputField
