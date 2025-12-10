@@ -14,6 +14,7 @@ type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
 interface Employee {
   id: string;
+  user_id: string;
   position: string;
   department: string;
   join_date: string;
@@ -28,10 +29,16 @@ interface Employee {
   };
 }
 
+interface UserRole {
+  user_id: string;
+  role: string;
+}
+
 const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
@@ -42,10 +49,13 @@ const Team = () => {
 
   const loadEmployees = async () => {
     setLoading(true);
-    const { data } = await supabase
+    
+    // Fetch employees
+    const { data: employeeData } = await supabase
       .from("employees")
       .select(`
         id,
+        user_id,
         position,
         department,
         join_date,
@@ -61,7 +71,25 @@ const Team = () => {
       `)
       .order("created_at", { ascending: false });
 
-    if (data) setEmployees(data as Employee[]);
+    if (employeeData) {
+      setEmployees(employeeData as Employee[]);
+      
+      // Fetch user roles for all employees
+      const userIds = employeeData.map(e => e.user_id);
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
+      
+      if (rolesData) {
+        const rolesMap: Record<string, string> = {};
+        rolesData.forEach((r: UserRole) => {
+          rolesMap[r.user_id] = r.role;
+        });
+        setUserRoles(rolesMap);
+      }
+    }
+    
     setLoading(false);
   };
 
@@ -154,6 +182,7 @@ const Team = () => {
                     status: employee.status,
                   }}
                   showResendInvite={isAdmin}
+                  role={userRoles[employee.user_id]}
                 />
               ))}
             </div>

@@ -8,13 +8,20 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface EmployeeCardProps {
   employee: Employee;
   showResendInvite?: boolean;
+  role?: string | null;
 }
 
-export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCardProps) => {
+export const EmployeeCard = ({ employee, showResendInvite = false, role }: EmployeeCardProps) => {
   const [resending, setResending] = useState(false);
   const { toast } = useToast();
 
@@ -30,7 +37,19 @@ export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCar
     }
   };
 
+  const getRoleConfig = (role?: string | null) => {
+    switch (role) {
+      case 'admin':
+        return { label: 'Admin', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' };
+      case 'hr':
+        return { label: 'HR', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
+      default:
+        return { label: 'Team Member', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
+    }
+  };
+
   const statusConfig = getStatusConfig(employee.status);
+  const roleConfig = getRoleConfig(role);
 
   const handleResendInvite = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -67,8 +86,29 @@ export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCar
 
   return (
     <Link to={`/team/${employee.id}`}>
-      <Card className="group overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer">
-        <div className="p-6">
+      <Card className="group overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer h-full">
+        <div className="p-6 relative">
+          {showResendInvite && employee.status === 'invited' && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={handleResendInvite}
+                    disabled={resending}
+                  >
+                    <Send className={`h-4 w-4 ${resending ? 'animate-pulse' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{resending ? 'Sending...' : 'Resend Invite'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="relative">
               <Avatar className="h-24 w-24 border-4 border-primary/10 transition-transform group-hover:scale-105">
@@ -85,9 +125,14 @@ export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCar
             <div className="space-y-2 w-full">
               <h3 className="font-bold text-lg text-foreground">{employee.name}</h3>
               <p className="text-sm font-medium text-primary">{employee.position}</p>
-              <Badge variant="secondary" className="font-normal">
-                {employee.department}
-              </Badge>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="font-normal">
+                  {employee.department}
+                </Badge>
+                <Badge className={`font-normal ${roleConfig.className} border-0`}>
+                  {roleConfig.label}
+                </Badge>
+              </div>
             </div>
 
             <div className="space-y-2 w-full pt-4 border-t border-border">
@@ -111,19 +156,6 @@ export const EmployeeCard = ({ employee, showResendInvite = false }: EmployeeCar
                 </span>
               </div>
             </div>
-
-            {showResendInvite && employee.status === 'invited' && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-2 gap-2"
-                onClick={handleResendInvite}
-                disabled={resending}
-              >
-                <Send className="h-3 w-3" />
-                {resending ? 'Sending...' : 'Resend Invite'}
-              </Button>
-            )}
           </div>
         </div>
       </Card>
