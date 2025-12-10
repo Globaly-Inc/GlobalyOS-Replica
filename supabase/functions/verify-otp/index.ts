@@ -154,6 +154,29 @@ serve(async (req) => {
     // Clean up used OTP
     await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
 
+    // Update employee status from 'invited' to 'active' if applicable
+    if (user) {
+      const { data: employee, error: employeeError } = await supabase
+        .from('employees')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'invited')
+        .single();
+
+      if (employee && !employeeError) {
+        const { error: updateError } = await supabase
+          .from('employees')
+          .update({ status: 'active' })
+          .eq('id', employee.id);
+
+        if (updateError) {
+          console.error('Failed to update employee status:', updateError);
+        } else {
+          console.log('Employee status updated to active for user:', user.id);
+        }
+      }
+    }
+
     console.log('OTP verification complete');
 
     return new Response(
