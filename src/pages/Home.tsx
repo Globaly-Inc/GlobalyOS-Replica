@@ -760,9 +760,10 @@ const Home = () => {
                   <div className="grid grid-cols-3 gap-3">
                     {leaveTypes.length > 0 ? (
                       leaveTypes.slice(0, 3).map((leaveType) => {
-                        const balanceKey = leaveType.name.toLowerCase().includes('vacation') 
+                        const name = leaveType.name.toLowerCase();
+                        const balanceKey = (name.includes('vacation') || name.includes('annual'))
                           ? 'vacation_days' 
-                          : leaveType.name.toLowerCase().includes('sick') 
+                          : name.includes('sick')
                             ? 'sick_days' 
                             : 'pto_days';
                         const balance = leaveBalance[balanceKey as keyof LeaveBalance] || 0;
