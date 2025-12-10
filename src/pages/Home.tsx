@@ -368,19 +368,6 @@ const Home = () => {
       <div className="space-y-8">
         <AdminSetup />
         
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary-dark to-primary p-8 text-primary-foreground shadow-lg">
-          <div className="relative z-10 max-w-3xl">
-            <h1 className="mb-3 text-4xl font-bold md:text-5xl">Welcome to TeamHub</h1>
-            <p className="text-lg text-primary-foreground/90">
-              Celebrate wins, share updates, and recognize your amazing team members
-            </p>
-          </div>
-          <div className="absolute right-0 top-0 h-full w-1/3 opacity-10">
-            <Trophy className="absolute right-8 top-8 h-32 w-32" />
-            <Heart className="absolute bottom-8 right-20 h-24 w-24" />
-          </div>
-        </div>
 
         {/* Action Buttons */}
         {!hasEmployeeProfile && isHR && (
