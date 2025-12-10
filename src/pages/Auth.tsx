@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users } from "lucide-react";
+import { Users, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -21,6 +22,10 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const otpEmailSchema = z.object({
+  email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
+});
+
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -28,6 +33,9 @@ const Auth = () => {
   
   const [signupData, setSignupData] = useState({ fullName: "", email: "", password: "" });
   const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -137,6 +145,75 @@ const Auth = () => {
     }
   };
 
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+    
+    try {
+      const validated = otpEmailSchema.parse({ email: otpEmail });
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: validated.email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+
+      if (error) {
+        toast({
+          title: "Failed to send OTP",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setOtpSent(true);
+        toast({
+          title: "OTP Sent!",
+          description: "Check your email for the 6-digit code.",
+        });
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors({ otpEmail: error.errors[0]?.message || "Invalid email" });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.length !== 6) {
+      setErrors({ otpCode: "Please enter the 6-digit code" });
+      return;
+    }
+    
+    setLoading(true);
+    setErrors({});
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: otpEmail,
+      token: otpCode,
+      type: "email",
+    });
+
+    if (error) {
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
+  };
+
+  const resetOtpFlow = () => {
+    setOtpSent(false);
+    setOtpCode("");
+    setErrors({});
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary-dark to-primary p-4">
       <Card className="w-full max-w-md p-8">
@@ -149,8 +226,9 @@ const Auth = () => {
         </div>
 
         <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="otp">OTP</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
 
@@ -186,6 +264,66 @@ const Auth = () => {
                 {loading ? "Logging in..." : "Login"}
               </Button>
             </form>
+          </TabsContent>
+
+          <TabsContent value="otp">
+            {!otpSent ? (
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div className="text-center mb-4">
+                  <Mail className="h-10 w-10 mx-auto text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Sign in with a one-time code sent to your email
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="otp-email">Email</Label>
+                  <Input
+                    id="otp-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={otpEmail}
+                    onChange={(e) => setOtpEmail(e.target.value)}
+                    required
+                  />
+                  {errors.otpEmail && <p className="text-sm text-destructive">{errors.otpEmail}</p>}
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Sending..." : "Send OTP"}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div className="text-center mb-4">
+                  <Mail className="h-10 w-10 mx-auto text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Enter the 6-digit code sent to <strong>{otpEmail}</strong>
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(value) => setOtpCode(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                {errors.otpCode && <p className="text-sm text-destructive text-center">{errors.otpCode}</p>}
+                <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
+                  {loading ? "Verifying..." : "Verify & Sign In"}
+                </Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={resetOtpFlow}>
+                  Use different email
+                </Button>
+              </form>
+            )}
           </TabsContent>
 
           <TabsContent value="signup">
