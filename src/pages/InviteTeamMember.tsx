@@ -809,8 +809,8 @@ const InviteTeamMember = () => {
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 items-end">
-                <div className="space-y-2">
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 items-end">
+                <div className="space-y-2 lg:col-span-2">
                   <Label htmlFor="joinDate">Join Date</Label>
                   <Input
                     id="joinDate"
@@ -820,27 +820,31 @@ const InviteTeamMember = () => {
                     onChange={(e) => handleChange('joinDate', e.target.value)}
                   />
                 </div>
-                <FormInputField
-                  id="idNumber"
-                  label="ID Number"
-                  value={formData.idNumber || ""}
-                  onChange={(value) => handleChange('idNumber', value)}
-                  onBlur={() => handleBlur('idNumber')}
-                  placeholder="e.g., Employee ID"
-                  error={errors.idNumber}
-                  touched={touched.idNumber}
-                />
-                <FormInputField
-                  id="taxNumber"
-                  label="Personal Tax Number"
-                  value={formData.taxNumber || ""}
-                  onChange={(value) => handleChange('taxNumber', value)}
-                  onBlur={() => handleBlur('taxNumber')}
-                  placeholder="Tax identification number"
-                  error={errors.taxNumber}
-                  touched={touched.taxNumber}
-                />
-                <div className="space-y-2">
+                <div className="lg:col-span-2">
+                  <FormInputField
+                    id="idNumber"
+                    label="ID Number"
+                    value={formData.idNumber || ""}
+                    onChange={(value) => handleChange('idNumber', value)}
+                    onBlur={() => handleBlur('idNumber')}
+                    placeholder="e.g., Employee ID"
+                    error={errors.idNumber}
+                    touched={touched.idNumber}
+                  />
+                </div>
+                <div className="lg:col-span-3">
+                  <FormInputField
+                    id="taxNumber"
+                    label="Personal Tax Number"
+                    value={formData.taxNumber || ""}
+                    onChange={(value) => handleChange('taxNumber', value)}
+                    onBlur={() => handleBlur('taxNumber')}
+                    placeholder="Tax ID number"
+                    error={errors.taxNumber}
+                    touched={touched.taxNumber}
+                  />
+                </div>
+                <div className="space-y-2 lg:col-span-5">
                   <Label htmlFor="remuneration">Current Remuneration</Label>
                   <div className="flex gap-2">
                     <Select
@@ -861,9 +865,15 @@ const InviteTeamMember = () => {
                     <Input
                       id="remuneration"
                       name="remuneration"
-                      type="number"
-                      value={formData.remuneration}
-                      onChange={(e) => handleChange('remuneration', e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.remuneration ? Number(formData.remuneration).toLocaleString() : ""}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/,/g, '');
+                        if (rawValue === '' || /^\d*$/.test(rawValue)) {
+                          handleChange('remuneration', rawValue);
+                        }
+                      }}
                       placeholder="Annual salary"
                       className="flex-1"
                     />
