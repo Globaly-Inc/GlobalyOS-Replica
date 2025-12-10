@@ -1,17 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, History } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
-import { LeaveBalanceLogsDialog } from "@/components/dialogs/LeaveBalanceLogsDialog";
 
 interface LeaveManagementProps {
   employeeId: string;
-  isOwnProfile?: boolean;
 }
 
-export const LeaveManagement = ({ employeeId, isOwnProfile = false }: LeaveManagementProps) => {
+export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const queryClient = useQueryClient();
   const { isHR, isAdmin } = useUserRole();
   const currentYear = new Date().getFullYear();
@@ -48,7 +48,12 @@ export const LeaveManagement = ({ employeeId, isOwnProfile = false }: LeaveManag
               Leave Balances ({currentYear})
             </CardTitle>
             <div className="flex items-center gap-2">
-              <LeaveBalanceLogsDialog employeeId={employeeId} isOwnProfile={isOwnProfile} />
+              <Link to={`/team/${employeeId}/leave-history`}>
+                <Button size="sm" variant="ghost">
+                  <History className="h-4 w-4 mr-1" />
+                  Leave History
+                </Button>
+              </Link>
               {canManageLeave && (
                 <AddLeaveBalanceDialog
                   employeeId={employeeId}

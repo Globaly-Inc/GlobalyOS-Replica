@@ -476,7 +476,7 @@ const TeamMemberProfile = () => {
                 </h2>
                 <AddLeaveRequestDialog employeeId={id!} />
               </div>
-              <LeaveManagement employeeId={id!} isOwnProfile={isOwnProfile} />
+              <LeaveManagement employeeId={id!} />
             </div>
 
             <div className="space-y-4">

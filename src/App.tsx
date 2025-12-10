@@ -17,6 +17,7 @@ import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import Join from "./pages/Join";
+import LeaveHistory from "./pages/LeaveHistory";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
             <Route path="/team/invite" element={<ProtectedRoute><InviteTeamMember /></ProtectedRoute>} />
             <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
+            <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
             <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
             <Route path="/kudos" element={<ProtectedRoute><Kudos /></ProtectedRoute>} />
             <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
