@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +65,7 @@ interface PersonOnLeave {
   id: string;
   employee: {
     id: string;
+    position: string;
     profiles: {
       full_name: string;
       avatar_url: string | null;
@@ -330,6 +332,7 @@ const Home = () => {
         leave_type,
         employee:employees!leave_requests_employee_id_fkey(
           id,
+          position,
           profiles!inner(
             full_name,
             avatar_url
@@ -701,33 +704,54 @@ const Home = () => {
 
             {/* People on Leave Today */}
             <Card className="p-6">
-              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                <Palmtree className="h-5 w-5 text-primary" />
-                On Leave Today
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Palmtree className="h-5 w-5 text-primary" />
+                  On Leave Today
+                </h3>
+                {peopleOnLeave.length > 0 && (
+                  <span className="text-sm text-muted-foreground">{peopleOnLeave.length} people</span>
+                )}
+              </div>
               {peopleOnLeave.length > 0 ? (
-                <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
                   {peopleOnLeave.map((leave) => (
-                    <Link
-                      key={leave.id}
-                      to={`/team/${leave.employee.id}`}
-                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {leave.employee.profiles.full_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {leave.leave_type.replace("_", " ")}
-                        </p>
-                      </div>
-                    </Link>
+                    <HoverCard key={leave.id}>
+                      <HoverCardTrigger asChild>
+                        <Link to={`/team/${leave.employee.id}`}>
+                          <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
+                            <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-64" side="top">
+                        <div className="flex gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {leave.employee.profiles.full_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {leave.employee.position}
+                            </p>
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
+                                <Palmtree className="h-3 w-3" />
+                                {leave.leave_type.replace("_", " ")}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
                   ))}
                 </div>
               ) : (
