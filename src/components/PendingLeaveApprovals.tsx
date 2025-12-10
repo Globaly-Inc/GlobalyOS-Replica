@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Clock, Check, X, Send } from "lucide-react";
+import { Clock, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -393,137 +393,125 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
   return (
     <>
-      {/* User's Own Pending Requests */}
-      {ownPendingRequests.length > 0 && (
-        <Card className="p-6 border-blue-200 bg-blue-50/50">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Send className="h-5 w-5 text-blue-600" />
-            Your Pending Requests
-          </h3>
-          <div className="space-y-4">
-            {ownPendingRequests.map((request) => (
-              <div
-                key={request.id}
-                className="rounded-lg bg-background p-4 shadow-sm border"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <Badge variant="outline">
-                        {getLeaveTypeLabel(request.leave_type)}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({request.days_count} {request.days_count === 1 ? "day" : "days"})
-                      </span>
-                    </div>
-                    {request.reason && (
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                        {request.reason}
-                      </p>
-                    )}
+      <Card className="p-6 border-amber-200 bg-amber-50/50">
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Clock className="h-5 w-5 text-amber-600" />
+          Pending Leave Requests
+          {showAsHR && pendingRequests.length > 0 && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              Manager Unavailable
+            </Badge>
+          )}
+        </h3>
+        <div className="space-y-4">
+          {/* User's Own Pending Requests */}
+          {ownPendingRequests.map((request) => (
+            <div
+              key={request.id}
+              className="rounded-lg bg-background p-4 shadow-sm border"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge variant="outline">
+                      {getLeaveTypeLabel(request.leave_type)}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      Your Request
+                    </Badge>
+                    <span className="text-muted-foreground">
+                      {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({request.days_count} {request.days_count === 1 ? "day" : "days"})
+                    </span>
                   </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    Pending
-                  </Badge>
-                </div>
-                <div className="mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setCancelDialog({ open: true, request })}
-                    disabled={processing === request.id}
-                  >
-                    <X className="mr-1 h-3 w-3" />
-                    Cancel Request
-                  </Button>
+                  {request.reason && (
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                      {request.reason}
+                    </p>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setCancelDialog({ open: true, request })}
+                  disabled={processing === request.id}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Cancel Request
+                </Button>
+              </div>
+            </div>
+          ))}
 
-      {/* Pending Requests for Approval (Manager/HR) */}
-      {pendingRequests.length > 0 && (
-        <Card className="p-6 border-amber-200 bg-amber-50/50">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Clock className="h-5 w-5 text-amber-600" />
-            Pending Leave Requests
-            {showAsHR && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                Manager Unavailable
-              </Badge>
-            )}
-          </h3>
-          <div className="space-y-4">
-            {pendingRequests.map((request) => (
-              <div
-                key={request.id}
-                className="rounded-lg bg-background p-4 shadow-sm border"
-              >
-                <div className="flex items-start gap-3">
-                  <Link to={`/team/${request.employee.id}`}>
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
-                      <AvatarFallback>
-                        {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
+          {/* Pending Requests for Approval (Manager/HR) */}
+          {pendingRequests.map((request) => (
+            <div
+              key={request.id}
+              className="rounded-lg bg-background p-4 shadow-sm border"
+            >
+              <div className="flex items-start gap-3">
+                <Link to={`/team/${request.employee.id}`}>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <Link 
+                    to={`/team/${request.employee.id}`}
+                    className="text-sm font-medium text-foreground hover:underline"
+                  >
+                    {request.employee.profiles.full_name}
                   </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link 
-                      to={`/team/${request.employee.id}`}
-                      className="text-sm font-medium text-foreground hover:underline"
-                    >
-                      {request.employee.profiles.full_name}
-                    </Link>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
-                        {getLeaveTypeLabel(request.leave_type)}
-                      </Badge>
-                      <span>
-                        {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
-                      </span>
-                      <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
-                    </div>
-                    {request.reason && (
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                        {request.reason}
-                      </p>
-                    )}
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-xs">
+                      {getLeaveTypeLabel(request.leave_type)}
+                    </Badge>
+                    <span>
+                      {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
+                    </span>
+                    <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
                   </div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="flex-1"
-                    onClick={() => openConfirmDialog(request, "approve")}
-                    disabled={processing === request.id}
-                  >
-                    <Check className="mr-1 h-3 w-3" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => openConfirmDialog(request, "reject")}
-                    disabled={processing === request.id}
-                  >
-                    <X className="mr-1 h-3 w-3" />
-                    Reject
-                  </Button>
+                  {request.reason && (
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                      {request.reason}
+                    </p>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+              <div className="mt-3 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="flex-1"
+                  onClick={() => openConfirmDialog(request, "approve")}
+                  disabled={processing === request.id}
+                >
+                  <Check className="mr-1 h-3 w-3" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => openConfirmDialog(request, "reject")}
+                  disabled={processing === request.id}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {/* Approval Confirmation Dialog */}
       <AlertDialog 
