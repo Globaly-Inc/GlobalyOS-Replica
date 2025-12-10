@@ -153,17 +153,20 @@ const Auth = () => {
       const validated = otpEmailSchema.parse({ email: otpEmail });
       setLoading(true);
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email: validated.email,
-        options: {
-          shouldCreateUser: true,
-        },
+      const response = await supabase.functions.invoke('send-otp', {
+        body: { email: validated.email }
       });
 
-      if (error) {
+      if (response.error) {
         toast({
           title: "Failed to send OTP",
-          description: error.message,
+          description: response.error.message || "Please try again",
+          variant: "destructive",
+        });
+      } else if (response.data?.error) {
+        toast({
+          title: "Failed to send OTP",
+          description: response.data.error,
           variant: "destructive",
         });
       } else {
@@ -176,6 +179,12 @@ const Auth = () => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         setErrors({ otpEmail: error.errors[0]?.message || "Invalid email" });
+      } else {
+        toast({
+          title: "Error",
+          description: "Something went wrong. Please try again.",
+          variant: "destructive",
+        });
       }
     } finally {
       setLoading(false);
@@ -192,20 +201,50 @@ const Auth = () => {
     setLoading(true);
     setErrors({});
 
-    const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail,
-      token: otpCode,
-      type: "email",
-    });
+    try {
+      const response = await supabase.functions.invoke('verify-otp', {
+        body: { email: otpEmail, code: otpCode }
+      });
 
-    if (error) {
+      if (response.error) {
+        toast({
+          title: "Verification failed",
+          description: response.error.message || "Please try again",
+          variant: "destructive",
+        });
+      } else if (response.data?.error) {
+        toast({
+          title: "Verification failed",
+          description: response.data.error,
+          variant: "destructive",
+        });
+      } else if (response.data?.session) {
+        // Set the session
+        await supabase.auth.setSession({
+          access_token: response.data.session.access_token,
+          refresh_token: response.data.session.refresh_token,
+        });
+        
+        toast({
+          title: "Success!",
+          description: "You have been signed in.",
+        });
+      } else {
+        toast({
+          title: "Verified!",
+          description: "Your email has been verified. Please sign in.",
+        });
+        resetOtpFlow();
+      }
+    } catch (error) {
       toast({
-        title: "Verification failed",
-        description: error.message,
+        title: "Error",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const resetOtpFlow = () => {
@@ -272,7 +311,7 @@ const Auth = () => {
                 <div className="text-center mb-4">
                   <Mail className="h-10 w-10 mx-auto text-primary mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    Sign in with a one-time code sent to your email
+                    Sign in with a 6-digit code sent to your email
                   </p>
                 </div>
                 <div className="space-y-2">
