@@ -21,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email } = await req.json();
+    const { email, isSignup, fullName } = await req.json();
 
     if (!email) {
       console.error('No email provided');
@@ -32,7 +32,7 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.toLowerCase();
-    console.log('Generating OTP for:', normalizedEmail);
+    console.log('Generating OTP for:', normalizedEmail, 'isSignup:', isSignup);
 
     // Create Supabase client with service role (bypasses RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

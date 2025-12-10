@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Award, TrendingUp, Menu, LogOut, Building2, User, ChevronDown } from "lucide-react";
+import { Users, Home, Award, TrendingUp, Menu, LogOut, User, ChevronDown, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -15,6 +15,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { OrganizationSwitcher } from "./OrganizationSwitcher";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -46,6 +48,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { currentOrg } = useOrganization();
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -113,13 +116,17 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Desktop Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center px-4 md:px-8">
-          <div className="mr-8 flex items-center space-x-2">
+          <div className="mr-4 flex items-center space-x-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
               <Users className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="hidden text-xl font-bold text-foreground sm:inline-block">
               TeamHub
             </span>
+          </div>
+
+          <div className="hidden md:block mr-4">
+            <OrganizationSwitcher />
           </div>
           
           <nav className="hidden md:flex md:flex-1 md:items-center md:space-x-1">
@@ -159,14 +166,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-popover">
                 {userProfile?.employeeId && (
-                  <>
-                    <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      View Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
+                  <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
