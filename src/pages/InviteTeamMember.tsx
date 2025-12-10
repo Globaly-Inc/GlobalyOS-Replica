@@ -75,6 +75,8 @@ const InviteTeamMember = () => {
   const [positions, setPositions] = useState<string[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isAddingNewDepartment, setIsAddingNewDepartment] = useState(false);
+  const [isAddingNewPosition, setIsAddingNewPosition] = useState(false);
   const [newDepartment, setNewDepartment] = useState("");
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -672,45 +674,65 @@ const InviteTeamMember = () => {
                   <Label htmlFor="department" className="flex items-center gap-1">
                     Department <span className="text-destructive">*</span>
                   </Label>
-                  <Select
-                    value={formData.department === '__new__' ? '__new__' : formData.department}
-                    onValueChange={(value) => {
-                      if (value === '__new__') {
-                        setNewDepartment("");
-                      }
-                      handleChange('department', value);
-                      setTouched(prev => ({ ...prev, department: true }));
-                    }}
-                  >
-                    <SelectTrigger className={cn(
-                      "transition-all duration-200",
-                      touched.department && errors.department && "border-destructive",
-                      touched.department && !errors.department && formData.department && formData.department !== '__new__' && "border-green-500"
-                    )}>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                      ))}
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        + Add new department...
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formData.department === '__new__' && (
-                    <Input
-                      placeholder="Enter new department name"
-                      className="mt-2"
-                      value={newDepartment}
-                      onChange={(e) => {
-                        setNewDepartment(e.target.value);
-                        if (e.target.value) {
-                          setFormData(prev => ({ ...prev, department: e.target.value }));
+                  {isAddingNewDepartment ? (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Enter new department name"
+                        value={newDepartment}
+                        onChange={(e) => {
+                          setNewDepartment(e.target.value);
+                          handleChange('department', e.target.value);
+                        }}
+                        autoFocus
+                        className={cn(
+                          "transition-all duration-200",
+                          touched.department && errors.department && "border-destructive",
+                          touched.department && !errors.department && newDepartment && "border-green-500"
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddingNewDepartment(false);
+                          setNewDepartment("");
+                          handleChange('department', "");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.department}
+                      onValueChange={(value) => {
+                        if (value === '__new__') {
+                          setIsAddingNewDepartment(true);
+                          setNewDepartment("");
+                          handleChange('department', "");
+                        } else {
+                          handleChange('department', value);
                         }
+                        setTouched(prev => ({ ...prev, department: true }));
                       }}
-                      autoFocus
-                    />
+                    >
+                      <SelectTrigger className={cn(
+                        "transition-all duration-200",
+                        touched.department && errors.department && "border-destructive",
+                        touched.department && !errors.department && formData.department && "border-green-500"
+                      )}>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        ))}
+                        <SelectItem value="__new__" className="text-primary font-medium">
+                          + Add new department...
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
                   {touched.department && errors.department && (
                     <p className="text-sm text-destructive flex items-center gap-1">
@@ -723,45 +745,65 @@ const InviteTeamMember = () => {
                   <Label htmlFor="position" className="flex items-center gap-1">
                     Position <span className="text-destructive">*</span>
                   </Label>
-                  <Select
-                    value={formData.position === '__new__' ? '__new__' : formData.position}
-                    onValueChange={(value) => {
-                      if (value === '__new__') {
-                        setNewPosition("");
-                      }
-                      handleChange('position', value);
-                      setTouched(prev => ({ ...prev, position: true }));
-                    }}
-                  >
-                    <SelectTrigger className={cn(
-                      "transition-all duration-200",
-                      touched.position && errors.position && "border-destructive",
-                      touched.position && !errors.position && formData.position && formData.position !== '__new__' && "border-green-500"
-                    )}>
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {positions.map((pos) => (
-                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                      ))}
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        + Add new position...
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formData.position === '__new__' && (
-                    <Input
-                      placeholder="Enter new position title"
-                      className="mt-2"
-                      value={newPosition}
-                      onChange={(e) => {
-                        setNewPosition(e.target.value);
-                        if (e.target.value) {
-                          setFormData(prev => ({ ...prev, position: e.target.value }));
+                  {isAddingNewPosition ? (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Enter new position title"
+                        value={newPosition}
+                        onChange={(e) => {
+                          setNewPosition(e.target.value);
+                          handleChange('position', e.target.value);
+                        }}
+                        autoFocus
+                        className={cn(
+                          "transition-all duration-200",
+                          touched.position && errors.position && "border-destructive",
+                          touched.position && !errors.position && newPosition && "border-green-500"
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddingNewPosition(false);
+                          setNewPosition("");
+                          handleChange('position', "");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.position}
+                      onValueChange={(value) => {
+                        if (value === '__new__') {
+                          setIsAddingNewPosition(true);
+                          setNewPosition("");
+                          handleChange('position', "");
+                        } else {
+                          handleChange('position', value);
                         }
+                        setTouched(prev => ({ ...prev, position: true }));
                       }}
-                      autoFocus
-                    />
+                    >
+                      <SelectTrigger className={cn(
+                        "transition-all duration-200",
+                        touched.position && errors.position && "border-destructive",
+                        touched.position && !errors.position && formData.position && "border-green-500"
+                      )}>
+                        <SelectValue placeholder="Select position" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {positions.map((pos) => (
+                          <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                        ))}
+                        <SelectItem value="__new__" className="text-primary font-medium">
+                          + Add new position...
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
                   {touched.position && errors.position && (
                     <p className="text-sm text-destructive flex items-center gap-1">
