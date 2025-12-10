@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +24,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 
+interface LeaveType {
+  id: string;
+  name: string;
+  category: string;
+}
+
 interface AddLeaveBalanceDialogProps {
   employeeId: string;
   currentBalance: {
@@ -44,7 +50,41 @@ export const AddLeaveBalanceDialog = ({
   const [leaveType, setLeaveType] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [reason, setReason] = useState<string>("");
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const { currentOrg } = useOrganization();
+
+  useEffect(() => {
+    if (open && currentOrg) {
+      loadLeaveTypes();
+    }
+  }, [open, currentOrg?.id]);
+
+  const loadLeaveTypes = async () => {
+    if (!currentOrg) return;
+    
+    const { data, error } = await supabase
+      .from("leave_types")
+      .select("id, name, category")
+      .eq("organization_id", currentOrg.id)
+      .eq("is_active", true)
+      .order("name");
+
+    if (!error && data) {
+      setLeaveTypes(data);
+    }
+  };
+
+  // Map leave type name to balance column
+  const getBalanceColumn = (typeName: string): "vacation_days" | "sick_days" | "pto_days" => {
+    const lowerName = typeName.toLowerCase();
+    if (lowerName.includes("vacation") || lowerName.includes("annual")) {
+      return "vacation_days";
+    } else if (lowerName.includes("sick") || lowerName.includes("medical")) {
+      return "sick_days";
+    } else {
+      return "pto_days"; // Default to PTO for other types
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,13 +117,12 @@ export const AddLeaveBalanceDialog = ({
 
       const currentYear = new Date().getFullYear();
       
-      // Get the field name for the leave type
-      const fieldMap: Record<string, string> = {
-        vacation: "vacation_days",
-        sick: "sick_days",
-        pto: "pto_days",
-      };
-      const field = fieldMap[leaveType];
+      // Find the selected leave type
+      const selectedLeaveType = leaveTypes.find(lt => lt.id === leaveType);
+      if (!selectedLeaveType) throw new Error("Leave type not found");
+
+      // Get the balance column based on leave type name
+      const field = getBalanceColumn(selectedLeaveType.name);
       
       // Calculate previous and new balance
       const previousBalance = currentBalance
@@ -129,13 +168,13 @@ export const AddLeaveBalanceDialog = ({
         }
       }
 
-      // Create the log entry
+      // Create the log entry with the leave type name
       const { error: logError } = await supabase
         .from("leave_balance_logs")
         .insert({
           employee_id: employeeId,
           organization_id: currentOrg?.id,
-          leave_type: leaveType,
+          leave_type: selectedLeaveType.name,
           change_amount: changeAmount,
           previous_balance: previousBalance,
           new_balance: newBalance,
@@ -184,11 +223,22 @@ export const AddLeaveBalanceDialog = ({
                   <SelectValue placeholder="Select leave type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vacation">Vacation Days</SelectItem>
-                  <SelectItem value="sick">Sick Days</SelectItem>
-                  <SelectItem value="pto">PTO Days</SelectItem>
+                  {leaveTypes.length === 0 ? (
+                    <SelectItem value="none" disabled>No leave types configured</SelectItem>
+                  ) : (
+                    leaveTypes.map((lt) => (
+                      <SelectItem key={lt.id} value={lt.id}>
+                        {lt.name} ({lt.category})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {leaveTypes.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Configure leave types in Settings → Leave
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="amount">Days to Add/Deduct *</Label>
@@ -224,7 +274,7 @@ export const AddLeaveBalanceDialog = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || leaveTypes.length === 0}>
               {loading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
