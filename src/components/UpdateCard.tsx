@@ -1,5 +1,5 @@
 import { Update } from "@/types/employee";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Trophy, Megaphone } from "lucide-react";
@@ -35,6 +35,7 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
       <div className="p-6">
         <div className="flex items-start gap-4">
           <Avatar className="h-12 w-12 border-2 border-primary/10">
+            <AvatarImage src={update.avatar} alt={update.employeeName} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold">
               {update.employeeName.split(" ").map((n) => n[0]).join("")}
             </AvatarFallback>
