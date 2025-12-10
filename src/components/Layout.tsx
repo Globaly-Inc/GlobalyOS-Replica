@@ -4,6 +4,7 @@ import { Users, Home, Award, TrendingUp, Menu, LogOut, Building2, User, ChevronD
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Badge } from "./ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,19 @@ interface UserProfile {
   position: string;
   avatarUrl: string | null;
   employeeId: string | null;
+  role: string | null;
 }
+
+const getRoleConfig = (role?: string | null) => {
+  switch (role) {
+    case 'admin':
+      return { label: 'Admin', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' };
+    case 'hr':
+      return { label: 'HR', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
+    default:
+      return { label: 'Team Member', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
+  }
+};
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
@@ -39,18 +52,26 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     const loadUserProfile = async () => {
       if (!user?.id) return;
 
-      // Get profile and employee data
+      // Get profile data
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, avatar_url")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
+      // Get employee data
       const { data: employee } = await supabase
         .from("employees")
         .select("id, position")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
+
+      // Get user role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (profile) {
         setUserProfile({
@@ -58,6 +79,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           position: employee?.position || "",
           avatarUrl: profile.avatar_url,
           employeeId: employee?.id || null,
+          role: roleData?.role || null,
         });
       }
     };
@@ -84,6 +106,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const roleConfig = getRoleConfig(userProfile?.role);
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,17 +142,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2">
                   <Avatar className="h-8 w-8 border-2 border-primary/10">
-                    {userProfile?.avatarUrl ? (
-                      <AvatarImage src={userProfile.avatarUrl} alt={userProfile.fullName} />
-                    ) : null}
+                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
                       {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start text-left">
-                    <span className="text-sm font-medium text-foreground">
-                      {userProfile?.fullName || "Loading..."}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {userProfile?.fullName || "Loading..."}
+                      </span>
+                      <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
+                        {roleConfig.label}
+                      </Badge>
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       {userProfile?.position || ""}
                     </span>
@@ -137,11 +164,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-popover">
-                <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  View Profile
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {userProfile?.employeeId && (
+                  <>
+                    <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      View Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
@@ -162,9 +193,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <SheetContent side="right" className="w-64">
                 <div className="flex items-center gap-3 border-b border-border pb-4 pt-2">
                   <Avatar className="h-10 w-10 border-2 border-primary/10">
-                    {userProfile?.avatarUrl ? (
-                      <AvatarImage src={userProfile.avatarUrl} alt={userProfile.fullName} />
-                    ) : null}
+                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold">
                       {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
@@ -176,6 +205,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     <span className="text-xs text-muted-foreground">
                       {userProfile?.position || ""}
                     </span>
+                    <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal mt-1 w-fit ${roleConfig.className} border-0`}>
+                      {roleConfig.label}
+                    </Badge>
                   </div>
                 </div>
                 <nav className="flex flex-col space-y-2 pt-4">
@@ -191,13 +223,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     </NavLink>
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
-                    <button
-                      onClick={handleViewProfile}
-                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      <User className="h-5 w-5" />
-                      View Profile
-                    </button>
+                    {userProfile?.employeeId && (
+                      <button
+                        onClick={handleViewProfile}
+                        className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      >
+                        <User className="h-5 w-5" />
+                        View Profile
+                      </button>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-secondary"
