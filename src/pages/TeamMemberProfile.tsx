@@ -13,6 +13,7 @@ import { LeaveManagement } from "@/components/LeaveManagement";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
+import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditableField } from "@/components/EditableField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -291,20 +292,33 @@ const TeamMemberProfile = () => {
                     </p>
                   </div>
                 </div>
-                {employee.offices && (
-                  <div className="flex items-start gap-3">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                    <div>
+                <div className="flex items-start gap-3">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Office</p>
-                      <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
-                      {(employee.offices.city || employee.offices.country) && (
-                        <p className="text-xs text-muted-foreground">
-                          {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
-                        </p>
+                      {canViewSensitiveData && (
+                        <EditOfficeDialog
+                          employeeId={id!}
+                          currentOfficeId={employee.office_id}
+                          onSuccess={loadEmployee}
+                        />
                       )}
                     </div>
+                    {employee.offices ? (
+                      <>
+                        <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
+                        {(employee.offices.city || employee.offices.country) && (
+                          <p className="text-xs text-muted-foreground">
+                            {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No office assigned</p>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="flex items-start gap-3">
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
