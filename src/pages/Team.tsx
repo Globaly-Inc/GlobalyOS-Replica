@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, Building2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,12 +122,18 @@ const Team = () => {
               Meet our amazing team of {employees.length} members
             </p>
           </div>
-          {isAdmin && (
-            <Button onClick={() => navigate('/team/invite')} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Invite Team Member
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/org-chart')} className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Org Chart
             </Button>
-          )}
+            {isAdmin && (
+              <Button onClick={() => navigate('/team/invite')} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Invite Team Member
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
