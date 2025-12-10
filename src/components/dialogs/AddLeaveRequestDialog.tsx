@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/hooks/useOrganization";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ export const AddLeaveRequestDialog = ({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+  const { currentOrg } = useOrganization();
   
   const queryClient = useQueryClient();
 
@@ -81,6 +83,7 @@ export const AddLeaveRequestDialog = ({
 
       const { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
+        organization_id: currentOrg?.id,
         leave_type: values.leave_type,
         start_date: format(values.start_date, "yyyy-MM-dd"),
         end_date: format(values.end_date, "yyyy-MM-dd"),
@@ -175,6 +178,7 @@ export const AddLeaveRequestDialog = ({
                         onSelect={field.onChange}
                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
@@ -211,6 +215,7 @@ export const AddLeaveRequestDialog = ({
                         onSelect={field.onChange}
                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
