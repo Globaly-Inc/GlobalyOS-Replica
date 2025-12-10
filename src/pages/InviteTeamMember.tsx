@@ -34,6 +34,7 @@ const currencies = [
   { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
   { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'NPR', symbol: 'रू', name: 'Nepalese Rupee' },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
   { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
 ];
