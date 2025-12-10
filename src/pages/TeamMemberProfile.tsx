@@ -15,6 +15,7 @@ import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditableField } from "@/components/EditableField";
+import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -109,6 +110,7 @@ const TeamMemberProfile = () => {
         department,
         salary,
         join_date,
+        date_of_birth,
         phone,
         superpowers,
         manager_id,
@@ -262,11 +264,11 @@ const TeamMemberProfile = () => {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
-            {/* Contact Information */}
+            {/* Personal Details */}
             <Card className="p-6">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
                 <User className="h-5 w-5 text-primary" />
-                Contact Information
+                Personal Details
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -304,6 +306,13 @@ const TeamMemberProfile = () => {
                     </p>
                   </div>
                 </div>
+                <EditableDateField
+                  icon={<Calendar className="h-5 w-5" />}
+                  label="Date of Birth"
+                  value={employee.date_of_birth}
+                  onSave={(value) => updateEmployeeField("date_of_birth", value)}
+                  canEdit={canViewSensitiveData}
+                />
                 <div className="flex items-start gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">

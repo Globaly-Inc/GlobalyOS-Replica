@@ -122,6 +122,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          date_of_birth: string | null
           department: string
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -152,6 +153,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -182,6 +184,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
