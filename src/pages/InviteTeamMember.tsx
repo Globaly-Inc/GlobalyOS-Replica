@@ -39,7 +39,8 @@ const currencies = [
 ];
 
 const inviteSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email address").max(255),
+  email: z.string().trim().email("Please enter a valid company email").max(255),
+  personalEmail: z.string().trim().email("Please enter a valid personal email").max(255).optional().or(z.literal("")),
   phone: z.string().trim().min(5, "Please enter a valid phone number").max(20),
   firstName: z.string().trim().min(2, "First name must be at least 2 characters").max(50),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
@@ -81,8 +82,9 @@ const InviteTeamMember = () => {
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormDataType>({
+  const [formData, setFormData] = useState<FormDataType & { personalEmail: string }>({
     email: "",
+    personalEmail: "",
     phone: "",
     firstName: "",
     lastName: "",
@@ -366,7 +368,10 @@ const InviteTeamMember = () => {
                 <div>
                   <h3 className="font-semibold text-sm text-muted-foreground mb-3">Contact Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-muted-foreground">Email:</span> {formData.email}</p>
+                    <p><span className="text-muted-foreground">Company Email:</span> {formData.email}</p>
+                    {formData.personalEmail && (
+                      <p><span className="text-muted-foreground">Personal Email:</span> {formData.personalEmail}</p>
+                    )}
                     <p><span className="text-muted-foreground">Phone:</span> {formData.phone}</p>
                   </div>
                 </div>
@@ -524,7 +529,7 @@ const InviteTeamMember = () => {
               <div className="grid gap-6 sm:grid-cols-2">
                 <FormInputField
                   id="email"
-                  label="Email"
+                  label="Company Email"
                   type="email"
                   value={formData.email}
                   onChange={(value) => handleChange('email', value)}
@@ -533,10 +538,23 @@ const InviteTeamMember = () => {
                     validateField('email', formData.email);
                   }}
                   required
-                  placeholder="john@example.com"
+                  placeholder="john@company.com"
                   error={errors.email}
                   touched={touched.email}
                 />
+                <FormInputField
+                  id="personalEmail"
+                  label="Personal Email"
+                  type="email"
+                  value={formData.personalEmail}
+                  onChange={(value) => handleChange('personalEmail', value)}
+                  onBlur={() => handleBlur('personalEmail')}
+                  placeholder="john@gmail.com"
+                  error={errors.personalEmail}
+                  touched={touched.personalEmail}
+                />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-1">
                 <FormInputField
                   id="phone"
                   label="Phone"
@@ -551,6 +569,7 @@ const InviteTeamMember = () => {
                   placeholder="+1 234 567 8900"
                   error={errors.phone}
                   touched={touched.phone}
+                  className="sm:max-w-md"
                 />
               </div>
             </CardContent>
