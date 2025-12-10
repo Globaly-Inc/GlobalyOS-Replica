@@ -399,15 +399,6 @@ const TeamMemberProfile = () => {
                 <div className="space-y-4">
                   <EditableField icon={<FileText className="h-5 w-5" />} label="ID Number" value={employee.id_number} onSave={value => updateEmployeeField("id_number", value)} canEdit={canViewSensitiveData} />
                   <EditableField icon={<FileText className="h-5 w-5" />} label="Tax Number" value={employee.tax_number} onSave={value => updateEmployeeField("tax_number", value)} canEdit={canViewSensitiveData} />
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Remuneration</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {employee.remuneration ? `${employee.remuneration_currency || 'USD'} ${Number(employee.remuneration).toLocaleString()}` : <span className="text-muted-foreground italic">Not specified</span>}
-                      </p>
-                    </div>
-                  </div>
                   <EditableField icon={<Building className="h-5 w-5" />} label="Bank Details" value={employee.bank_details} onSave={value => updateEmployeeField("bank_details", value)} type="textarea" canEdit={canViewSensitiveData} placeholder="Enter bank account details" />
                 </div>
               </Card>}
