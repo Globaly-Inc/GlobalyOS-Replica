@@ -32,17 +32,11 @@ interface LeaveType {
 
 interface AddLeaveBalanceDialogProps {
   employeeId: string;
-  currentBalance: {
-    vacation_days: number;
-    sick_days: number;
-    pto_days: number;
-  } | null;
   onSuccess: () => void;
 }
 
 export const AddLeaveBalanceDialog = ({
   employeeId,
-  currentBalance,
   onSuccess,
 }: AddLeaveBalanceDialogProps) => {
   const [open, setOpen] = useState(false);
@@ -71,18 +65,6 @@ export const AddLeaveBalanceDialog = ({
 
     if (!error && data) {
       setLeaveTypes(data);
-    }
-  };
-
-  // Map leave type name to balance column
-  const getBalanceColumn = (typeName: string): "vacation_days" | "sick_days" | "pto_days" => {
-    const lowerName = typeName.toLowerCase();
-    if (lowerName.includes("vacation") || lowerName.includes("annual")) {
-      return "vacation_days";
-    } else if (lowerName.includes("sick") || lowerName.includes("medical")) {
-      return "sick_days";
-    } else {
-      return "pto_days"; // Default to PTO for other types
     }
   };
 
@@ -121,51 +103,38 @@ export const AddLeaveBalanceDialog = ({
       const selectedLeaveType = leaveTypes.find(lt => lt.id === leaveType);
       if (!selectedLeaveType) throw new Error("Leave type not found");
 
-      // Get the balance column based on leave type name
-      const field = getBalanceColumn(selectedLeaveType.name);
-      
-      // Calculate previous and new balance
-      const previousBalance = currentBalance
-        ? (currentBalance as any)[field] || 0
-        : 0;
+      // Get current balance from new table
+      const { data: existingBalance } = await supabase
+        .from("leave_type_balances")
+        .select("id, balance")
+        .eq("employee_id", employeeId)
+        .eq("leave_type_id", leaveType)
+        .eq("year", currentYear)
+        .maybeSingle();
+
+      const previousBalance = existingBalance?.balance || 0;
       const newBalance = previousBalance + changeAmount;
 
-      // First, upsert the leave balance
-      const { error: balanceError } = await supabase
-        .from("leave_balances")
-        .upsert(
-          {
+      // Upsert the leave type balance
+      if (existingBalance) {
+        const { error: updateError } = await supabase
+          .from("leave_type_balances")
+          .update({ balance: newBalance })
+          .eq("id", existingBalance.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("leave_type_balances")
+          .insert({
             employee_id: employeeId,
+            leave_type_id: leaveType,
             organization_id: currentOrg?.id,
             year: currentYear,
-            [field]: newBalance,
-          },
-          {
-            onConflict: "employee_id,year",
-          }
-        );
+            balance: newBalance,
+          });
 
-      if (balanceError) {
-        // If upsert fails, try update
-        const { error: updateError } = await supabase
-          .from("leave_balances")
-          .update({ [field]: newBalance })
-          .eq("employee_id", employeeId)
-          .eq("year", currentYear);
-
-        if (updateError) {
-          // If update fails, try insert
-          const { error: insertError } = await supabase
-            .from("leave_balances")
-            .insert({
-              employee_id: employeeId,
-              organization_id: currentOrg?.id,
-              year: currentYear,
-              [field]: newBalance,
-            });
-
-          if (insertError) throw insertError;
-        }
+        if (insertError) throw insertError;
       }
 
       // Create the log entry with the leave type name

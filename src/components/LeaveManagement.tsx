@@ -12,10 +12,14 @@ interface LeaveManagementProps {
   employeeId: string;
 }
 
-interface LeaveType {
+interface LeaveTypeBalance {
   id: string;
-  name: string;
-  category: string;
+  balance: number;
+  leave_type: {
+    id: string;
+    name: string;
+    category: string;
+  };
 }
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
@@ -25,49 +29,31 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
   const canManageLeave = isHR || isAdmin;
 
-  const { data: balance, refetch: refetchBalance } = useQuery({
-    queryKey: ["leave-balance", employeeId, currentYear],
+  const { data: balances = [], refetch: refetchBalance } = useQuery({
+    queryKey: ["leave-type-balances", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leave_balances")
-        .select("*")
+        .from("leave_type_balances")
+        .select(`
+          id,
+          balance,
+          leave_type:leave_types!inner(
+            id,
+            name,
+            category
+          )
+        `)
         .eq("employee_id", employeeId)
-        .eq("year", currentYear)
-        .maybeSingle();
+        .eq("year", currentYear);
 
       if (error) throw error;
-      return data;
+      return (data || []) as LeaveTypeBalance[];
     },
-  });
-
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types", currentOrg?.id],
-    queryFn: async () => {
-      if (!currentOrg) return [];
-      const { data, error } = await supabase
-        .from("leave_types")
-        .select("id, name, category")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) throw error;
-      return data as LeaveType[];
-    },
-    enabled: !!currentOrg,
   });
 
   const handleLeaveBalanceUpdate = () => {
     refetchBalance();
-    queryClient.invalidateQueries({ queryKey: ["leave-balance", employeeId] });
-  };
-
-  const getBalanceForType = (leaveTypeName: string) => {
-    if (!balance) return 0;
-    const name = leaveTypeName.toLowerCase();
-    if (name.includes('vacation') || name.includes('annual')) return balance.vacation_days || 0;
-    if (name.includes('sick')) return balance.sick_days || 0;
-    return balance.pto_days || 0;
+    queryClient.invalidateQueries({ queryKey: ["leave-type-balances", employeeId] });
   };
 
   return (
@@ -90,11 +76,6 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
               {canManageLeave && (
                 <AddLeaveBalanceDialog
                   employeeId={employeeId}
-                  currentBalance={balance ? {
-                    vacation_days: balance.vacation_days,
-                    sick_days: balance.sick_days,
-                    pto_days: balance.pto_days,
-                  } : null}
                   onSuccess={handleLeaveBalanceUpdate}
                 />
               )}
@@ -102,39 +83,22 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            {leaveTypes.length > 0 ? (
-              leaveTypes.slice(0, 3).map((leaveType) => (
-                <div key={leaveType.id} className="text-center p-4 rounded-lg bg-primary/5">
+          {balances.length > 0 ? (
+            <div className="grid grid-cols-3 gap-4">
+              {balances.slice(0, 3).map((item) => (
+                <div key={item.id} className="text-center p-4 rounded-lg bg-primary/5">
                   <div className="text-3xl font-bold text-primary">
-                    {getBalanceForType(leaveType.name)}
+                    {item.balance}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">{leaveType.name}</div>
+                  <div className="text-sm text-muted-foreground mt-1">{item.leave_type.name}</div>
                 </div>
-              ))
-            ) : (
-              <>
-                <div className="text-center p-4 rounded-lg bg-primary/5">
-                  <div className="text-3xl font-bold text-primary">
-                    {balance?.vacation_days || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Vacation Days</div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-primary/5">
-                  <div className="text-3xl font-bold text-primary">
-                    {balance?.sick_days || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Sick Days</div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-primary/5">
-                  <div className="text-3xl font-bold text-primary">
-                    {balance?.pto_days || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">PTO Days</div>
-                </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No leave balance set for this year
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

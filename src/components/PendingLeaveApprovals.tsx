@@ -244,35 +244,33 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       if (approved && leaveRequest && currentEmployee) {
         try {
           const currentYear = new Date().getFullYear();
-          const leaveType = leaveRequest.leave_type.toLowerCase();
           
-          // Map leave type to balance column
-          let balanceColumn: "vacation_days" | "sick_days" | "pto_days" | null = null;
-          if (leaveType.includes("vacation") || leaveType.includes("annual")) {
-            balanceColumn = "vacation_days";
-          } else if (leaveType.includes("sick") || leaveType.includes("medical")) {
-            balanceColumn = "sick_days";
-          } else if (leaveType.includes("pto") || leaveType.includes("personal")) {
-            balanceColumn = "pto_days";
-          }
+          // Find the leave type by name
+          const { data: leaveTypeData } = await supabase
+            .from("leave_types")
+            .select("id")
+            .eq("organization_id", currentOrg?.id)
+            .eq("name", leaveRequest.leave_type)
+            .maybeSingle();
 
-          if (balanceColumn) {
-            // Get current balance
+          if (leaveTypeData) {
+            // Get current balance from new table
             const { data: balanceData } = await supabase
-              .from("leave_balances")
-              .select("id, vacation_days, sick_days, pto_days")
+              .from("leave_type_balances")
+              .select("id, balance")
               .eq("employee_id", leaveRequest.employee_id)
+              .eq("leave_type_id", leaveTypeData.id)
               .eq("year", currentYear)
-              .single();
+              .maybeSingle();
 
             if (balanceData) {
-              const currentBalance = balanceData[balanceColumn] || 0;
+              const currentBalance = balanceData.balance || 0;
               const newBalance = Math.max(0, currentBalance - leaveRequest.days_count);
 
               // Update the balance
               await supabase
-                .from("leave_balances")
-                .update({ [balanceColumn]: newBalance })
+                .from("leave_type_balances")
+                .update({ balance: newBalance })
                 .eq("id", balanceData.id);
 
               // Log the deduction
@@ -281,7 +279,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                 .insert({
                   employee_id: leaveRequest.employee_id,
                   organization_id: currentOrg?.id,
-                  leave_type: balanceColumn.replace("_days", ""),
+                  leave_type: leaveRequest.leave_type,
                   change_amount: -leaveRequest.days_count,
                   previous_balance: currentBalance,
                   new_balance: newBalance,
@@ -289,7 +287,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                   created_by: currentEmployee.id,
                 });
 
-              console.log(`Deducted ${leaveRequest.days_count} from ${balanceColumn}`);
+              console.log(`Deducted ${leaveRequest.days_count} from ${leaveRequest.leave_type}`);
             }
           }
         } catch (deductError) {
