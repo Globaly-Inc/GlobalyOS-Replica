@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 
 interface Employee {
   id: string;
@@ -25,6 +27,7 @@ const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     loadEmployees();
@@ -63,11 +66,16 @@ const Team = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="mb-2 text-4xl font-bold text-foreground">Team Directory</h1>
-          <p className="text-muted-foreground">
-            Meet our amazing team of {employees.length} members
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="mb-2 text-4xl font-bold text-foreground">Team Directory</h1>
+            <p className="text-muted-foreground">
+              Meet our amazing team of {employees.length} members
+            </p>
+          </div>
+          {isAdmin && (
+            <InviteTeamMemberDialog onSuccess={loadEmployees} />
+          )}
         </div>
 
         <div className="relative">

@@ -1,5 +1,8 @@
 project_id = "rygowmzkvxgnxagqlyxf"
 
+[functions.invite-team-member]
+verify_jwt = false
+
 [functions.custom-email]
 verify_jwt = false
 
