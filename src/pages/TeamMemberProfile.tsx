@@ -371,6 +371,14 @@ const TeamMemberProfile = () => {
                   onSave={(value) => updateEmployeeField("phone", value)}
                   canEdit={canViewSensitiveData}
                 />
+                <EditableDateField
+                  icon={<Calendar className="h-5 w-5" />}
+                  label="Date of Birth"
+                  value={employee.date_of_birth}
+                  onSave={(value) => updateEmployeeField("date_of_birth", value)}
+                  canEdit={canViewSensitiveData}
+                  showAge
+                />
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground" />
                   <div>
@@ -384,14 +392,6 @@ const TeamMemberProfile = () => {
                     </p>
                   </div>
                 </div>
-                <EditableDateField
-                  icon={<Calendar className="h-5 w-5" />}
-                  label="Date of Birth"
-                  value={employee.date_of_birth}
-                  onSave={(value) => updateEmployeeField("date_of_birth", value)}
-                  canEdit={canViewSensitiveData}
-                  showAge
-                />
                 <div className="flex items-start gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
@@ -427,52 +427,6 @@ const TeamMemberProfile = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">Manager</p>
-                      {canViewSensitiveData && (
-                        <EditManagerDialog
-                          employeeId={id!}
-                          currentManagerId={employee.manager_id}
-                          onSuccess={() => {
-                            loadEmployee();
-                            loadDirectReports();
-                          }}
-                        />
-                      )}
-                    </div>
-                    {manager ? (
-                      <>
-                        <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
-                          {manager.profiles.full_name}
-                        </Link>
-                        <p className="text-xs text-muted-foreground">{manager.position}</p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No manager assigned</p>
-                    )}
-                  </div>
-                </div>
-                {directReports.length > 0 && (
-                  <div className="flex items-start gap-3">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Manages ({directReports.length})</p>
-                      <div className="space-y-1 mt-1">
-                        {directReports.map((report) => (
-                          <div key={report.id}>
-                            <Link to={`/team/${report.id}`} className="text-sm font-medium text-primary hover:underline">
-                              {report.profiles.full_name}
-                            </Link>
-                            <span className="text-xs text-muted-foreground ml-1">• {report.position}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </Card>
 
