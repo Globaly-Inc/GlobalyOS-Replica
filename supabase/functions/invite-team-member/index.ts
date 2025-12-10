@@ -10,13 +10,26 @@ const corsHeaders = {
 
 interface InviteRequest {
   email: string;
+  phone: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
+  street: string;
+  city: string;
+  postcode: string;
+  state: string;
+  country: string;
   position: string;
   department: string;
-  joinDate: string;
-  phone?: string;
-  location?: string;
-  role: 'admin' | 'user';
+  joinDate?: string;
+  idNumber?: string;
+  taxNumber?: string;
+  remuneration?: string;
+  remunerationCurrency?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelationship?: string;
+  role: 'admin' | 'hr' | 'user';
 }
 
 serve(async (req: Request) => {
@@ -25,10 +38,18 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { email, fullName, position, department, joinDate, phone, location, role }: InviteRequest = await req.json();
+    const data: InviteRequest = await req.json();
+    const { 
+      email, phone, fullName, firstName, lastName,
+      street, city, postcode, state, country,
+      position, department, joinDate, idNumber, taxNumber,
+      remuneration, remunerationCurrency, 
+      emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
+      role 
+    } = data;
 
     // Validate required fields
-    if (!email || !fullName || !position || !department || !joinDate || !role) {
+    if (!email || !phone || !firstName || !lastName || !street || !city || !postcode || !state || !country || !position || !department || !role) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -78,6 +99,10 @@ serve(async (req: Request) => {
     const userId = authData.user.id;
     console.log('Created auth user:', userId);
 
+    // Build location string from address components
+    const locationParts = [city, state, country].filter(Boolean);
+    const location = locationParts.join(', ');
+
     // Create employee record
     const { error: employeeError } = await supabase
       .from('employees')
@@ -85,9 +110,21 @@ serve(async (req: Request) => {
         user_id: userId,
         position: position.trim(),
         department: department.trim(),
-        join_date: joinDate,
+        join_date: joinDate || new Date().toISOString().split('T')[0],
         phone: phone?.trim() || null,
-        location: location?.trim() || null,
+        location: location || null,
+        street: street?.trim() || null,
+        city: city?.trim() || null,
+        postcode: postcode?.trim() || null,
+        state: state?.trim() || null,
+        country: country?.trim() || null,
+        id_number: idNumber?.trim() || null,
+        tax_number: taxNumber?.trim() || null,
+        salary: remuneration ? parseFloat(remuneration) : null,
+        remuneration_currency: remunerationCurrency || 'USD',
+        emergency_contact_name: emergencyContactName?.trim() || null,
+        emergency_contact_phone: emergencyContactPhone?.trim() || null,
+        emergency_contact_relationship: emergencyContactRelationship?.trim() || null,
       });
 
     if (employeeError) {
@@ -98,6 +135,15 @@ serve(async (req: Request) => {
         JSON.stringify({ error: 'Failed to create employee record' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Save position to positions table for future use (ignore if already exists)
+    const { error: positionError } = await supabase
+      .from('positions')
+      .upsert({ name: position.trim(), department: department.trim() }, { onConflict: 'name' });
+    
+    if (positionError) {
+      console.log('Position save note:', positionError.message);
     }
 
     // Assign role
@@ -117,6 +163,7 @@ serve(async (req: Request) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://teamhub.lovable.app';
 
     // Send invitation email via Resend API
+    const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Team Member';
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -146,8 +193,8 @@ serve(async (req: Request) => {
             <div class="details">
               <p><strong>Position:</strong> ${position}</p>
               <p><strong>Department:</strong> ${department}</p>
-              <p><strong>Start Date:</strong> ${new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              <p><strong>Role:</strong> ${role === 'admin' ? 'Administrator' : 'Team Member'}</p>
+              <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
+              <p><strong>Role:</strong> ${roleLabel}</p>
             </div>
             <p>To get started, click the button below and use the OTP login with your email address:</p>
             <div class="cta">

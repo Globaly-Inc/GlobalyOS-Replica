@@ -8,21 +8,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, UserPlus, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, AlertCircle, User, MapPin, Briefcase, Calendar, Shield, Phone } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 const inviteSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(255),
+  phone: z.string().trim().min(5, "Please enter a valid phone number").max(20),
   firstName: z.string().trim().min(2, "First name must be at least 2 characters").max(50),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
-  position: z.string().trim().min(2, "Position must be at least 2 characters").max(100),
+  street: z.string().trim().min(2, "Street address is required").max(200),
+  city: z.string().trim().min(2, "City is required").max(100),
+  postcode: z.string().trim().min(2, "Postcode is required").max(20),
+  state: z.string().trim().min(2, "State is required").max(100),
+  country: z.string().trim().min(2, "Country is required").max(100),
   department: z.string().trim().min(2, "Please select a department").max(100),
-  joinDate: z.string().min(1, "Please select a join date"),
-  phone: z.string().trim().max(20).optional(),
-  location: z.string().trim().max(200).optional(),
-  role: z.enum(['admin', 'user']),
+  position: z.string().trim().min(2, "Position is required").max(100),
+  joinDate: z.string().optional(),
+  idNumber: z.string().trim().max(50).optional(),
+  taxNumber: z.string().trim().max(50).optional(),
+  remuneration: z.string().optional(),
+  remunerationCurrency: z.string().default('USD'),
+  emergencyContactName: z.string().trim().max(100).optional(),
+  emergencyContactPhone: z.string().trim().max(20).optional(),
+  emergencyContactRelationship: z.string().trim().max(50).optional(),
+  role: z.enum(['admin', 'hr', 'user']),
 });
+
+const currencies = [
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+];
 
 const InviteTeamMember = () => {
   const navigate = useNavigate();
@@ -32,21 +56,34 @@ const InviteTeamMember = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [departments, setDepartments] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     email: "",
+    phone: "",
     firstName: "",
     lastName: "",
-    position: "",
+    street: "",
+    city: "",
+    postcode: "",
+    state: "",
+    country: "",
     department: "",
+    position: "",
     joinDate: "",
-    phone: "",
-    location: "",
-    role: "user" as 'admin' | 'user',
+    idNumber: "",
+    taxNumber: "",
+    remuneration: "",
+    remunerationCurrency: "USD",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelationship: "",
+    role: "user" as 'admin' | 'hr' | 'user',
   });
 
   useEffect(() => {
     loadDepartments();
+    loadPositions();
   }, []);
 
   const loadDepartments = async () => {
@@ -58,6 +95,17 @@ const InviteTeamMember = () => {
     if (data) {
       const uniqueDepts = [...new Set(data.map(e => e.department))].filter(Boolean);
       setDepartments(uniqueDepts);
+    }
+  };
+
+  const loadPositions = async () => {
+    const { data } = await supabase
+      .from('positions')
+      .select('name')
+      .order('name');
+    
+    if (data) {
+      setPositions(data.map(p => p.name));
     }
   };
 
@@ -159,19 +207,21 @@ const InviteTeamMember = () => {
     label, 
     required = false, 
     type = "text",
-    placeholder 
+    placeholder,
+    className
   }: { 
     id: keyof typeof formData; 
     label: string; 
     required?: boolean;
     type?: string;
     placeholder?: string;
+    className?: string;
   }) => {
     const hasError = touched[id] && errors[id];
     const isValid = touched[id] && !errors[id] && formData[id];
 
     return (
-      <div className="space-y-2">
+      <div className={cn("space-y-2", className)}>
         <Label htmlFor={id} className="flex items-center gap-1">
           {label} {required && <span className="text-destructive">*</span>}
         </Label>
@@ -227,7 +277,7 @@ const InviteTeamMember = () => {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/team')}>
             <ArrowLeft className="h-5 w-5" />
@@ -238,24 +288,61 @@ const InviteTeamMember = () => {
           </div>
         </div>
 
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Team Member Details
-            </CardTitle>
-            <CardDescription>
-              Fill in the details below. An invitation email will be sent to the new team member.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Personal Information */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>Basic information about the team member</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div className="grid gap-6 sm:grid-cols-2">
                 <InputField id="firstName" label="First Name" required placeholder="John" />
                 <InputField id="lastName" label="Last Name" required placeholder="Doe" />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
                 <InputField id="email" label="Email" required type="email" placeholder="john@example.com" />
-                <InputField id="position" label="Position" required placeholder="e.g., Software Engineer" />
-                
+                <InputField id="phone" label="Phone" required type="tel" placeholder="+1 234 567 8900" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Address Information */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Address
+              </CardTitle>
+              <CardDescription>Full residential address</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <InputField id="street" label="Street Address" required placeholder="123 Main Street" />
+              <div className="grid gap-6 sm:grid-cols-2">
+                <InputField id="city" label="City" required placeholder="New York" />
+                <InputField id="postcode" label="Postcode" required placeholder="10001" />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <InputField id="state" label="State" required placeholder="New York" />
+                <InputField id="country" label="Country" required placeholder="United States" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Department & Position */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Department & Position
+              </CardTitle>
+              <CardDescription>Work role and department assignment</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="department" className="flex items-center gap-1">
                     Department <span className="text-destructive">*</span>
@@ -302,68 +389,185 @@ const InviteTeamMember = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="joinDate" className="flex items-center gap-1">
-                    Join Date <span className="text-destructive">*</span>
+                  <Label htmlFor="position" className="flex items-center gap-1">
+                    Position <span className="text-destructive">*</span>
                   </Label>
+                  <Select
+                    value={formData.position}
+                    onValueChange={(value) => {
+                      handleChange('position', value);
+                      setTouched(prev => ({ ...prev, position: true }));
+                    }}
+                  >
+                    <SelectTrigger className={cn(
+                      "transition-all duration-200",
+                      touched.position && errors.position && "border-destructive",
+                      touched.position && !errors.position && formData.position && "border-green-500"
+                    )}>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {positions.map((pos) => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                      ))}
+                      <SelectItem value="__new__" className="text-primary font-medium">
+                        + Add new position...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.position === '__new__' && (
+                    <Input
+                      placeholder="Enter new position title"
+                      className="mt-2 animate-fade-in"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setFormData(prev => ({ ...prev, position: e.target.value }));
+                        }
+                      }}
+                    />
+                  )}
+                  {touched.position && errors.position && (
+                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
+                      {errors.position}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Employment Details (Optional) */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Employment Details
+                <span className="text-sm font-normal text-muted-foreground ml-2">(Optional)</span>
+              </CardTitle>
+              <CardDescription>Additional employment information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="joinDate">Join Date</Label>
                   <Input
                     id="joinDate"
                     type="date"
                     value={formData.joinDate}
                     onChange={(e) => handleChange('joinDate', e.target.value)}
-                    onBlur={() => handleBlur('joinDate')}
-                    className={cn(
-                      "transition-all duration-200",
-                      touched.joinDate && errors.joinDate && "border-destructive",
-                      touched.joinDate && !errors.joinDate && formData.joinDate && "border-green-500"
-                    )}
                   />
-                  {touched.joinDate && errors.joinDate && (
-                    <p className="text-sm text-destructive flex items-center gap-1 animate-fade-in">
-                      {errors.joinDate}
-                    </p>
-                  )}
                 </div>
-
+                <InputField id="idNumber" label="ID Number" placeholder="e.g., Employee ID" />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <InputField id="taxNumber" label="Personal Tax Number" placeholder="Tax identification number" />
                 <div className="space-y-2">
-                  <Label htmlFor="role" className="flex items-center gap-1">
-                    Role <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: 'admin' | 'user') => handleChange('role', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Team Member</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="remuneration">Current Remuneration</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={formData.remunerationCurrency}
+                      onValueChange={(value) => handleChange('remunerationCurrency', value)}
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.code} ({currency.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="remuneration"
+                      type="number"
+                      value={formData.remuneration}
+                      onChange={(e) => handleChange('remuneration', e.target.value)}
+                      placeholder="Annual salary"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
-
-                <InputField id="phone" label="Phone" type="tel" placeholder="Optional" />
-                <InputField id="location" label="Location" placeholder="Optional" />
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="flex gap-4 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate('/team')} className="flex-1">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Sending...
-                    </span>
-                  ) : (
-                    "Send Invitation"
-                  )}
-                </Button>
+          {/* Emergency Contact (Optional) */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Emergency Contact
+                <span className="text-sm font-normal text-muted-foreground ml-2">(Optional)</span>
+              </CardTitle>
+              <CardDescription>Emergency contact information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-3">
+                <InputField id="emergencyContactName" label="Contact Name" placeholder="Jane Doe" />
+                <InputField id="emergencyContactPhone" label="Contact Phone" type="tel" placeholder="+1 234 567 8900" />
+                <InputField id="emergencyContactRelationship" label="Relationship" placeholder="e.g., Spouse, Parent" />
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Role Selection */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                System Role
+              </CardTitle>
+              <CardDescription>Assign system access permissions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="role" className="flex items-center gap-1">
+                  Role <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value: 'admin' | 'hr' | 'user') => handleChange('role', value)}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Team Member</SelectItem>
+                    <SelectItem value="hr">HR Manager</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {formData.role === 'admin' && "Full access to all features and settings"}
+                  {formData.role === 'hr' && "Can manage employees, leave requests, and HR functions"}
+                  {formData.role === 'user' && "Standard access to view team and personal information"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submit Buttons */}
+          <div className="flex gap-4 pt-4">
+            <Button type="button" variant="outline" onClick={() => navigate('/team')} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </span>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Send Invitation
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
       </div>
     </Layout>
   );

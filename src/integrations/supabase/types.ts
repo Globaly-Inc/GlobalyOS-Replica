@@ -98,44 +98,80 @@ export type Database = {
       }
       employees: {
         Row: {
+          city: string | null
+          country: string | null
           created_at: string
           department: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
           id: string
+          id_number: string | null
           join_date: string
           location: string | null
           manager_id: string | null
           phone: string | null
           position: string
+          postcode: string | null
+          remuneration: number | null
+          remuneration_currency: string | null
           salary: number | null
+          state: string | null
+          street: string | null
           superpowers: string[] | null
+          tax_number: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          city?: string | null
+          country?: string | null
           created_at?: string
           department: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
           id?: string
+          id_number?: string | null
           join_date: string
           location?: string | null
           manager_id?: string | null
           phone?: string | null
           position: string
+          postcode?: string | null
+          remuneration?: number | null
+          remuneration_currency?: string | null
           salary?: number | null
+          state?: string | null
+          street?: string | null
           superpowers?: string[] | null
+          tax_number?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          city?: string | null
+          country?: string | null
           created_at?: string
           department?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
           id?: string
+          id_number?: string | null
           join_date?: string
           location?: string | null
           manager_id?: string | null
           phone?: string | null
           position?: string
+          postcode?: string | null
+          remuneration?: number | null
+          remuneration_currency?: string | null
           salary?: number | null
+          state?: string | null
+          street?: string | null
           superpowers?: string[] | null
+          tax_number?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -435,6 +471,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      positions: {
+        Row: {
+          created_at: string
+          department: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
