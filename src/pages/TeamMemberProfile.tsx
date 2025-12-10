@@ -14,7 +14,7 @@ import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialo
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditableField } from "@/components/EditableField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,6 +110,7 @@ const TeamMemberProfile = () => {
         phone,
         superpowers,
         manager_id,
+        office_id,
         personal_email,
         street,
         city,
@@ -128,6 +129,11 @@ const TeamMemberProfile = () => {
           full_name,
           email,
           avatar_url
+        ),
+        offices(
+          name,
+          city,
+          country
         )
       `)
       .eq("id", id)
@@ -285,6 +291,20 @@ const TeamMemberProfile = () => {
                     </p>
                   </div>
                 </div>
+                {employee.offices && (
+                  <div className="flex items-start gap-3">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Office</p>
+                      <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
+                      {(employee.offices.city || employee.offices.country) && (
+                        <p className="text-xs text-muted-foreground">
+                          {[employee.offices.city, employee.offices.country].filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
