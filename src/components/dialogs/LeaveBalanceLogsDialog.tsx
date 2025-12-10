@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { History, TrendingUp, TrendingDown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { History, TrendingUp, TrendingDown, Calendar, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -28,6 +29,23 @@ interface LeaveBalanceLog {
   } | null;
 }
 
+interface LeaveRequest {
+  id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by_employee: {
+    profiles: {
+      full_name: string;
+    };
+  } | null;
+}
+
 interface LeaveBalanceLogsDialogProps {
   employeeId: string;
 }
@@ -37,12 +55,14 @@ export const LeaveBalanceLogsDialog = ({
 }: LeaveBalanceLogsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<LeaveBalanceLog[]>([]);
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadLogs = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Load balance logs
+      const { data: logsData, error: logsError } = await supabase
         .from("leave_balance_logs")
         .select(`
           id,
@@ -59,10 +79,33 @@ export const LeaveBalanceLogsDialog = ({
         .eq("employee_id", employeeId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setLogs((data as any) || []);
+      if (logsError) throw logsError;
+      setLogs((logsData as any) || []);
+
+      // Load leave requests
+      const { data: requestsData, error: requestsError } = await supabase
+        .from("leave_requests")
+        .select(`
+          id,
+          leave_type,
+          start_date,
+          end_date,
+          days_count,
+          reason,
+          status,
+          created_at,
+          reviewed_at,
+          reviewed_by_employee:employees!leave_requests_reviewed_by_fkey(
+            profiles!inner(full_name)
+          )
+        `)
+        .eq("employee_id", employeeId)
+        .order("created_at", { ascending: false });
+
+      if (requestsError) throw requestsError;
+      setRequests((requestsData as any) || []);
     } catch (error) {
-      console.error("Error loading leave balance logs:", error);
+      console.error("Error loading leave data:", error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +114,7 @@ export const LeaveBalanceLogsDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
-      loadLogs();
+      loadData();
     }
   };
 
@@ -97,6 +140,17 @@ export const LeaveBalanceLogsDialog = ({
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <Badge className="bg-green-500">Approved</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">Pending</Badge>;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -105,79 +159,149 @@ export const LeaveBalanceLogsDialog = ({
           Leave Logs
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
-            Leave Balance History
+            Leave History
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="h-[400px] pr-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">Loading...</p>
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">No leave balance changes recorded</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="border rounded-lg p-4 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
-                        {getLeaveTypeLabel(log.leave_type)}
-                      </Badge>
-                      {log.change_amount > 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="text-green-600 border-green-600"
-                        >
-                          <TrendingUp className="h-3 w-3 mr-1" />
-                          +{log.change_amount}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-red-600 border-red-600"
-                        >
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                          {log.change_amount}
-                        </Badge>
+        
+        <Tabs defaultValue="requests" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="requests" className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              Leave Requests
+            </TabsTrigger>
+            <TabsTrigger value="balance" className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Balance Changes
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="requests">
+            <ScrollArea className="h-[400px] pr-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">No leave requests yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-4">
+                  {requests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="border rounded-lg p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getLeaveTypeBadgeVariant(request.leave_type)}>
+                            {getLeaveTypeLabel(request.leave_type)}
+                          </Badge>
+                          {getStatusBadge(request.status)}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(request.created_at), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
+                        {format(new Date(request.end_date), "MMM d, yyyy")}
+                        <span className="ml-2">({request.days_count} {request.days_count === 1 ? 'day' : 'days'})</span>
+                      </div>
+                      {request.reason && (
+                        <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                          {request.reason}
+                        </p>
+                      )}
+                      {request.reviewed_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Reviewed on {format(new Date(request.reviewed_at), "MMM d, yyyy")}
+                          {request.reviewed_by_employee?.profiles &&
+                            ` by ${request.reviewed_by_employee.profiles.full_name}`
+                          }
+                        </p>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Balance:</span>
-                    <span className="text-muted-foreground line-through">
-                      {log.previous_balance}
-                    </span>
-                    <span className="text-foreground">→</span>
-                    <span className="font-medium">{log.new_balance}</span>
-                  </div>
-                  {log.reason && (
-                    <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
-                      {log.reason}
-                    </p>
-                  )}
-                  {log.created_by_employee?.profiles && (
-                    <p className="text-xs text-muted-foreground">
-                      Updated by {log.created_by_employee.profiles.full_name}
-                    </p>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          
+          <TabsContent value="balance">
+            <ScrollArea className="h-[400px] pr-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">No balance changes recorded</p>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-4">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="border rounded-lg p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
+                            {getLeaveTypeLabel(log.leave_type)}
+                          </Badge>
+                          {log.change_amount > 0 ? (
+                            <Badge
+                              variant="outline"
+                              className="text-green-600 border-green-600"
+                            >
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              +{log.change_amount}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-red-600 border-red-600"
+                            >
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                              {log.change_amount}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Balance:</span>
+                        <span className="text-muted-foreground line-through">
+                          {log.previous_balance}
+                        </span>
+                        <span className="text-foreground">→</span>
+                        <span className="font-medium">{log.new_balance}</span>
+                      </div>
+                      {log.reason && (
+                        <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                          {log.reason}
+                        </p>
+                      )}
+                      {log.created_by_employee?.profiles && (
+                        <p className="text-xs text-muted-foreground">
+                          Updated by {log.created_by_employee.profiles.full_name}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
