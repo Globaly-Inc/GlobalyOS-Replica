@@ -12,6 +12,7 @@ export interface Employee {
   country?: string;
   superpowers?: string[];
   status?: 'invited' | 'active' | 'inactive';
+  officeName?: string;
 }
 
 export interface Kudos {

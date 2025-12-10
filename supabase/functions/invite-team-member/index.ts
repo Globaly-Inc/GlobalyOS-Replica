@@ -33,6 +33,7 @@ interface InviteRequest {
   avatarUrl?: string;
   role: 'admin' | 'hr' | 'user';
   managerId?: string;
+  officeId?: string;
   organizationId: string;
 }
 
@@ -54,7 +55,7 @@ serve(async (req: Request) => {
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
-      avatarUrl, role, managerId, organizationId
+      avatarUrl, role, managerId, officeId, organizationId
     } = data;
 
     // Validate required fields (postcode is now optional)
@@ -137,6 +138,7 @@ serve(async (req: Request) => {
         emergency_contact_phone: emergencyContactPhone?.trim() || null,
         emergency_contact_relationship: emergencyContactRelationship?.trim() || null,
         manager_id: managerId || null,
+        office_id: officeId || null,
       });
 
     // Update profile with avatar URL if provided
