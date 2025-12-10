@@ -49,17 +49,16 @@ interface KudosItem {
   };
 }
 
-interface LeaveBalance {
-  vacation_days: number;
-  sick_days: number;
-  pto_days: number;
+interface LeaveTypeBalance {
+  id: string;
+  balance: number;
+  leave_type: {
+    id: string;
+    name: string;
+    category: string;
+  };
 }
 
-interface LeaveType {
-  id: string;
-  name: string;
-  category: string;
-}
 
 interface PersonOnLeave {
   id: string;
@@ -99,12 +98,12 @@ const Home = () => {
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
-  const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveTypeBalance[]>([]);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  
   const { isHR, isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
 
@@ -115,7 +114,6 @@ const Home = () => {
       loadLeaveData();
       loadUpcomingEvents();
       loadDailyQuote();
-      loadLeaveTypes();
 
       // Set up real-time subscriptions for auto-refresh
       const updatesChannel = supabase
@@ -199,17 +197,6 @@ const Home = () => {
         author: "Helen Keller"
       });
     }
-  };
-
-  const loadLeaveTypes = async () => {
-    if (!currentOrg) return;
-    const { data } = await supabase
-      .from("leave_types")
-      .select("id, name, category")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true)
-      .order("name");
-    if (data) setLeaveTypes(data);
   };
 
   const checkEmployeeProfile = async () => {
@@ -358,7 +345,7 @@ const Home = () => {
       setPeopleOnLeave(leaveRequests as PersonOnLeave[]);
     }
 
-    // Load current user's leave balance
+    // Load current user's leave balance from new flexible table
     const { data: employeeData } = await supabase
       .from("employees")
       .select("id")
@@ -368,14 +355,21 @@ const Home = () => {
 
     if (employeeData) {
       const { data: balanceData } = await supabase
-        .from("leave_balances")
-        .select("vacation_days, sick_days, pto_days")
+        .from("leave_type_balances")
+        .select(`
+          id,
+          balance,
+          leave_type:leave_types!inner(
+            id,
+            name,
+            category
+          )
+        `)
         .eq("employee_id", employeeData.id)
-        .eq("year", currentYear)
-        .maybeSingle();
+        .eq("year", currentYear);
 
       if (balanceData) {
-        setLeaveBalance(balanceData);
+        setLeaveBalances(balanceData as LeaveTypeBalance[]);
       }
     }
   };
@@ -756,42 +750,16 @@ const Home = () => {
                     Request
                   </Button>
                 </div>
-                {leaveBalance ? (
+                {leaveBalances.length > 0 ? (
                   <div className="grid grid-cols-3 gap-3">
-                    {leaveTypes.length > 0 ? (
-                      leaveTypes.slice(0, 3).map((leaveType) => {
-                        const name = leaveType.name.toLowerCase();
-                        const balanceKey = (name.includes('vacation') || name.includes('annual'))
-                          ? 'vacation_days' 
-                          : name.includes('sick')
-                            ? 'sick_days' 
-                            : 'pto_days';
-                        const balance = leaveBalance[balanceKey as keyof LeaveBalance] || 0;
-                        return (
-                          <div key={leaveType.id} className="text-center p-3 rounded-lg bg-primary/5">
-                            <div className="text-2xl font-bold text-primary">
-                              {balance}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">{leaveType.name}</div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <>
-                        <div className="text-center p-3 rounded-lg bg-primary/5">
-                          <div className="text-2xl font-bold text-primary">{leaveBalance.vacation_days}</div>
-                          <div className="text-xs text-muted-foreground mt-1">Vacation Days</div>
+                    {leaveBalances.slice(0, 3).map((item) => (
+                      <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
+                        <div className="text-2xl font-bold text-primary">
+                          {item.balance}
                         </div>
-                        <div className="text-center p-3 rounded-lg bg-primary/5">
-                          <div className="text-2xl font-bold text-primary">{leaveBalance.sick_days}</div>
-                          <div className="text-xs text-muted-foreground mt-1">Sick Days</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-primary/5">
-                          <div className="text-2xl font-bold text-primary">{leaveBalance.pto_days}</div>
-                          <div className="text-xs text-muted-foreground mt-1">PTO Days</div>
-                        </div>
-                      </>
-                    )}
+                        <div className="text-xs text-muted-foreground mt-1">{item.leave_type.name}</div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No leave balance set for this year</p>

@@ -538,6 +538,61 @@ export type Database = {
           },
         ]
       }
+      leave_type_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type_id: string
+          organization_id: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type_id: string
+          organization_id?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type_id?: string
+          organization_id?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_type_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_type_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_type_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_type_offices: {
         Row: {
           created_at: string
