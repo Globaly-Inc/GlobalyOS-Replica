@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInYears } from "date-fns";
 import { CalendarIcon, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ interface EditableDateFieldProps {
   placeholder?: string;
   canEdit?: boolean;
   className?: string;
+  showAge?: boolean;
 }
 
 export const EditableDateField = ({
@@ -28,6 +29,7 @@ export const EditableDateField = ({
   placeholder = "Not specified",
   canEdit = true,
   className,
+  showAge = false,
 }: EditableDateFieldProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(
@@ -65,6 +67,8 @@ export const EditableDateField = ({
   const displayValue = value
     ? format(new Date(value), "MMMM d, yyyy")
     : null;
+
+  const age = value ? differenceInYears(new Date(), new Date(value)) : null;
 
   return (
     <div
@@ -136,7 +140,16 @@ export const EditableDateField = ({
           </div>
         ) : (
           <p className="text-sm font-medium text-foreground">
-            {displayValue || <span className="text-muted-foreground italic">{placeholder}</span>}
+            {displayValue ? (
+              <>
+                {displayValue}
+                {showAge && age !== null && (
+                  <span className="ml-2 text-muted-foreground">({age} years old)</span>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground italic">{placeholder}</span>
+            )}
           </p>
         )}
       </div>
