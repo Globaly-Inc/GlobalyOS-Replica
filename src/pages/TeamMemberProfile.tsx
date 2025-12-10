@@ -13,13 +13,16 @@ import { LeaveManagement } from "@/components/LeaveManagement";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users } from "lucide-react";
+import { EditableField } from "@/components/EditableField";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const TeamMemberProfile = () => {
   const { id } = useParams();
+  const { toast } = useToast();
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,26 @@ const TeamMemberProfile = () => {
   const [positionHistory, setPositionHistory] = useState<any[]>([]);
   const [manager, setManager] = useState<any>(null);
   const [directReports, setDirectReports] = useState<any[]>([]);
+
+  const updateEmployeeField = async (field: string, value: string) => {
+    if (!id) return;
+    const { error } = await supabase
+      .from("employees")
+      .update({ [field]: value || null })
+      .eq("id", id);
+    
+    if (error) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+    
+    toast({ title: "Updated successfully" });
+    loadEmployee();
+  };
 
   useEffect(() => {
     if (id) {
@@ -88,6 +111,20 @@ const TeamMemberProfile = () => {
         location,
         superpowers,
         manager_id,
+        personal_email,
+        street,
+        city,
+        state,
+        postcode,
+        country,
+        id_number,
+        tax_number,
+        remuneration,
+        remuneration_currency,
+        emergency_contact_name,
+        emergency_contact_phone,
+        emergency_contact_relationship,
+        bank_details,
         profiles!inner(
           full_name,
           email,
@@ -206,98 +243,219 @@ const TeamMemberProfile = () => {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="p-6 lg:col-span-1">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-              <User className="h-5 w-5 text-primary" />
-              Contact Information
-            </h2>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium text-foreground">{employee.profiles.email}</p>
-                </div>
-              </div>
-              {employee.phone && (
+          <div className="space-y-6 lg:col-span-1">
+            {/* Contact Information */}
+            <Card className="p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+                <User className="h-5 w-5 text-primary" />
+                Contact Information
+              </h2>
+              <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="text-sm font-medium text-foreground">{employee.phone}</p>
+                    <p className="text-sm text-muted-foreground">Company Email</p>
+                    <p className="text-sm font-medium text-foreground">{employee.profiles.email}</p>
                   </div>
                 </div>
-              )}
-              {employee.location && (
+                <EditableField
+                  icon={<Mail className="h-5 w-5" />}
+                  label="Personal Email"
+                  value={employee.personal_email}
+                  onSave={(value) => updateEmployeeField("personal_email", value)}
+                  canEdit={canViewSensitiveData}
+                  placeholder="Not specified"
+                />
+                <EditableField
+                  icon={<Phone className="h-5 w-5" />}
+                  label="Phone"
+                  value={employee.phone}
+                  onSave={(value) => updateEmployeeField("phone", value)}
+                  canEdit={canViewSensitiveData}
+                />
                 <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="text-sm font-medium text-foreground">{employee.location}</p>
+                    <p className="text-sm text-muted-foreground">Join Date</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {new Date(employee.join_date).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
                 </div>
-              )}
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Join Date</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {new Date(employee.join_date).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">Manager</p>
-                    {canViewSensitiveData && (
-                      <EditManagerDialog
-                        employeeId={id!}
-                        currentManagerId={employee.manager_id}
-                        onSuccess={() => {
-                          loadEmployee();
-                          loadDirectReports();
-                        }}
-                      />
+                <div className="flex items-start gap-3">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Manager</p>
+                      {canViewSensitiveData && (
+                        <EditManagerDialog
+                          employeeId={id!}
+                          currentManagerId={employee.manager_id}
+                          onSuccess={() => {
+                            loadEmployee();
+                            loadDirectReports();
+                          }}
+                        />
+                      )}
+                    </div>
+                    {manager ? (
+                      <>
+                        <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
+                          {manager.profiles.full_name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground">{manager.position}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No manager assigned</p>
                     )}
                   </div>
-                  {manager ? (
-                    <>
-                      <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
-                        {manager.profiles.full_name}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">{manager.position}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No manager assigned</p>
-                  )}
                 </div>
-              </div>
-              {directReports.length > 0 && (
-                <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Manages ({directReports.length})</p>
-                    <div className="space-y-1 mt-1">
-                      {directReports.map((report) => (
-                        <div key={report.id}>
-                          <Link to={`/team/${report.id}`} className="text-sm font-medium text-primary hover:underline">
-                            {report.profiles.full_name}
-                          </Link>
-                          <span className="text-xs text-muted-foreground ml-1">• {report.position}</span>
-                        </div>
-                      ))}
+                {directReports.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Manages ({directReports.length})</p>
+                      <div className="space-y-1 mt-1">
+                        {directReports.map((report) => (
+                          <div key={report.id}>
+                            <Link to={`/team/${report.id}`} className="text-sm font-medium text-primary hover:underline">
+                              {report.profiles.full_name}
+                            </Link>
+                            <span className="text-xs text-muted-foreground ml-1">• {report.position}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Address */}
+            <Card className="p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+                <MapPin className="h-5 w-5 text-primary" />
+                Address
+              </h2>
+              <div className="space-y-4">
+                <EditableField
+                  label="Street"
+                  value={employee.street}
+                  onSave={(value) => updateEmployeeField("street", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="City"
+                  value={employee.city}
+                  onSave={(value) => updateEmployeeField("city", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="State"
+                  value={employee.state}
+                  onSave={(value) => updateEmployeeField("state", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="Postcode"
+                  value={employee.postcode}
+                  onSave={(value) => updateEmployeeField("postcode", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="Country"
+                  value={employee.country}
+                  onSave={(value) => updateEmployeeField("country", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="Location"
+                  value={employee.location}
+                  onSave={(value) => updateEmployeeField("location", value)}
+                  canEdit={canViewSensitiveData}
+                />
+              </div>
+            </Card>
+
+            {/* Tax & Banking */}
+            {canViewSensitiveData && (
+              <Card className="p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  Tax & Banking
+                </h2>
+                <div className="space-y-4">
+                  <EditableField
+                    icon={<FileText className="h-5 w-5" />}
+                    label="ID Number"
+                    value={employee.id_number}
+                    onSave={(value) => updateEmployeeField("id_number", value)}
+                    canEdit={canViewSensitiveData}
+                  />
+                  <EditableField
+                    icon={<FileText className="h-5 w-5" />}
+                    label="Tax Number"
+                    value={employee.tax_number}
+                    onSave={(value) => updateEmployeeField("tax_number", value)}
+                    canEdit={canViewSensitiveData}
+                  />
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Remuneration</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {employee.remuneration 
+                          ? `${employee.remuneration_currency || 'USD'} ${Number(employee.remuneration).toLocaleString()}`
+                          : <span className="text-muted-foreground italic">Not specified</span>
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <EditableField
+                    icon={<Building className="h-5 w-5" />}
+                    label="Bank Details"
+                    value={employee.bank_details}
+                    onSave={(value) => updateEmployeeField("bank_details", value)}
+                    type="textarea"
+                    canEdit={canViewSensitiveData}
+                    placeholder="Enter bank account details"
+                  />
                 </div>
-              )}
-            </div>
-          </Card>
+              </Card>
+            )}
+
+            {/* Emergency Contact */}
+            <Card className="p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+                <AlertCircle className="h-5 w-5 text-primary" />
+                Emergency Contact
+              </h2>
+              <div className="space-y-4">
+                <EditableField
+                  label="Contact Name"
+                  value={employee.emergency_contact_name}
+                  onSave={(value) => updateEmployeeField("emergency_contact_name", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="Contact Phone"
+                  value={employee.emergency_contact_phone}
+                  onSave={(value) => updateEmployeeField("emergency_contact_phone", value)}
+                  canEdit={canViewSensitiveData}
+                />
+                <EditableField
+                  label="Relationship"
+                  value={employee.emergency_contact_relationship}
+                  onSave={(value) => updateEmployeeField("emergency_contact_relationship", value)}
+                  canEdit={canViewSensitiveData}
+                />
+              </div>
+            </Card>
+          </div>
 
           <div className="space-y-6 lg:col-span-2">
             {employee.superpowers && employee.superpowers.length > 0 && (
