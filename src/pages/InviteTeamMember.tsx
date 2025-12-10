@@ -372,7 +372,7 @@ const InviteTeamMember = () => {
                     {formData.personalEmail && (
                       <p><span className="text-muted-foreground">Personal Email:</span> {formData.personalEmail}</p>
                     )}
-                    <p><span className="text-muted-foreground">Phone:</span> {formData.phone}</p>
+                    <p><span className="text-muted-foreground">Personal Phone:</span> {formData.phone}</p>
                   </div>
                 </div>
                 <div>
@@ -526,7 +526,7 @@ const InviteTeamMember = () => {
                   touched={touched.lastName}
                 />
               </div>
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-3">
                 <FormInputField
                   id="email"
                   label="Company Email"
@@ -553,11 +553,9 @@ const InviteTeamMember = () => {
                   error={errors.personalEmail}
                   touched={touched.personalEmail}
                 />
-              </div>
-              <div className="grid gap-6 sm:grid-cols-1">
                 <FormInputField
                   id="phone"
-                  label="Phone"
+                  label="Personal Phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(value) => handleChange('phone', value)}
@@ -569,7 +567,6 @@ const InviteTeamMember = () => {
                   placeholder="+1 234 567 8900"
                   error={errors.phone}
                   touched={touched.phone}
-                  className="sm:max-w-md"
                 />
               </div>
             </CardContent>
