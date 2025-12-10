@@ -33,6 +33,7 @@ interface InviteRequest {
   avatarUrl?: string;
   role: 'admin' | 'hr' | 'user';
   managerId?: string;
+  organizationId: string;
 }
 
 // Generate a 6-digit OTP code
@@ -53,11 +54,11 @@ serve(async (req: Request) => {
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
-      avatarUrl, role, managerId
+      avatarUrl, role, managerId, organizationId
     } = data;
 
     // Validate required fields (postcode is now optional)
-    if (!email || !phone || !firstName || !lastName || !street || !city || !state || !country || !position || !department || !role) {
+    if (!email || !phone || !firstName || !lastName || !street || !city || !state || !country || !position || !department || !role || !organizationId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,20 +113,16 @@ serve(async (req: Request) => {
     const userId = authData.user.id;
     console.log('Created auth user:', userId);
 
-    // Build location string from address components
-    const locationParts = [city, state, country].filter(Boolean);
-    const location = locationParts.join(', ');
-
     // Create employee record
     const { error: employeeError } = await supabase
       .from('employees')
       .insert({
         user_id: userId,
+        organization_id: organizationId,
         position: position.trim(),
         department: department.trim(),
         join_date: joinDate || new Date().toISOString().split('T')[0],
         phone: phone?.trim() || null,
-        location: location || null,
         street: street?.trim() || null,
         city: city?.trim() || null,
         postcode: postcode?.trim() || null,
@@ -163,7 +160,7 @@ serve(async (req: Request) => {
     // Save position to positions table for future use (ignore if already exists)
     const { error: positionError } = await supabase
       .from('positions')
-      .upsert({ name: position.trim(), department: department.trim() }, { onConflict: 'name' });
+      .upsert({ name: position.trim(), department: department.trim(), organization_id: organizationId }, { onConflict: 'name' });
     
     if (positionError) {
       console.log('Position save note:', positionError.message);
@@ -175,6 +172,7 @@ serve(async (req: Request) => {
       .insert({
         user_id: userId,
         role: role,
+        organization_id: organizationId,
       });
 
     if (roleError) {

@@ -52,7 +52,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const loadUserProfile = async () => {
-      if (!user?.id) return;
+      if (!user?.id || !currentOrg) return;
 
       // Get profile data
       const { data: profile } = await supabase
@@ -61,18 +61,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         .eq("id", user.id)
         .maybeSingle();
 
-      // Get employee data
+      // Get employee data for current org
       const { data: employee } = await supabase
         .from("employees")
         .select("id, position")
         .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id)
         .maybeSingle();
 
-      // Get user role
+      // Get user role for current org
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id)
         .maybeSingle();
 
       if (profile) {
@@ -87,7 +89,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     };
 
     loadUserProfile();
-  }, [user?.id]);
+  }, [user?.id, currentOrg?.id]);
 
   const handleSignOut = async () => {
     await signOut();

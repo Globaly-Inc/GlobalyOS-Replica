@@ -13,6 +13,7 @@ import { ArrowLeft, UserPlus, Check, User, MapPin, Briefcase, Shield, Phone, Upl
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { FormInputField } from "@/components/FormInputField";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh",
@@ -75,6 +76,7 @@ interface TeamMember {
 const InviteTeamMember = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const { currentOrg } = useOrganization();
   const [success, setSuccess] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
@@ -117,15 +119,19 @@ const InviteTeamMember = () => {
   });
 
   useEffect(() => {
-    loadDepartments();
-    loadPositions();
-    loadTeamMembers();
-  }, []);
+    if (currentOrg) {
+      loadDepartments();
+      loadPositions();
+      loadTeamMembers();
+    }
+  }, [currentOrg?.id]);
 
   const loadDepartments = async () => {
+    if (!currentOrg) return;
     const { data } = await supabase
       .from('employees')
       .select('department')
+      .eq('organization_id', currentOrg.id)
       .order('department');
     
     if (data) {
@@ -135,9 +141,11 @@ const InviteTeamMember = () => {
   };
 
   const loadPositions = async () => {
+    if (!currentOrg) return;
     const { data } = await supabase
       .from('positions')
       .select('name')
+      .eq('organization_id', currentOrg.id)
       .order('name');
     
     if (data) {
@@ -146,12 +154,14 @@ const InviteTeamMember = () => {
   };
 
   const loadTeamMembers = async () => {
+    if (!currentOrg) return;
     const { data } = await supabase
       .from('employees')
       .select(`
         id,
         profiles!inner(full_name)
       `)
+      .eq('organization_id', currentOrg.id)
       .order('created_at');
     
     if (data) {
@@ -275,6 +285,7 @@ const InviteTeamMember = () => {
           fullName: `${validated.firstName} ${validated.lastName}`,
           avatarUrl,
           managerId: formData.managerId || null,
+          organizationId: currentOrg?.id,
         },
       });
 

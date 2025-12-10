@@ -50,9 +50,9 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
       // Get the current user's employee record
       const { data: employee, error: employeeError } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, organization_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (employeeError || !employee) {
         toast({
@@ -67,6 +67,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess }: PostUpdateDi
         employee_id: employee.id,
         content: validated.content,
         type: validated.type,
+        organization_id: employee.organization_id,
       });
 
       if (error) {

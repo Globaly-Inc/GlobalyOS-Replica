@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
 import { Card } from "@/components/ui/card";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface KudosItem {
   id: string;
@@ -28,12 +29,16 @@ interface KudosItem {
 const Kudos = () => {
   const [kudos, setKudos] = useState<KudosItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    loadKudos();
-  }, []);
+    if (currentOrg) {
+      loadKudos();
+    }
+  }, [currentOrg?.id]);
 
   const loadKudos = async () => {
+    if (!currentOrg) return;
     setLoading(true);
     const { data } = await supabase
       .from("kudos")
@@ -54,6 +59,7 @@ const Kudos = () => {
           )
         )
       `)
+      .eq("organization_id", currentOrg.id)
       .order("created_at", { ascending: false });
 
     if (data) setKudos(data as KudosItem[]);

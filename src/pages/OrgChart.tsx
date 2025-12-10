@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface Employee {
   id: string;
@@ -28,12 +29,16 @@ const OrgChart = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
+    if (currentOrg) {
+      loadEmployees();
+    }
+  }, [currentOrg?.id]);
 
   const loadEmployees = async () => {
+    if (!currentOrg) return;
     setLoading(true);
     const { data } = await supabase
       .from("employees")
@@ -47,7 +52,8 @@ const OrgChart = () => {
           email,
           avatar_url
         )
-      `);
+      `)
+      .eq("organization_id", currentOrg.id);
 
     if (data) setEmployees(data as Employee[]);
     setLoading(false);
