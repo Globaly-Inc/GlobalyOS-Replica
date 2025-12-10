@@ -461,6 +461,7 @@ const TeamMemberProfile = () => {
                   currentPosition={employee.position} 
                   currentDepartment={employee.department} 
                   currentSalary={employee.salary}
+                  employeeId={id}
                   canEdit={canViewSensitiveData}
                   onRefresh={() => {
                     loadPositionHistory();
