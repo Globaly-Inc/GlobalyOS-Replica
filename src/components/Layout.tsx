@@ -147,18 +147,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col items-start text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">
-                        {userProfile?.fullName || "Loading..."}
-                      </span>
-                      <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
-                        {roleConfig.label}
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {userProfile?.position || ""}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {userProfile?.fullName || "Loading..."}
                     </span>
+                    <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
+                      {roleConfig.label}
+                    </Badge>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
@@ -201,9 +196,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">
                       {userProfile?.fullName || "Loading..."}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {userProfile?.position || ""}
                     </span>
                     <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal mt-1 w-fit ${roleConfig.className} border-0`}>
                       {roleConfig.label}
