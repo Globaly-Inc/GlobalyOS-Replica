@@ -12,6 +12,7 @@ import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AttendanceTracker } from "@/components/AttendanceTracker";
+import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -248,18 +249,34 @@ const TeamMemberProfile = () => {
                   </p>
                 </div>
               </div>
-              {manager && (
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <div>
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
                     <p className="text-sm text-muted-foreground">Manager</p>
-                    <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
-                      {manager.profiles.full_name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">{manager.position}</p>
+                    {canViewSensitiveData && (
+                      <EditManagerDialog
+                        employeeId={id!}
+                        currentManagerId={employee.manager_id}
+                        onSuccess={() => {
+                          loadEmployee();
+                          loadDirectReports();
+                        }}
+                      />
+                    )}
                   </div>
+                  {manager ? (
+                    <>
+                      <Link to={`/team/${manager.id}`} className="text-sm font-medium text-primary hover:underline">
+                        {manager.profiles.full_name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{manager.position}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No manager assigned</p>
+                  )}
                 </div>
-              )}
+              </div>
               {directReports.length > 0 && (
                 <div className="flex items-start gap-3">
                   <Users className="h-5 w-5 text-muted-foreground" />
