@@ -55,6 +55,12 @@ interface LeaveBalance {
   pto_days: number;
 }
 
+interface LeaveType {
+  id: string;
+  name: string;
+  category: string;
+}
+
 interface PersonOnLeave {
   id: string;
   employee: {
@@ -98,6 +104,7 @@ const Home = () => {
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const { isHR, isAdmin } = useUserRole();
   const { currentOrg } = useOrganization();
 
@@ -108,6 +115,7 @@ const Home = () => {
       loadLeaveData();
       loadUpcomingEvents();
       loadDailyQuote();
+      loadLeaveTypes();
 
       // Set up real-time subscriptions for auto-refresh
       const updatesChannel = supabase
@@ -191,6 +199,17 @@ const Home = () => {
         author: "Helen Keller"
       });
     }
+  };
+
+  const loadLeaveTypes = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from("leave_types")
+      .select("id, name, category")
+      .eq("organization_id", currentOrg.id)
+      .eq("is_active", true)
+      .order("name");
+    if (data) setLeaveTypes(data);
   };
 
   const checkEmployeeProfile = async () => {
@@ -725,35 +744,57 @@ const Home = () => {
             {/* Current User Leave Balance */}
             {hasEmployeeProfile && (
               <Card className="p-6">
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Your Leave Balance
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Your Leave Balance
+                  </h3>
+                  <Button 
+                    size="sm"
+                    onClick={() => setLeaveDialogOpen(true)}
+                  >
+                    Request
+                  </Button>
+                </div>
                 {leaveBalance ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Vacation</span>
-                      <span className="text-sm font-medium text-foreground">{leaveBalance.vacation_days} days</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Sick Leave</span>
-                      <span className="text-sm font-medium text-foreground">{leaveBalance.sick_days} days</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">PTO</span>
-                      <span className="text-sm font-medium text-foreground">{leaveBalance.pto_days} days</span>
-                    </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {leaveTypes.length > 0 ? (
+                      leaveTypes.slice(0, 3).map((leaveType) => {
+                        const balanceKey = leaveType.name.toLowerCase().includes('vacation') 
+                          ? 'vacation_days' 
+                          : leaveType.name.toLowerCase().includes('sick') 
+                            ? 'sick_days' 
+                            : 'pto_days';
+                        const balance = leaveBalance[balanceKey as keyof LeaveBalance] || 0;
+                        return (
+                          <div key={leaveType.id} className="text-center p-3 rounded-lg bg-primary/5">
+                            <div className="text-2xl font-bold text-primary">
+                              {balance}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">{leaveType.name}</div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <>
+                        <div className="text-center p-3 rounded-lg bg-primary/5">
+                          <div className="text-2xl font-bold text-primary">{leaveBalance.vacation_days}</div>
+                          <div className="text-xs text-muted-foreground mt-1">Vacation Days</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-primary/5">
+                          <div className="text-2xl font-bold text-primary">{leaveBalance.sick_days}</div>
+                          <div className="text-xs text-muted-foreground mt-1">Sick Days</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-primary/5">
+                          <div className="text-2xl font-bold text-primary">{leaveBalance.pto_days}</div>
+                          <div className="text-xs text-muted-foreground mt-1">PTO Days</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No leave balance set for this year</p>
                 )}
-                <Button 
-                  className="mt-4 w-full" 
-                  onClick={() => setLeaveDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Request Leave
-                </Button>
               </Card>
             )}
 

@@ -5,15 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, History } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 
 interface LeaveManagementProps {
   employeeId: string;
 }
 
+interface LeaveType {
+  id: string;
+  name: string;
+  category: string;
+}
+
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const queryClient = useQueryClient();
   const { isHR, isAdmin } = useUserRole();
+  const { currentOrg } = useOrganization();
   const currentYear = new Date().getFullYear();
   const canManageLeave = isHR || isAdmin;
 
@@ -32,9 +40,34 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ["leave-types", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg) return [];
+      const { data, error } = await supabase
+        .from("leave_types")
+        .select("id, name, category")
+        .eq("organization_id", currentOrg.id)
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      return data as LeaveType[];
+    },
+    enabled: !!currentOrg,
+  });
+
   const handleLeaveBalanceUpdate = () => {
     refetchBalance();
     queryClient.invalidateQueries({ queryKey: ["leave-balance", employeeId] });
+  };
+
+  const getBalanceForType = (leaveTypeName: string) => {
+    if (!balance) return 0;
+    const name = leaveTypeName.toLowerCase();
+    if (name.includes('vacation')) return balance.vacation_days || 0;
+    if (name.includes('sick')) return balance.sick_days || 0;
+    return balance.pto_days || 0;
   };
 
   return (
@@ -70,24 +103,37 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 rounded-lg bg-primary/5">
-              <div className="text-3xl font-bold text-primary">
-                {balance?.vacation_days || 0}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Vacation Days</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-primary/5">
-              <div className="text-3xl font-bold text-primary">
-                {balance?.sick_days || 0}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Sick Days</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-primary/5">
-              <div className="text-3xl font-bold text-primary">
-                {balance?.pto_days || 0}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">PTO Days</div>
-            </div>
+            {leaveTypes.length > 0 ? (
+              leaveTypes.slice(0, 3).map((leaveType) => (
+                <div key={leaveType.id} className="text-center p-4 rounded-lg bg-primary/5">
+                  <div className="text-3xl font-bold text-primary">
+                    {getBalanceForType(leaveType.name)}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">{leaveType.name}</div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="text-center p-4 rounded-lg bg-primary/5">
+                  <div className="text-3xl font-bold text-primary">
+                    {balance?.vacation_days || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">Vacation Days</div>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-primary/5">
+                  <div className="text-3xl font-bold text-primary">
+                    {balance?.sick_days || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">Sick Days</div>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-primary/5">
+                  <div className="text-3xl font-bold text-primary">
+                    {balance?.pto_days || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">PTO Days</div>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
