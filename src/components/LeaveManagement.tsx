@@ -8,9 +8,10 @@ import { LeaveBalanceLogsDialog } from "@/components/dialogs/LeaveBalanceLogsDia
 
 interface LeaveManagementProps {
   employeeId: string;
+  isOwnProfile?: boolean;
 }
 
-export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
+export const LeaveManagement = ({ employeeId, isOwnProfile = false }: LeaveManagementProps) => {
   const queryClient = useQueryClient();
   const { isHR, isAdmin } = useUserRole();
   const currentYear = new Date().getFullYear();
@@ -47,7 +48,7 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
               Leave Balances ({currentYear})
             </CardTitle>
             <div className="flex items-center gap-2">
-              <LeaveBalanceLogsDialog employeeId={employeeId} />
+              <LeaveBalanceLogsDialog employeeId={employeeId} isOwnProfile={isOwnProfile} />
               {canManageLeave && (
                 <AddLeaveBalanceDialog
                   employeeId={employeeId}

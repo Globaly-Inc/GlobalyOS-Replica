@@ -7,12 +7,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, TrendingUp, TrendingDown, Calendar, Clock } from "lucide-react";
+import { History, TrendingUp, TrendingDown, Calendar, Clock, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LeaveBalanceLog {
   id: string;
@@ -49,15 +61,20 @@ interface LeaveRequest {
 
 interface LeaveBalanceLogsDialogProps {
   employeeId: string;
+  isOwnProfile?: boolean;
 }
 
 export const LeaveBalanceLogsDialog = ({
   employeeId,
+  isOwnProfile = false,
 }: LeaveBalanceLogsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<LeaveBalanceLog[]>([]);
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveRequest | null }>({ open: false, request: null });
+  const [canceling, setCanceling] = useState(false);
+  const queryClient = useQueryClient();
 
   const loadData = async () => {
     setLoading(true);
@@ -118,6 +135,29 @@ export const LeaveBalanceLogsDialog = ({
     if (isOpen) {
       loadData();
     }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!cancelDialog.request) return;
+    setCanceling(true);
+
+    const { error } = await supabase
+      .from("leave_requests")
+      .delete()
+      .eq("id", cancelDialog.request.id);
+
+    if (error) {
+      toast.error("Failed to cancel leave request");
+      console.error("Cancel error:", error);
+    } else {
+      toast.success("Leave request cancelled");
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-requests"] });
+    }
+
+    setCanceling(false);
+    setCancelDialog({ open: false, request: null });
   };
 
   const getLeaveTypeLabel = (type: string) => {
@@ -237,6 +277,17 @@ export const LeaveBalanceLogsDialog = ({
                           }
                         </p>
                       )}
+                      {isOwnProfile && request.status === "pending" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2 text-destructive hover:text-destructive"
+                          onClick={() => setCancelDialog({ open: true, request })}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel Request
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -314,6 +365,41 @@ export const LeaveBalanceLogsDialog = ({
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog 
+        open={cancelDialog.open} 
+        onOpenChange={(open) => !open && setCancelDialog({ open: false, request: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Leave Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelDialog.request && (
+                <>
+                  Are you sure you want to cancel your {cancelDialog.request.leave_type} request for{" "}
+                  {cancelDialog.request.days_count} {cancelDialog.request.days_count === 1 ? "day" : "days"} (
+                  {format(new Date(cancelDialog.request.start_date), "MMM d, yyyy")}
+                  {cancelDialog.request.start_date !== cancelDialog.request.end_date && (
+                    <> - {format(new Date(cancelDialog.request.end_date), "MMM d, yyyy")}</>
+                  )}
+                  )? This action cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={canceling}>Keep Request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelRequest}
+              disabled={canceling}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {canceling ? "Cancelling..." : "Cancel Request"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

@@ -37,6 +37,7 @@ const TeamMemberProfile = () => {
   const [manager, setManager] = useState<any>(null);
   const [directReports, setDirectReports] = useState<any[]>([]);
   const [officeEmployeeCount, setOfficeEmployeeCount] = useState<number>(0);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
   const updateEmployeeField = async (field: string, value: string) => {
     if (!id) return;
     const {
@@ -64,8 +65,23 @@ const TeamMemberProfile = () => {
       checkPermissions();
       loadPositionHistory();
       loadDirectReports();
+      checkIsOwnProfile();
     }
   }, [id]);
+
+  const checkIsOwnProfile = async () => {
+    if (!id) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { data: employeeData } = await supabase
+      .from("employees")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+    
+    setIsOwnProfile(employeeData?.user_id === user.id);
+  };
   const checkPermissions = async () => {
     if (!id) return;
     const {
@@ -460,7 +476,7 @@ const TeamMemberProfile = () => {
                 </h2>
                 <AddLeaveRequestDialog employeeId={id!} />
               </div>
-              <LeaveManagement employeeId={id!} />
+              <LeaveManagement employeeId={id!} isOwnProfile={isOwnProfile} />
             </div>
 
             <div className="space-y-4">

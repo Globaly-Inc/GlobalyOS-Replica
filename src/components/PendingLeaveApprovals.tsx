@@ -208,6 +208,13 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Get the leave request details first
+    const { data: leaveRequest } = await supabase
+      .from("leave_requests")
+      .select("employee_id, leave_type, days_count")
+      .eq("id", requestId)
+      .single();
+
     // Get current employee and their profile for reviewer name
     const { data: currentEmployee } = await supabase
       .from("employees")
@@ -232,6 +239,64 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       toast.error("Failed to update leave request");
     } else {
       toast.success(`Leave request ${approved ? "approved" : "rejected"}`);
+      
+      // Auto-deduct leave balance when approved
+      if (approved && leaveRequest && currentEmployee) {
+        try {
+          const currentYear = new Date().getFullYear();
+          const leaveType = leaveRequest.leave_type.toLowerCase();
+          
+          // Map leave type to balance column
+          let balanceColumn: "vacation_days" | "sick_days" | "pto_days" | null = null;
+          if (leaveType.includes("vacation") || leaveType.includes("annual")) {
+            balanceColumn = "vacation_days";
+          } else if (leaveType.includes("sick") || leaveType.includes("medical")) {
+            balanceColumn = "sick_days";
+          } else if (leaveType.includes("pto") || leaveType.includes("personal")) {
+            balanceColumn = "pto_days";
+          }
+
+          if (balanceColumn) {
+            // Get current balance
+            const { data: balanceData } = await supabase
+              .from("leave_balances")
+              .select("id, vacation_days, sick_days, pto_days")
+              .eq("employee_id", leaveRequest.employee_id)
+              .eq("year", currentYear)
+              .single();
+
+            if (balanceData) {
+              const currentBalance = balanceData[balanceColumn] || 0;
+              const newBalance = Math.max(0, currentBalance - leaveRequest.days_count);
+
+              // Update the balance
+              await supabase
+                .from("leave_balances")
+                .update({ [balanceColumn]: newBalance })
+                .eq("id", balanceData.id);
+
+              // Log the deduction
+              await supabase
+                .from("leave_balance_logs")
+                .insert({
+                  employee_id: leaveRequest.employee_id,
+                  organization_id: currentOrg?.id,
+                  leave_type: balanceColumn.replace("_days", ""),
+                  change_amount: -leaveRequest.days_count,
+                  previous_balance: currentBalance,
+                  new_balance: newBalance,
+                  reason: `Auto-deducted for approved ${leaveRequest.leave_type} request`,
+                  created_by: currentEmployee.id,
+                });
+
+              console.log(`Deducted ${leaveRequest.days_count} from ${balanceColumn}`);
+            }
+          }
+        } catch (deductError) {
+          console.error("Failed to deduct leave balance:", deductError);
+          // Don't show error - deduction is secondary to approval
+        }
+      }
       
       // Send notification email to employee
       try {
