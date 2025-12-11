@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
@@ -1025,7 +1026,7 @@ const TeamMemberProfile = () => {
                             </div>
                             <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-3" dangerouslySetInnerHTML={{ __html: w.content }} />
+                          <RichTextContent content={w.content} className="text-xs text-muted-foreground line-clamp-3" />
                         </div>
                       ))}
                     </div>
