@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
+import WinCard from "@/components/WinCard";
 import { FeedReactions } from "@/components/FeedReactions";
 import { UpdateCard } from "@/components/UpdateCard";
 import { Update } from "@/types/employee";
@@ -1084,46 +1085,7 @@ const TeamMemberProfile = () => {
                           otherRecipientIds: item.data.otherRecipientIds
                         }} onDelete={loadKudos} />
                       ) : (
-                        <div key={`win-${item.data.id}`} className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500 flex flex-col">
-                          <div className="p-4 flex-1">
-                            <div className="flex items-start justify-between gap-3 mb-3">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10 border border-border/50">
-                                  <AvatarImage src={item.data.avatar} />
-                                  <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-                                    {item.data.employeeName?.split(" ").map((n: string) => n[0]).join("")}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-semibold text-sm text-foreground">{item.data.employeeName}</p>
-                                  <p className="text-xs text-muted-foreground">{formatDateTime(item.data.date)}</p>
-                                </div>
-                              </div>
-                              <div className="p-2 rounded-full bg-amber-100 text-amber-600">
-                                <Trophy className="h-4 w-4" />
-                              </div>
-                            </div>
-                            <RichTextContent content={item.data.content} className="text-sm" />
-                            {item.data.taggedMembers && item.data.taggedMembers.length > 0 && (
-                              <div className="flex items-center gap-1.5 mt-3">
-                                <span className="text-xs text-muted-foreground">with</span>
-                                {item.data.taggedMembers.map((member: any) => (
-                                  <Link key={member.id} to={`/team/${member.id}`} className="hover:opacity-80 transition-opacity">
-                                    <Avatar className="h-6 w-6 border border-background">
-                                      <AvatarImage src={member.avatar} />
-                                      <AvatarFallback className="text-[10px] bg-muted">
-                                        {member.name?.split(" ").map((n: string) => n[0]).join("")}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  </Link>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div className="px-4 py-2 border-t border-border/50">
-                            <FeedReactions targetType="update" targetId={item.data.id} />
-                          </div>
-                        </div>
+                        <WinCard key={`win-${item.data.id}`} win={item.data} />
                       )
                     )}
                   </div>
