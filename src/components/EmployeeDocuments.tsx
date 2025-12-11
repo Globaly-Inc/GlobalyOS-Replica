@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2, Image, FileSpreadsheet, File, Eye } from "lucide-react";
+import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2, Image, FileSpreadsheet, File } from "lucide-react";
 import { UploadDocumentDialog } from "@/components/dialogs/UploadDocumentDialog";
 import { DocumentPreviewDialog } from "@/components/dialogs/DocumentPreviewDialog";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -255,7 +255,8 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                     return (
                       <div
                         key={doc.id}
-                        className="p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors group relative"
+                        className="p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors group relative cursor-pointer"
+                        onClick={() => setPreviewDoc(doc)}
                       >
                         <div className="flex items-start gap-2">
                           <div className="p-1.5 bg-primary/10 rounded shrink-0">
@@ -272,21 +273,11 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                           </div>
                         </div>
                         <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 rounded p-0.5">
-                          {canPreview(doc) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => setPreviewDoc(doc)}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => handleDownload(doc)}
+                            onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
                             disabled={downloading === doc.id}
                           >
                             {downloading === doc.id ? (
@@ -300,7 +291,7 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteId(doc.id)}
+                              onClick={(e) => { e.stopPropagation(); setDeleteId(doc.id); }}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
