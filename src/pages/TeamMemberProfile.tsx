@@ -1084,8 +1084,8 @@ const TeamMemberProfile = () => {
                           otherRecipientIds: item.data.otherRecipientIds
                         }} onDelete={loadKudos} />
                       ) : (
-                        <div key={`win-${item.data.id}`} className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500">
-                          <div className="p-4">
+                        <div key={`win-${item.data.id}`} className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500 flex flex-col">
+                          <div className="p-4 flex-1">
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-10 w-10 border border-border/50">
@@ -1103,9 +1103,9 @@ const TeamMemberProfile = () => {
                                 <Trophy className="h-4 w-4" />
                               </div>
                             </div>
-                            <RichTextContent content={item.data.content} className="text-sm mb-3" />
+                            <RichTextContent content={item.data.content} className="text-sm" />
                             {item.data.taggedMembers && item.data.taggedMembers.length > 0 && (
-                              <div className="flex items-center gap-1.5 mb-3">
+                              <div className="flex items-center gap-1.5 mt-3">
                                 <span className="text-xs text-muted-foreground">with</span>
                                 {item.data.taggedMembers.map((member: any) => (
                                   <Link key={member.id} to={`/team/${member.id}`} className="hover:opacity-80 transition-opacity">
@@ -1119,9 +1119,9 @@ const TeamMemberProfile = () => {
                                 ))}
                               </div>
                             )}
-                            <div className="pt-3 border-t border-border/50">
-                              <FeedReactions targetType="update" targetId={item.data.id} />
-                            </div>
+                          </div>
+                          <div className="px-4 py-2 border-t border-border/50">
+                            <FeedReactions targetType="update" targetId={item.data.id} />
                           </div>
                         </div>
                       )
