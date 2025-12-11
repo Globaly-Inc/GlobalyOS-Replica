@@ -736,21 +736,19 @@ const BulkImport = () => {
                   </Button>
                 </div>
 
-                {validationErrors.length > 0 && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-destructive mb-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">Validation Errors ({validationErrors.length})</span>
+                {validationErrors.length > 0 && (() => {
+                  const rowsWithErrors = new Set(validationErrors.map(err => err.match(/^Row (\d+):/)?.[1]).filter(Boolean)).size;
+                  return (
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                      <div className="flex items-center gap-4 text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm font-medium">{validationErrors.length} Validation Errors</span>
+                        <span className="text-xs">•</span>
+                        <span className="text-sm">{rowsWithErrors} {rowsWithErrors === 1 ? 'row' : 'rows'} with errors</span>
+                      </div>
                     </div>
-                    <ScrollArea className="h-32">
-                      <ul className="text-xs text-destructive space-y-1">
-                        {validationErrors.map((error, i) => (
-                          <li key={i}>{error}</li>
-                        ))}
-                      </ul>
-                    </ScrollArea>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
