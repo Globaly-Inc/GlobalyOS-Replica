@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, TrendingUp, Menu, LogOut, User, ChevronDown, Settings } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, ChevronDown, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -21,7 +21,6 @@ import { useOrganization } from "@/hooks/useOrganization";
 const navigation = [
   { name: "Home", href: "/", icon: Home },
   { name: "Team", href: "/team", icon: Users },
-  { name: "Growth", href: "/growth", icon: TrendingUp },
 ];
 
 interface UserProfile {
