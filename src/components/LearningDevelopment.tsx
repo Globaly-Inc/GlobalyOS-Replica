@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Calendar, Award, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
@@ -31,14 +31,8 @@ export const LearningDevelopment = ({ employeeId }: LearningDevelopmentProps) =>
   if (!learningRecords || learningRecords.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Learning & Development
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No learning records yet.</p>
+        <CardContent className="py-8">
+          <p className="text-muted-foreground text-center">No learning records yet.</p>
         </CardContent>
       </Card>
     );
@@ -70,13 +64,7 @@ export const LearningDevelopment = ({ employeeId }: LearningDevelopmentProps) =>
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5" />
-          Learning & Development
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="pt-4 space-y-4">
         {learningRecords.map((record) => (
           <div
             key={record.id}
