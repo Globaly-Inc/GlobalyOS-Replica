@@ -33,7 +33,7 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2 } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus } from "lucide-react";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
@@ -826,14 +826,18 @@ const TeamMemberProfile = () => {
                     Work Schedule
                   </h2>
                   {isAdminOrHR && employee?.organization_id && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 px-3"
-                      onClick={() => setEditScheduleOpen(true)}
-                    >
-                      <Settings2 className="h-4 w-4 mr-1" />
-                      {employeeSchedule ? 'Edit' : 'Set Up'}
+                    <Button size="sm" variant="outline" onClick={() => setEditScheduleOpen(true)}>
+                      {employeeSchedule ? (
+                        <>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit Schedule
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Schedule
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
