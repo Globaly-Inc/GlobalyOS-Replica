@@ -61,7 +61,7 @@ export const OrganizationSwitcher = () => {
             )}
           </DropdownMenuItem>
         ))}
-        {orgRole === 'owner' && (
+        {(orgRole === 'owner' || orgRole === 'admin') && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
