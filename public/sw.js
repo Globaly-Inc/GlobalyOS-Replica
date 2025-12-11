@@ -33,7 +33,7 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/favicon.png',
     badge: data.badge || '/favicon.png',
-    vibrate: [100, 50, 100],
+    vibrate: [200, 100, 200],
     data: {
       url: data.url || '/',
       dateOfArrival: Date.now(),
@@ -51,6 +51,7 @@ self.addEventListener('push', (event) => {
     requireInteraction: false,
     tag: data.tag || 'default',
     renotify: true,
+    silent: false, // Allow system notification sound
   };
 
   event.waitUntil(
