@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/utils";
 import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
 import WinCard from "@/components/WinCard";
@@ -724,7 +725,35 @@ const TeamMemberProfile = () => {
                             </Avatar>
                           </Link>
                         ))}
-                        {directReports.length > 5 && <span className="ml-0.5 text-xs text-muted-foreground">+{directReports.length - 5}</span>}
+                        {directReports.length > 5 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="ml-0.5 text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer">
+                                +{directReports.length - 5}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-2 bg-popover" align="start">
+                              <p className="text-xs font-medium text-muted-foreground mb-2">All Direct Reports ({directReports.length})</p>
+                              <div className="space-y-1 max-h-48 overflow-y-auto">
+                                {directReports.map((report) => (
+                                  <Link 
+                                    key={report.id} 
+                                    to={`/team/${report.id}`} 
+                                    className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted transition-colors"
+                                  >
+                                    <Avatar className="h-6 w-6 border border-border">
+                                      <AvatarImage src={report.profiles.avatar_url || undefined} />
+                                      <AvatarFallback className="text-xs bg-muted">
+                                        {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm text-foreground">{report.profiles.full_name}</span>
+                                  </Link>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
                       </div>
                     </div>
                   )}
