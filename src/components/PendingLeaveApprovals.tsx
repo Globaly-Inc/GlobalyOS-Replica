@@ -228,22 +228,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       .eq("status", "pending")
       .order("created_at", { ascending: true });
 
-    if (directReportError) {
-      console.error("Error fetching direct report requests:", directReportError);
-    }
-
-    console.log("Current employee ID:", currentEmployee.id);
-    console.log("Direct report requests from query:", directReportRequests);
-
     if (directReportRequests) {
       // Filter to only direct reports
-      const managerRequests = directReportRequests.filter((req: any) => {
-        const reqManagerId = req.employee?.manager_id;
-        console.log(`Request ${req.id}: employee.manager_id = ${reqManagerId}, currentEmployee.id = ${currentEmployee.id}, match = ${reqManagerId === currentEmployee.id}`);
-        return reqManagerId === currentEmployee.id;
-      });
-      
-      console.log("Filtered manager requests:", managerRequests);
+      const managerRequests = directReportRequests.filter((req: any) => 
+        req.employee?.manager_id === currentEmployee.id
+      );
       
       // Combine with HR requests (avoid duplicates)
       const existingIds = new Set(requests.map(r => r.id));
@@ -253,8 +242,6 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         }
       }
     }
-
-    console.log("Final pending requests:", requests);
     setPendingRequests(requests);
     setLoading(false);
   };
