@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Camera, LogIn, LogOut, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Camera, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
+import { useAuth } from "@/hooks/useAuth";
 
 interface QRScannerDialogProps {
   open: boolean;
@@ -12,12 +13,63 @@ interface QRScannerDialogProps {
 }
 
 export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) => {
+  const { user } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
-  const [action, setAction] = useState<"check_in" | "check_out" | null>(null);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
+  const [loading, setLoading] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Determine current action based on today's attendance
+  useEffect(() => {
+    const fetchAttendanceStatus = async () => {
+      if (!open || !user?.id) return;
+      
+      setLoading(true);
+      try {
+        const { data: employee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!employee) {
+          setLoading(false);
+          return;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const { data: attendance } = await supabase
+          .from("attendance_records")
+          .select("check_in_time, check_out_time")
+          .eq("employee_id", employee.id)
+          .eq("date", today)
+          .maybeSingle();
+
+        // If checked in but not checked out, next action is check_out
+        if (attendance?.check_in_time && !attendance?.check_out_time) {
+          setCurrentAction("check_out");
+        } else {
+          setCurrentAction("check_in");
+        }
+      } catch (error) {
+        console.error("Error fetching attendance status:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttendanceStatus();
+  }, [open, user?.id]);
+
+  // Auto-start scanner when dialog opens
+  useEffect(() => {
+    if (open && !loading && !result) {
+      startScanner();
+    }
+  }, [open, loading, currentAction]);
 
   useEffect(() => {
     return () => {
@@ -28,9 +80,9 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   useEffect(() => {
     if (!open) {
       stopScanner();
-      setAction(null);
       setResult(null);
       setIsScanning(false);
+      setLoading(true);
     }
   }, [open]);
 
@@ -49,8 +101,9 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     }
   };
 
-  const startScanner = async (selectedAction: "check_in" | "check_out") => {
-    setAction(selectedAction);
+  const startScanner = async () => {
+    if (isScanning || result) return;
+    
     setIsScanning(true);
     setResult(null);
 
@@ -70,7 +123,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         async (decodedText) => {
           await stopScanner();
           setIsScanning(false);
-          await handleScan(decodedText, selectedAction);
+          await handleScan(decodedText);
         },
         () => {} // Ignore scan failures
       );
@@ -81,12 +134,12 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     }
   };
 
-  const handleScan = async (qrCode: string, scanAction: "check_in" | "check_out") => {
+  const handleScan = async (qrCode: string) => {
     setProcessing(true);
     try {
       const { data, error } = await supabase.rpc("validate_qr_and_record_attendance", {
         _qr_code: qrCode,
-        _action: scanAction,
+        _action: currentAction,
       });
 
       if (error) throw error;
@@ -96,7 +149,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
       if (response.success) {
         setResult({ 
           success: true, 
-          message: response.message || (scanAction === "check_in" ? "Checked in successfully!" : "Checked out successfully!")
+          message: response.message || (currentAction === "check_in" ? "Checked in successfully!" : "Checked out successfully!")
         });
         toast.success(response.message || "Success!");
       } else {
@@ -115,7 +168,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   const handleCancel = async () => {
     await stopScanner();
     setIsScanning(false);
-    setAction(null);
+    onOpenChange(false);
   };
 
   return (
@@ -124,33 +177,19 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Quick Attendance
+            {currentAction === "check_in" ? "Check In" : "Check Out"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!isScanning && !result && (
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                onClick={() => startScanner("check_in")}
-                className="h-24 flex flex-col gap-2"
-                variant="outline"
-              >
-                <LogIn className="h-8 w-8 text-green-600" />
-                <span>Check In</span>
-              </Button>
-              <Button
-                onClick={() => startScanner("check_out")}
-                className="h-24 flex flex-col gap-2"
-                variant="outline"
-              >
-                <LogOut className="h-8 w-8 text-blue-600" />
-                <span>Check Out</span>
-              </Button>
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Checking status...</p>
             </div>
           )}
 
-          {isScanning && (
+          {!loading && isScanning && !result && (
             <div className="space-y-4">
               <div 
                 id="qr-reader" 
@@ -158,7 +197,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
                 className="w-full aspect-square rounded-lg overflow-hidden bg-muted"
               />
               <p className="text-sm text-center text-muted-foreground">
-                Point your camera at the QR code to {action === "check_in" ? "check in" : "check out"}
+                Point your camera at the QR code to {currentAction === "check_in" ? "check in" : "check out"}
               </p>
               <Button variant="outline" onClick={handleCancel} className="w-full">
                 Cancel
