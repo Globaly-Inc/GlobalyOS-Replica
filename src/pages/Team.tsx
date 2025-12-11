@@ -51,7 +51,7 @@ const Team = () => {
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
   const [bulkImportDialogOpen, setBulkImportDialogOpen] = useState(false);
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
 
@@ -156,7 +156,7 @@ const Team = () => {
             <Building2 className="h-4 w-4" />
             Org Chart
           </Button>
-          {isAdmin && (
+          {isHR && (
             <>
               <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="gap-2">
                 <Settings className="h-4 w-4" />
@@ -228,7 +228,7 @@ const Team = () => {
                     officeName: employee.offices?.name,
                     officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
                   }}
-                  showResendInvite={isAdmin}
+                  showResendInvite={isHR}
                   role={userRoles[employee.user_id]}
                 />
               ))}
