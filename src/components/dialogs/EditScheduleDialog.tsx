@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock } from "lucide-react";
+import { Clock, Globe } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DaySchedule {
@@ -35,6 +36,7 @@ interface EditScheduleDialogProps {
     work_start_time: string;
     work_end_time: string;
     late_threshold_minutes: number;
+    timezone?: string;
   } | null;
   onSuccess?: () => void;
 }
@@ -49,6 +51,28 @@ const DAYS = [
   { key: 'sunday', label: 'Sunday', short: 'Sun' },
 ] as const;
 
+const TIMEZONES = [
+  { value: "UTC", label: "UTC" },
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
+  { value: "Europe/London", label: "London (GMT/BST)" },
+  { value: "Europe/Paris", label: "Central European (CET)" },
+  { value: "Europe/Berlin", label: "Berlin (CET)" },
+  { value: "Asia/Dubai", label: "Dubai (GST)" },
+  { value: "Asia/Kolkata", label: "India (IST)" },
+  { value: "Asia/Kathmandu", label: "Nepal (NPT)" },
+  { value: "Asia/Singapore", label: "Singapore (SGT)" },
+  { value: "Asia/Tokyo", label: "Japan (JST)" },
+  { value: "Asia/Shanghai", label: "China (CST)" },
+  { value: "Australia/Sydney", label: "Sydney (AEST)" },
+  { value: "Australia/Perth", label: "Perth (AWST)" },
+  { value: "Pacific/Auckland", label: "New Zealand (NZST)" },
+];
+
 const DEFAULT_DAY: DaySchedule = { enabled: true, start: "09:00", end: "17:00" };
 const DEFAULT_WEEKEND: DaySchedule = { enabled: false, start: "09:00", end: "17:00" };
 
@@ -62,6 +86,14 @@ const getDefaultWeekSchedule = (): WeekSchedule => ({
   sunday: { ...DEFAULT_WEEKEND },
 });
 
+const getLocalTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+};
+
 export const EditScheduleDialog = ({
   open,
   onOpenChange,
@@ -73,6 +105,7 @@ export const EditScheduleDialog = ({
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [lateThreshold, setLateThreshold] = useState(15);
+  const [timezone, setTimezone] = useState(getLocalTimezone());
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(getDefaultWeekSchedule());
 
   useEffect(() => {
@@ -176,6 +209,26 @@ export const EditScheduleDialog = ({
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-2">
+            {/* Timezone Selector */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Timezone
+              </Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Quick Actions */}
             <div className="flex justify-end">
               <Button 
