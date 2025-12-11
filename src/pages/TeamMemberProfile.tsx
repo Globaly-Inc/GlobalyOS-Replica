@@ -272,16 +272,17 @@ const TeamMemberProfile = () => {
         if (k.batch_id) {
           const { data: batchKudos } = await supabase
             .from("kudos")
-            .select("employee:employees!kudos_employee_id_fkey(profiles!inner(full_name))")
+            .select("employee_id, employee:employees!kudos_employee_id_fkey(profiles!inner(full_name))")
             .eq("batch_id", k.batch_id)
             .neq("employee_id", id);
           
           return {
             ...k,
-            otherRecipients: batchKudos?.map((bk: any) => bk.employee.profiles.full_name) || []
+            otherRecipients: batchKudos?.map((bk: any) => bk.employee.profiles.full_name) || [],
+            otherRecipientIds: batchKudos?.map((bk: any) => bk.employee_id) || []
           };
         }
-        return { ...k, otherRecipients: [] };
+        return { ...k, otherRecipients: [], otherRecipientIds: [] };
       }));
       setKudos(kudosWithOthers);
     }
@@ -681,7 +682,8 @@ const TeamMemberProfile = () => {
                       comment: k.comment,
                       date: k.created_at,
                       batchId: k.batch_id || undefined,
-                      otherRecipients: k.otherRecipients
+                      otherRecipients: k.otherRecipients,
+                      otherRecipientIds: k.otherRecipientIds
                     }} onDelete={loadKudos} />)}
                   </div>
                 ) : (

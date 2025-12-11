@@ -41,6 +41,12 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   ];
   const recipientText = allRecipients.join(", ");
 
+  // Get all recipient IDs for editing
+  const allRecipientIds = [
+    kudos.employeeId,
+    ...(kudos.otherRecipientIds || [])
+  ];
+
   useEffect(() => {
     const fetchCurrentEmployee = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -182,6 +188,8 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
         kudosId={kudos.id}
         batchId={kudos.batchId}
         initialComment={kudos.comment}
+        initialRecipientIds={allRecipientIds}
+        givenById={kudos.givenById}
         onSuccess={onDelete}
       />
     </>
