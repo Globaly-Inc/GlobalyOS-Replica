@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { EditUpdateDialog } from "./dialogs/EditUpdateDialog";
 
 interface UpdateCardProps {
   update: Update;
@@ -56,6 +57,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -142,7 +144,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
               {isHovered && canEditDelete ? (
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={onEdit}
+                    onClick={() => setShowEditDialog(true)}
                     className={cn(
                       "p-2 rounded-full transition-colors",
                       config.iconBg,
@@ -234,6 +236,15 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditUpdateDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        updateId={update.id}
+        initialContent={update.content}
+        type={update.type}
+        onSuccess={onDelete}
+      />
     </>
   );
 };
