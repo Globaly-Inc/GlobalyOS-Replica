@@ -19,6 +19,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [loading, setLoading] = useState(true);
+  const [sessionCount, setSessionCount] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -41,16 +42,20 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         }
 
         const today = new Date().toISOString().split('T')[0];
-        // Find any active session (checked in but not out)
-        const { data: activeSession } = await supabase
+        
+        // Get all sessions for today to count them
+        const { data: todaySessions } = await supabase
           .from("attendance_records")
           .select("id, check_in_time, check_out_time")
           .eq("employee_id", employee.id)
           .eq("date", today)
-          .is("check_out_time", null)
-          .order("check_in_time", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("check_in_time", { ascending: false });
+
+        const sessions = todaySessions || [];
+        setSessionCount(sessions.length);
+
+        // Find any active session (checked in but not out)
+        const activeSession = sessions.find(s => s.check_out_time === null);
 
         // If there's an active session, next action is check_out
         if (activeSession) {
@@ -179,9 +184,21 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
-            {currentAction === "check_in" ? "Check In" : "Check Out"}
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Camera className="h-5 w-5" />
+              {currentAction === "check_in" ? "Check In" : "Check Out"}
+            </span>
+            {currentAction === "check_in" && sessionCount < 3 && (
+              <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                Session {sessionCount + 1}/3
+              </span>
+            )}
+            {currentAction === "check_out" && (
+              <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                Session {sessionCount}/3
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
