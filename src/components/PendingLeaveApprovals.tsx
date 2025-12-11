@@ -28,6 +28,8 @@ interface PendingLeaveRequest {
   end_date: string;
   days_count: number;
   reason: string | null;
+  isHRBackup?: boolean;
+  managerName?: string;
   employee: {
     id: string;
     profiles: {
@@ -237,13 +239,34 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
               .maybeSingle();
 
             if (mgrOnLeave) {
-              hrBackupRequests.push(req as PendingLeaveRequest);
-              requests.push(req as PendingLeaveRequest);
+              // Fetch manager name
+              const { data: managerData } = await supabase
+                .from("employees")
+                .select("profiles!inner(full_name)")
+                .eq("id", emp.manager_id)
+                .maybeSingle();
+              
+              const managerName = (managerData as any)?.profiles?.full_name || "Manager";
+              
+              const backupReq = {
+                ...req,
+                isHRBackup: true,
+                managerName,
+              } as PendingLeaveRequest;
+              
+              hrBackupRequests.push(backupReq);
+              requests.push(backupReq);
             }
           } else {
             // No manager assigned - HR/Admin should handle
-            hrBackupRequests.push(req as PendingLeaveRequest);
-            requests.push(req as PendingLeaveRequest);
+            const backupReq = {
+              ...req,
+              isHRBackup: true,
+              managerName: "No manager assigned",
+            } as PendingLeaveRequest;
+            
+            hrBackupRequests.push(backupReq);
+            requests.push(backupReq);
           }
         }
       }
@@ -493,12 +516,21 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                   </Avatar>
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link 
-                    to={`/team/${request.employee.id}`}
-                    className="text-sm font-medium text-foreground hover:underline"
-                  >
-                    {request.employee.profiles.full_name}
-                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link 
+                      to={`/team/${request.employee.id}`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      {request.employee.profiles.full_name}
+                    </Link>
+                    {request.isHRBackup && (
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                        {request.managerName === "No manager assigned" 
+                          ? "No manager" 
+                          : `${request.managerName} on leave`}
+                      </Badge>
+                    )}
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="text-xs">
                       {getLeaveTypeLabel(request.leave_type)}
