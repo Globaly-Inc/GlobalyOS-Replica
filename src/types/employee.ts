@@ -21,6 +21,7 @@ export interface Kudos {
   employeeId: string;
   employeeName: string;
   givenBy: string;
+  givenById: string;
   givenByAvatar?: string;
   comment: string;
   date: string;

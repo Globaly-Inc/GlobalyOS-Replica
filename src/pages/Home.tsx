@@ -26,6 +26,7 @@ interface FeedItem {
   content: string;
   created_at: string;
   image_url: string | null;
+  employee_id: string;
   employee: {
     profiles: {
       full_name: string;
@@ -352,6 +353,7 @@ const Home = () => {
         content,
         created_at,
         image_url,
+        employee_id,
         employee:employees!inner(
           profiles!inner(
             full_name,
@@ -475,17 +477,18 @@ const Home = () => {
           employeeId: kudosItem.employee.id,
           employeeName: kudosItem.employee.profiles.full_name,
           givenBy: kudosItem.given_by.profiles.full_name,
+          givenById: kudosItem.given_by.id,
           givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
           comment: kudosItem.comment,
           date: kudosItem.created_at,
           avatar: kudosItem.employee.profiles.avatar_url || undefined,
           otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
-        }} />;
+        }} onDelete={loadFeed} />;
       } else {
         const updateItem = item as FeedItem;
         return <UpdateCard key={item.id} update={{
           id: updateItem.id,
-          employeeId: "",
+          employeeId: updateItem.employee_id,
           employeeName: updateItem.employee.profiles.full_name,
           content: updateItem.content,
           date: updateItem.created_at,
@@ -498,7 +501,7 @@ const Home = () => {
             employeeName: m.employee?.profiles?.full_name || "Unknown",
             avatar: m.employee?.profiles?.avatar_url || undefined,
           }))
-        }} />;
+        }} onDelete={loadFeed} />;
       }
     })}
     </>;
@@ -664,14 +667,14 @@ const Home = () => {
               <TabsContent value="wins" className="space-y-4">
                 {winsAndAchievements.map(update => <UpdateCard key={update.id} update={{
                 id: update.id,
-                employeeId: "",
+                employeeId: update.employee_id,
                 employeeName: update.employee.profiles.full_name,
                 content: update.content,
                 date: update.created_at,
                 type: update.type as "win" | "achievement",
                 avatar: update.employee.profiles.avatar_url || undefined,
                 imageUrl: update.image_url || undefined
-              }} />)}
+              }} onDelete={loadFeed} />)}
                 {winsAndAchievements.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No wins yet!</p>
                   </Card>}
@@ -683,12 +686,13 @@ const Home = () => {
                 employeeId: kudosItem.employee.id,
                 employeeName: kudosItem.employee.profiles.full_name,
                 givenBy: kudosItem.given_by.profiles.full_name,
+                givenById: kudosItem.given_by.id,
                 givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
                 comment: kudosItem.comment,
                 date: kudosItem.created_at,
                 avatar: kudosItem.employee.profiles.avatar_url || undefined,
                 otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
-              }} />)}
+              }} onDelete={loadFeed} />)}
                 {groupedKudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>
                   </Card>}
@@ -697,14 +701,14 @@ const Home = () => {
               <TabsContent value="announcements" className="space-y-4">
                 {regularUpdates.map(update => <UpdateCard key={update.id} update={{
                 id: update.id,
-                employeeId: "",
+                employeeId: update.employee_id,
                 employeeName: update.employee.profiles.full_name,
                 content: update.content,
                 date: update.created_at,
                 type: "announcement",
                 avatar: update.employee.profiles.avatar_url || undefined,
                 imageUrl: update.image_url || undefined
-              }} />)}
+              }} onDelete={loadFeed} />)}
                 {regularUpdates.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No announcements yet!</p>
                   </Card>}
