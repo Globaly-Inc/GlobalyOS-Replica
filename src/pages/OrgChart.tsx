@@ -163,7 +163,7 @@ const OrgChart = () => {
       <Card
         onClick={() => navigate(`/team/${employee.id}`)}
         className={cn(
-          "cursor-pointer transition-all duration-200 hover:shadow-md max-w-[200px]",
+          "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] max-w-[200px] rounded-xl",
           isExternal && "border-dashed"
         )}
         style={{
@@ -226,7 +226,7 @@ const OrgChart = () => {
                 <div key={child.id} className="relative">
                   {/* Vertical line segment - connects to horizontal */}
                   <div 
-                    className="absolute w-0.5"
+                    className="absolute w-0.5 rounded-full"
                     style={{ 
                       backgroundColor: departmentColor.bg,
                       left: '-20px',
@@ -237,7 +237,7 @@ const OrgChart = () => {
                   {/* Continue vertical line below if not last child */}
                   {!isLastChild && (
                     <div 
-                      className="absolute w-0.5"
+                      className="absolute w-0.5 rounded-full"
                       style={{ 
                         backgroundColor: departmentColor.bg,
                         left: '-20px',
@@ -248,7 +248,7 @@ const OrgChart = () => {
                   )}
                   {/* Horizontal branch line */}
                   <div 
-                    className="absolute top-4 h-0.5"
+                    className="absolute top-4 h-0.5 rounded-full"
                     style={{ 
                       backgroundColor: departmentColor.bg,
                       width: '16px',
@@ -279,6 +279,15 @@ const OrgChart = () => {
     );
   };
 
+  // Calculate grid span based on employee count for bento layout
+  const getGridSpan = (count: number, index: number): string => {
+    // Large departments span 2 columns
+    if (count > 8) return "md:col-span-2";
+    // First card (Management) can span 2 cols if medium size
+    if (index === 0 && count > 4) return "md:col-span-2 lg:col-span-1";
+    return "";
+  };
+
   const departments = groupByDepartment(employees);
   const sortedDepartments = Array.from(departments.entries()).sort((a, b) => {
     // Always put Management first
@@ -306,33 +315,64 @@ const OrgChart = () => {
         />
 
         {loading ? (
-          <Card className="p-12 text-center">
+          <Card className="p-12 text-center rounded-2xl">
             <p className="text-muted-foreground">Loading organization chart...</p>
           </Card>
         ) : employees.length === 0 ? (
-          <Card className="p-12 text-center">
+          <Card className="p-12 text-center rounded-2xl">
             <p className="text-muted-foreground">No employees found.</p>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
-            {sortedDepartments.map(([department, deptEmployees]) => {
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+            {sortedDepartments.map(([department, deptEmployees], index) => {
               const tree = buildDepartmentTree(deptEmployees);
               const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
+              const gridSpan = getGridSpan(deptEmployees.length, index);
+              
               return (
-                <Card key={department} className="overflow-hidden" style={{ borderColor: deptColor.border }}>
+                <Card 
+                  key={department} 
+                  className={cn(
+                    "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
+                    gridSpan
+                  )}
+                  style={{ 
+                    borderColor: deptColor.border,
+                    background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
+                  }}
+                >
+                  {/* Bento-style header with gradient accent */}
                   <div 
-                    className="px-3 py-2 border-b flex items-center gap-2"
-                    style={{ backgroundColor: deptColor.light, borderBottomColor: deptColor.border }}
+                    className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
+                    style={{ 
+                      backgroundColor: deptColor.light, 
+                      borderBottomColor: deptColor.border 
+                    }}
                   >
-                    <Building2 className="h-4 w-4" style={{ color: deptColor.bg }} />
-                    <h3 className="font-medium text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                    {/* Decorative gradient circle */}
+                    <div 
+                      className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
+                      style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
+                    />
+                    <div 
+                      className="p-2 rounded-xl"
+                      style={{ backgroundColor: deptColor.bg }}
+                    >
+                      <Building2 className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                      <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
+                    </div>
                     <Badge 
-                      className="ml-auto text-[10px] px-1.5 py-0 text-white"
+                      className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
                       style={{ backgroundColor: deptColor.bg }}
                     >
                       {deptEmployees.length}
                     </Badge>
                   </div>
+                  
+                  {/* Content area */}
                   <div className="p-4 space-y-4">
                     {tree.map((root) => (
                       <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
