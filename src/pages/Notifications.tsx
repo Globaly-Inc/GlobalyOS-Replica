@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDateTime } from "@/lib/utils";
-import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2 } from "lucide-react";
+import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -195,6 +195,8 @@ const Notifications = () => {
         return <Heart className="h-4 w-4 text-pink-500" />;
       case "mention":
         return <AtSign className="h-4 w-4 text-blue-500" />;
+      case "reaction":
+        return <SmilePlus className="h-4 w-4 text-amber-500" />;
       case "leave_request":
       case "leave_decision":
         return <Calendar className="h-4 w-4 text-green-500" />;
@@ -216,6 +218,7 @@ const Notifications = () => {
     if (activeTab === "all") return true;
     if (activeTab === "kudos") return n.type === "kudos";
     if (activeTab === "mentions") return n.type === "mention";
+    if (activeTab === "reactions") return n.type === "reaction";
     if (activeTab === "leave") return n.type === "leave_request" || n.type === "leave_decision";
     return true;
   });
@@ -223,6 +226,7 @@ const Notifications = () => {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const kudosCount = notifications.filter((n) => n.type === "kudos").length;
   const mentionsCount = notifications.filter((n) => n.type === "mention").length;
+  const reactionsCount = notifications.filter((n) => n.type === "reaction").length;
   const leaveCount = notifications.filter((n) => n.type === "leave_request" || n.type === "leave_decision").length;
 
   return (
@@ -314,6 +318,14 @@ const Notifications = () => {
               {mentionsCount > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {mentionsCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reactions">
+              Reactions
+              {reactionsCount > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {reactionsCount}
                 </Badge>
               )}
             </TabsTrigger>
