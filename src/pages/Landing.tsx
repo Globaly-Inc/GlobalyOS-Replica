@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,10 +20,7 @@ import {
   Globe,
   CheckCircle2,
   ArrowRight,
-  ChevronRight,
   Star,
-  DollarSign,
-  GraduationCap,
   Shield,
   Clock,
   Zap,
@@ -33,6 +30,7 @@ import {
 import { useScrollAnimation, AnimatedSection } from "@/hooks/useScrollAnimation";
 
 // Import illustrations
+import heroIllustration from "@/assets/illustrations/hero-illustration.svg";
 import frugalityIllustration from "@/assets/illustrations/frugality.png";
 import femaleTeamIllustration from "@/assets/illustrations/female-team.png";
 import maleTeamIllustration from "@/assets/illustrations/male-team.png";
@@ -40,63 +38,6 @@ import maleTeam2Illustration from "@/assets/illustrations/male-team-2.png";
 import workAnniversaryIllustration from "@/assets/illustrations/work-anniversary.png";
 import workAnniversary2Illustration from "@/assets/illustrations/work-anniversary-2.png";
 
-// Timeline data for the interactive animation
-const timelineItems = [
-  {
-    id: 1,
-    type: "hire",
-    title: "Joined as Software Engineer",
-    date: "Jan 2022",
-    icon: Briefcase,
-    color: "bg-emerald-500",
-    details: "Started in Engineering team, Mumbai office",
-  },
-  {
-    id: 2,
-    type: "salary",
-    title: "Salary Revision",
-    date: "Jul 2022",
-    icon: DollarSign,
-    color: "bg-blue-500",
-    details: "Annual increment: 15% raise",
-  },
-  {
-    id: 3,
-    type: "review",
-    title: "Performance Review",
-    date: "Dec 2022",
-    icon: Star,
-    color: "bg-amber-500",
-    details: "Rating: Exceeds Expectations",
-  },
-  {
-    id: 4,
-    type: "promotion",
-    title: "Promoted to Senior Engineer",
-    date: "Mar 2023",
-    icon: TrendingUp,
-    color: "bg-purple-500",
-    details: "Team lead for 3 engineers",
-  },
-  {
-    id: 5,
-    type: "training",
-    title: "AWS Certification",
-    date: "Aug 2023",
-    icon: GraduationCap,
-    color: "bg-cyan-500",
-    details: "Completed Solutions Architect",
-  },
-  {
-    id: 6,
-    type: "award",
-    title: "Star Performer Award",
-    date: "Dec 2023",
-    icon: Award,
-    color: "bg-pink-500",
-    details: "Q4 Recognition",
-  },
-];
 
 const features = [
   {
@@ -290,8 +231,6 @@ const AnimatedCard = ({
 const Landing = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTimelineItem, setActiveTimelineItem] = useState(0);
-  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Section visibility states
   const problemSection = useScrollAnimation();
@@ -312,13 +251,6 @@ const Landing = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-animate timeline
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveTimelineItem((prev) => (prev + 1) % timelineItems.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -475,116 +407,13 @@ const Landing = () => {
               </p>
             </div>
 
-            {/* Right - Interactive Timeline Card */}
-            <div className="relative animate-fade-in" ref={timelineRef} style={{ animationDelay: "200ms" }}>
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-3xl blur-3xl opacity-50" />
-              <Card className="relative bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl rounded-2xl overflow-hidden">
-                {/* Card Header */}
-                <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-6 py-4 border-b border-border/50">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-semibold text-lg">
-                      AK
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">
-                        Amit Kumar
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Senior Software Engineer • Engineering
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Timeline */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium text-foreground">
-                      Employee Timeline
-                    </h4>
-                    <span className="text-xs text-muted-foreground">
-                      2 years journey
-                    </span>
-                  </div>
-
-                  <div className="relative space-y-1">
-                    {/* Timeline line */}
-                    <div className="absolute left-[19px] top-2 bottom-2 w-0.5 bg-border" />
-
-                    {timelineItems.map((item, index) => {
-                      const Icon = item.icon;
-                      const isActive = index === activeTimelineItem;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className={`relative flex items-start gap-4 p-3 rounded-lg transition-all duration-500 cursor-pointer ${
-                            isActive
-                              ? "bg-primary/5 scale-[1.02]"
-                              : "hover:bg-muted/50"
-                          }`}
-                          onMouseEnter={() => setActiveTimelineItem(index)}
-                        >
-                          {/* Icon */}
-                          <div
-                            className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full transition-all duration-500 ${
-                              isActive
-                                ? `${item.color} text-white shadow-lg`
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <h5
-                                className={`text-sm font-medium truncate transition-colors duration-300 ${
-                                  isActive
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {item.title}
-                              </h5>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                {item.date}
-                              </span>
-                            </div>
-                            <p
-                              className={`text-xs mt-0.5 transition-all duration-500 ${
-                                isActive
-                                  ? "text-muted-foreground opacity-100 max-h-10"
-                                  : "opacity-0 max-h-0 overflow-hidden"
-                              }`}
-                            >
-                              {item.details}
-                            </p>
-                          </div>
-
-                          {/* Active indicator */}
-                          {isActive && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <ChevronRight className="h-4 w-4 text-primary animate-pulse" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Card Footer */}
-                <div className="px-6 py-4 bg-muted/30 border-t border-border/50">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Last updated: Dec 2023</span>
-                    <span className="flex items-center gap-1">
-                      <Shield className="h-3 w-3" /> Secure & Private
-                    </span>
-                  </div>
-                </div>
-              </Card>
+            {/* Right - Hero Illustration */}
+            <div className="relative animate-fade-in flex items-center justify-center" style={{ animationDelay: "200ms" }}>
+              <img 
+                src={heroIllustration} 
+                alt="TeamHub employee management illustration" 
+                className="w-full max-w-lg h-auto"
+              />
             </div>
           </div>
         </div>
