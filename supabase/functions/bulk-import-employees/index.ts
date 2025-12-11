@@ -72,20 +72,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if user is admin
+    // Check if user is admin or HR
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
+      .in('role', ['admin', 'hr']);
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+    if (!roleData || roleData.length === 0) {
+      console.log(`User ${user.id} does not have admin or hr role`);
+      return new Response(JSON.stringify({ error: 'Admin or HR access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    console.log(`User ${user.id} has role(s): ${roleData.map(r => r.role).join(', ')}`);
 
     const { employees, organizationId } = await req.json() as { 
       employees: EmployeeData[]; 
