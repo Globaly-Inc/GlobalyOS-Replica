@@ -210,6 +210,39 @@ serve(async (req: Request) => {
       </html>
     `;
 
+    // Create in-system notification
+    try {
+      const { data: employeeData } = await supabaseClient
+        .from("employees")
+        .select("id, organization_id")
+        .eq("user_id", employee.user_id)
+        .single();
+
+      if (employeeData) {
+        // Get reviewer employee id
+        const { data: reviewerEmployee } = await supabaseClient
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+
+        await supabaseClient.from("notifications").insert({
+          user_id: employee.user_id,
+          organization_id: employeeData.organization_id,
+          type: "leave_decision",
+          title: `Leave Request ${statusText}`,
+          message: `Your ${getLeaveTypeLabel(leaveRequest.leave_type)} leave request has been ${decision} by ${reviewer_name}`,
+          reference_type: "leave_request",
+          reference_id: request_id,
+          actor_id: reviewerEmployee?.id || null,
+        });
+        console.log(`In-system notification created for user ${employee.user_id}`);
+      }
+    } catch (notifErr) {
+      console.error("Error creating in-system notification:", notifErr);
+      // Don't fail the request if notification creation fails
+    }
+
     try {
       const response = await resend.emails.send({
         from: "GlobalyHub People <hello@globalyhub.com>",
