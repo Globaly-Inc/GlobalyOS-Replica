@@ -2,20 +2,27 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
+import { useState } from "react";
+import { EditScheduleDialog } from "./dialogs/EditScheduleDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface AttendanceTrackerProps {
   employeeId: string;
   showCheckIn?: boolean;
+  organizationId?: string;
 }
 
-export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
+export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizationId }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
   const currentDate = new Date();
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
+  const { isAdmin, isHR } = useUserRole();
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const canManageSchedule = isAdmin || isHR;
 
   const { data: todayRecord } = useQuery({
     queryKey: ["attendance-today", employeeId],
@@ -44,6 +51,20 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
         .order("date", { ascending: false });
 
       if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: schedule } = useQuery({
+    queryKey: ["employee-schedule", employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_schedules")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") throw error;
       return data;
     },
   });
@@ -131,8 +152,54 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       }
     : null;
 
+  const formatTime = (time: string) => {
+    // Convert HH:MM:SS to HH:MM AM/PM
+    const [hours, minutes] = time.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Schedule Info */}
+      {(schedule || canManageSchedule) && (
+        <div className="p-4 rounded-lg bg-muted/50 border">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-muted-foreground">Work Schedule</p>
+            {canManageSchedule && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                onClick={() => setShowScheduleDialog(true)}
+              >
+                <Settings2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {schedule ? (
+            <div className="flex items-center gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Start: </span>
+                <span className="font-medium">{formatTime(schedule.work_start_time)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">End: </span>
+                <span className="font-medium">{formatTime(schedule.work_end_time)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Late after: </span>
+                <span className="font-medium">{schedule.late_threshold_minutes} min</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No schedule set</p>
+          )}
+        </div>
+      )}
+
       {/* Today's Check-in */}
       {showCheckIn && (
         <div className="p-4 rounded-lg bg-muted/50 border">
@@ -168,6 +235,10 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
                   <p className="text-base font-semibold">
                     {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
                   </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  {getStatusBadge(todayRecord.status)}
                 </div>
               </div>
               {!todayRecord.check_out_time && (
@@ -242,6 +313,16 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
           </div>
         )}
       </div>
+
+      {organizationId && (
+        <EditScheduleDialog
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          employeeId={employeeId}
+          organizationId={organizationId}
+          currentSchedule={schedule}
+        />
+      )}
     </div>
   );
 };

@@ -14,6 +14,7 @@ import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AdminSetup } from "@/components/AdminSetup";
+import { QRCodeGenerator } from "@/components/QRCodeGenerator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
@@ -843,6 +844,9 @@ const Home = () => {
 
           {/* Right Column - Leave Sidebar (1/3) */}
           <div className="space-y-6">
+            {/* QR Code Generator for HR/Admin */}
+            {(isHR || isAdmin) && <QRCodeGenerator />}
+
             {/* Pending Leave Approvals for Managers/HR */}
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
 

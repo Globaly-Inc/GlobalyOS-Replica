@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -13,6 +13,7 @@ import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
 import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
+import { QRScannerDialog } from "./dialogs/QRScannerDialog";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 
@@ -46,6 +47,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
   const { playNotificationSound } = useNotificationSound();
@@ -254,6 +256,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   variant="outline" 
                   size="icon"
                   className="h-10 w-10"
+                  onClick={() => setQrScannerOpen(true)}
+                  disabled={!userProfile?.employeeId}
+                >
+                  <ScanLine className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Quick Check-In</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10"
                   onClick={() => setPostDialogOpen(true)}
                   disabled={!userProfile?.employeeId}
                 >
@@ -397,6 +415,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
                     <button
+                      onClick={() => {
+                        setQrScannerOpen(true);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      <ScanLine className="h-5 w-5" />
+                      Quick Check-In
+                    </button>
+                    <button
                       onClick={() => navigate("/notifications")}
                       className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     >
@@ -438,6 +465,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {userProfile?.employeeId && (
         <>
+          <QRScannerDialog
+            open={qrScannerOpen}
+            onOpenChange={setQrScannerOpen}
+          />
           <AddLeaveRequestDialog
             employeeId={userProfile.employeeId}
             open={leaveDialogOpen}
