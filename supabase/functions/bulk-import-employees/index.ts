@@ -235,6 +235,7 @@ Deno.serve(async (req) => {
     // First pass: create all employees
     for (const emp of employees) {
       const fullName = `${emp.first_name} ${emp.last_name}`.trim();
+      let createdUserId: string | null = null;
       
       try {
         // Check if email already exists
@@ -275,14 +276,30 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        console.log(`Created auth user for ${emp.email}: ${authData.user.id}`);
+        // Store user ID for potential rollback
+        createdUserId = authData.user.id;
+        console.log(`Created auth user for ${emp.email}: ${createdUserId}`);
 
         // Create profile (trigger might handle this, but let's be safe)
-        await supabase.from('profiles').upsert({
-          id: authData.user.id,
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: createdUserId,
           email: emp.email.toLowerCase(),
           full_name: fullName
         }, { onConflict: 'id' });
+
+        if (profileError) {
+          console.error(`Failed to create profile for ${emp.email}:`, profileError);
+          // Rollback: delete auth user
+          await supabase.auth.admin.deleteUser(createdUserId);
+          console.log(`Rolled back auth user ${createdUserId} due to profile creation failure`);
+          results.push({
+            email: emp.email,
+            name: fullName,
+            success: false,
+            error: 'Failed to create profile: ' + profileError.message
+          });
+          continue;
+        }
 
         // Create employee record
         const officeId = emp.office_name ? officeMap.get(emp.office_name.toLowerCase()) : null;
@@ -299,7 +316,7 @@ Deno.serve(async (req) => {
         const { data: employeeData, error: empError } = await supabase
           .from('employees')
           .insert({
-            user_id: authData.user.id,
+            user_id: createdUserId,
             organization_id: organizationId,
             position: emp.position,
             department: emp.department,
@@ -328,11 +345,15 @@ Deno.serve(async (req) => {
 
         if (empError) {
           console.error(`Failed to create employee record for ${emp.email}:`, empError);
+          // Rollback: delete profile and auth user
+          await supabase.from('profiles').delete().eq('id', createdUserId);
+          await supabase.auth.admin.deleteUser(createdUserId);
+          console.log(`Rolled back auth user and profile ${createdUserId} due to employee creation failure`);
           results.push({
             email: emp.email,
             name: fullName,
             success: false,
-            error: empError.message
+            error: 'Failed to create employee: ' + empError.message
           });
           continue;
         }
@@ -341,22 +362,55 @@ Deno.serve(async (req) => {
         managerEmailMap.set(emp.email.toLowerCase(), employeeData.id);
 
         // Add organization membership
-        await supabase.from('organization_members').insert({
-          user_id: authData.user.id,
+        const { error: orgMemberError } = await supabase.from('organization_members').insert({
+          user_id: createdUserId,
           organization_id: organizationId,
           role: 'member'
         });
+
+        if (orgMemberError) {
+          console.error(`Failed to add org membership for ${emp.email}:`, orgMemberError);
+          // Rollback: delete employee, profile, and auth user
+          await supabase.from('employees').delete().eq('id', employeeData.id);
+          await supabase.from('profiles').delete().eq('id', createdUserId);
+          await supabase.auth.admin.deleteUser(createdUserId);
+          console.log(`Rolled back all records for ${createdUserId} due to org membership failure`);
+          results.push({
+            email: emp.email,
+            name: fullName,
+            success: false,
+            error: 'Failed to add organization membership: ' + orgMemberError.message
+          });
+          continue;
+        }
 
         // Add user role if specified
         const userRole = emp.role && ['admin', 'hr', 'user'].includes(emp.role.toLowerCase()) 
           ? emp.role.toLowerCase() 
           : 'user';
         
-        await supabase.from('user_roles').insert({
-          user_id: authData.user.id,
+        const { error: roleError } = await supabase.from('user_roles').insert({
+          user_id: createdUserId,
           organization_id: organizationId,
           role: userRole
         });
+
+        if (roleError) {
+          console.error(`Failed to add user role for ${emp.email}:`, roleError);
+          // Rollback: delete org membership, employee, profile, and auth user
+          await supabase.from('organization_members').delete().eq('user_id', createdUserId);
+          await supabase.from('employees').delete().eq('id', employeeData.id);
+          await supabase.from('profiles').delete().eq('id', createdUserId);
+          await supabase.auth.admin.deleteUser(createdUserId);
+          console.log(`Rolled back all records for ${createdUserId} due to role assignment failure`);
+          results.push({
+            email: emp.email,
+            name: fullName,
+            success: false,
+            error: 'Failed to assign user role: ' + roleError.message
+          });
+          continue;
+        }
 
         // Store employee info for invitation sending
         createdEmployees.push({
@@ -384,6 +438,19 @@ Deno.serve(async (req) => {
 
       } catch (err: any) {
         console.error(`Error importing ${emp.email}:`, err);
+        // Attempt rollback if we created a user
+        if (createdUserId) {
+          try {
+            await supabase.from('user_roles').delete().eq('user_id', createdUserId);
+            await supabase.from('organization_members').delete().eq('user_id', createdUserId);
+            await supabase.from('employees').delete().eq('user_id', createdUserId);
+            await supabase.from('profiles').delete().eq('id', createdUserId);
+            await supabase.auth.admin.deleteUser(createdUserId);
+            console.log(`Rolled back all records for ${createdUserId} due to unexpected error`);
+          } catch (rollbackErr) {
+            console.error(`Rollback failed for ${createdUserId}:`, rollbackErr);
+          }
+        }
         results.push({
           email: emp.email,
           name: fullName,
@@ -392,6 +459,7 @@ Deno.serve(async (req) => {
         });
       }
     }
+
 
     // Second pass: update manager_id for employees whose managers were created in same batch
     for (const emp of employees) {
