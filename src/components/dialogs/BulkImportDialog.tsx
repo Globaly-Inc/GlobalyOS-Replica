@@ -27,6 +27,7 @@ interface ParsedEmployee {
   join_date: string;
   date_of_birth?: string;
   office_name?: string;
+  manager_email?: string;
   street?: string;
   city?: string;
   state?: string;
@@ -47,11 +48,12 @@ interface ImportResult {
   name: string;
   success: boolean;
   error?: string;
+  invitationSent?: boolean;
 }
 
-const CSV_TEMPLATE = `first_name,last_name,email,personal_email,phone,department,position,join_date,date_of_birth,office_name,street,city,state,postcode,country,id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
-John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,New York Office,123 Main St,New York,NY,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
-Jane,Smith,jane.smith@company.com,,+1234567891,Marketing,Marketing Manager,2024-02-01,,London Office,456 High St,London,,SW1A 1AA,United Kingdom,,,85000,GBP,,,admin`;
+const CSV_TEMPLATE = `first_name,last_name,email,personal_email,phone,department,position,join_date,date_of_birth,office_name,manager_email,street,city,state,postcode,country,id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
+John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,New York Office,manager@company.com,123 Main St,New York,NY,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
+Jane,Smith,jane.smith@company.com,,+1234567891,Marketing,Marketing Manager,2024-02-01,,London Office,,456 High St,London,,SW1A 1AA,United Kingdom,,,85000,GBP,,,admin`;
 
 export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -168,6 +170,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       }
       if (emp.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(emp.date_of_birth)) {
         errors.push(`Row ${row}: Date of birth must be in YYYY-MM-DD format`);
+      }
+      if (emp.manager_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emp.manager_email)) {
+        errors.push(`Row ${row}: Invalid manager email format`);
       }
       if (emp.role && !['admin', 'hr', 'user'].includes(emp.role.toLowerCase())) {
         errors.push(`Row ${row}: Role must be admin, hr, or user`);
@@ -418,7 +423,12 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
                       )}
                       <div>
                         <p className="text-sm font-medium">{result.name}</p>
-                        <p className="text-xs text-muted-foreground">{result.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {result.email}
+                          {result.success && result.invitationSent && (
+                            <span className="ml-2 text-green-600">· Invitation sent</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                     {result.error && (
