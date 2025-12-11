@@ -39,22 +39,16 @@ interface ImportResult {
   name: string;
   success: boolean;
   error?: string;
-  invitationSent?: boolean;
+  emailSent?: boolean;
 }
 
-// Generate a 6-digit OTP code
-function generateOtpCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-async function sendInvitationEmail(
+async function sendWelcomeEmail(
   email: string,
   fullName: string,
   position: string,
   department: string,
   joinDate: string,
-  role: string,
-  inviteCode: string
+  role: string
 ): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY not configured');
@@ -62,7 +56,7 @@ async function sendInvitationEmail(
   }
 
   const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
-  const joinUrl = `${appUrl}/join?email=${encodeURIComponent(email)}`;
+  const loginUrl = `${appUrl}/auth`;
   const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Team Member';
 
   const emailHtml = `
@@ -78,11 +72,11 @@ async function sendInvitationEmail(
         .details { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; }
         .details p { margin: 8px 0; }
         .details strong { color: #64748b; }
-        .code-box { background: #6366f1; color: white; font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .success-badge { background: #dcfce7; color: #166534; padding: 12px 20px; border-radius: 8px; text-align: center; font-weight: 600; margin: 20px 0; }
         .cta { text-align: center; margin: 30px 0; }
         .button { display: inline-block; background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; }
         .footer { text-align: center; color: #64748b; font-size: 14px; }
-        .note { background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #92400e; }
+        .note { background: #e0f2fe; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #0369a1; }
       </style>
     </head>
     <body>
@@ -92,25 +86,28 @@ async function sendInvitationEmail(
         </div>
         <div class="content">
           <p>Hi <strong>${fullName}</strong>,</p>
-          <p>You've been invited to join TeamHub as a team member. Here are your details:</p>
+          <div class="success-badge">
+            ✓ Your account has been successfully created
+          </div>
+          <p>You've been added to TeamHub. Here are your details:</p>
           <div class="details">
+            <p><strong>Email:</strong> ${email}</p>
             <p><strong>Position:</strong> ${position}</p>
             <p><strong>Department:</strong> ${department}</p>
             <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
             <p><strong>Role:</strong> ${roleLabel}</p>
           </div>
-          <p style="text-align: center; font-weight: 600;">Your Invitation Code:</p>
-          <div class="code-box">${inviteCode}</div>
-          <p>Click the button below and enter this code to join the team:</p>
+          <p>You can now log in to TeamHub using your email address:</p>
           <div class="cta">
-            <a href="${joinUrl}" class="button">Join TeamHub</a>
+            <a href="${loginUrl}" class="button">Log In to TeamHub</a>
           </div>
           <div class="note">
-            <strong>Note:</strong> This code is valid for 7 days. If it expires, contact your administrator to resend the invitation.
+            <strong>How to log in:</strong> Click the button above and enter your email address. You'll receive a one-time login code to access your account.
           </div>
         </div>
         <div class="footer">
           <p>If you have any questions, please contact your administrator.</p>
+          <p style="margin-top: 10px; font-size: 12px; color: #94a3b8;">TeamHub - Your team management platform</p>
         </div>
       </div>
     </body>
@@ -127,21 +124,21 @@ async function sendInvitationEmail(
       body: JSON.stringify({
         from: 'TeamHub <hello@globalyhub.com>',
         to: [email],
-        subject: 'Welcome to TeamHub - Your Invitation Code Inside!',
+        subject: '🎉 Welcome to TeamHub - Your Account is Ready!',
         html: emailHtml,
       }),
     });
 
     if (!emailResponse.ok) {
       const emailError = await emailResponse.text();
-      console.error('Error sending invitation email:', emailError);
+      console.error('Error sending welcome email:', emailError);
       return false;
     }
     
-    console.log('Invitation email sent successfully to:', email);
+    console.log('Welcome email sent successfully to:', email);
     return true;
   } catch (err) {
-    console.error('Error sending invitation email:', err);
+    console.error('Error sending welcome email:', err);
     return false;
   }
 }
@@ -324,7 +321,7 @@ Deno.serve(async (req) => {
             emergency_contact_phone: emp.emergency_contact_phone || null,
             emergency_contact_relationship: emp.emergency_contact_relationship || null,
             personal_email: emp.personal_email || null,
-            status: 'active'
+            status: 'active' // Set as active since account is confirmed
           })
           .select('id')
           .single();
@@ -367,33 +364,22 @@ Deno.serve(async (req) => {
           employeeId: employeeData.id
         });
 
-        // Generate and store invitation code
-        const inviteCode = generateOtpCode();
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        
-        await supabase.from('otp_codes').insert({
-          email: emp.email.toLowerCase(),
-          code: inviteCode,
-          expires_at: expiresAt.toISOString(),
-        });
-
-        // Send invitation email
-        const invitationSent = await sendInvitationEmail(
+        // Send welcome email with login link
+        const emailSent = await sendWelcomeEmail(
           emp.email.toLowerCase(),
           fullName,
           emp.position,
           emp.department,
           emp.join_date,
-          userRole,
-          inviteCode
+          userRole
         );
 
-        console.log(`Successfully imported ${emp.email}, invitation sent: ${invitationSent}`);
+        console.log(`Successfully imported ${emp.email}, welcome email sent: ${emailSent}`);
         results.push({
           email: emp.email,
           name: fullName,
           success: true,
-          invitationSent
+          emailSent
         });
 
       } catch (err: any) {
@@ -425,8 +411,8 @@ Deno.serve(async (req) => {
     }
 
     const successCount = results.filter(r => r.success).length;
-    const invitationsSent = results.filter(r => r.invitationSent).length;
-    console.log(`Bulk import completed: ${successCount}/${results.length} successful, ${invitationsSent} invitations sent`);
+    const emailsSent = results.filter(r => r.emailSent).length;
+    console.log(`Bulk import completed: ${successCount}/${results.length} successful, ${emailsSent} welcome emails sent`);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

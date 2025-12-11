@@ -65,7 +65,7 @@ interface ImportResult {
   name: string;
   success: boolean;
   error?: string;
-  invitationSent?: boolean;
+  emailSent?: boolean;
 }
 
 interface Office {
@@ -1162,8 +1162,8 @@ const BulkImport = () => {
                             <p className="text-sm font-medium">{result.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {result.email}
-                              {result.success && result.invitationSent && (
-                                <span className="ml-2 text-green-600">· Invitation sent</span>
+                              {result.success && result.emailSent && (
+                                <span className="ml-2 text-green-600">· Welcome email sent</span>
                               )}
                             </p>
                           </div>
