@@ -32,6 +32,14 @@ import {
 } from "lucide-react";
 import { useScrollAnimation, AnimatedSection } from "@/hooks/useScrollAnimation";
 
+// Import illustrations
+import frugalityIllustration from "@/assets/illustrations/frugality.png";
+import femaleTeamIllustration from "@/assets/illustrations/female-team.png";
+import maleTeamIllustration from "@/assets/illustrations/male-team.png";
+import maleTeam2Illustration from "@/assets/illustrations/male-team-2.png";
+import workAnniversaryIllustration from "@/assets/illustrations/work-anniversary.png";
+import workAnniversary2Illustration from "@/assets/illustrations/work-anniversary-2.png";
+
 // Timeline data for the interactive animation
 const timelineItems = [
   {
@@ -788,7 +796,8 @@ const Landing = () => {
             className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto"
           >
             {whoItsFor.map((item, index) => {
-              const Icon = item.icon;
+              // Use illustrations for each card
+              const illustrations = [maleTeamIllustration, femaleTeamIllustration, maleTeam2Illustration, workAnniversaryIllustration];
               return (
                 <AnimatedCard
                   key={index}
@@ -796,8 +805,12 @@ const Landing = () => {
                   isVisible={whoSection.isVisible}
                 >
                   <Card className="p-6 text-center h-full hover:shadow-lg transition-all duration-300 group flex flex-col">
-                    <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Icon className="h-7 w-7 text-primary" />
+                    <div className="h-24 w-24 mx-auto mb-4 overflow-hidden rounded-2xl">
+                      <img 
+                        src={illustrations[index]} 
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
                     <h3 className="font-semibold text-foreground mb-2">
                       {item.title}
@@ -855,11 +868,20 @@ const Landing = () => {
       {/* Business Value Section */}
       <section id="value" className="py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-8">
-          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              Turn HR Data Into Clear, Confident Decisions
-            </h2>
-          </AnimatedSection>
+          <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto mb-16">
+            <AnimatedSection>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+                Turn HR Data Into Clear, Confident Decisions
+              </h2>
+            </AnimatedSection>
+            <AnimatedSection delay={200} className="flex justify-center">
+              <img 
+                src={workAnniversary2Illustration} 
+                alt="Team celebration" 
+                className="w-full max-w-sm rounded-2xl"
+              />
+            </AnimatedSection>
+          </div>
 
           <div
             ref={valueSection.ref}
@@ -867,42 +889,37 @@ const Landing = () => {
           >
             {[
               {
-                icon: Target,
                 title: "Reduce Guesswork",
                 desc: "Make informed decisions on promotions, increments and restructuring",
               },
               {
-                icon: Users,
                 title: "Increase Fairness & Trust",
                 desc: "Consistent review criteria across all teams and levels",
               },
               {
-                icon: Clock,
                 title: "Save Time",
                 desc: "Less admin work for founders, HR and operations",
               },
               {
-                icon: Shield,
                 title: "Be Audit-Ready",
                 desc: "Structured HR records for investors and compliance",
               },
             ].map((item, index) => {
-              const Icon = item.icon;
               return (
                 <AnimatedCard
                   key={index}
                   index={index}
                   isVisible={valueSection.isVisible}
                 >
-                  <Card className="p-6 flex items-start gap-4 h-full hover:shadow-lg transition-all duration-300">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground mb-1">
-                        {item.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  <Card className="p-6 h-full hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-1">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{item.desc}</p>
+                      </div>
                     </div>
                   </Card>
                 </AnimatedCard>
@@ -915,15 +932,24 @@ const Landing = () => {
       {/* Pricing Section */}
       <section id="pricing" className="py-20 md:py-32 bg-muted/30">
         <div className="container mx-auto px-4 md:px-8">
-          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              Simple Subscription for Modern Teams
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Subscription-based SaaS – monthly and yearly plans, pay as you
-              grow.
-            </p>
-          </AnimatedSection>
+          <div className="grid md:grid-cols-2 gap-8 items-center max-w-5xl mx-auto mb-16">
+            <AnimatedSection className="flex justify-center md:order-2">
+              <img 
+                src={frugalityIllustration} 
+                alt="Simple pricing" 
+                className="w-full max-w-xs rounded-2xl"
+              />
+            </AnimatedSection>
+            <AnimatedSection className="text-center md:text-left">
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+                Simple Subscription for Modern Teams
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Subscription-based SaaS – monthly and yearly plans, pay as you
+                grow.
+              </p>
+            </AnimatedSection>
+          </div>
 
           <div
             ref={pricingSection.ref}
