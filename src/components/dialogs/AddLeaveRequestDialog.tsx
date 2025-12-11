@@ -218,14 +218,14 @@ export const AddLeaveRequestDialog = ({
         const hasOverlap = requestStart <= existingEnd && requestEnd >= existingStart;
         
         if (hasOverlap) {
-          // If requesting a full day and there's an existing full day request for the same period
-          if (values.half_day_type === "full" && existing.half_day_type === "full") {
+          // If existing request is a full day for the overlapping period - block any new request
+          if (existing.half_day_type === "full") {
             throw new Error("You already have a full day leave request for this date range");
           }
           
-          // If requesting a half day on a date that has an existing full day
-          if (values.half_day_type !== "full" && existing.half_day_type === "full" && isSameDay(requestStart, existingStart)) {
-            throw new Error("You already have a full day leave request for this date");
+          // If requesting a full day and there's an existing half day request
+          if (values.half_day_type === "full" && existing.half_day_type !== "full" && isSameDay(requestStart, existingStart)) {
+            throw new Error("You already have a half day leave request for this date. Please cancel it first to request a full day.");
           }
           
           // If both are half days on the same date
