@@ -18,6 +18,20 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { getCountryFlag } from "@/lib/countryFlags";
+
+// Country list for dropdown
+const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+  "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
+  "Czech Republic", "Denmark", "Egypt", "Finland", "France", "Germany", "Ghana",
+  "Greece", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel",
+  "Italy", "Japan", "Kenya", "Malaysia", "Mexico", "Nepal", "Netherlands",
+  "New Zealand", "Nigeria", "Norway", "Pakistan", "Peru", "Philippines", "Poland",
+  "Portugal", "Romania", "Russia", "Saudi Arabia", "Singapore", "South Africa",
+  "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
+  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+];
 
 interface ParsedEmployee {
   first_name: string;
@@ -1057,12 +1071,11 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('country') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <SearchableSelectCell
                                 value={emp.country || ''}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'country'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'country' })}
+                                options={COUNTRIES.map(c => ({ value: c, label: `${getCountryFlag(c)} ${c}` }))}
                                 onSave={(v) => updateCellValue(i, 'country', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select country"
                                 error={getFieldError('country')}
                               />
                             </td>
