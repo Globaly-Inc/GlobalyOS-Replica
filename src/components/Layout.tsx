@@ -16,6 +16,7 @@ import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
 import { QRScannerDialog } from "./dialogs/QRScannerDialog";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -469,99 +470,44 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </TooltipProvider>
           </div>
 
-          {/* Mobile Navigation */}
-          <div className="flex flex-1 items-center justify-end md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-64">
-                <div className="flex items-center gap-3 border-b border-border pb-4 pt-2">
-                  <Avatar className="h-10 w-10 border-2 border-primary/10">
-                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold">
-                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
-                      {userProfile?.fullName || "Loading..."}
-                    </span>
-                    <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal mt-1 w-fit ${roleConfig.className} border-0`}>
-                      {roleConfig.label}
-                    </Badge>
-                  </div>
+          {/* Mobile Header - Minimal */}
+          <div className="flex flex-1 items-center justify-between md:hidden">
+            <button 
+              onClick={() => navigate("/")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark"
+            >
+              <Users className="h-4 w-4 text-primary-foreground" />
+            </button>
+            
+            <div className="flex items-center gap-2">
+              {elapsedTime && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium">
+                  <Clock className="h-3 w-3" />
+                  <span>{elapsedTime}</span>
                 </div>
-                <nav className="flex flex-col space-y-2 pt-4">
-                  {navigation.map((item) => (
-                    <NavLink
-                      key={item.name}
-                      to={item.href}
-                      className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                      activeClassName="bg-secondary text-foreground"
-                    >
-                      <item.icon className="h-5 w-5" />
-                      {item.name}
-                    </NavLink>
-                  ))}
-                  <div className="border-t border-border pt-2 mt-2">
-                    {elapsedTime && (
-                      <div className="flex items-center gap-3 px-4 py-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium mx-2 mb-2">
-                        <Clock className="h-5 w-5" />
-                        <span>Checked in: {elapsedTime}</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => {
-                        setQrScannerOpen(true);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      <ScanLine className="h-5 w-5" />
-                      Quick Check-In
-                    </button>
-                    <button
-                      onClick={() => navigate("/notifications")}
-                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      <div className="relative">
-                        <Bell className="h-5 w-5" />
-                        {unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
-                            {unreadCount > 9 ? "9+" : unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      Notifications
-                    </button>
-                    {userProfile?.employeeId && (
-                      <button
-                        onClick={handleViewProfile}
-                        className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                      >
-                        <User className="h-5 w-5" />
-                        View Profile
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSignOut}
-                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-secondary"
-                    >
-                      <LogOut className="h-5 w-5" />
-                      Logout
-                    </button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
+              )}
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="h-9 w-9 relative"
+                onClick={() => navigate("/notifications")}
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container px-4 pt-2 pb-8 md:px-8">{children}</main>
+      <main className="container px-4 pt-2 pb-24 md:pb-8 md:px-8">{children}</main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
 
       {userProfile?.employeeId && (
         <>
