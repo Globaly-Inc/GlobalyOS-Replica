@@ -3,15 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart } from "lucide-react";
+import { Heart, ChevronDown, X } from "lucide-react";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const kudosSchema = z.object({
-  employeeId: z.string().uuid("Please select an employee"),
+  employeeIds: z.array(z.string().uuid()).min(1, "Please select at least one team member"),
   comment: z.string().trim().min(10, "Comment must be at least 10 characters").max(1000, "Comment must be less than 1000 characters"),
 });
 
@@ -29,9 +32,10 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectOpen, setSelectOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    employeeId: preselectedEmployeeId || "",
+    employeeIds: preselectedEmployeeId ? [preselectedEmployeeId] : [] as string[],
     comment: "",
   });
 
@@ -43,7 +47,7 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
 
   useEffect(() => {
     if (preselectedEmployeeId) {
-      setFormData(prev => ({ ...prev, employeeId: preselectedEmployeeId }));
+      setFormData(prev => ({ ...prev, employeeIds: [preselectedEmployeeId] }));
     }
   }, [preselectedEmployeeId]);
 
@@ -61,6 +65,31 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
     if (!error && data) {
       setEmployees(data as Employee[]);
     }
+  };
+
+  const toggleEmployee = (employeeId: string) => {
+    if (preselectedEmployeeId) return;
+    setFormData(prev => ({
+      ...prev,
+      employeeIds: prev.employeeIds.includes(employeeId)
+        ? prev.employeeIds.filter(id => id !== employeeId)
+        : [...prev.employeeIds, employeeId]
+    }));
+  };
+
+  const removeEmployee = (employeeId: string) => {
+    if (preselectedEmployeeId) return;
+    setFormData(prev => ({
+      ...prev,
+      employeeIds: prev.employeeIds.filter(id => id !== employeeId)
+    }));
+  };
+
+  const getSelectedNames = () => {
+    return formData.employeeIds.map(id => {
+      const emp = employees.find(e => e.id === id);
+      return emp?.profiles.full_name || "";
+    }).filter(Boolean);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,12 +127,15 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
         return;
       }
 
-      const { error } = await supabase.from("kudos").insert({
-        employee_id: validated.employeeId,
+      // Insert kudos for each selected employee
+      const kudosRecords = validated.employeeIds.map(employeeId => ({
+        employee_id: employeeId,
         given_by_id: giverEmployee.id,
         comment: validated.comment,
         organization_id: giverEmployee.organization_id,
-      });
+      }));
+
+      const { error } = await supabase.from("kudos").insert(kudosRecords);
 
       if (error) {
         toast({
@@ -114,10 +146,10 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
       } else {
         toast({
           title: "Kudos given! 🎉",
-          description: "Your appreciation has been shared with the team",
+          description: `Your appreciation has been shared with ${validated.employeeIds.length} team member${validated.employeeIds.length > 1 ? 's' : ''}`,
         });
         setFormData({
-          employeeId: preselectedEmployeeId || "",
+          employeeIds: preselectedEmployeeId ? [preselectedEmployeeId] : [],
           comment: "",
         });
         setOpen(false);
@@ -138,6 +170,8 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
     }
   };
 
+  const selectedNames = getSelectedNames();
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -148,28 +182,65 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Give Kudos to a Team Member</DialogTitle>
+          <DialogTitle>Give Kudos to Team Members</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="employee">Select Team Member *</Label>
-            <Select
-              value={formData.employeeId}
-              onValueChange={(value) => setFormData({ ...formData, employeeId: value })}
-              disabled={!!preselectedEmployeeId}
-            >
-              <SelectTrigger id="employee">
-                <SelectValue placeholder="Choose a team member" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.profiles.full_name}
-                  </SelectItem>
+            <Label>Select Team Members *</Label>
+            <Popover open={selectOpen} onOpenChange={setSelectOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={selectOpen}
+                  className="w-full justify-between font-normal h-auto min-h-10"
+                  disabled={!!preselectedEmployeeId}
+                >
+                  <span className="text-muted-foreground">
+                    {formData.employeeIds.length === 0 
+                      ? "Choose team members..." 
+                      : `${formData.employeeIds.length} selected`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <ScrollArea className="h-[200px]">
+                  <div className="p-2 space-y-1">
+                    {employees.map((employee) => (
+                      <div
+                        key={employee.id}
+                        className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                        onClick={() => toggleEmployee(employee.id)}
+                      >
+                        <Checkbox
+                          checked={formData.employeeIds.includes(employee.id)}
+                          onCheckedChange={() => toggleEmployee(employee.id)}
+                        />
+                        <span className="text-sm">{employee.profiles.full_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            
+            {selectedNames.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedNames.map((name, idx) => (
+                  <Badge key={formData.employeeIds[idx]} variant="secondary" className="gap-1">
+                    {name}
+                    {!preselectedEmployeeId && (
+                      <X 
+                        className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                        onClick={() => removeEmployee(formData.employeeIds[idx])}
+                      />
+                    )}
+                  </Badge>
                 ))}
-              </SelectContent>
-            </Select>
-            {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId}</p>}
+              </div>
+            )}
+            {errors.employeeIds && <p className="text-sm text-destructive">{errors.employeeIds}</p>}
           </div>
 
           <div className="space-y-2">
