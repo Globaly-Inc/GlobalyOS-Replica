@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Users, Briefcase, TrendingUp, Award, FileText, Target, Building2, Rocket, Globe, CheckCircle2, ArrowRight, Star, Shield, Clock, Zap, Menu, X } from "lucide-react";
+import { Users, Briefcase, TrendingUp, Award, FileText, Target, Building2, Rocket, Globe, CheckCircle2, ArrowRight, Star, Shield, Clock, Zap, Menu, X, Home } from "lucide-react";
 import { useScrollAnimation, AnimatedSection } from "@/hooks/useScrollAnimation";
+import { useAuth } from "@/hooks/useAuth";
 
 // Import illustrations
 import heroIllustration from "@/assets/illustrations/hero-illustration.svg";
@@ -120,6 +121,8 @@ const AnimatedCard = ({
     {children}
   </div>;
 const Landing = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -186,9 +189,16 @@ const Landing = () => {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-3">
-            <Button onClick={() => scrollToSection("pricing")}>
-              Sign In
-            </Button>
+            {user ? (
+              <Button onClick={() => navigate("/")}>
+                <Home className="mr-2 h-4 w-4" />
+                Home
+              </Button>
+            ) : (
+              <Button onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -203,9 +213,16 @@ const Landing = () => {
               {navItems.map(item => <button key={item.id} onClick={() => scrollToSection(item.id)} className="text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   {item.label}
                 </button>)}
-              <Button className="mt-2" onClick={() => scrollToSection("pricing")}>
-                Sign In
-              </Button>
+              {user ? (
+                <Button className="mt-2" onClick={() => navigate("/")}>
+                  <Home className="mr-2 h-4 w-4" />
+                  Home
+                </Button>
+              ) : (
+                <Button className="mt-2" onClick={() => navigate("/auth")}>
+                  Sign In
+                </Button>
+              )}
             </nav>
           </div>}
       </header>
