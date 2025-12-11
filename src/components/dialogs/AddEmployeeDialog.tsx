@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/hooks/useOrganization";
 import { Plus } from "lucide-react";
 import { z } from "zod";
 
@@ -14,7 +15,8 @@ const employeeSchema = z.object({
   department: z.string().trim().min(2, "Department is required").max(100, "Department must be less than 100 characters"),
   joinDate: z.string().min(1, "Join date is required"),
   phone: z.string().trim().max(20, "Phone must be less than 20 characters").optional(),
-  location: z.string().trim().max(200, "Location must be less than 200 characters").optional(),
+  city: z.string().trim().max(100, "City must be less than 100 characters").optional(),
+  country: z.string().trim().max(100, "Country must be less than 100 characters").optional(),
   superpowers: z.string().max(500, "Superpowers must be less than 500 characters").optional(),
 });
 
@@ -22,6 +24,7 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { currentOrg } = useOrganization();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
@@ -29,7 +32,8 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
     department: "",
     joinDate: "",
     phone: "",
-    location: "",
+    city: "",
+    country: "",
     superpowers: "",
   });
 
@@ -51,18 +55,31 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
         return;
       }
 
+      if (!currentOrg) {
+        toast({
+          title: "Error",
+          description: "No organization selected",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const superpowersArray = validated.superpowers 
         ? validated.superpowers.split(",").map(s => s.trim()).filter(Boolean)
         : [];
 
+      // Create employee record
       const { error } = await supabase.from("employees").insert({
         user_id: user.id,
+        organization_id: currentOrg.id,
         position: validated.position,
         department: validated.department,
         join_date: validated.joinDate,
         phone: validated.phone || null,
-        location: validated.location || null,
+        city: validated.city || null,
+        country: validated.country || null,
         superpowers: superpowersArray.length > 0 ? superpowersArray : null,
+        status: 'active',
       });
 
       if (error) {
@@ -80,6 +97,13 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
           });
         }
       } else {
+        // Add organization membership if not exists
+        await supabase.from("organization_members").upsert({
+          user_id: user.id,
+          organization_id: currentOrg.id,
+          role: 'member',
+        }, { onConflict: 'user_id,organization_id' });
+
         toast({
           title: "Success!",
           description: "Employee profile created successfully",
@@ -89,7 +113,8 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
           department: "",
           joinDate: "",
           phone: "",
-          location: "",
+          city: "",
+          country: "",
           superpowers: "",
         });
         setOpen(false);
@@ -171,15 +196,27 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
             {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Kathmandu"
-            />
-            {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                placeholder="e.g., Kathmandu"
+              />
+              {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                placeholder="e.g., Nepal"
+              />
+              {errors.country && <p className="text-sm text-destructive">{errors.country}</p>}
+            </div>
           </div>
 
           <div className="space-y-2">
