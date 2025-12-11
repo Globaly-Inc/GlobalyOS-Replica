@@ -1368,12 +1368,17 @@ export type Database = {
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       cleanup_expired_otps: { Args: never; Returns: undefined }
+      get_current_employee_id: { Args: never; Returns: string }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_manager_of_employee: {
+        Args: { _employee_id: string }
         Returns: boolean
       }
       is_org_member: {
@@ -1384,6 +1389,8 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
+      owns_update: { Args: { _update_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "hr" | "user"
