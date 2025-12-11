@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Clock, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { formatDateTime, formatDate, formatDateRange } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -260,15 +260,12 @@ const LeaveHistory = () => {
                             {getStatusBadge(request.status)}
                           </div>
                           <span className="text-sm text-muted-foreground">
-                            Requested {format(new Date(request.created_at), "MMM d, yyyy")}
+                            Requested {formatDateTime(request.created_at)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          {format(new Date(request.start_date), "MMM d, yyyy")}
-                          {request.start_date !== request.end_date && (
-                            <> - {format(new Date(request.end_date), "MMM d, yyyy")}</>
-                          )}
+                          {formatDateRange(request.start_date, request.end_date)}
                           <span className="ml-2">
                             ({request.days_count} {request.days_count === 1 ? 'day' : 'days'})
                             {request.half_day_type !== 'full' && (
@@ -285,7 +282,7 @@ const LeaveHistory = () => {
                         )}
                         {request.reviewed_at && (
                           <p className="text-sm text-muted-foreground">
-                            Reviewed on {format(new Date(request.reviewed_at), "MMM d, yyyy")}
+                            Reviewed on {formatDateTime(request.reviewed_at)}
                             {request.reviewed_by_employee?.profiles &&
                               ` by ${request.reviewed_by_employee.profiles.full_name}`
                             }
@@ -349,7 +346,7 @@ const LeaveHistory = () => {
                             )}
                           </div>
                           <span className="text-sm text-muted-foreground">
-                            {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
+                            {formatDateTime(log.created_at)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
@@ -393,10 +390,7 @@ const LeaveHistory = () => {
                 <>
                   Are you sure you want to cancel your {cancelDialog.request.leave_type} request for{" "}
                   {cancelDialog.request.days_count} {cancelDialog.request.days_count === 1 ? "day" : "days"} (
-                  {format(new Date(cancelDialog.request.start_date), "MMM d, yyyy")}
-                  {cancelDialog.request.start_date !== cancelDialog.request.end_date && (
-                    <> - {format(new Date(cancelDialog.request.end_date), "MMM d, yyyy")}</>
-                  )}
+                  {formatDateRange(cancelDialog.request.start_date, cancelDialog.request.end_date)}
                   )? This action cannot be undone.
                 </>
               )}
