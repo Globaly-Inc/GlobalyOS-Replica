@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,17 +117,42 @@ export const PositionTimeline = ({
     return `${annual}/year`;
   };
 
+  const salaryTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
   const toggleSalaryVisibility = (id: string) => {
     setRevealedSalaries(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
+        // Clear timer if hiding manually
+        const timer = salaryTimers.current.get(id);
+        if (timer) {
+          clearTimeout(timer);
+          salaryTimers.current.delete(id);
+        }
       } else {
         newSet.add(id);
+        // Auto-hide after 10 seconds
+        const timer = setTimeout(() => {
+          setRevealedSalaries(prev => {
+            const updated = new Set(prev);
+            updated.delete(id);
+            return updated;
+          });
+          salaryTimers.current.delete(id);
+        }, 10000);
+        salaryTimers.current.set(id, timer);
       }
       return newSet;
     });
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      salaryTimers.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   const annualPay = useMemo(() => {
     const amount = parseFloat(currentEditData.salary) || 0;
