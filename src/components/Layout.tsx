@@ -168,15 +168,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       if (!employee) return;
 
       const today = new Date().toISOString().split('T')[0];
-      const { data: attendance } = await supabase
+      // Find active session (checked in but not out)
+      const { data: activeSession } = await supabase
         .from("attendance_records")
         .select("check_in_time, check_out_time")
         .eq("employee_id", employee.id)
         .eq("date", today)
+        .is("check_out_time", null)
+        .order("check_in_time", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (attendance?.check_in_time && !attendance?.check_out_time) {
-        setCheckInTime(new Date(attendance.check_in_time));
+      if (activeSession?.check_in_time) {
+        setCheckInTime(new Date(activeSession.check_in_time));
       } else {
         setCheckInTime(null);
       }

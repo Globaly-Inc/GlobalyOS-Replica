@@ -23,7 +23,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
   const goToPreviousWeek = () => setSelectedDate(subWeeks(selectedDate, 1));
   const goToNextWeek = () => setSelectedDate(addWeeks(selectedDate, 1));
 
-  const { data: todayRecord } = useQuery({
+  const { data: todayRecords } = useQuery({
     queryKey: ["attendance-today", employeeId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -31,12 +31,17 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
         .select("*")
         .eq("employee_id", employeeId)
         .eq("date", format(currentDate, "yyyy-MM-dd"))
-        .maybeSingle();
+        .order("check_in_time", { ascending: true });
 
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
+      if (error) throw error;
+      return data || [];
     },
   });
+
+  // Find active session (checked in but not out)
+  const activeSession = todayRecords?.find(r => r.check_in_time && !r.check_out_time);
+  const completedSessions = todayRecords?.filter(r => r.check_in_time && r.check_out_time) || [];
+  const canCheckIn = !activeSession && (todayRecords?.length || 0) < 6;
 
   const { data: weekRecords } = useQuery({
     queryKey: ["attendance-week", employeeId, format(weekStart, "yyyy-MM-dd")],
@@ -94,13 +99,13 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
   const checkOutMutation = useMutation({
     mutationFn: async () => {
-      if (!todayRecord) return;
+      if (!activeSession) return;
 
       const now = new Date().toISOString();
       const { error } = await supabase
         .from("attendance_records")
         .update({ check_out_time: now })
-        .eq("id", todayRecord.id);
+        .eq("id", activeSession.id);
 
       if (error) throw error;
     },
@@ -201,48 +206,62 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       {/* Today's Check-in */}
       {showCheckIn && (
         <div className="p-4 rounded-xl bg-muted/50 border">
-          <p className="text-sm font-semibold mb-3">Today's Status</p>
-          {!todayRecord ? (
-            <div className="text-center py-3">
-              <p className="text-muted-foreground text-sm mb-3">Not checked in yet</p>
-              <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending} size="sm">
-                Check In
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">Today's Sessions</p>
+            <Badge variant="outline" className="text-xs">
+              {todayRecords?.length || 0}/6
+            </Badge>
+          </div>
+          
+          {/* Completed sessions */}
+          {completedSessions.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {completedSessions.map((session, idx) => (
+                <div key={session.id} className="flex items-center justify-between text-xs p-2 bg-background rounded-lg">
+                  <span className="text-muted-foreground">Session {idx + 1}</span>
+                  <div className="flex items-center gap-3">
+                    <span>{format(new Date(session.check_in_time), "h:mm a")} - {format(new Date(session.check_out_time!), "h:mm a")}</span>
+                    <span className="font-medium">{session.work_hours?.toFixed(1)}h</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Active session */}
+          {activeSession ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Checked in at {format(new Date(activeSession.check_in_time), "h:mm a")}
+                  </span>
+                </div>
+                {getStatusBadge(activeSession.status)}
+              </div>
+              <Button
+                onClick={() => checkOutMutation.mutate()}
+                disabled={checkOutMutation.isPending}
+                className="w-full"
+                size="sm"
+              >
+                Check Out
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">In</p>
-                    <p className="font-semibold text-sm">
-                      {todayRecord.check_in_time ? format(new Date(todayRecord.check_in_time), "h:mm a") : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Out</p>
-                    <p className="font-semibold text-sm">
-                      {todayRecord.check_out_time ? format(new Date(todayRecord.check_out_time), "h:mm a") : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Hours</p>
-                    <p className="font-semibold text-sm">
-                      {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
-                    </p>
-                  </div>
-                </div>
-                {getStatusBadge(todayRecord.status)}
-              </div>
-              {!todayRecord.check_out_time && (
-                <Button
-                  onClick={() => checkOutMutation.mutate()}
-                  disabled={checkOutMutation.isPending}
-                  className="w-full"
-                  size="sm"
-                >
-                  Check Out
-                </Button>
+            <div className="text-center py-3">
+              {canCheckIn ? (
+                <>
+                  <p className="text-muted-foreground text-sm mb-3">
+                    {completedSessions.length > 0 ? "Start a new session" : "Not checked in yet"}
+                  </p>
+                  <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending} size="sm">
+                    Check In
+                  </Button>
+                </>
+              ) : (
+                <p className="text-muted-foreground text-sm">Daily limit reached (6 sessions)</p>
               )}
             </div>
           )}
