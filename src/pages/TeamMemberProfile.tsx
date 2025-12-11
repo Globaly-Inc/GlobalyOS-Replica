@@ -17,7 +17,7 @@ import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2 } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -307,7 +307,6 @@ const TeamMemberProfile = () => {
                   </div>}
               </div>
             </div>
-            <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} />
           </div>
         </Card>
 
@@ -446,15 +445,56 @@ const TeamMemberProfile = () => {
                 </div>
               </Card>}
 
-            {canViewSensitiveData && <div className="space-y-4">
+            {/* Leave Management */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Leave Balances
+                </h2>
+                <AddLeaveRequestDialog employeeId={id!} />
+              </div>
+              <LeaveManagement employeeId={id!} />
+            </div>
+
+            {/* Kudos Received */}
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Heart className="h-5 w-5 text-primary" />
+                  Kudos Received
+                  {kudos.length > 0 && <Badge variant="secondary" className="ml-1">{kudos.length}</Badge>}
+                </h2>
+                <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
+              </div>
+              {kudos.length > 0 ? (
+                <div className="space-y-3">
+                  {kudos.map(k => <KudosCard key={k.id} kudos={{
+                    id: k.id,
+                    employeeId: k.employee.id,
+                    employeeName: k.employee.profiles.full_name,
+                    givenBy: k.given_by.profiles.full_name,
+                    comment: k.comment,
+                    date: k.created_at
+                  }} compact />)}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>
+              )}
+            </Card>
+
+            {/* Position Timeline */}
+            {canViewSensitiveData && (
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-foreground">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
                   <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
-                loadPositionHistory();
-                loadEmployee();
-              }} />
+                    loadPositionHistory();
+                    loadEmployee();
+                  }} />
                 </div>
                 <PositionTimeline 
                   entries={positionHistory} 
@@ -469,11 +509,14 @@ const TeamMemberProfile = () => {
                     loadEmployee();
                   }}
                 />
-              </div>}
+              </div>
+            )}
 
-            <div className="space-y-4">
+            {/* Learning & Development */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-foreground">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <GraduationCap className="h-5 w-5 text-primary" />
                   Learning & Development
                 </h2>
                 <AddLearningDialog employeeId={id!} />
@@ -481,39 +524,15 @@ const TeamMemberProfile = () => {
               <LearningDevelopment employeeId={id!} />
             </div>
 
-            <div className="space-y-4">
+            {/* Attendance Tracking */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-foreground">
-                  Leave Management
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Attendance Tracking
                 </h2>
-                <AddLeaveRequestDialog employeeId={id!} />
               </div>
-              <LeaveManagement employeeId={id!} />
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">
-                Attendance Tracking
-              </h2>
-              <AttendanceTracker employeeId={id!} showCheckIn={true} />
-            </div>
-
-            <div>
-              <h2 className="mb-4 text-2xl font-bold text-foreground">
-                Kudos Received ({kudos.length})
-              </h2>
-              {kudos.length > 0 ? <div className="space-y-4">
-                  {kudos.map(k => <KudosCard key={k.id} kudos={{
-                id: k.id,
-                employeeId: k.employee.id,
-                employeeName: k.employee.profiles.full_name,
-                givenBy: k.given_by.profiles.full_name,
-                comment: k.comment,
-                date: k.created_at
-              }} />)}
-                </div> : <Card className="p-12 text-center">
-                  <p className="text-muted-foreground">No kudos yet!</p>
-                </Card>}
+              <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
             </div>
           </div>
         </div>
