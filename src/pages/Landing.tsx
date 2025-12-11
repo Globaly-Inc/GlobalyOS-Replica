@@ -309,7 +309,7 @@ Your HR System Isn't.</span>
               <img 
                 src={problemIllustration} 
                 alt="Problem illustration" 
-                className="w-full max-w-md h-auto"
+                className="w-full max-w-xl h-auto"
               />
             </AnimatedCard>
           </div>
