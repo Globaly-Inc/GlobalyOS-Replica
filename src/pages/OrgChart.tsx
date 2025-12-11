@@ -2,10 +2,11 @@ import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Users, ArrowLeft } from "lucide-react";
+import { Users, ArrowLeft, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -60,16 +61,34 @@ const OrgChart = () => {
     setLoading(false);
   };
 
-  const buildTree = (employees: Employee[]): TreeNode[] => {
+  // Group employees by department
+  const groupByDepartment = (employees: Employee[]): Map<string, Employee[]> => {
+    const departments = new Map<string, Employee[]>();
+    
+    employees.forEach((emp) => {
+      const dept = emp.department || "Unassigned";
+      if (!departments.has(dept)) {
+        departments.set(dept, []);
+      }
+      departments.get(dept)!.push(emp);
+    });
+
+    return departments;
+  };
+
+  // Build tree for a specific department
+  const buildDepartmentTree = (deptEmployees: Employee[], allEmployees: Employee[]): TreeNode[] => {
     const map = new Map<string, TreeNode>();
     const roots: TreeNode[] = [];
+    const deptIds = new Set(deptEmployees.map(e => e.id));
 
-    employees.forEach((emp) => {
+    deptEmployees.forEach((emp) => {
       map.set(emp.id, { ...emp, children: [] });
     });
 
-    employees.forEach((emp) => {
+    deptEmployees.forEach((emp) => {
       const node = map.get(emp.id)!;
+      // Only link to manager if manager is in same department
       if (emp.manager_id && map.has(emp.manager_id)) {
         map.get(emp.manager_id)!.children.push(node);
       } else {
@@ -80,17 +99,14 @@ const OrgChart = () => {
     return roots;
   };
 
-  const EmployeeCard = ({ employee, isRoot = false }: { employee: TreeNode; isRoot?: boolean }) => (
+  const EmployeeCard = ({ employee, showDept = false }: { employee: TreeNode; showDept?: boolean }) => (
     <Card
       onClick={() => navigate(`/team/${employee.id}`)}
-      className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/50 max-w-xs",
-        isRoot && "border-primary/30"
-      )}
+      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/50 max-w-[200px]"
     >
       <div className="px-2 py-1.5">
         <div className="flex items-center gap-2">
-          <Avatar className="h-6 w-6 border border-primary/20">
+          <Avatar className="h-6 w-6 border border-primary/20 flex-shrink-0">
             <AvatarImage src={employee.profiles.avatar_url || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-[10px]">
               {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
@@ -103,7 +119,7 @@ const OrgChart = () => {
             <p className="text-[10px] text-muted-foreground truncate">{employee.position}</p>
           </div>
           {employee.children.length > 0 && (
-            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground flex-shrink-0">
               <Users className="h-3 w-3" />
               <span>{employee.children.length}</span>
             </div>
@@ -118,20 +134,18 @@ const OrgChart = () => {
 
     return (
       <div className="relative">
-        {/* Connector line from parent */}
         {level > 0 && (
-          <div className="absolute -top-4 left-6 w-px h-4 bg-border" />
+          <div className="absolute -top-3 left-5 w-px h-3 bg-border" />
         )}
         
-        <EmployeeCard employee={employee} isRoot={level === 0} />
+        <EmployeeCard employee={employee} />
 
         {hasChildren && (
-          <div className="relative mt-1 ml-6 pl-4 border-l-2 border-border">
-            <div className="space-y-3 py-3">
+          <div className="relative mt-1 ml-5 pl-3 border-l border-border">
+            <div className="space-y-2 py-2">
               {employee.children.map((child) => (
                 <div key={child.id} className="relative">
-                  {/* Horizontal connector */}
-                  <div className="absolute -left-4 top-5 w-4 h-px bg-border" />
+                  <div className="absolute -left-3 top-4 w-3 h-px bg-border" />
                   <EmployeeTree employee={child} level={level + 1} />
                 </div>
               ))}
@@ -142,7 +156,10 @@ const OrgChart = () => {
     );
   };
 
-  const tree = buildTree(employees);
+  const departments = groupByDepartment(employees);
+  const sortedDepartments = Array.from(departments.entries()).sort((a, b) => 
+    a[0].localeCompare(b[0])
+  );
 
   return (
     <Layout>
@@ -159,22 +176,38 @@ const OrgChart = () => {
         
         <PageHeader 
           title="Organization Chart" 
-          subtitle="Company hierarchy and reporting structure"
+          subtitle="Company hierarchy by department"
         />
 
         {loading ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">Loading organization chart...</p>
           </Card>
-        ) : tree.length === 0 ? (
+        ) : employees.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">No employees found.</p>
           </Card>
         ) : (
-          <div className="space-y-6 pb-8">
-            {tree.map((root) => (
-              <EmployeeTree key={root.id} employee={root} />
-            ))}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sortedDepartments.map(([department, deptEmployees]) => {
+              const tree = buildDepartmentTree(deptEmployees, employees);
+              return (
+                <Card key={department} className="overflow-hidden">
+                  <div className="bg-muted/50 px-3 py-2 border-b flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-medium text-sm">{department}</h3>
+                    <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                      {deptEmployees.length}
+                    </Badge>
+                  </div>
+                  <div className="p-3 space-y-2 max-h-[400px] overflow-y-auto">
+                    {tree.map((root) => (
+                      <EmployeeTree key={root.id} employee={root} />
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
