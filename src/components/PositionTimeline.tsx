@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil } from "lucide-react";
+import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +82,7 @@ export const PositionTimeline = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentEditOpen, setCurrentEditOpen] = useState(false);
   const [currentEditLoading, setCurrentEditLoading] = useState(false);
+  const [salaryRevealed, setSalaryRevealed] = useState(false);
   const [currentEditData, setCurrentEditData] = useState({
     position: currentPosition,
     department: currentDepartment,
@@ -198,9 +199,19 @@ export const PositionTimeline = ({
                 <p className="text-[11px] text-muted-foreground">{currentDepartment}</p>
                 
                 {showSalary && currentSalary && (
-                  <p className="text-[11px] font-medium mt-0.5 text-primary">
-                    {formatSalary(currentSalary, currentCurrency)}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-[11px] font-medium text-primary">
+                      {salaryRevealed ? formatSalary(currentSalary, currentCurrency) : "••••••••"}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => setSalaryRevealed(!salaryRevealed)}
+                    >
+                      {salaryRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </Button>
+                  </div>
                 )}
               </div>
               
@@ -248,7 +259,7 @@ export const PositionTimeline = ({
                     
                     {showSalary && entry.salary && (
                       <p className="text-[11px] font-medium mt-0.5 text-primary">
-                        {formatSalary(entry.salary, currentCurrency)}
+                        {salaryRevealed ? formatSalary(entry.salary, currentCurrency) : "••••••••"}
                       </p>
                     )}
                     
