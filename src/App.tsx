@@ -13,7 +13,7 @@ import OrgChart from "./pages/OrgChart";
 import Growth from "./pages/Growth";
 import Auth from "./pages/Auth";
 import Signup from "./pages/Signup";
-import Onboarding from "./pages/Onboarding";
+
 import Settings from "./pages/Settings";
 import Join from "./pages/Join";
 import LeaveHistory from "./pages/LeaveHistory";
@@ -34,7 +34,6 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/join" element={<Join />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
             <Route path="/team/invite" element={<ProtectedRoute><InviteTeamMember /></ProtectedRoute>} />

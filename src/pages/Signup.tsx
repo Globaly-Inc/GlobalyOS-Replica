@@ -177,7 +177,7 @@ const Signup = () => {
           description: "Your organization has been created.",
         });
         
-        navigate("/onboarding");
+        navigate("/");
       }
     } catch (error) {
       toast({
