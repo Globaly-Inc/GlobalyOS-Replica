@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff } from "lucide-react";
+import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface TimelineEntry {
   id: string;
@@ -83,6 +84,13 @@ export const PositionTimeline = ({
   const [currentEditOpen, setCurrentEditOpen] = useState(false);
   const [currentEditLoading, setCurrentEditLoading] = useState(false);
   const [revealedSalaries, setRevealedSalaries] = useState<Set<string>>(new Set());
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
+  const [showNewDepartment, setShowNewDepartment] = useState(false);
+  const [showNewPosition, setShowNewPosition] = useState(false);
+  const [newDepartment, setNewDepartment] = useState("");
+  const [newPosition, setNewPosition] = useState("");
+  const { currentOrg } = useOrganization();
   const [currentEditData, setCurrentEditData] = useState({
     position: currentPosition,
     department: currentDepartment,
@@ -90,6 +98,62 @@ export const PositionTimeline = ({
     currency: currentCurrency,
     paymentFrequency: "annual" as string,
   });
+
+  // Load departments and positions when dialog opens
+  useEffect(() => {
+    if (currentEditOpen && currentOrg) {
+      loadDepartmentsAndPositions();
+    }
+  }, [currentEditOpen, currentOrg]);
+
+  const loadDepartmentsAndPositions = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from("employees")
+      .select("department, position")
+      .eq("organization_id", currentOrg.id);
+    
+    if (data) {
+      const uniqueDepts = [...new Set(data.map(e => e.department).filter(Boolean))].sort();
+      const uniquePositions = [...new Set(data.map(e => e.position).filter(Boolean))].sort();
+      setDepartments(uniqueDepts);
+      setPositions(uniquePositions);
+    }
+  };
+
+  const handleDepartmentChange = (value: string) => {
+    if (value === "__new__") {
+      setShowNewDepartment(true);
+    } else {
+      setCurrentEditData({ ...currentEditData, department: value });
+    }
+  };
+
+  const handlePositionChange = (value: string) => {
+    if (value === "__new__") {
+      setShowNewPosition(true);
+    } else {
+      setCurrentEditData({ ...currentEditData, position: value });
+    }
+  };
+
+  const addNewDepartment = () => {
+    if (newDepartment.trim()) {
+      setDepartments(prev => [...new Set([...prev, newDepartment.trim()])].sort());
+      setCurrentEditData({ ...currentEditData, department: newDepartment.trim() });
+      setNewDepartment("");
+      setShowNewDepartment(false);
+    }
+  };
+
+  const addNewPosition = () => {
+    if (newPosition.trim()) {
+      setPositions(prev => [...new Set([...prev, newPosition.trim()])].sort());
+      setCurrentEditData({ ...currentEditData, position: newPosition.trim() });
+      setNewPosition("");
+      setShowNewPosition(false);
+    }
+  };
 
   // Sort entries by effective_date descending (most recent first)
   const sortedEntries = [...entries].sort((a, b) => 
@@ -348,29 +412,80 @@ export const PositionTimeline = ({
       />
 
       {/* Edit Current Position Dialog */}
-      <Dialog open={currentEditOpen} onOpenChange={setCurrentEditOpen}>
-        <DialogContent>
+      <Dialog open={currentEditOpen} onOpenChange={(open) => {
+        setCurrentEditOpen(open);
+        if (!open) {
+          setShowNewDepartment(false);
+          setShowNewPosition(false);
+          setNewDepartment("");
+          setNewPosition("");
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Current Position</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="current-position">Position</Label>
-              <Input
-                id="current-position"
-                value={currentEditData.position}
-                onChange={(e) => setCurrentEditData({ ...currentEditData, position: e.target.value })}
-                placeholder="e.g., Senior Developer"
-              />
-            </div>
-            <div>
-              <Label htmlFor="current-department">Department</Label>
-              <Input
-                id="current-department"
-                value={currentEditData.department}
-                onChange={(e) => setCurrentEditData({ ...currentEditData, department: e.target.value })}
-                placeholder="e.g., Engineering"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="current-position">Position *</Label>
+                {showNewPosition ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newPosition}
+                      onChange={(e) => setNewPosition(e.target.value)}
+                      placeholder="Enter new position"
+                      autoFocus
+                    />
+                    <Button type="button" size="sm" onClick={addNewPosition}>Add</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewPosition(false)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <Select value={currentEditData.position} onValueChange={handlePositionChange}>
+                    <SelectTrigger id="current-position">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="__new__" className="text-primary font-medium">
+                        <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new position</span>
+                      </SelectItem>
+                      {positions.map((pos) => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="current-department">Department *</Label>
+                {showNewDepartment ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newDepartment}
+                      onChange={(e) => setNewDepartment(e.target.value)}
+                      placeholder="Enter new department"
+                      autoFocus
+                    />
+                    <Button type="button" size="sm" onClick={addNewDepartment}>Add</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewDepartment(false)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <Select value={currentEditData.department} onValueChange={handleDepartmentChange}>
+                    <SelectTrigger id="current-department">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="__new__" className="text-primary font-medium">
+                        <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new department</span>
+                      </SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
             
             {showSalary && (
