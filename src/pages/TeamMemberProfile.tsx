@@ -1055,13 +1055,17 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* Recognition & Wins */}
+            {/* Kudos and Wins */}
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Heart className="h-5 w-5 text-primary" />
-                  Recognition & Wins
-                  {(kudos.length + wins.length) > 0 && <Badge variant="secondary" className="ml-1">{kudos.length + wins.length}</Badge>}
+                  Kudos and Wins
+                  <div className="flex items-center gap-1.5 ml-1">
+                    <Badge variant="secondary">All {kudos.length + wins.length}</Badge>
+                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200">Kudos {kudos.length}</Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">Wins {wins.length}</Badge>
+                  </div>
                 </h2>
                 {canGiveKudos && (
                   <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
