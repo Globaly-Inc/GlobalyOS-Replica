@@ -1192,6 +1192,29 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
+            {/* Attendance Tracking - Admin/HR, own profile, or manager */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Attendance Tracking
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.href = `/team/${id}/attendance`}
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    View History
+                  </Button>
+                </div>
+                <div className="p-4">
+                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
+                </div>
+              </Card>
+            )}
+
             {/* Kudos and Wins */}
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
@@ -1279,29 +1302,6 @@ const TeamMemberProfile = () => {
                     isOwnProfile={isOwnProfile} 
                     searchQuery={documentSearch}
                   />
-                </div>
-              </Card>
-            )}
-
-            {/* Attendance Tracking - Admin/HR, own profile, or manager */}
-            {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <Clock className="h-5 w-5 text-primary" />
-                    Attendance Tracking
-                  </h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.location.href = `/team/${id}/attendance`}
-                  >
-                    <History className="h-4 w-4 mr-1" />
-                    View History
-                  </Button>
-                </div>
-                <div className="p-4">
-                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
                 </div>
               </Card>
             )}
