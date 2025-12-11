@@ -784,6 +784,27 @@ const Home = () => {
             {/* Pending Leave Approvals for Managers/HR */}
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
 
+            {/* Current User Leave Balance */}
+            {hasEmployeeProfile && <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    My Leave Balance
+                  </h3>
+                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
+                    Request
+                  </Button>
+                </div>
+                {leaveBalances.length > 0 ? <div className="grid grid-cols-3 gap-3">
+                    {leaveBalances.slice(0, 3).map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
+                        <div className="text-2xl font-bold text-primary">
+                          {item.balance}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">{item.leave_type.name}</div>
+                      </div>)}
+                  </div> : <p className="text-sm text-muted-foreground">No leave balance set for this year</p>}
+              </Card>}
+
             {/* People on Leave Today */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -875,28 +896,6 @@ const Home = () => {
                 </>
               )}
             </Card>
-
-            {/* Current User Leave Balance */}
-            {hasEmployeeProfile && <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    My Leave Balance
-                  </h3>
-                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-                    Request
-                  </Button>
-                </div>
-                {leaveBalances.length > 0 ? <div className="grid grid-cols-3 gap-3">
-                    {leaveBalances.slice(0, 3).map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
-                        <div className="text-2xl font-bold text-primary">
-                          {item.balance}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">{item.leave_type.name}</div>
-                      </div>)}
-                  </div> : <p className="text-sm text-muted-foreground">No leave balance set for this year</p>}
-              </Card>}
-
             {/* Upcoming Birthdays */}
             <Card className="p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
