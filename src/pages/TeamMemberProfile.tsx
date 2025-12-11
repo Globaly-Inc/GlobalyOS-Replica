@@ -1055,8 +1055,8 @@ const TeamMemberProfile = () => {
                         }} onDelete={loadKudos} />
                       ) : (
                         <div key={`win-${item.data.id}`} className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500">
-                          <div className="p-3">
-                            <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-10 w-10 border border-border/50">
                                   <AvatarImage src={item.data.avatar} />
@@ -1073,8 +1073,8 @@ const TeamMemberProfile = () => {
                                 <Trophy className="h-4 w-4" />
                               </div>
                             </div>
-                            <RichTextContent content={item.data.content} className="text-sm mb-2" />
-                            <div className="pt-2 border-t border-border/50">
+                            <RichTextContent content={item.data.content} className="text-sm mb-3" />
+                            <div className="pt-3 border-t border-border/50">
                               <FeedReactions targetType="update" targetId={item.data.id} />
                             </div>
                           </div>

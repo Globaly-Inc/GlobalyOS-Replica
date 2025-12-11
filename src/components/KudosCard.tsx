@@ -96,9 +96,9 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   return (
     <>
       <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500">
-        <div className="p-3">
+        <div className="p-4">
           {/* Header */}
-          <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border border-border/50">
                 {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
@@ -147,7 +147,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
           </div>
           
           {/* Content */}
-          <div className="mb-2">
+          <div className="mb-3">
             <p className="text-sm font-medium text-foreground mb-1">
               🙌 Kudos to {recipientText}
             </p>
@@ -155,7 +155,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
           </div>
           
           {/* Reactions */}
-          <div className="pt-2 border-t border-border/50">
+          <div className="pt-3 border-t border-border/50">
             <FeedReactions targetType="kudos" targetId={kudos.id} />
           </div>
         </div>
