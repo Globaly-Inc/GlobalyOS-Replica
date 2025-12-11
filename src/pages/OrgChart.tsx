@@ -333,39 +333,47 @@ const OrgChart = () => {
                 <Card 
                   key={department} 
                   className={cn(
-                    "overflow-hidden rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 h-fit",
+                    "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
                     gridSpan
                   )}
                   style={{ 
                     borderColor: deptColor.border,
-                    background: `linear-gradient(145deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 50%)`
+                    background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
                   }}
                 >
-                  {/* Compact bento-style header */}
+                  {/* Bento-style header with gradient accent */}
                   <div 
-                    className="px-3 py-2 border-b flex items-center gap-2 relative"
+                    className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
                     style={{ 
                       backgroundColor: deptColor.light, 
                       borderBottomColor: deptColor.border 
                     }}
                   >
+                    {/* Decorative gradient circle */}
                     <div 
-                      className="p-1.5 rounded-lg"
+                      className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
+                      style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
+                    />
+                    <div 
+                      className="p-2 rounded-xl"
                       style={{ backgroundColor: deptColor.bg }}
                     >
-                      <Building2 className="h-3.5 w-3.5 text-white" />
+                      <Building2 className="h-4 w-4 text-white" />
                     </div>
-                    <h3 className="font-semibold text-sm flex-1" style={{ color: deptColor.bg }}>{department}</h3>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                      <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
+                    </div>
                     <Badge 
-                      className="text-[10px] px-2 py-0.5 text-white rounded-full"
+                      className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
                       style={{ backgroundColor: deptColor.bg }}
                     >
                       {deptEmployees.length}
                     </Badge>
                   </div>
                   
-                  {/* Compact content area */}
-                  <div className="p-3 space-y-3">
+                  {/* Content area */}
+                  <div className="p-4 space-y-4">
                     {tree.map((root) => (
                       <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
                     ))}
