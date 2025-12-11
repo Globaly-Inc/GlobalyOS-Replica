@@ -24,9 +24,10 @@ import { EditEmployeeInfoDialog } from "@/components/dialogs/EditEmployeeInfoDia
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
+import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil } from "lucide-react";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
@@ -75,6 +76,7 @@ const TeamMemberProfile = () => {
   const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
   const [currentLeave, setCurrentLeave] = useState<{ leave_type: string } | null>(null);
   const [documentSearch, setDocumentSearch] = useState('');
+  const [editStatusOpen, setEditStatusOpen] = useState(false);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -497,6 +499,16 @@ const TeamMemberProfile = () => {
                   >
                     {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
                   </Badge>
+                  {isAdminOrHR && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setEditStatusOpen(true)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
                   {currentLeave && (
                     <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
                       <Palmtree className="h-3 w-3" />
@@ -1086,6 +1098,16 @@ const TeamMemberProfile = () => {
           </div>
         </div>
       </div>
+      
+      {isAdminOrHR && (
+        <EditStatusDialog
+          open={editStatusOpen}
+          onOpenChange={setEditStatusOpen}
+          employeeId={id!}
+          currentStatus={employee?.status || 'invited'}
+          onSuccess={loadEmployee}
+        />
+      )}
     </Layout>;
 };
 export default TeamMemberProfile;
