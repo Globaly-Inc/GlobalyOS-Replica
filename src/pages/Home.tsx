@@ -531,8 +531,8 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="all" className="space-y-6">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
                   <TabsList className="h-auto p-1.5 flex-wrap">
                     <TabsTrigger value="all" className="px-3 py-2 gap-1.5">
                       <MessageSquare className="h-4 w-4 shrink-0" />
@@ -563,20 +563,14 @@ const Home = () => {
                       </span>
                     </TabsTrigger>
                   </TabsList>
-                  {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Post Update
-                    </Button>}
-                </div>
-                
-                {/* Date Filter */}
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  
+                  {/* Date Filter */}
                   <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-                    <SelectTrigger className="w-[140px] h-9">
+                    <SelectTrigger className="w-[130px] h-9 bg-background">
+                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background">
                       <SelectItem value="all">All Time</SelectItem>
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
@@ -584,6 +578,11 @@ const Home = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Post Update
+                  </Button>}
               </div>
 
               <TabsContent value="all" className="space-y-4">
