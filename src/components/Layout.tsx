@@ -113,9 +113,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center px-4 md:px-8">
           <div className="mr-4 flex items-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
+            <button 
+              onClick={() => navigate("/landing")}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark hover:opacity-90 transition-opacity"
+            >
               <Users className="h-5 w-5 text-primary-foreground" />
-            </div>
+            </button>
           </div>
 
           {(userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
