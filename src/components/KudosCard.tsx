@@ -19,6 +19,7 @@ import {
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { EditKudosDialog } from "./dialogs/EditKudosDialog";
+import KudosViewDialog from "./dialogs/KudosViewDialog";
 
 interface KudosCardProps {
   kudos: Kudos;
@@ -33,6 +34,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const allRecipients = [
@@ -95,7 +97,10 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
 
   return (
     <>
-      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500 flex flex-col">
+      <div 
+        className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500 flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setShowViewDialog(true)}
+      >
         <div className="p-4 flex-1">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
@@ -120,6 +125,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
               className="relative"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
+              onClick={(e) => e.stopPropagation()}
             >
               {isHovered && canEditDelete ? (
                 <div className="flex items-center gap-1">
@@ -151,12 +157,14 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
             <p className="text-sm font-medium text-foreground mb-1">
               🙌 Kudos to {recipientText}
             </p>
-            <RichTextContent content={kudos.comment} className="text-sm" />
+            <div className="line-clamp-5">
+              <RichTextContent content={kudos.comment} className="text-sm" />
+            </div>
           </div>
         </div>
         
         {/* Reactions */}
-        <div className="px-4 py-2 border-t border-border/50">
+        <div className="px-4 py-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
           <FeedReactions targetType="kudos" targetId={kudos.id} />
         </div>
       </div>
@@ -194,6 +202,19 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
           onSuccess={onDelete}
         />
       )}
+
+      <KudosViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        kudos={{
+          id: kudos.id,
+          givenBy: kudos.givenBy,
+          givenByAvatar: kudos.givenByAvatar,
+          date: kudos.date,
+          comment: kudos.comment,
+          recipientText
+        }}
+      />
     </>
   );
 };
