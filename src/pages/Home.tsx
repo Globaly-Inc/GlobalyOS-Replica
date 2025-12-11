@@ -804,8 +804,15 @@ const Home = () => {
                     Request
                   </Button>
                 </div>
-                {leaveBalances.length > 0 ? <div className="grid grid-cols-3 gap-3">
-                    {leaveBalances.slice(0, 3).map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
+                {leaveBalances.length > 0 ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[...leaveBalances]
+                      .sort((a, b) => {
+                        // Sort by category: paid first, then unpaid
+                        if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
+                        if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
+                        return a.leave_type.name.localeCompare(b.leave_type.name);
+                      })
+                      .map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
                         <div className="text-2xl font-bold text-primary">
                           {item.balance}
                         </div>
