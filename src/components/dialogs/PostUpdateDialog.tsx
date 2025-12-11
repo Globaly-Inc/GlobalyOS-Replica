@@ -60,10 +60,18 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     content: "",
   });
 
-  // Fetch team members when dialog opens
+  // Fetch team members when dialog opens - use ref to prevent duplicate fetches
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
     const fetchTeamMembers = async () => {
-      if (!open || !currentOrg) return;
+      if (!open || !currentOrg) {
+        hasFetchedRef.current = false;
+        return;
+      }
+      
+      // Prevent duplicate fetches while dialog is open
+      if (hasFetchedRef.current) return;
+      hasFetchedRef.current = true;
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -92,7 +100,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     };
 
     fetchTeamMembers();
-  }, [open, currentOrg]);
+  }, [open, currentOrg?.id]);
 
   const toggleMember = (memberId: string) => {
     setSelectedMembers(prev =>
