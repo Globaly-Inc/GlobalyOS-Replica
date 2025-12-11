@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ParsedEmployee {
   first_name: string;
@@ -748,10 +749,30 @@ const BulkImport = () => {
                       </thead>
                       <tbody>
                         {parsedData.map((emp, i) => {
-                          const rowHasError = validationErrors.some(err => err.startsWith(`Row ${i + 1}:`));
+                          const rowErrors = validationErrors.filter(err => err.startsWith(`Row ${i + 1}:`));
+                          const rowHasError = rowErrors.length > 0;
                           return (
                           <tr key={i} className={`border-b last:border-0 ${rowHasError ? 'bg-destructive/10' : ''}`}>
-                            <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${rowHasError ? 'bg-destructive/20 text-destructive font-medium' : 'bg-muted/30 text-muted-foreground'}`}>{i + 1}</td>
+                            <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${rowHasError ? 'bg-destructive/20 text-destructive font-medium' : 'bg-muted/30 text-muted-foreground'}`}>
+                              {rowHasError ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help">{i + 1}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-xs">
+                                      <ul className="text-xs space-y-1">
+                                        {rowErrors.map((err, idx) => (
+                                          <li key={idx}>{err.replace(`Row ${i + 1}: `, '')}</li>
+                                        ))}
+                                      </ul>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                i + 1
+                              )}
+                            </td>
                             <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.first_name}
