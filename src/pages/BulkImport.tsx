@@ -389,6 +389,7 @@ const BulkImport = () => {
   const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -464,6 +465,7 @@ const BulkImport = () => {
       loadOffices();
       loadTeamMembers();
       loadDepartments();
+      loadPositions();
     }
   }, [currentOrg?.id]);
 
@@ -501,6 +503,18 @@ const BulkImport = () => {
     if (data) {
       const uniqueDepts = [...new Set(data.map((d: { department: string }) => d.department).filter(Boolean))].sort();
       setDepartments(uniqueDepts);
+    }
+  };
+
+  const loadPositions = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('employees')
+      .select('position')
+      .eq('organization_id', currentOrg.id);
+    if (data) {
+      const uniquePositions = [...new Set(data.map((d: { position: string }) => d.position).filter(Boolean))].sort();
+      setPositions(uniquePositions);
     }
   };
 
@@ -1099,13 +1113,18 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('position') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <SearchableSelectCell
                                 value={emp.position}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'position'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'position' })}
+                                options={[
+                                  ...positions.map(pos => ({ value: pos, label: pos })),
+                                  ...(emp.position && !positions.includes(emp.position) 
+                                    ? [{ value: emp.position, label: emp.position }] 
+                                    : [])
+                                ]}
                                 onSave={(v) => updateCellValue(i, 'position', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select position..."
                                 error={getFieldError('position')}
+                                allowCustom
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('join_date') ? 'border-destructive' : 'border-border/50'}`}>
