@@ -383,7 +383,8 @@ const TeamMemberProfile = () => {
   };
 
   const loadWins = async () => {
-    const { data } = await supabase.from("updates").select(`
+    // Fetch wins posted by this employee
+    const { data: postedWins } = await supabase.from("updates").select(`
         id,
         type,
         content,
@@ -401,17 +402,67 @@ const TeamMemberProfile = () => {
       .eq("type", "win")
       .order("created_at", { ascending: false });
     
-    if (data) {
-      setWins(data.map((w: any) => ({
-        id: w.id,
-        employeeId: w.employee_id,
-        employeeName: w.employee.profiles.full_name,
-        content: w.content,
-        date: w.created_at,
-        avatar: w.employee.profiles.avatar_url,
-        type: w.type as "win"
-      })));
+    // Fetch wins where this employee is tagged
+    const { data: taggedWins } = await supabase.from("update_mentions")
+      .select(`
+        update:updates!inner(
+          id,
+          type,
+          content,
+          created_at,
+          employee_id,
+          employee:employees!inner(
+            id,
+            profiles!inner(
+              full_name,
+              avatar_url
+            )
+          )
+        )
+      `)
+      .eq("employee_id", id)
+      .eq("update.type", "win");
+    
+    // Combine and deduplicate
+    const allWins = new Map();
+    
+    if (postedWins) {
+      postedWins.forEach((w: any) => {
+        allWins.set(w.id, {
+          id: w.id,
+          employeeId: w.employee_id,
+          employeeName: w.employee.profiles.full_name,
+          content: w.content,
+          date: w.created_at,
+          avatar: w.employee.profiles.avatar_url,
+          type: w.type as "win"
+        });
+      });
     }
+    
+    if (taggedWins) {
+      taggedWins.forEach((t: any) => {
+        const w = t.update;
+        if (w && !allWins.has(w.id)) {
+          allWins.set(w.id, {
+            id: w.id,
+            employeeId: w.employee_id,
+            employeeName: w.employee.profiles.full_name,
+            content: w.content,
+            date: w.created_at,
+            avatar: w.employee.profiles.avatar_url,
+            type: w.type as "win"
+          });
+        }
+      });
+    }
+    
+    // Sort by date descending
+    const sortedWins = Array.from(allWins.values()).sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    setWins(sortedWins);
   };
 
   if (loading) {
