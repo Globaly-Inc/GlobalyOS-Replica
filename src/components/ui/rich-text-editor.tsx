@@ -31,11 +31,16 @@ export const RichTextEditor = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
+  // Sync editor content when value prop changes externally (e.g., from AI generation)
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = sanitizeHtml(value);
+    if (editorRef.current) {
+      const sanitizedValue = sanitizeHtml(value);
+      // Only update if the content actually differs to avoid cursor issues
+      if (editorRef.current.innerHTML !== sanitizedValue) {
+        editorRef.current.innerHTML = sanitizedValue;
+      }
     }
-  }, []);
+  }, [value]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
