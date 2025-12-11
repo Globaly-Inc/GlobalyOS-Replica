@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -53,6 +53,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { playNotificationSound } = useNotificationSound();
   const { preferences, shouldPlaySound } = useNotificationPreferences();
   const previousCountRef = useRef<number>(0);
+  const [checkInTime, setCheckInTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>("");
 
   // Send push notification when a new notification is created
   const sendPushNotification = useCallback(async (notification: any) => {
@@ -152,6 +154,81 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound, preferences.soundType]);
 
+  // Fetch today's attendance record to check if user is checked in
+  useEffect(() => {
+    const fetchTodayAttendance = async () => {
+      if (!user?.id) return;
+
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!employee) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const { data: attendance } = await supabase
+        .from("attendance_records")
+        .select("check_in_time, check_out_time")
+        .eq("employee_id", employee.id)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (attendance?.check_in_time && !attendance?.check_out_time) {
+        setCheckInTime(new Date(attendance.check_in_time));
+      } else {
+        setCheckInTime(null);
+      }
+    };
+
+    fetchTodayAttendance();
+
+    // Subscribe to attendance changes
+    const channel = supabase
+      .channel("layout-attendance")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+        },
+        () => {
+          fetchTodayAttendance();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // Update elapsed time every second
+  useEffect(() => {
+    if (!checkInTime) {
+      setElapsedTime("");
+      return;
+    }
+
+    const updateElapsed = () => {
+      const now = new Date();
+      const diff = now.getTime() - checkInTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setElapsedTime(
+        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+      );
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+
+    return () => clearInterval(interval);
+  }, [checkInTime]);
+
   useEffect(() => {
     const loadUserProfile = async () => {
       if (!user?.id || !currentOrg) return;
@@ -250,6 +327,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="hidden md:flex md:items-center md:gap-2">
+            {elapsedTime && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium">
+                <Clock className="h-4 w-4" />
+                <span>{elapsedTime}</span>
+              </div>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -414,6 +497,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     </NavLink>
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
+                    {elapsedTime && (
+                      <div className="flex items-center gap-3 px-4 py-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium mx-2 mb-2">
+                        <Clock className="h-5 w-5" />
+                        <span>Checked in: {elapsedTime}</span>
+                      </div>
+                    )}
                     <button
                       onClick={() => {
                         setQrScannerOpen(true);
