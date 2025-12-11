@@ -291,44 +291,20 @@ serve(async (req) => {
         }
       }
     } else {
-      console.log('User does not exist, creating new user...');
+      // User does not exist - reject login attempt
+      // Users must be added by an admin through the team management system
+      console.log('User does not exist, rejecting login attempt for:', email);
+      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'user_not_found');
       
-      const { data: newUserData, error: createError } = await supabase.auth.admin.createUser({
-        email: email.toLowerCase(),
-        email_confirm: true,
-        user_metadata: {
-          full_name: email.split('@')[0],
-        },
-      });
-
-      if (createError) {
-        console.error('Failed to create user:', createError);
-        await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'user_creation_failed');
-        return new Response(
-          JSON.stringify({ error: 'Failed to create account' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      user = newUserData.user;
-
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email.toLowerCase(),
-      });
-
-      if (!linkError && linkData) {
-        const url = new URL(linkData.properties.action_link);
-        const token = url.searchParams.get('token');
-
-        if (token) {
-          const { data: verifyData } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: 'magiclink',
-          });
-          session = verifyData?.session;
-        }
-      }
+      // Clean up the OTP since we're rejecting
+      await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'No account found with this email. Please contact your administrator to be added to the system.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Clean up used OTP
