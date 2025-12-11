@@ -32,10 +32,11 @@ interface PositionTimelineProps {
   entries: TimelineEntry[];
   currentPosition: string;
   currentDepartment: string;
-  currentSalary: number | null;
+  currentSalary?: number | null;
   currentCurrency?: string;
   employeeId?: string;
   canEdit?: boolean;
+  showSalary?: boolean;
   onRefresh?: () => void;
 }
 
@@ -74,6 +75,7 @@ export const PositionTimeline = ({
   currentCurrency = "USD",
   employeeId,
   canEdit = false,
+  showSalary = true,
   onRefresh
 }: PositionTimelineProps) => {
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
@@ -182,7 +184,7 @@ export const PositionTimeline = ({
           </div>
           <h3 className="font-semibold text-lg">{currentPosition}</h3>
           <p className="text-sm text-muted-foreground">{currentDepartment}</p>
-          {currentSalary && (
+          {showSalary && currentSalary && (
             <p className="text-sm font-medium mt-1">{formatSalary(currentSalary, currentCurrency)}/year</p>
           )}
         </div>
@@ -222,7 +224,7 @@ export const PositionTimeline = ({
                           <h4 className="font-semibold">{entry.position}</h4>
                           <p className="text-sm text-muted-foreground">{entry.department}</p>
                           
-                          {entry.salary && (
+                          {showSalary && entry.salary && (
                             <p className="text-sm font-medium mt-1">
                               {formatSalary(entry.salary)}
                             </p>
@@ -294,67 +296,69 @@ export const PositionTimeline = ({
               />
             </div>
             
-            <div className="space-y-3">
-              <Label>Remuneration</Label>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="current-currency" className="text-xs text-muted-foreground">Currency</Label>
-                  <Select
-                    value={currentEditData.currency}
-                    onValueChange={(value) => setCurrentEditData({ ...currentEditData, currency: value })}
-                  >
-                    <SelectTrigger id="current-currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {currencies.map((currency) => (
-                        <SelectItem key={currency.code} value={currency.code}>
-                          {currency.symbol} {currency.code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {showSalary && (
+              <div className="space-y-3">
+                <Label>Remuneration</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="current-currency" className="text-xs text-muted-foreground">Currency</Label>
+                    <Select
+                      value={currentEditData.currency}
+                      onValueChange={(value) => setCurrentEditData({ ...currentEditData, currency: value })}
+                    >
+                      <SelectTrigger id="current-currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.symbol} {currency.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="current-salary" className="text-xs text-muted-foreground">Amount</Label>
+                    <Input
+                      id="current-salary"
+                      type="number"
+                      value={currentEditData.salary}
+                      onChange={(e) => setCurrentEditData({ ...currentEditData, salary: e.target.value })}
+                      placeholder="e.g., 85000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="current-frequency" className="text-xs text-muted-foreground">Frequency</Label>
+                    <Select
+                      value={currentEditData.paymentFrequency}
+                      onValueChange={(value) => setCurrentEditData({ ...currentEditData, paymentFrequency: value })}
+                    >
+                      <SelectTrigger id="current-frequency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        {paymentFrequencies.map((freq) => (
+                          <SelectItem key={freq.value} value={freq.value}>
+                            {freq.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="current-salary" className="text-xs text-muted-foreground">Amount</Label>
-                  <Input
-                    id="current-salary"
-                    type="number"
-                    value={currentEditData.salary}
-                    onChange={(e) => setCurrentEditData({ ...currentEditData, salary: e.target.value })}
-                    placeholder="e.g., 85000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="current-frequency" className="text-xs text-muted-foreground">Frequency</Label>
-                  <Select
-                    value={currentEditData.paymentFrequency}
-                    onValueChange={(value) => setCurrentEditData({ ...currentEditData, paymentFrequency: value })}
-                  >
-                    <SelectTrigger id="current-frequency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {paymentFrequencies.map((freq) => (
-                        <SelectItem key={freq.value} value={freq.value}>
-                          {freq.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                
+                {/* Annual Pay Calculation */}
+                {currentEditData.salary && (
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="text-xs text-muted-foreground">Annual Pay</p>
+                    <p className="text-lg font-semibold text-primary">
+                      {formatSalary(annualPay, currentEditData.currency)}
+                    </p>
+                  </div>
+                )}
               </div>
-              
-              {/* Annual Pay Calculation */}
-              {currentEditData.salary && (
-                <div className="p-3 bg-muted/50 rounded-lg border">
-                  <p className="text-xs text-muted-foreground">Annual Pay</p>
-                  <p className="text-lg font-semibold text-primary">
-                    {formatSalary(annualPay, currentEditData.currency)}
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setCurrentEditOpen(false)}>
