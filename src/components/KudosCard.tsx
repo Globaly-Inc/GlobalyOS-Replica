@@ -1,5 +1,6 @@
 import { Kudos } from "@/types/employee";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 
@@ -41,9 +42,7 @@ export const KudosCard = ({ kudos }: KudosCardProps) => {
           <p className="text-sm font-medium text-foreground mb-1">
             🙌 Kudos to {recipientText}
           </p>
-          <p className="text-sm text-foreground/80 leading-relaxed">
-            "{kudos.comment}"
-          </p>
+          <RichTextContent content={kudos.comment} className="text-sm" />
         </div>
         
         {/* Reactions */}

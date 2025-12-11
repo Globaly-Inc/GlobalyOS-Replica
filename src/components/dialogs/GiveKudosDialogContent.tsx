@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -279,19 +279,14 @@ export const GiveKudosDialogContent = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="comment">Your Message *</Label>
-        <Textarea
-          id="comment"
+        <Label>Your Message *</Label>
+        <RichTextEditor
           value={formData.comment}
-          onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+          onChange={(value) => setFormData({ ...formData, comment: value })}
           placeholder="Share what you appreciate about this person..."
-          rows={4}
-          required
+          minHeight="100px"
         />
         {errors.comment && <p className="text-sm text-destructive">{errors.comment}</p>}
-        <p className="text-xs text-muted-foreground">
-          {formData.comment.length}/1000 characters
-        </p>
       </div>
 
       <div className="flex gap-2 pt-4">
