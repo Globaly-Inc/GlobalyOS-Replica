@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, Check, User, MapPin, Briefcase, Shield, Phone, Upload, Camera, CheckCircle2 } from "lucide-react";
+import { UserPlus, Check, User, MapPin, Briefcase, Shield, Phone, Upload, Camera, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { FormInputField } from "@/components/FormInputField";
@@ -197,7 +197,38 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
 
   const handleBlur = useCallback((field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
+    // Validate field on blur
+    validateField(field);
   }, []);
+
+  const validateField = useCallback((field: string) => {
+    try {
+      const fieldSchema = inviteSchema.shape[field as keyof typeof inviteSchema.shape];
+      if (fieldSchema) {
+        fieldSchema.parse(formData[field as keyof FormDataType]);
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors(prev => ({ ...prev, [field]: error.errors[0]?.message || 'Invalid value' }));
+      }
+    }
+  }, [formData]);
+
+  const getSectionErrors = useCallback((section: Section): string[] => {
+    const sectionFields: Record<Section, string[]> = {
+      personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'email', 'personalEmail'],
+      address: ['street', 'city', 'state', 'country', 'postcode'],
+      employment: ['department', 'position', 'managerId', 'officeId', 'joinDate', 'idNumber', 'taxNumber', 'remuneration'],
+      emergency: ['emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelationship'],
+      role: ['role'],
+    };
+    return sectionFields[section].filter(field => touched[field] && errors[field]);
+  }, [touched, errors]);
 
   const isSectionComplete = useCallback((section: Section): boolean => {
     switch (section) {
@@ -311,6 +342,8 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
   };
 
   const getSectionIcon = (section: Section, completed: boolean) => {
+    const errorCount = getSectionErrors(section).length;
+    if (errorCount > 0) return <AlertCircle className="h-4 w-4 text-destructive" />;
     if (completed) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     switch (section) {
       case 'personal': return <User className="h-4 w-4" />;
@@ -319,6 +352,21 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       case 'emergency': return <Phone className="h-4 w-4" />;
       case 'role': return <Shield className="h-4 w-4" />;
     }
+  };
+
+  const getSectionLabel = (section: Section, label: string, optional?: boolean) => {
+    const errorCount = getSectionErrors(section).length;
+    return (
+      <div className="flex items-center gap-2">
+        <span>{label}</span>
+        {optional && <span className="text-xs text-muted-foreground">(Optional)</span>}
+        {errorCount > 0 && (
+          <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">
+            {errorCount} {errorCount === 1 ? 'error' : 'errors'}
+          </span>
+        )}
+      </div>
+    );
   };
 
   if (success) {
@@ -355,7 +403,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('personal', completedSections.has('personal'))}
-                  <span>Personal Information</span>
+                  {getSectionLabel('personal', 'Personal Information')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 pb-6 space-y-4">
@@ -396,7 +444,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('address', completedSections.has('address'))}
-                  <span>Address</span>
+                  {getSectionLabel('address', 'Address')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 pb-6 space-y-4">
@@ -424,7 +472,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('employment', completedSections.has('employment'))}
-                  <span>Employment Details</span>
+                  {getSectionLabel('employment', 'Employment Details')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 pb-6 space-y-4">
@@ -505,7 +553,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('emergency', completedSections.has('emergency'))}
-                  <span>Emergency Contact <span className="text-xs text-muted-foreground ml-1">(Optional)</span></span>
+                  {getSectionLabel('emergency', 'Emergency Contact', true)}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 pb-6 space-y-4">
@@ -522,7 +570,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('role', completedSections.has('role'))}
-                  <span>System Role</span>
+                  {getSectionLabel('role', 'System Role')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 pb-6 space-y-4">
