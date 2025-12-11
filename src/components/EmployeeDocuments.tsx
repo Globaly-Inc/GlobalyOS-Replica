@@ -247,7 +247,7 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                     return (
                       <div
                         key={doc.id}
-                        className="p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
+                        className="p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors group relative"
                       >
                         <div className="flex items-start gap-2">
                           <div className="p-1.5 bg-primary/10 rounded shrink-0">
@@ -263,7 +263,7 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end gap-0.5 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 rounded p-0.5">
                           <Button
                             variant="ghost"
                             size="icon"
