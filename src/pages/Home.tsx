@@ -86,6 +86,19 @@ interface PersonOnLeave {
   };
   leave_type: string;
 }
+interface UpcomingTeamLeave {
+  id: string;
+  start_date: string;
+  end_date: string;
+  leave_type: string;
+  employee: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+}
 interface UpcomingEvent {
   id: string;
   date: Date;
@@ -113,6 +126,7 @@ const Home = () => {
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [leaveBalances, setLeaveBalances] = useState<LeaveTypeBalance[]>([]);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
+  const [upcomingTeamLeave, setUpcomingTeamLeave] = useState<UpcomingTeamLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -317,6 +331,48 @@ const Home = () => {
       `).eq("organization_id", currentOrg.id).eq("status", "approved").lte("start_date", today).gte("end_date", today);
     if (leaveRequests) {
       setPeopleOnLeave(leaveRequests as PersonOnLeave[]);
+    }
+
+    // Load upcoming team leave for managers (direct reports' approved leave in the future)
+    const { data: employeeCheck } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("organization_id", currentOrg.id)
+      .maybeSingle();
+
+    if (employeeCheck) {
+      const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
+      const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
+      
+      const { data: teamLeave } = await supabase
+        .from("leave_requests")
+        .select(`
+          id,
+          start_date,
+          end_date,
+          leave_type,
+          employee:employees!leave_requests_employee_id_fkey(
+            id,
+            manager_id,
+            profiles!inner(
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "approved")
+        .gte("start_date", tomorrow)
+        .lte("start_date", nextMonth)
+        .order("start_date", { ascending: true });
+
+      if (teamLeave) {
+        const directReportsLeave = teamLeave.filter((req: any) => 
+          req.employee?.manager_id === employeeCheck.id
+        );
+        setUpcomingTeamLeave(directReportsLeave as UpcomingTeamLeave[]);
+      }
     }
 
     // Load current user's leave balance from new flexible table
@@ -769,6 +825,41 @@ const Home = () => {
                       </HoverCardContent>
                     </HoverCard>)}
                 </div> : <p className="text-sm text-muted-foreground">No one is on leave today</p>}
+              
+              {/* Upcoming Team Leave - for managers */}
+              {upcomingTeamLeave.length > 0 && (
+                <>
+                  <div className="border-t border-border my-4" />
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
+                      <CalendarDays className="h-4 w-4" />
+                      Upcoming Team Leave
+                    </h4>
+                    <div className="space-y-2">
+                      {upcomingTeamLeave.slice(0, 3).map(leave => (
+                        <Link 
+                          key={leave.id} 
+                          to={`/team/${leave.employee.id}`}
+                          className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors"
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium text-foreground truncate flex-1">
+                            {leave.employee.profiles.full_name.split(" ")[0]}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(parseISO(leave.start_date), "MMM d")}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </Card>
 
             {/* Current User Leave Balance */}
