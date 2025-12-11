@@ -152,10 +152,44 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
     // Get pending requests - either as manager or HR
     let requests: PendingLeaveRequest[] = [];
+    let hrBackupRequests: PendingLeaveRequest[] = [];
 
+    // As manager, get direct reports' pending requests FIRST
+    const { data: directReportRequests } = await supabase
+      .from("leave_requests")
+      .select(`
+        id,
+        leave_type,
+        start_date,
+        end_date,
+        days_count,
+        reason,
+        employee:employees!leave_requests_employee_id_fkey(
+          id,
+          manager_id,
+          profiles!inner(
+            full_name,
+            avatar_url
+          )
+        )
+      `)
+      .eq("organization_id", currentOrg.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
+
+    if (directReportRequests) {
+      // Filter to only direct reports (where current user is the manager)
+      const managerRequests = directReportRequests.filter((req: any) => 
+        req.employee?.manager_id === currentEmployee.id
+      );
+      
+      for (const req of managerRequests) {
+        requests.push(req as PendingLeaveRequest);
+      }
+    }
+
+    // If user is HR, also check for requests where manager is on leave (HR backup)
     if (isHR) {
-      // HR sees requests where the manager is on leave OR all pending if they're HR
-      // First, get all pending requests
       const { data: allPending } = await supabase
         .from("leave_requests")
         .select(`
@@ -179,8 +213,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         .order("created_at", { ascending: true });
 
       if (allPending) {
-        // Filter to show requests where manager is on leave
+        const existingIds = new Set(requests.map(r => r.id));
+        
         for (const req of allPending) {
+          // Skip if already in manager requests
+          if (existingIds.has(req.id)) continue;
+          
           const emp = req.employee as any;
           if (emp.manager_id) {
             // Check if their manager is on leave
@@ -194,64 +232,20 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
               .maybeSingle();
 
             if (mgrOnLeave) {
+              hrBackupRequests.push(req as PendingLeaveRequest);
               requests.push(req as PendingLeaveRequest);
             }
           } else {
             // No manager assigned - HR should handle
+            hrBackupRequests.push(req as PendingLeaveRequest);
             requests.push(req as PendingLeaveRequest);
           }
         }
-        setShowAsHR(requests.length > 0);
       }
     }
 
-    // As manager, get direct reports' pending requests
-    const { data: directReportRequests, error: directReportError } = await supabase
-      .from("leave_requests")
-      .select(`
-        id,
-        leave_type,
-        start_date,
-        end_date,
-        days_count,
-        reason,
-        employee:employees!leave_requests_employee_id_fkey(
-          id,
-          manager_id,
-          profiles!inner(
-            full_name,
-            avatar_url
-          )
-        )
-      `)
-      .eq("organization_id", currentOrg.id)
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
-
-    console.log("DEBUG - currentEmployee.id:", currentEmployee.id);
-    console.log("DEBUG - directReportRequests:", directReportRequests);
-    console.log("DEBUG - directReportError:", directReportError);
-
-    if (directReportRequests) {
-      // Filter to only direct reports
-      const managerRequests = directReportRequests.filter((req: any) => {
-        console.log("DEBUG - req.employee:", req.employee);
-        console.log("DEBUG - req.employee?.manager_id:", req.employee?.manager_id);
-        console.log("DEBUG - match:", req.employee?.manager_id === currentEmployee.id);
-        return req.employee?.manager_id === currentEmployee.id;
-      });
-      
-      console.log("DEBUG - managerRequests after filter:", managerRequests);
-      
-      // Combine with HR requests (avoid duplicates)
-      const existingIds = new Set(requests.map(r => r.id));
-      for (const req of managerRequests) {
-        if (!existingIds.has(req.id)) {
-          requests.push(req as PendingLeaveRequest);
-        }
-      }
-    }
-    console.log("DEBUG - final requests:", requests);
+    // Only show "Manager Unavailable" badge if there are HR backup requests
+    setShowAsHR(hrBackupRequests.length > 0);
     setPendingRequests(requests);
     setLoading(false);
   };
