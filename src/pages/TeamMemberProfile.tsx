@@ -714,9 +714,15 @@ const TeamMemberProfile = () => {
                   {directReports.length > 0 && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Manages:</span>
-                      <div className="flex items-center gap-1">
-                        {directReports.slice(0, 5).map((report) => (
-                          <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" title={report.profiles.full_name}>
+                      <div className="flex items-center">
+                        {directReports.slice(0, 5).map((report, index) => (
+                          <Link 
+                            key={report.id} 
+                            to={`/team/${report.id}`} 
+                            className={`hover:z-20 transition-transform hover:scale-110 ${index > 0 ? '-ml-1.5' : ''}`}
+                            style={{ zIndex: index }}
+                            title={report.profiles.full_name}
+                          >
                             <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
                               <AvatarImage src={report.profiles.avatar_url || undefined} />
                               <AvatarFallback className="text-xs bg-muted">
