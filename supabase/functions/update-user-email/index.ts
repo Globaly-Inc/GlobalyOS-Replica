@@ -62,13 +62,37 @@ serve(async (req) => {
       });
     }
 
+    // Check if email already exists in profiles table
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", newEmail.toLowerCase())
+      .neq("id", userId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      console.log(`Email ${newEmail} already exists for another user`);
+      return new Response(JSON.stringify({ error: "This email address is already in use by another user" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Update auth.users email
     const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      email: newEmail,
+      email: newEmail.toLowerCase(),
       email_confirm: true, // Auto-confirm the new email
     });
 
     if (updateAuthError) {
+      console.error("Error updating auth user:", updateAuthError);
+      // Check for duplicate email error
+      if (updateAuthError.message.includes("duplicate") || updateAuthError.message.includes("already")) {
+        return new Response(JSON.stringify({ error: "This email address is already in use" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: updateAuthError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
