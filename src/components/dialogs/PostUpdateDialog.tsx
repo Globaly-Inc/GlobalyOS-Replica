@@ -14,8 +14,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useOrganization } from "@/hooks/useOrganization";
 
+// Helper to get plain text length from HTML
+const getTextLength = (html: string): number => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return (doc.body.textContent || "").trim().length;
+};
+
 const updateSchema = z.object({
-  content: z.string().trim().min(10, "Content must be at least 10 characters").max(1000, "Content must be less than 1000 characters"),
+  content: z.string()
+    .refine((val) => getTextLength(val) >= 10, { message: "Content must be at least 10 characters" })
+    .refine((val) => getTextLength(val) <= 5000, { message: "Content must be less than 5000 characters" }),
   type: z.enum(["win", "announcement"], { errorMap: () => ({ message: "Please select a type" }) }),
 });
 
