@@ -5,13 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, ChevronDown, X } from "lucide-react";
+import { Heart, ChevronDown, X, Search } from "lucide-react";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const kudosSchema = z.object({
   employeeIds: z.array(z.string().uuid()).min(1, "Please select at least one team member"),
@@ -22,6 +24,7 @@ interface Employee {
   id: string;
   profiles: {
     full_name: string;
+    avatar_url: string | null;
   };
 }
 
@@ -29,6 +32,7 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -58,9 +62,10 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
 
     const { data, error } = await supabase
       .from("employees")
-      .select("id, profiles!inner(full_name)")
+      .select("id, profiles!inner(full_name, avatar_url)")
       .eq("organization_id", currentOrg.id)
-      .neq("user_id", user.id);
+      .neq("user_id", user.id)
+      .order("profiles(full_name)");
 
     if (!error && data) {
       setEmployees(data as Employee[]);
@@ -210,26 +215,48 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search team members..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-9"
+                    />
+                  </div>
+                </div>
                 <ScrollArea className="h-[200px]">
                   <div className="p-2 space-y-1">
-                    {employees.map((employee) => {
-                      const isPreselected = employee.id === preselectedEmployeeId;
-                      return (
-                        <div
-                          key={employee.id}
-                          className={`flex items-center gap-2 p-2 rounded-md hover:bg-muted ${isPreselected ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                          onClick={() => !isPreselected && toggleEmployee(employee.id)}
-                        >
-                          <Checkbox
-                            checked={formData.employeeIds.includes(employee.id)}
-                            onCheckedChange={() => !isPreselected && toggleEmployee(employee.id)}
-                            disabled={isPreselected}
-                          />
-                          <span className="text-sm">{employee.profiles.full_name}</span>
-                          {isPreselected && <span className="text-xs text-muted-foreground ml-auto">(selected)</span>}
-                        </div>
-                      );
-                    })}
+                    {employees
+                      .filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((employee) => {
+                        const isPreselected = employee.id === preselectedEmployeeId;
+                        return (
+                          <div
+                            key={employee.id}
+                            className={`flex items-center gap-2 p-2 rounded-md hover:bg-muted ${isPreselected ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                            onClick={() => !isPreselected && toggleEmployee(employee.id)}
+                          >
+                            <Checkbox
+                              checked={formData.employeeIds.includes(employee.id)}
+                              onCheckedChange={() => !isPreselected && toggleEmployee(employee.id)}
+                              disabled={isPreselected}
+                            />
+                            <Avatar className="h-6 w-6">
+                              {employee.profiles.avatar_url && <AvatarImage src={employee.profiles.avatar_url} />}
+                              <AvatarFallback className="text-xs bg-muted">
+                                {employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{employee.profiles.full_name}</span>
+                            {isPreselected && <span className="text-xs text-muted-foreground ml-auto">(selected)</span>}
+                          </div>
+                        );
+                      })}
+                    {employees.filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
+                    )}
                   </div>
                 </ScrollArea>
               </PopoverContent>
