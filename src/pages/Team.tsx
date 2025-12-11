@@ -44,6 +44,7 @@ interface UserRole {
 }
 
 const Team = () => {
+  // Team directory page component
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [employees, setEmployees] = useState<Employee[]>([]);
