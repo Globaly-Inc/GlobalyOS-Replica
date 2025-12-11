@@ -41,7 +41,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
   // Find active session (checked in but not out)
   const activeSession = todayRecords?.find(r => r.check_in_time && !r.check_out_time);
   const completedSessions = todayRecords?.filter(r => r.check_in_time && r.check_out_time) || [];
-  const canCheckIn = !activeSession && (todayRecords?.length || 0) < 6;
+  const canCheckIn = !activeSession && (todayRecords?.length || 0) < 3;
 
   const { data: weekRecords } = useQuery({
     queryKey: ["attendance-week", employeeId, format(weekStart, "yyyy-MM-dd")],
@@ -208,9 +208,16 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
         <div className="p-4 rounded-xl bg-muted/50 border">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold">Today's Sessions</p>
-            <Badge variant="outline" className="text-xs">
-              {todayRecords?.length || 0}/6
-            </Badge>
+            <div className="flex items-center gap-2">
+              {(todayRecords?.length || 0) > 0 && (
+                <span className="text-xs font-medium text-primary">
+                  Total: {todayRecords?.reduce((sum, r) => sum + (r.work_hours || 0), 0).toFixed(1)}h
+                </span>
+              )}
+              <Badge variant="outline" className="text-xs">
+                {todayRecords?.length || 0}/3
+              </Badge>
+            </div>
           </div>
           
           {/* Completed sessions */}
@@ -261,7 +268,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
                   </Button>
                 </>
               ) : (
-                <p className="text-muted-foreground text-sm">Daily limit reached (6 sessions)</p>
+                <p className="text-muted-foreground text-sm">Daily limit reached (3 sessions)</p>
               )}
             </div>
           )}
