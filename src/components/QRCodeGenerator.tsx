@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { QrCode, RefreshCw, Download, Building2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { QrCode, RefreshCw, Download, Building2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
+import { formatDateTime } from "@/lib/utils";
 import QRCode from "qrcode";
 
 interface Office {
@@ -21,6 +23,7 @@ export const QRCodeGenerator = () => {
   const queryClient = useQueryClient();
   const [selectedOffice, setSelectedOffice] = useState<string>("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Fetch offices
   const { data: offices } = useQuery({
@@ -38,6 +41,13 @@ export const QRCodeGenerator = () => {
     },
     enabled: !!currentOrg?.id,
   });
+
+  // Auto-select first office
+  useEffect(() => {
+    if (offices?.length && !selectedOffice) {
+      setSelectedOffice(offices[0].id);
+    }
+  }, [offices, selectedOffice]);
 
   // Fetch current QR code for selected office
   const { data: currentQRCode, isLoading: isLoadingQR } = useQuery({
@@ -149,92 +159,149 @@ export const QRCodeGenerator = () => {
     link.click();
   };
 
+  const selectedOfficeName = offices?.find(o => o.id === selectedOffice)?.name;
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <QrCode className="h-4 w-4" />
-          Attendance QR Code
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm text-muted-foreground">Select Office</label>
-          <Select value={selectedOffice} onValueChange={setSelectedOffice}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose an office" />
-            </SelectTrigger>
-            <SelectContent>
-              {offices?.map((office) => (
-                <SelectItem key={office.id} value={office.id}>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <span>{office.name}</span>
-                    {office.city && (
-                      <span className="text-muted-foreground text-xs">({office.city})</span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {selectedOffice && (
-          <>
-            {isLoadingQR ? (
-              <div className="flex items-center justify-center h-[200px]">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : qrCodeDataUrl ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <img 
-                    src={qrCodeDataUrl} 
-                    alt="Attendance QR Code" 
-                    className="w-[200px] h-[200px]"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Generated: {currentQRCode?.created_at ? new Date(currentQRCode.created_at).toLocaleString() : "N/A"}
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg">
-                <QrCode className="h-12 w-12 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No QR code generated yet</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                onClick={() => generateMutation.mutate()}
-                disabled={generateMutation.isPending}
-                className="flex-1"
-                size="sm"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${generateMutation.isPending ? "animate-spin" : ""}`} />
-                {currentQRCode ? "Regenerate" : "Generate"}
-              </Button>
-              {qrCodeDataUrl && (
-                <Button
-                  onClick={handleDownload}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            {currentQRCode && (
-              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-2 rounded-lg text-center">
-                Regenerating will expire the current QR code
+    <Card className="p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <QrCode className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium truncate">Attendance QR</h3>
+            {currentQRCode?.created_at ? (
+              <p className="text-xs text-muted-foreground truncate">
+                {formatDateTime(currentQRCode.created_at)}
               </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Not generated</p>
             )}
-          </>
-        )}
-      </CardContent>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending || !selectedOffice}
+            title="Regenerate QR Code"
+          >
+            <RefreshCw className={`h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="View QR Code"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Attendance QR Code
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Select Office</label>
+                  <Select value={selectedOffice} onValueChange={setSelectedOffice}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an office" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {offices?.map((office) => (
+                        <SelectItem key={office.id} value={office.id}>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <span>{office.name}</span>
+                            {office.city && (
+                              <span className="text-muted-foreground text-xs">({office.city})</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedOffice && (
+                  <>
+                    {isLoadingQR ? (
+                      <div className="flex items-center justify-center h-[250px]">
+                        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : qrCodeDataUrl ? (
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                          <img 
+                            src={qrCodeDataUrl} 
+                            alt="Attendance QR Code" 
+                            className="w-[220px] h-[220px]"
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium">{selectedOfficeName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Generated: {formatDateTime(currentQRCode?.created_at || "")}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[250px] bg-muted/50 rounded-lg">
+                        <QrCode className="h-12 w-12 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">No QR code generated yet</p>
+                        <Button
+                          onClick={() => generateMutation.mutate()}
+                          disabled={generateMutation.isPending}
+                          className="mt-4"
+                          size="sm"
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                          Generate QR Code
+                        </Button>
+                      </div>
+                    )}
+
+                    {qrCodeDataUrl && (
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleDownload}
+                          className="flex-1"
+                          size="sm"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download QR Code
+                        </Button>
+                        <Button
+                          onClick={() => generateMutation.mutate()}
+                          disabled={generateMutation.isPending}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+                    )}
+
+                    {currentQRCode && (
+                      <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-2 rounded-lg text-center">
+                        Regenerating will expire the current QR code
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
     </Card>
   );
 };
