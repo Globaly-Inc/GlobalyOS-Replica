@@ -54,7 +54,7 @@ const inviteSchema = z.object({
   country: z.string().trim().min(2, "Country is required").max(100),
   department: z.string().trim().min(2, "Please select a department").max(100),
   position: z.string().trim().min(2, "Position is required").max(100),
-  joinDate: z.string().optional(),
+  joinDate: z.string().min(1, "Join date is required"),
   idNumber: z.string().trim().max(50).optional(),
   taxNumber: z.string().trim().max(50).optional(),
   remuneration: z.string().optional(),
@@ -954,14 +954,19 @@ const InviteTeamMember = () => {
 
               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 items-end">
                 <div className="space-y-2 lg:col-span-2">
-                  <Label htmlFor="joinDate">Join Date</Label>
+                  <Label htmlFor="joinDate">Join Date <span className="text-destructive">*</span></Label>
                   <Input
                     id="joinDate"
                     name="joinDate"
                     type="date"
                     value={formData.joinDate}
                     onChange={(e) => handleChange('joinDate', e.target.value)}
+                    onBlur={() => handleBlur('joinDate')}
+                    className={cn("transition-all duration-200", touched.joinDate && errors.joinDate && "border-destructive")}
                   />
+                  {touched.joinDate && errors.joinDate && (
+                    <p className="text-sm text-destructive">{errors.joinDate}</p>
+                  )}
                 </div>
                 <div className="lg:col-span-2">
                   <FormInputField
