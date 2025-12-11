@@ -90,6 +90,7 @@ interface UpcomingTeamLeave {
   id: string;
   start_date: string;
   end_date: string;
+  days_count: number;
   leave_type: string;
   employee: {
     id: string;
@@ -351,6 +352,7 @@ const Home = () => {
           id,
           start_date,
           end_date,
+          days_count,
           leave_type,
           employee:employees!leave_requests_employee_id_fkey(
             id,
@@ -836,28 +838,34 @@ const Home = () => {
                       Upcoming Team Leave
                     </h4>
                     <div className="space-y-2">
-                      {upcomingTeamLeave.slice(0, 3).map(leave => (
-                        <Link 
-                          key={leave.id} 
-                          to={`/team/${leave.employee.id}`}
-                          className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors"
-                        >
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                              {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-foreground truncate block">
+                      {upcomingTeamLeave.slice(0, 3).map(leave => {
+                        const isMultiDay = leave.start_date !== leave.end_date;
+                        const daysLabel = leave.days_count === 1 ? "1 day" : `${leave.days_count} days`;
+                        const dateRange = isMultiDay 
+                          ? `${format(parseISO(leave.start_date), "d MMM")} - ${format(parseISO(leave.end_date), "d MMM yyyy")}`
+                          : format(parseISO(leave.start_date), "d MMM yyyy");
+                        
+                        return (
+                          <Link 
+                            key={leave.id} 
+                            to={`/team/${leave.employee.id}`}
+                            className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors"
+                          >
+                            <Avatar className="h-6 w-6 flex-shrink-0">
+                              <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-foreground flex-shrink-0">
                               {leave.employee.profiles.full_name.split(" ")[0]}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {leave.leave_type} · {format(parseISO(leave.start_date), "d MMM yyyy")}
+                            <span className="text-xs text-muted-foreground truncate">
+                              {leave.leave_type} · {daysLabel} · {dateRange}
                             </span>
-                          </div>
-                        </Link>
-                      ))}
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
                 </>
