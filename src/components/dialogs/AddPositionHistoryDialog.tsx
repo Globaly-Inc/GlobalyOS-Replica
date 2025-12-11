@@ -149,7 +149,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <Plus className="h-4 w-4 mr-2" />
-          Add History Entry
+          Add Position
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
