@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.delete-orphaned-user]
 verify_jwt = false
+
+[functions.ai-writing-assist]
+verify_jwt = false

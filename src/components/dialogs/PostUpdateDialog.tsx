@@ -15,6 +15,7 @@ import { GiveKudosDialogContent } from "./GiveKudosDialogContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useOrganization } from "@/hooks/useOrganization";
+import { AIWritingAssist } from "@/components/AIWritingAssist";
 
 // Helper to get plain text length from HTML
 const getTextLength = (html: string): number => {
@@ -320,9 +321,16 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <div className="space-y-2">
-              <Label>
-                {selectedType === "announcement" ? "Announcement" : "Your Win"} *
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label>
+                  {selectedType === "announcement" ? "Announcement" : "Your Win"} *
+                </Label>
+                <AIWritingAssist
+                  type={selectedType}
+                  currentText={formData.content}
+                  onTextGenerated={(text) => setFormData({ ...formData, content: text })}
+                />
+              </div>
               <RichTextEditor
                 value={formData.content}
                 onChange={(value) => setFormData({ ...formData, content: value })}
