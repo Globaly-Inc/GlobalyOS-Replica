@@ -235,6 +235,18 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       } else if (!managerEmails.includes(emp.manager_email.toLowerCase())) {
         errors.push(`Row ${row}: Manager "${emp.manager_email}" not found in team`);
       }
+      if (!emp.street?.trim()) {
+        errors.push(`Row ${row}: Street is required`);
+      }
+      if (!emp.city?.trim()) {
+        errors.push(`Row ${row}: City is required`);
+      }
+      if (!emp.state?.trim()) {
+        errors.push(`Row ${row}: State is required`);
+      }
+      if (!emp.country?.trim()) {
+        errors.push(`Row ${row}: Country is required`);
+      }
       if (emp.role && !['admin', 'hr', 'user'].includes(emp.role.toLowerCase())) {
         errors.push(`Row ${row}: Role must be admin, hr, or user`);
       }
@@ -415,7 +427,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
                 <div className="text-xs space-y-3 p-4 bg-muted/30 rounded-lg">
                   <div>
                     <p className="font-medium text-foreground mb-1">Required Fields:</p>
-                    <p className="text-muted-foreground">first_name, last_name, email, phone, department, position, join_date, date_of_birth, office_name, manager_email</p>
+                    <p className="text-muted-foreground">first_name, last_name, email, phone, department, position, join_date, date_of_birth, office_name, manager_email, street, city, state, country</p>
                   </div>
                   
                   <div>
