@@ -52,21 +52,25 @@ const WinCard = ({ win }: WinCardProps) => {
           {win.taggedMembers && win.taggedMembers.length > 0 && (
             <div className="flex items-center gap-1.5 mt-3">
               <span className="text-xs text-muted-foreground">with</span>
-              {win.taggedMembers.map((member) => (
-                <Link 
-                  key={member.id} 
-                  to={`/team/${member.id}`} 
-                  className="hover:opacity-80 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Avatar className="h-6 w-6 border border-background">
-                    <AvatarImage src={member.avatar} />
-                    <AvatarFallback className="text-[10px] bg-muted">
-                      {member.name?.split(" ").map((n: string) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-              ))}
+              <div className="flex items-center">
+                {win.taggedMembers.map((member, index) => (
+                  <Link 
+                    key={member.id} 
+                    to={`/team/${member.id}`} 
+                    className={`hover:z-20 hover:scale-110 transition-transform ${index > 0 ? '-ml-1.5' : ''}`}
+                    style={{ zIndex: index }}
+                    title={member.name}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
+                      <AvatarImage src={member.avatar} />
+                      <AvatarFallback className="text-[10px] bg-muted">
+                        {member.name?.split(" ").map((n: string) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>
