@@ -1,0 +1,110 @@
+import { useEffect, useRef, useCallback } from 'react';
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (element: HTMLElement, options: TurnstileOptions) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+    onTurnstileLoad?: () => void;
+  }
+}
+
+interface TurnstileOptions {
+  sitekey: string;
+  callback: (token: string) => void;
+  'error-callback'?: () => void;
+  'expired-callback'?: () => void;
+  theme?: 'light' | 'dark' | 'auto';
+  size?: 'normal' | 'compact';
+}
+
+interface TurnstileWidgetProps {
+  siteKey: string;
+  onVerify: (token: string) => void;
+  onError?: () => void;
+  onExpire?: () => void;
+  theme?: 'light' | 'dark' | 'auto';
+}
+
+const TurnstileWidget = ({ 
+  siteKey, 
+  onVerify, 
+  onError, 
+  onExpire,
+  theme = 'auto' 
+}: TurnstileWidgetProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+  const scriptLoadedRef = useRef(false);
+
+  const renderWidget = useCallback(() => {
+    if (!containerRef.current || !window.turnstile) return;
+    
+    // Remove existing widget if any
+    if (widgetIdRef.current) {
+      try {
+        window.turnstile.remove(widgetIdRef.current);
+      } catch (e) {
+        // Widget already removed
+      }
+    }
+
+    widgetIdRef.current = window.turnstile.render(containerRef.current, {
+      sitekey: siteKey,
+      callback: onVerify,
+      'error-callback': onError,
+      'expired-callback': onExpire,
+      theme,
+      size: 'normal',
+    });
+  }, [siteKey, onVerify, onError, onExpire, theme]);
+
+  useEffect(() => {
+    // Load Turnstile script if not already loaded
+    if (!document.querySelector('script[src*="turnstile"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+      script.async = true;
+      script.defer = true;
+      
+      window.onTurnstileLoad = () => {
+        scriptLoadedRef.current = true;
+        renderWidget();
+      };
+      
+      document.head.appendChild(script);
+    } else if (window.turnstile) {
+      scriptLoadedRef.current = true;
+      renderWidget();
+    } else {
+      // Script is loading, set up callback
+      const existingCallback = window.onTurnstileLoad;
+      window.onTurnstileLoad = () => {
+        existingCallback?.();
+        scriptLoadedRef.current = true;
+        renderWidget();
+      };
+    }
+
+    return () => {
+      if (widgetIdRef.current && window.turnstile) {
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+        } catch (e) {
+          // Widget already removed
+        }
+      }
+    };
+  }, [renderWidget]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="flex justify-center my-4"
+    />
+  );
+};
+
+export default TurnstileWidget;

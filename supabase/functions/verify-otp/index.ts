@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const MAX_FAILED_ATTEMPTS_PER_OTP = 5;
 const MAX_VERIFICATION_ATTEMPTS_PER_IP_PER_HOUR = 20;
+const CAPTCHA_REQUIRED_AFTER_FAILURES = 2;
 
 function getClientIP(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -21,13 +22,42 @@ function getClientIP(req: Request): string {
   return 'unknown';
 }
 
+async function verifyTurnstileToken(token: string, ip: string): Promise<boolean> {
+  const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
+  if (!secretKey) {
+    console.error('TURNSTILE_SECRET_KEY not configured');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: token,
+        remoteip: ip,
+      }),
+    });
+
+    const result = await response.json();
+    console.log('Turnstile verification result:', result.success);
+    return result.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, code } = await req.json();
+    const { email, code, turnstileToken } = await req.json();
 
     if (!email || !code) {
       console.error('Missing email or code');
@@ -54,7 +84,6 @@ serve(async (req) => {
 
     // IP-based rate limiting for verification attempts
     if (clientIP !== 'unknown') {
-      // Count total failed attempts from this IP in the last hour
       const { data: ipAttempts, error: ipError } = await supabase
         .from('otp_codes')
         .select('failed_attempts')
@@ -94,10 +123,39 @@ serve(async (req) => {
       );
     }
 
+    // Check if CAPTCHA is required (after 2+ failed attempts)
+    const currentFailedAttempts = otpRecord.failed_attempts || 0;
+    if (currentFailedAttempts >= CAPTCHA_REQUIRED_AFTER_FAILURES) {
+      if (!turnstileToken) {
+        console.log('CAPTCHA required but not provided');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Please complete the security verification.',
+            captchaRequired: true,
+            failedAttempts: currentFailedAttempts
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verify the Turnstile token
+      const isValidCaptcha = await verifyTurnstileToken(turnstileToken, clientIP);
+      if (!isValidCaptcha) {
+        console.log('Invalid CAPTCHA token');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Security verification failed. Please try again.',
+            captchaRequired: true,
+            failedAttempts: currentFailedAttempts
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Check if this OTP has too many failed attempts
-    if (otpRecord.failed_attempts >= MAX_FAILED_ATTEMPTS_PER_OTP) {
+    if (currentFailedAttempts >= MAX_FAILED_ATTEMPTS_PER_OTP) {
       console.error('OTP locked due to too many failed attempts');
-      // Invalidate this OTP
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
       return new Response(
         JSON.stringify({ error: 'Too many failed attempts. Please request a new code.' }),
@@ -118,8 +176,7 @@ serve(async (req) => {
     // Check if code matches
     if (otpRecord.code !== code) {
       console.error('Invalid OTP code');
-      // Increment failed attempts
-      const newFailedAttempts = (otpRecord.failed_attempts || 0) + 1;
+      const newFailedAttempts = currentFailedAttempts + 1;
       await supabase
         .from('otp_codes')
         .update({ 
@@ -129,12 +186,18 @@ serve(async (req) => {
         .eq('id', otpRecord.id);
 
       const remainingAttempts = MAX_FAILED_ATTEMPTS_PER_OTP - newFailedAttempts;
-      const errorMessage = remainingAttempts > 0 
+      const needsCaptcha = newFailedAttempts >= CAPTCHA_REQUIRED_AFTER_FAILURES;
+      
+      let errorMessage = remainingAttempts > 0 
         ? `Invalid code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
         : 'Invalid code. Please request a new one.';
 
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ 
+          error: errorMessage,
+          captchaRequired: needsCaptcha,
+          failedAttempts: newFailedAttempts
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -159,7 +222,6 @@ serve(async (req) => {
     if (existingUser) {
       console.log('User exists, generating magic link token...');
       
-      // Generate a magic link for existing user
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
         email: email.toLowerCase(),
@@ -173,12 +235,10 @@ serve(async (req) => {
         );
       }
 
-      // Extract token from the link
       const url = new URL(linkData.properties.action_link);
       const token = url.searchParams.get('token');
 
       if (token) {
-        // Verify the token to get a session
         const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
           token_hash: token,
           type: 'magiclink',
@@ -194,7 +254,6 @@ serve(async (req) => {
     } else {
       console.log('User does not exist, creating new user...');
       
-      // Create new user
       const { data: newUserData, error: createError } = await supabase.auth.admin.createUser({
         email: email.toLowerCase(),
         email_confirm: true,
@@ -213,7 +272,6 @@ serve(async (req) => {
 
       user = newUserData.user;
 
-      // Generate session for new user
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
         email: email.toLowerCase(),

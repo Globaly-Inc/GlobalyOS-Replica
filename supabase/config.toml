@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.bulk-import-employees]
 verify_jwt = false
+
+[functions.get-turnstile-config]
+verify_jwt = false
+
+[functions.generate-profile-summary]
+verify_jwt = false
+
+[functions.update-user-email]
+verify_jwt = false
