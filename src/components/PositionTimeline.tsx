@@ -190,15 +190,15 @@ export const PositionTimeline = ({
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="default" className="text-xs">
+                  <Badge variant="default" className="text-[10px] px-1.5 py-0">
                     Current
                   </Badge>
                 </div>
-                <h4 className="font-semibold">{currentPosition}</h4>
-                <p className="text-sm text-muted-foreground">{currentDepartment}</p>
+                <h4 className="font-semibold text-sm">{currentPosition}</h4>
+                <p className="text-xs text-muted-foreground">{currentDepartment}</p>
                 
                 {showSalary && currentSalary && (
-                  <p className="text-sm font-medium mt-1 text-primary">
+                  <p className="text-xs font-medium mt-1 text-primary">
                     {formatSalary(currentSalary, currentCurrency)}
                   </p>
                 )}
@@ -232,34 +232,34 @@ export const PositionTimeline = ({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-xs">
-                        <Icon className="h-3 w-3 mr-1" />
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        <Icon className="h-2.5 w-2.5 mr-1" />
                         {config.label}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {formatDate(entry.effective_date)}
                         {entry.end_date && (
                           <> - {formatDate(entry.end_date)}</>
                         )}
                       </span>
                     </div>
-                    <h4 className="font-semibold">{entry.position}</h4>
-                    <p className="text-sm text-muted-foreground">{entry.department}</p>
+                    <h4 className="font-semibold text-sm">{entry.position}</h4>
+                    <p className="text-xs text-muted-foreground">{entry.department}</p>
                     
                     {showSalary && entry.salary && (
-                      <p className="text-sm font-medium mt-1">
+                      <p className="text-xs font-medium mt-1">
                         {formatSalary(entry.salary, currentCurrency)}
                       </p>
                     )}
                     
                     {entry.manager && (
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Manager: {entry.manager.profiles.full_name}
                       </p>
                     )}
 
                     {entry.notes && (
-                      <p className="text-sm text-muted-foreground mt-2 italic">
+                      <p className="text-xs text-muted-foreground mt-1 italic">
                         {entry.notes}
                       </p>
                     )}
