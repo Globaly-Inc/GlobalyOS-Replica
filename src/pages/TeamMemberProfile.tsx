@@ -33,6 +33,7 @@ import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil } from "lucide-react";
+import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
@@ -542,10 +543,19 @@ const TeamMemberProfile = () => {
               Back to Team
             </Button>
           </Link>
-          <ProfileTimelineSheet 
-            employeeId={id!} 
-            employeeName={employee.profiles.full_name} 
-          />
+          <div className="flex items-center gap-2">
+            {isAdmin && !isOwnProfile && (
+              <DeleteTeamMemberDialog
+                employeeId={id!}
+                employeeName={employee.profiles.full_name}
+                userId={employee.user_id}
+              />
+            )}
+            <ProfileTimelineSheet 
+              employeeId={id!} 
+              employeeName={employee.profiles.full_name} 
+            />
+          </div>
         </div>
 
         <Card className="p-4">
