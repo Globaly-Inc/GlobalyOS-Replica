@@ -56,15 +56,10 @@ serve(async (req: Request) => {
 
     console.log("Processing leave notification for:", employee_name);
 
-    // Get the employee's manager
+    // Get the employee's manager_id
     const { data: employee, error: empError } = await supabaseClient
       .from("employees")
-      .select(`
-        manager_id,
-        manager:employees!employees_manager_id_fkey(
-          user_id
-        )
-      `)
+      .select("manager_id")
       .eq("id", employee_id)
       .single();
 
@@ -85,9 +80,19 @@ serve(async (req: Request) => {
 
     const recipients: { email: string; name: string; isManager: boolean }[] = [];
 
-    // Add manager if exists
-    if (employee?.manager) {
-      const manager = employee.manager as any;
+    // Add manager if exists - fetch manager details separately
+    if (employee?.manager_id) {
+      // Get manager's user_id from employees table
+      const { data: manager, error: mgrError } = await supabaseClient
+        .from("employees")
+        .select("user_id")
+        .eq("id", employee.manager_id)
+        .single();
+      
+      if (mgrError) {
+        console.error("Error fetching manager:", mgrError);
+      }
+      
       if (manager?.user_id) {
         const { data: managerProfile } = await supabaseClient
           .from("profiles")
