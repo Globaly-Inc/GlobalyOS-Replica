@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
-import { BulkImportDialog } from "@/components/dialogs/BulkImportDialog";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
@@ -51,7 +50,6 @@ const Team = () => {
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
-  const [bulkImportDialogOpen, setBulkImportDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
@@ -165,7 +163,7 @@ const Team = () => {
                 <Settings className="h-4 w-4" />
                 Manage Offices
               </Button>
-              <Button variant="outline" onClick={() => setBulkImportDialogOpen(true)} className="gap-2">
+              <Button variant="outline" onClick={() => navigate('/team/bulk-import')} className="gap-2">
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>
@@ -260,12 +258,6 @@ const Team = () => {
         open={officesDialogOpen}
         onOpenChange={setOfficesDialogOpen}
         onOfficesChange={loadEmployees}
-      />
-
-      <BulkImportDialog
-        open={bulkImportDialogOpen}
-        onOpenChange={setBulkImportDialogOpen}
-        onSuccess={loadEmployees}
       />
     </Layout>
   );
