@@ -139,7 +139,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="hidden md:flex md:items-center md:gap-2">
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 h-9"
+              className="flex items-center gap-2 px-3 py-1 h-auto"
               onClick={() => navigate("/?requestLeave=true")}
             >
               <CalendarPlus className="h-4 w-4" />
