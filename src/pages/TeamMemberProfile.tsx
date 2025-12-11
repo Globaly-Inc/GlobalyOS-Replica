@@ -1105,17 +1105,16 @@ const TeamMemberProfile = () => {
                             </div>
                             <RichTextContent content={item.data.content} className="text-sm mb-3" />
                             {item.data.taggedMembers && item.data.taggedMembers.length > 0 && (
-                              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                              <div className="flex items-center gap-1.5 mb-3">
                                 <span className="text-xs text-muted-foreground">with</span>
                                 {item.data.taggedMembers.map((member: any) => (
-                                  <Link key={member.id} to={`/team/${member.id}`} className="flex items-center gap-1.5 hover:bg-muted/50 rounded-full pr-2 transition-colors">
-                                    <Avatar className="h-5 w-5">
+                                  <Link key={member.id} to={`/team/${member.id}`} className="hover:opacity-80 transition-opacity">
+                                    <Avatar className="h-6 w-6 border border-background">
                                       <AvatarImage src={member.avatar} />
                                       <AvatarFallback className="text-[10px] bg-muted">
                                         {member.name?.split(" ").map((n: string) => n[0]).join("")}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-xs font-medium text-foreground">{member.name?.split(" ")[0]}</span>
                                   </Link>
                                 ))}
                               </div>
