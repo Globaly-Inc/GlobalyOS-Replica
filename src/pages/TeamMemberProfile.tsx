@@ -1,5 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { RichTextContent } from "@/components/ui/rich-text-editor";
+import { formatDateTime } from "@/lib/utils";
 import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
@@ -1030,59 +1031,54 @@ const TeamMemberProfile = () => {
                   <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
                 )}
               </div>
-              <div className="p-4 space-y-4">
-                {/* Kudos Section */}
-                {kudos.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Heart className="h-3 w-3" /> Kudos Received ({kudos.length})
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {kudos.map(k => <KudosCard key={k.id} kudos={{
-                        id: k.id,
-                        employeeId: k.employee.id,
-                        employeeName: k.employee.profiles.full_name,
-                        givenBy: k.given_by.profiles.full_name,
-                        givenById: k.given_by.id,
-                        givenByAvatar: k.given_by.profiles.avatar_url,
-                        comment: k.comment,
-                        date: k.created_at,
-                        batchId: k.batch_id || undefined,
-                        otherRecipients: k.otherRecipients,
-                        otherRecipientIds: k.otherRecipientIds
-                      }} onDelete={loadKudos} />)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Wins Section */}
-                {wins.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Trophy className="h-3 w-3" /> Wins Posted ({wins.length})
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {wins.map(w => (
-                        <div key={w.id} className="bg-card border rounded-lg p-3 border-l-4 border-l-amber-500">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={w.avatar} />
-                              <AvatarFallback className="text-[10px]">{w.employeeName?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate">{w.employeeName}</p>
-                              <p className="text-[10px] text-muted-foreground">{new Date(w.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              <div className="p-4">
+                {(kudos.length > 0 || wins.length > 0) ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {/* Combine kudos and wins, sort by date descending */}
+                    {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
+                      ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map(item => item.type === 'kudos' ? (
+                        <KudosCard key={`kudos-${item.data.id}`} kudos={{
+                          id: item.data.id,
+                          employeeId: item.data.employee.id,
+                          employeeName: item.data.employee.profiles.full_name,
+                          givenBy: item.data.given_by.profiles.full_name,
+                          givenById: item.data.given_by.id,
+                          givenByAvatar: item.data.given_by.profiles.avatar_url,
+                          comment: item.data.comment,
+                          date: item.data.created_at,
+                          batchId: item.data.batch_id || undefined,
+                          otherRecipients: item.data.otherRecipients,
+                          otherRecipientIds: item.data.otherRecipientIds
+                        }} onDelete={loadKudos} />
+                      ) : (
+                        <div key={`win-${item.data.id}`} className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500">
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border border-border/50">
+                                  <AvatarImage src={item.data.avatar} />
+                                  <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                                    {item.data.employeeName?.split(" ").map((n: string) => n[0]).join("")}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold text-sm text-foreground">{item.data.employeeName}</p>
+                                  <p className="text-xs text-muted-foreground">{formatDateTime(item.data.date)}</p>
+                                </div>
+                              </div>
+                              <div className="p-2 rounded-full bg-amber-100 text-amber-600">
+                                <Trophy className="h-4 w-4" />
+                              </div>
                             </div>
-                            <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+                            <RichTextContent content={item.data.content} className="text-sm" />
                           </div>
-                          <RichTextContent content={w.content} className="text-xs text-muted-foreground line-clamp-3" />
                         </div>
-                      ))}
-                    </div>
+                      )
+                    )}
                   </div>
-                )}
-
-                {kudos.length === 0 && wins.length === 0 && (
+                ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>
                 )}
               </div>
