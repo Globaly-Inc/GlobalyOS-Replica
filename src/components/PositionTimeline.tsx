@@ -177,7 +177,7 @@ export const PositionTimeline = ({
 
   return (
     <>
-      <div className="relative">
+      <div className="relative pb-2">
         {/* Timeline line */}
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
 
