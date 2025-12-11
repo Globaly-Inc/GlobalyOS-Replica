@@ -191,7 +191,7 @@ serve(async (req: Request) => {
     const userId = authData.user.id;
     console.log('Created auth user:', userId);
 
-    // Create employee record
+    // Create employee record with active status
     const { error: employeeError } = await supabase
       .from('employees')
       .insert({
@@ -199,6 +199,7 @@ serve(async (req: Request) => {
         organization_id: organizationId,
         position: position.trim(),
         department: department.trim(),
+        status: 'active',
         join_date: joinDate || new Date().toISOString().split('T')[0],
         date_of_birth: dateOfBirth || null,
         phone: phone?.trim() || null,
@@ -317,7 +318,7 @@ serve(async (req: Request) => {
           .cta { text-align: center; margin: 30px 0; }
           .button { display: inline-block; background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; }
           .footer { text-align: center; color: #64748b; font-size: 14px; }
-          .note { background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #92400e; }
+          .note { background: #d1fae5; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #065f46; }
         </style>
       </head>
       <body>
@@ -327,21 +328,21 @@ serve(async (req: Request) => {
           </div>
           <div class="content">
             <p>Hi <strong>${fullName}</strong>,</p>
-            <p>You've been invited to join TeamHub as a team member. Here are your details:</p>
+            <p>You've been added to TeamHub! Your account is now active. Here are your details:</p>
             <div class="details">
               <p><strong>Position:</strong> ${position}</p>
               <p><strong>Department:</strong> ${department}</p>
               <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
               <p><strong>Role:</strong> ${roleLabel}</p>
             </div>
-            <p style="text-align: center; font-weight: 600;">Your Invitation Code:</p>
+            <p style="text-align: center; font-weight: 600;">Your Login Code:</p>
             <div class="code-box">${inviteCode}</div>
-            <p>Click the button below and enter this code to join the team:</p>
+            <p>Click the button below and enter this code to log in:</p>
             <div class="cta">
-              <a href="${joinUrl}" class="button">Join TeamHub</a>
+              <a href="${joinUrl}" class="button">Log In to TeamHub</a>
             </div>
             <div class="note">
-              <strong>Note:</strong> This code is valid for 7 days. If it expires, contact your administrator to resend the invitation.
+              <strong>Note:</strong> This code is valid for 7 days. After first login, you can request a new code anytime.
             </div>
           </div>
           <div class="footer">
@@ -362,7 +363,7 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           from: 'TeamHub <hello@globalyhub.com>',
           to: [normalizedEmail],
-          subject: 'Welcome to TeamHub - Your Invitation Code Inside!',
+          subject: 'Welcome to TeamHub - Your Account is Ready!',
           html: emailHtml,
         }),
       });
@@ -378,12 +379,12 @@ serve(async (req: Request) => {
       // Don't fail the whole operation if email fails
     }
 
-    console.log('Team member invited successfully:', normalizedEmail);
+    console.log('Team member added successfully:', normalizedEmail);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Team member invited successfully',
+        message: 'Team member added successfully',
         userId 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

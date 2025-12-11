@@ -342,7 +342,7 @@ const Team = () => {
               </Button>
               <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
-                Invite Team Member
+                Add Team Member
               </Button>
             </>
           )}

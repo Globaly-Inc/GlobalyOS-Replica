@@ -329,7 +329,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       }
 
       setSuccess(true);
-      toast({ title: "Invitation Sent!", description: `${formData.firstName} ${formData.lastName} has been invited` });
+      toast({ title: "Team Member Added!", description: `${formData.firstName} ${formData.lastName} has been added and will receive login details` });
       setTimeout(() => {
         onSuccess?.();
         onOpenChange(false);
@@ -377,8 +377,8 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
             <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
               <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Invitation Sent!</h2>
-            <p className="text-muted-foreground">{formData.firstName} {formData.lastName} will receive an email invitation shortly.</p>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Team Member Added!</h2>
+            <p className="text-muted-foreground">{formData.firstName} {formData.lastName} has been added and will receive a confirmation email with login details.</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -391,9 +391,9 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Invite New Team Member
+            Add New Team Member
           </DialogTitle>
-          <DialogDescription>Add a new member to your team. Fill each section to proceed.</DialogDescription>
+          <DialogDescription>Add a new member to your team. They will be set as active and receive login credentials via email.</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
