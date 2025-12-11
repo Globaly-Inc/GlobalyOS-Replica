@@ -211,7 +211,7 @@ const OrgChart = () => {
     );
   };
 
-  const EmployeeTree = ({ employee, level = 0, departmentColor, isLast = false }: { employee: TreeNode; level?: number; departmentColor: typeof DEPARTMENT_COLORS[0]; isLast?: boolean }) => {
+  const EmployeeTree = ({ employee, level = 0, departmentColor }: { employee: TreeNode; level?: number; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
     const hasChildren = employee.children.length > 0;
 
     return (
@@ -219,36 +219,52 @@ const OrgChart = () => {
         <EmployeeCard employee={employee} departmentColor={departmentColor} />
 
         {hasChildren && (
-          <div className="relative ml-3 mt-1">
-            {/* Vertical line from parent down to children */}
-            <div 
-              className="absolute left-0 top-0 w-0.5"
-              style={{ 
-                backgroundColor: departmentColor.bg,
-                height: `calc(100% - 16px)`
-              }} 
-            />
-            <div className="pl-5 space-y-1">
-              {employee.children.map((child, index) => (
+          <div className="ml-3 mt-1 pl-5">
+            {employee.children.map((child, index) => {
+              const isLastChild = index === employee.children.length - 1;
+              return (
                 <div key={child.id} className="relative">
-                  {/* Horizontal branch line connecting to vertical line */}
+                  {/* Vertical line segment - only show above horizontal connector */}
                   <div 
-                    className="absolute left-0 top-4 h-0.5"
+                    className="absolute w-0.5"
+                    style={{ 
+                      backgroundColor: departmentColor.bg,
+                      left: '-20px',
+                      top: index === 0 ? '-4px' : '-8px',
+                      height: index === 0 ? '20px' : '24px'
+                    }} 
+                  />
+                  {/* Continue vertical line below if not last child */}
+                  {!isLastChild && (
+                    <div 
+                      className="absolute w-0.5"
+                      style={{ 
+                        backgroundColor: departmentColor.bg,
+                        left: '-20px',
+                        top: '16px',
+                        bottom: '-8px'
+                      }} 
+                    />
+                  )}
+                  {/* Horizontal branch line */}
+                  <div 
+                    className="absolute top-4 h-0.5"
                     style={{ 
                       backgroundColor: departmentColor.bg,
                       width: '20px',
-                      marginLeft: '-20px'
+                      left: '-20px'
                     }} 
                   />
-                  <EmployeeTree 
-                    employee={child} 
-                    level={level + 1} 
-                    departmentColor={departmentColor}
-                    isLast={index === employee.children.length - 1}
-                  />
+                  <div className="pb-2">
+                    <EmployeeTree 
+                      employee={child} 
+                      level={level + 1} 
+                      departmentColor={departmentColor}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -307,8 +323,8 @@ const OrgChart = () => {
                     </Badge>
                   </div>
                   <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
-                    {tree.map((root, index) => (
-                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} isLast={index === tree.length - 1} />
+                    {tree.map((root) => (
+                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
                     ))}
                   </div>
                 </Card>
