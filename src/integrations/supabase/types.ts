@@ -278,6 +278,7 @@ export type Database = {
           personal_email: string | null
           phone: string | null
           position: string
+          position_effective_date: string | null
           postcode: string | null
           remuneration: number | null
           remuneration_currency: string | null
@@ -309,6 +310,7 @@ export type Database = {
           personal_email?: string | null
           phone?: string | null
           position: string
+          position_effective_date?: string | null
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
@@ -340,6 +342,7 @@ export type Database = {
           personal_email?: string | null
           phone?: string | null
           position?: string
+          position_effective_date?: string | null
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null

@@ -815,6 +815,7 @@ const TeamMemberProfile = () => {
                     currentDepartment={employee.department} 
                     currentSalary={canViewSalary ? employee.remuneration : undefined}
                     currentCurrency={employee.remuneration_currency || "USD"}
+                    currentEffectiveDate={employee.position_effective_date}
                     employeeId={id}
                     canEdit={canEditPositionTimeline}
                     showSalary={canViewSalary}

@@ -3,9 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus } from "lucide-react";
+import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus, Calendar } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,7 @@ interface PositionTimelineProps {
   currentDepartment: string;
   currentSalary?: number | null;
   currentCurrency?: string;
+  currentEffectiveDate?: string | null;
   employeeId?: string;
   canEdit?: boolean;
   showSalary?: boolean;
@@ -74,6 +76,7 @@ export const PositionTimeline = ({
   currentDepartment,
   currentSalary,
   currentCurrency = "USD",
+  currentEffectiveDate,
   employeeId,
   canEdit = false,
   showSalary = true,
@@ -97,6 +100,8 @@ export const PositionTimeline = ({
     salary: currentSalary?.toString() || "",
     currency: currentCurrency,
     paymentFrequency: "annual" as string,
+    effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
+    notes: "",
   });
 
   // Load departments and positions when dialog opens
@@ -240,6 +245,8 @@ export const PositionTimeline = ({
       salary: currentSalary?.toString() || "",
       currency: currentCurrency,
       paymentFrequency: "annual",
+      effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
+      notes: "",
     });
     setCurrentEditOpen(true);
   };
@@ -254,6 +261,12 @@ export const PositionTimeline = ({
       const frequency = paymentFrequencies.find(f => f.value === currentEditData.paymentFrequency);
       const annualSalary = amount * (frequency?.multiplier || 1);
 
+      // Check if position or department changed to create history entry
+      const positionChanged = currentEditData.position !== currentPosition;
+      const departmentChanged = currentEditData.department !== currentDepartment;
+      const salaryChanged = annualSalary !== currentSalary;
+
+      // Update employee record
       const { error } = await supabase
         .from("employees")
         .update({
@@ -261,10 +274,33 @@ export const PositionTimeline = ({
           department: currentEditData.department,
           remuneration: annualSalary || null,
           remuneration_currency: currentEditData.currency,
+          position_effective_date: currentEditData.effectiveDate,
         })
         .eq("id", employeeId);
 
       if (error) throw error;
+
+      // If significant change, optionally create position history entry
+      if ((positionChanged || departmentChanged || salaryChanged) && currentEditData.notes) {
+        let changeType = 'lateral_move';
+        if (salaryChanged && !positionChanged && !departmentChanged) {
+          changeType = 'salary_increase';
+        } else if (positionChanged) {
+          changeType = 'promotion';
+        }
+
+        await supabase
+          .from("position_history")
+          .insert({
+            employee_id: employeeId,
+            position: currentEditData.position,
+            department: currentEditData.department,
+            salary: annualSalary || null,
+            effective_date: currentEditData.effectiveDate,
+            change_type: changeType,
+            notes: currentEditData.notes,
+          });
+      }
 
       toast.success("Current position updated successfully");
       setCurrentEditOpen(false);
@@ -295,6 +331,12 @@ export const PositionTimeline = ({
                   <Badge variant="default" className="text-xs px-2 py-0.5">
                     Current
                   </Badge>
+                  {currentEffectiveDate && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Since {formatDate(currentEffectiveDate)}
+                    </span>
+                  )}
                 </div>
                 <h4 className="font-medium text-sm">{currentPosition}</h4>
                 <p className="text-sm text-muted-foreground">{currentDepartment}</p>
@@ -551,6 +593,29 @@ export const PositionTimeline = ({
                 )}
               </div>
             )}
+
+            <div>
+              <Label htmlFor="current-effective-date">Effective Date</Label>
+              <Input
+                id="current-effective-date"
+                type="date"
+                value={currentEditData.effectiveDate}
+                onChange={(e) => setCurrentEditData({ ...currentEditData, effectiveDate: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Date when this position became effective</p>
+            </div>
+
+            <div>
+              <Label htmlFor="current-notes">Notes (optional)</Label>
+              <Textarea
+                id="current-notes"
+                value={currentEditData.notes}
+                onChange={(e) => setCurrentEditData({ ...currentEditData, notes: e.target.value })}
+                placeholder="Add context about this position change..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">If notes are provided and position/salary changes, a history entry will be created</p>
+            </div>
 
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setCurrentEditOpen(false)}>
