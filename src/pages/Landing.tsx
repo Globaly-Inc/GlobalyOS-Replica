@@ -279,7 +279,7 @@ const Landing = () => {
             <div className="relative animate-fade-in flex items-center justify-center" style={{
             animationDelay: "200ms"
           }}>
-              <img src={heroIllustration} alt="TeamHub employee management illustration" className="w-full max-w-lg h-auto animate-float" />
+              <img src={heroIllustration} alt="TeamHub employee management illustration" className="w-full max-w-lg h-auto animate-float" fetchPriority="high" />
             </div>
           </div>
         </div>
