@@ -544,7 +544,7 @@ const TeamMemberProfile = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
-            {(isAdmin || isHR) && !isOwnProfile && (
+            {isAdmin && !isOwnProfile && (
               <DeleteTeamMemberDialog
                 employeeId={id!}
                 employeeName={employee.profiles.full_name}
