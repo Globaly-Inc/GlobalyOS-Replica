@@ -183,12 +183,6 @@ export const GiveKudosDialogContent = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-          ← Back
-        </Button>
-        <span className="text-sm text-muted-foreground">Give Kudos</span>
-      </div>
 
       <div className="space-y-2">
         <Label>Select Team Members *</Label>
