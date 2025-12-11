@@ -40,8 +40,14 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  // Filter to only show leave types with balance > 0
-  const balancesWithValue = balances.filter((item) => item.balance > 0);
+  // Filter to only show leave types with balance > 0, sort paid first then unpaid
+  const balancesWithValue = balances
+    .filter((item) => item.balance > 0)
+    .sort((a, b) => {
+      if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
+      if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
+      return a.leave_type.name.localeCompare(b.leave_type.name);
+    });
 
   return (
     <div>
