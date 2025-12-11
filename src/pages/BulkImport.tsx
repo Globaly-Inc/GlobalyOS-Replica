@@ -78,7 +78,8 @@ const EditableCell = ({
   isEditing, 
   onStartEdit,
   onNavigate,
-  className = ""
+  className = "",
+  error
 }: { 
   value: string; 
   onSave: (value: string) => void; 
@@ -86,6 +87,7 @@ const EditableCell = ({
   onStartEdit: () => void;
   onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
   className?: string;
+  error?: string;
 }) => {
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -141,7 +143,7 @@ const EditableCell = ({
     }
   };
 
-  return (
+  const cellContent = (
     <div 
       ref={cellRef}
       onClick={handleClick}
@@ -150,8 +152,11 @@ const EditableCell = ({
         relative w-full h-full min-h-[28px] flex items-center
         ${isEditing 
           ? 'ring-2 ring-primary ring-inset bg-background z-10' 
-          : 'cursor-cell hover:bg-primary/5 border border-transparent hover:border-primary/20'
+          : error 
+            ? 'cursor-cell hover:bg-destructive/10' 
+            : 'cursor-cell hover:bg-primary/5 border border-transparent hover:border-primary/20'
         }
+        ${error ? 'text-destructive' : ''}
         ${className}
       `}
     >
@@ -162,16 +167,33 @@ const EditableCell = ({
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
-          className="w-full h-full px-1.5 py-1 text-xs bg-transparent outline-none border-none"
+          className={`w-full h-full px-1.5 py-1 text-xs bg-transparent outline-none border-none ${error ? 'text-destructive' : ''}`}
           style={{ minWidth: '60px' }}
         />
       ) : (
-        <span className="px-1.5 py-1 text-xs truncate w-full">
+        <span className={`px-1.5 py-1 text-xs truncate w-full ${error ? 'text-destructive' : ''}`}>
           {value || <span className="text-muted-foreground/50 italic">-</span>}
         </span>
       )}
     </div>
   );
+
+  if (error) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {cellContent}
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs bg-destructive text-destructive-foreground">
+            <p className="text-xs">{error}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return cellContent;
 };
 
 // Dropdown cell component for selectable fields
@@ -179,16 +201,18 @@ const SelectableCell = ({
   value, 
   options,
   onSave,
-  placeholder = "Select..."
+  placeholder = "Select...",
+  error
 }: { 
   value: string; 
   options: { value: string; label: string }[];
   onSave: (value: string) => void;
   placeholder?: string;
+  error?: string;
 }) => {
-  return (
+  const selectContent = (
     <Select value={value} onValueChange={onSave}>
-      <SelectTrigger className="h-7 text-xs border-0 rounded-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">
+      <SelectTrigger className={`h-7 text-xs border-0 rounded-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent ${error ? 'text-destructive' : ''}`}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="bg-popover z-50">
@@ -200,6 +224,23 @@ const SelectableCell = ({
       </SelectContent>
     </Select>
   );
+
+  if (error) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>{selectContent}</div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs bg-destructive text-destructive-foreground">
+            <p className="text-xs">{error}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return selectContent;
 };
 
 const BulkImport = () => {
@@ -748,8 +789,37 @@ const BulkImport = () => {
                       </thead>
                       <tbody>
                         {parsedData.map((emp, i) => {
-                          const rowErrors = validationErrors.filter(err => err.startsWith(`Row ${i + 1}:`));
+                          const rowNum = i + 2; // CSV row number (1-indexed + header)
+                          const rowErrors = validationErrors.filter(err => err.startsWith(`Row ${rowNum}:`));
                           const rowHasError = rowErrors.length > 0;
+                          
+                          // Helper to get field-specific error
+                          const getFieldError = (field: string): string | undefined => {
+                            const fieldPatterns: Record<string, string[]> = {
+                              first_name: ['First name'],
+                              last_name: ['Last name'],
+                              email: ['Email', 'Invalid email format', 'Duplicate email'],
+                              phone: ['Phone'],
+                              department: ['Department'],
+                              position: ['Position'],
+                              join_date: ['Join date'],
+                              date_of_birth: ['Date of birth'],
+                              office_name: ['Office'],
+                              manager_email: ['Manager'],
+                              street: ['Street'],
+                              city: ['City'],
+                              state: ['State'],
+                              country: ['Country'],
+                              role: ['Role']
+                            };
+                            
+                            const patterns = fieldPatterns[field] || [];
+                            const error = rowErrors.find(err => 
+                              patterns.some(pattern => err.includes(pattern))
+                            );
+                            return error ? error.replace(`Row ${rowNum}: `, '') : undefined;
+                          };
+                          
                           return (
                           <tr key={i} className={`border-b last:border-0 ${rowHasError ? 'bg-destructive/10' : ''}`}>
                             <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${rowHasError ? 'bg-destructive/20 text-destructive font-medium' : 'bg-muted/30 text-muted-foreground'}`}>
@@ -762,7 +832,7 @@ const BulkImport = () => {
                                     <TooltipContent side="right" className="max-w-xs">
                                       <ul className="text-xs space-y-1">
                                         {rowErrors.map((err, idx) => (
-                                          <li key={idx}>{err.replace(`Row ${i + 1}: `, '')}</li>
+                                          <li key={idx}>{err.replace(`Row ${rowNum}: `, '')}</li>
                                         ))}
                                       </ul>
                                     </TooltipContent>
@@ -772,120 +842,133 @@ const BulkImport = () => {
                                 i + 1
                               )}
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('first_name') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.first_name}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'first_name'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'first_name' })}
                                 onSave={(v) => updateCellValue(i, 'first_name', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('first_name')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('last_name') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.last_name}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'last_name'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'last_name' })}
                                 onSave={(v) => updateCellValue(i, 'last_name', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('last_name')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('email') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.email}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'email'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'email' })}
                                 onSave={(v) => updateCellValue(i, 'email', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('email')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('phone') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.phone}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'phone'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'phone' })}
                                 onSave={(v) => updateCellValue(i, 'phone', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('phone')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('department') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.department}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'department'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'department' })}
                                 onSave={(v) => updateCellValue(i, 'department', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('department')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('position') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.position}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'position'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'position' })}
                                 onSave={(v) => updateCellValue(i, 'position', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('position')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('join_date') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.join_date}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'join_date'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'join_date' })}
                                 onSave={(v) => updateCellValue(i, 'join_date', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('join_date')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('date_of_birth') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.date_of_birth}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'date_of_birth'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'date_of_birth' })}
                                 onSave={(v) => updateCellValue(i, 'date_of_birth', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('date_of_birth')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('office_name') ? 'border-destructive' : 'border-border/50'}`}>
                               <SelectableCell
                                 value={emp.office_name}
                                 options={offices.map(o => ({ value: o.name, label: o.name }))}
                                 onSave={(v) => updateCellValue(i, 'office_name', v)}
                                 placeholder="Select office"
+                                error={getFieldError('office_name')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('manager_email') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.manager_email}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'manager_email'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'manager_email' })}
                                 onSave={(v) => updateCellValue(i, 'manager_email', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('manager_email')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('street') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.street || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'street'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'street' })}
                                 onSave={(v) => updateCellValue(i, 'street', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('street')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('city') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.city || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'city'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'city' })}
                                 onSave={(v) => updateCellValue(i, 'city', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('city')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('state') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.state || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'state'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'state' })}
                                 onSave={(v) => updateCellValue(i, 'state', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('state')}
                               />
                             </td>
                             <td className="p-0 border border-border/50">
@@ -897,16 +980,17 @@ const BulkImport = () => {
                                 onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('country') ? 'border-destructive' : 'border-border/50'}`}>
                               <EditableCell
                                 value={emp.country || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'country'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'country' })}
                                 onSave={(v) => updateCellValue(i, 'country', v)}
                                 onNavigate={navigateCell}
+                                error={getFieldError('country')}
                               />
                             </td>
-                            <td className="p-0 border border-border/50">
+                            <td className={`p-0 border ${getFieldError('role') ? 'border-destructive' : 'border-border/50'}`}>
                               <SelectableCell
                                 value={emp.role || 'user'}
                                 options={[
@@ -916,6 +1000,7 @@ const BulkImport = () => {
                                 ]}
                                 onSave={(v) => updateCellValue(i, 'role', v)}
                                 placeholder="Select role"
+                                error={getFieldError('role')}
                               />
                             </td>
                             <td className="p-0 border border-border/50 text-center">
@@ -929,6 +1014,7 @@ const BulkImport = () => {
                             </td>
                           </tr>
                         )})}
+
 
                       </tbody>
                     </table>
