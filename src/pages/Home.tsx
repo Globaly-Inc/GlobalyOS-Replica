@@ -517,7 +517,7 @@ const Home = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 {/* Left side - Greeting */}
                 <div className="flex items-center gap-3">
-                  <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm animate-pulse" />
+                  <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
                   <div>
                     <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
                       {greeting}{currentUserName ? `, ${currentUserName}` : ""}
