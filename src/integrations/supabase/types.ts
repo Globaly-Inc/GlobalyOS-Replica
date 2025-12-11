@@ -1366,6 +1366,7 @@ export type Database = {
         Args: { _employee_id: string }
         Returns: boolean
       }
+      can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
