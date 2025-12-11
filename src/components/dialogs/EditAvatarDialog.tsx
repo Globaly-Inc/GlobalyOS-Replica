@@ -46,13 +46,13 @@ export const EditAvatarDialog = ({ userId, currentAvatarUrl, userName, onSuccess
 
     setLoading(true);
     try {
-      // Upload file to storage
+      // Upload file to storage with user-specific path for security
       const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
       
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('avatars')
-        .upload(fileName, avatarFile);
+        .upload(fileName, avatarFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 
