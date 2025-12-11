@@ -416,99 +416,118 @@ const Team = () => {
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">Loading team members...</p>
           </Card>
-        ) : viewMode === 'cards' ? (
-          <>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredEmployees.map((employee) => (
-                <EmployeeCard
-                  key={employee.id}
-                  employee={{
-                    id: employee.id,
-                    name: employee.profiles.full_name,
-                    email: employee.profiles.email,
-                    position: employee.position,
-                    department: employee.department,
-                    joinDate: employee.join_date,
-                    phone: employee.phone || undefined,
-                    city: employee.city || undefined,
-                    country: employee.country || undefined,
-                    avatar: employee.profiles.avatar_url || undefined,
-                    status: employee.status,
-                    officeName: employee.offices?.name,
-                    officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
-                  }}
-                  showResendInvite={isHR}
-                  role={userRoles[employee.user_id]}
-                />
-              ))}
+        ) : (
+          <div className="relative min-h-[200px]">
+            {/* Cards View */}
+            <div 
+              className={cn(
+                "transition-all duration-300 ease-in-out",
+                viewMode === 'cards' 
+                  ? "opacity-100 translate-y-0" 
+                  : "opacity-0 -translate-y-4 absolute inset-0 pointer-events-none"
+              )}
+            >
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredEmployees.map((employee) => (
+                  <EmployeeCard
+                    key={employee.id}
+                    employee={{
+                      id: employee.id,
+                      name: employee.profiles.full_name,
+                      email: employee.profiles.email,
+                      position: employee.position,
+                      department: employee.department,
+                      joinDate: employee.join_date,
+                      phone: employee.phone || undefined,
+                      city: employee.city || undefined,
+                      country: employee.country || undefined,
+                      avatar: employee.profiles.avatar_url || undefined,
+                      status: employee.status,
+                      officeName: employee.offices?.name,
+                      officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
+                    }}
+                    showResendInvite={isHR}
+                    role={userRoles[employee.user_id]}
+                  />
+                ))}
+              </div>
+
+              {filteredEmployees.length === 0 && (
+                <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                  <p className="text-muted-foreground">No employees found matching your search.</p>
+                </div>
+              )}
             </div>
 
-            {filteredEmployees.length === 0 && (
-              <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
-                <p className="text-muted-foreground">No employees found matching your search.</p>
-              </div>
-            )}
-          </>
-        ) : (
-          /* Org Chart View */
-          filteredEmployees.length === 0 ? (
-            <Card className="p-12 text-center rounded-2xl">
-              <p className="text-muted-foreground">
-                {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
-              </p>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
-              {sortedDepartments.map(([department, deptEmployees], index) => {
-                const tree = buildDepartmentTree(deptEmployees);
-                const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
-                const gridSpan = getGridSpan(deptEmployees.length, index);
-                
-                return (
-                  <Card 
-                    key={department} 
-                    className={cn(
-                      "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
-                      gridSpan
-                    )}
-                    style={{ 
-                      borderColor: deptColor.border,
-                      background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
-                    }}
-                  >
-                    <div 
-                      className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
-                      style={{ backgroundColor: deptColor.light, borderBottomColor: deptColor.border }}
-                    >
-                      <div 
-                        className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
-                        style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
-                      />
-                      <div className="p-2 rounded-xl" style={{ backgroundColor: deptColor.bg }}>
-                        <Building2 className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
-                        <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
-                      </div>
-                      <Badge 
-                        className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
-                        style={{ backgroundColor: deptColor.bg }}
-                      >
-                        {deptEmployees.length}
-                      </Badge>
-                    </div>
+            {/* Org Chart View */}
+            <div 
+              className={cn(
+                "transition-all duration-300 ease-in-out",
+                viewMode === 'orgchart' 
+                  ? "opacity-100 translate-y-0" 
+                  : "opacity-0 translate-y-4 absolute inset-0 pointer-events-none"
+              )}
+            >
+              {filteredEmployees.length === 0 ? (
+                <Card className="p-12 text-center rounded-2xl">
+                  <p className="text-muted-foreground">
+                    {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
+                  </p>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+                  {sortedDepartments.map(([department, deptEmployees], index) => {
+                    const tree = buildDepartmentTree(deptEmployees);
+                    const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
+                    const gridSpan = getGridSpan(deptEmployees.length, index);
                     
-                    <div className="p-4 space-y-4">
-                      {tree.map((root) => (
-                        <OrgEmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
-                      ))}
-                    </div>
-                  </Card>
-                );
-              })}
+                    return (
+                      <Card 
+                        key={department} 
+                        className={cn(
+                          "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
+                          gridSpan
+                        )}
+                        style={{ 
+                          borderColor: deptColor.border,
+                          background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
+                        }}
+                      >
+                        <div 
+                          className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
+                          style={{ backgroundColor: deptColor.light, borderBottomColor: deptColor.border }}
+                        >
+                          <div 
+                            className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
+                            style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
+                          />
+                          <div className="p-2 rounded-xl" style={{ backgroundColor: deptColor.bg }}>
+                            <Building2 className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                            <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
+                          </div>
+                          <Badge 
+                            className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
+                            style={{ backgroundColor: deptColor.bg }}
+                          >
+                            {deptEmployees.length}
+                          </Badge>
+                        </div>
+                        
+                        <div className="p-4 space-y-4">
+                          {tree.map((root) => (
+                            <OrgEmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
+                          ))}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )
+          </div>
         )}
       </div>
 
