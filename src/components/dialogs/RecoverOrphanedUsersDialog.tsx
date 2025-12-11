@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
-import { Loader2, UserPlus, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, UserPlus, AlertCircle, RefreshCw, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface OrphanedUser {
@@ -33,7 +34,9 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(false);
   const [recovering, setRecovering] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<OrphanedUser | null>(null);
+  const [userToDelete, setUserToDelete] = useState<OrphanedUser | null>(null);
   
   // Form state for recovery
   const [position, setPosition] = useState("");
@@ -132,6 +135,44 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
     }
   };
 
+  const handleDelete = async () => {
+    if (!userToDelete) return;
+
+    setDeleting(userToDelete.id);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return;
+
+      const response = await supabase.functions.invoke('delete-orphaned-user', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        },
+        body: {
+          userId: userToDelete.id
+        }
+      });
+
+      if (response.error) {
+        console.error('Delete error:', response.error);
+        toast.error(response.error.message || "Failed to delete user");
+        return;
+      }
+
+      toast.success(`Successfully deleted ${userToDelete.full_name}`);
+      setUserToDelete(null);
+      if (selectedUser?.id === userToDelete.id) {
+        setSelectedUser(null);
+        resetForm();
+      }
+      fetchOrphanedUsers();
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast.error(error.message || "Failed to delete user");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const resetForm = () => {
     setPosition("");
     setDepartment("");
@@ -141,138 +182,183 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            Recover Orphaned Users
-          </DialogTitle>
-          <DialogDescription>
-            These users have accounts but are not linked to any organization. You can recover them by assigning employee details.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Recover Orphaned Users
+            </DialogTitle>
+            <DialogDescription>
+              These users have accounts but are not linked to any organization. You can recover or delete them.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">
-              {orphanedUsers.length} orphaned user(s) found
-            </span>
-            <Button variant="outline" size="sm" onClick={fetchOrphanedUsers} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">
+                {orphanedUsers.length} orphaned user(s) found
+              </span>
+              <Button variant="outline" size="sm" onClick={fetchOrphanedUsers} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
 
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : orphanedUsers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No orphaned users found</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {orphanedUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedUser?.id === user.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
-                  }`}
-                  onClick={() => setSelectedUser(user)}
-                >
-                  <div className="font-medium">{user.full_name}</div>
-                  <div className="text-sm text-muted-foreground">{user.email}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Created: {format(new Date(user.created_at), "d MMM yyyy")}
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : orphanedUsers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No orphaned users found</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {orphanedUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`p-3 border rounded-lg transition-colors ${
+                      selectedUser?.id === user.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => setSelectedUser(user)}
+                      >
+                        <div className="font-medium">{user.full_name}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Created: {format(new Date(user.created_at), "d MMM yyyy")}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUserToDelete(user);
+                        }}
+                        disabled={deleting === user.id}
+                      >
+                        {deleting === user.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedUser && (
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="font-medium">Recovery Details for {selectedUser.full_name}</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Position *</Label>
+                    <Input
+                      id="position"
+                      value={position}
+                      onChange={(e) => setPosition(e.target.value)}
+                      placeholder="e.g. Software Engineer"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department *</Label>
+                    <Input
+                      id="department"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="e.g. Engineering"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="joinDate">Join Date *</Label>
+                    <Input
+                      id="joinDate"
+                      type="date"
+                      value={joinDate}
+                      onChange={(e) => setJoinDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="office">Office</Label>
+                    <Select value={officeId} onValueChange={setOfficeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select office" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No office</SelectItem>
+                        {offices.map((office) => (
+                          <SelectItem key={office.id} value={office.id}>
+                            {office.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="role">System Role</Label>
+                    <Select value={role} onValueChange={setRole}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Team Member</SelectItem>
+                        <SelectItem value="hr">HR</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {selectedUser && (
-            <div className="border-t pt-4 space-y-4">
-              <h4 className="font-medium">Recovery Details for {selectedUser.full_name}</h4>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position *</Label>
-                  <Input
-                    id="position"
-                    value={position}
-                    onChange={(e) => setPosition(e.target.value)}
-                    placeholder="e.g. Software Engineer"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department *</Label>
-                  <Input
-                    id="department"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="e.g. Engineering"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="joinDate">Join Date *</Label>
-                  <Input
-                    id="joinDate"
-                    type="date"
-                    value={joinDate}
-                    onChange={(e) => setJoinDate(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="office">Office</Label>
-                  <Select value={officeId} onValueChange={setOfficeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select office" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No office</SelectItem>
-                      {offices.map((office) => (
-                        <SelectItem key={office.id} value={office.id}>
-                          {office.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">System Role</Label>
-                  <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Team Member</SelectItem>
-                      <SelectItem value="hr">HR</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setSelectedUser(null); resetForm(); }}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleRecover} disabled={recovering === selectedUser.id}>
+                    {recovering === selectedUser.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Recover User
+                  </Button>
                 </div>
               </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => { setSelectedUser(null); resetForm(); }}>
-                  Cancel
-                </Button>
-                <Button onClick={handleRecover} disabled={recovering === selectedUser.id}>
-                  {recovering === selectedUser.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Recover User
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Orphaned User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <strong>{userToDelete?.full_name}</strong> ({userToDelete?.email})? 
+              This action cannot be undone and will remove the user account completely.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
