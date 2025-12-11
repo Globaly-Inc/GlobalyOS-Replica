@@ -25,6 +25,7 @@ import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree } from "lucide-react";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
+import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -403,12 +404,18 @@ const TeamMemberProfile = () => {
 
   return <Layout>
       <div className="space-y-8">
-        <Link to="/team" className="-mb-6 block">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Team
-          </Button>
-        </Link>
+        <div className="flex items-center justify-between -mb-6">
+          <Link to="/team">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Team
+            </Button>
+          </Link>
+          <ProfileTimelineSheet 
+            employeeId={id!} 
+            employeeName={employee.profiles.full_name} 
+          />
+        </div>
 
         <Card className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
