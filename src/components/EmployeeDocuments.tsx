@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2 } from "lucide-react";
+import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2, Image, FileSpreadsheet, File } from "lucide-react";
 import { UploadDocumentDialog } from "@/components/dialogs/UploadDocumentDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { formatDateTime } from "@/lib/utils";
@@ -177,11 +177,15 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getFileIcon = (fileType: string | null) => {
-    if (!fileType) return FileText;
-    if (fileType.includes('pdf')) return FileText;
-    if (fileType.includes('image')) return FileText;
-    return FileText;
+  const getFileIcon = (fileName: string, fileType: string | null) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return FileText;
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return Image;
+    if (['xls', 'xlsx', 'csv'].includes(ext || '')) return FileSpreadsheet;
+    if (['doc', 'docx'].includes(ext || '')) return FileCheck;
+    if (fileType?.includes('image')) return Image;
+    if (fileType?.includes('spreadsheet') || fileType?.includes('excel')) return FileSpreadsheet;
+    return File;
   };
 
   const getDocumentsForFolder = (folder: string) => {
@@ -237,50 +241,45 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                   <p className="text-sm">No documents in {folder.label}</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
                   {folderDocs.map((doc) => {
-                    const FileIcon = getFileIcon(doc.file_type);
+                    const FileIcon = getFileIcon(doc.file_name, doc.file_type);
                     return (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                        className="p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
                       >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="p-2 bg-primary/10 rounded">
+                        <div className="flex items-start gap-2">
+                          <div className="p-1.5 bg-primary/10 rounded shrink-0">
                             <FileIcon className="h-4 w-4 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{doc.file_name}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{formatFileSize(doc.file_size)}</span>
-                              <span>•</span>
-                              <span>{formatDateTime(doc.created_at)}</span>
-                              <span>•</span>
-                              <span>by {doc.uploaded_by?.profiles?.full_name || 'Unknown'}</span>
-                            </div>
+                            <p className="font-medium text-xs truncate" title={doc.file_name}>{doc.file_name}</p>
+                            <p className="text-[10px] text-muted-foreground">{formatFileSize(doc.file_size)}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-0.5 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-6 w-6"
                             onClick={() => handleDownload(doc)}
                             disabled={downloading === doc.id}
                           >
                             {downloading === doc.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
-                              <Download className="h-4 w-4" />
+                              <Download className="h-3 w-3" />
                             )}
                           </Button>
                           {canDelete(folder.id) && (
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
                               onClick={() => setDeleteId(doc.id)}
-                              className="text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
