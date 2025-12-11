@@ -389,90 +389,93 @@ const TeamMemberProfile = () => {
           </Button>
         </Link>
 
-        <Card className="p-6">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <Avatar className="h-24 w-24 border-4 border-primary/10">
+        <Card className="p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <Avatar className="h-20 w-20 border-4 border-primary/10">
               <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
                 {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-1.5">
               {/* Name */}
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
+              <div className="group flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
                 {isAdminOrHR && (
-                  <EditProfileInfoDialog
-                    userId={employee.user_id}
-                    currentName={employee.profiles.full_name}
-                    currentEmail={employee.profiles.email}
-                    onSuccess={() => { loadEmployee(); loadUserRole(); }}
-                  />
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditProfileInfoDialog
+                      userId={employee.user_id}
+                      currentName={employee.profiles.full_name}
+                      currentEmail={employee.profiles.email}
+                      onSuccess={() => { loadEmployee(); loadUserRole(); }}
+                    />
+                  </span>
                 )}
               </div>
               
-              {/* Company Email */}
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span className="text-sm">{employee.profiles.email}</span>
-              </div>
-              
-              {/* Position and Department */}
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-medium text-primary">{employee.position}</p>
-                <Badge variant="secondary">{employee.department}</Badge>
+              {/* Position, Department and Projects */}
+              <div className="group flex items-center gap-2 flex-wrap">
+                <p className="text-base font-medium text-primary">{employee.position}</p>
+                <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
                 {isAdminOrHR && (
-                  <EditEmployeeInfoDialog
-                    employeeId={id!}
-                    currentPosition={employee.position}
-                    currentDepartment={employee.department}
-                    onSuccess={loadEmployee}
-                  />
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditEmployeeInfoDialog
+                      employeeId={id!}
+                      currentPosition={employee.position}
+                      currentDepartment={employee.department}
+                      onSuccess={loadEmployee}
+                    />
+                  </span>
                 )}
-              </div>
-              
-              {/* User Role */}
-              <div className="flex items-center gap-2">
-                <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'}>
-                  {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
-                </Badge>
-                {isAdminOrHR && (
-                  <EditUserRoleDialog
-                    userId={employee.user_id}
-                    currentRole={userRole}
-                    onSuccess={loadUserRole}
-                  />
-                )}
-              </div>
-              
-              {/* Projects */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">·</span>
                 {employeeProjects.length > 0 ? (
                   employeeProjects.map((ep) => (
-                    <Badge key={ep.id} variant="outline" className="flex items-center gap-1.5 pr-2.5">
-                      <DynamicIcon name={ep.project.icon} className="h-3.5 w-3.5" style={{ color: ep.project.color }} />
+                    <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
+                      <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{ color: ep.project.color }} />
                       {ep.project.name}
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground italic">No projects assigned</span>
+                  <span className="text-xs text-muted-foreground italic">No projects</span>
                 )}
                 {isAdminOrHR && (
-                  <EditProjectsDialog
-                    employeeId={id!}
-                    onSuccess={loadEmployeeProjects}
-                  />
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditProjectsDialog
+                      employeeId={id!}
+                      onSuccess={loadEmployeeProjects}
+                    />
+                  </span>
                 )}
               </div>
               
-              <div className="flex flex-wrap items-center gap-6">
+              {/* Email and User Role */}
+              <div className="group flex items-center gap-2 flex-wrap">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
+                <span className="text-muted-foreground">·</span>
+                <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
+                  {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
+                </Badge>
+                {isAdminOrHR && (
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditUserRoleDialog
+                      userId={employee.user_id}
+                      currentRole={userRole}
+                      onSuccess={loadUserRole}
+                    />
+                  </span>
+                )}
+              </div>
+              
+              {/* Manager and Manages */}
+              <div className="flex flex-wrap items-center gap-4 pt-1">
                 {/* Manager */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Manager:</span>
-                  {manager ? <div className="flex items-center gap-2">
-                      <Link to={`/team/${manager.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <Avatar className="h-7 w-7 border-2 border-background">
+                <div className="group flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Manager:</span>
+                  {manager ? (
+                    <div className="flex items-center gap-1.5">
+                      <Link to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                        <Avatar className="h-6 w-6 border-2 border-background">
                           <AvatarImage src={manager.profiles.avatar_url || undefined} />
                           <AvatarFallback className="text-xs bg-muted">
                             {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
@@ -480,36 +483,51 @@ const TeamMemberProfile = () => {
                         </Avatar>
                         <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
                       </Link>
-                      {canEditManager && <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                    loadEmployee();
-                    loadDirectReports();
-                  }} />}
-                    </div> : <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground italic">Not assigned</span>
-                      {canEditManager && <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                    loadEmployee();
-                    loadDirectReports();
-                  }} />}
-                    </div>}
+                      {canEditManager && (
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                            loadEmployee();
+                            loadDirectReports();
+                          }} />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground italic">Not assigned</span>
+                      {canEditManager && (
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                            loadEmployee();
+                            loadDirectReports();
+                          }} />
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Direct Reports */}
-                {directReports.length > 0 && <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Manages:</span>
+                {directReports.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Manages:</span>
                     <div className="flex items-center">
-                      {directReports.slice(0, 5).map((report, index) => <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" style={{
-                    marginLeft: index === 0 ? 0 : '-20%'
-                  }} title={report.profiles.full_name}>
-                          <Avatar className="h-7 w-7 border-2 border-background shadow-sm">
+                      {directReports.slice(0, 5).map((report, index) => (
+                        <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" style={{
+                          marginLeft: index === 0 ? 0 : '-20%'
+                        }} title={report.profiles.full_name}>
+                          <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
                             <AvatarImage src={report.profiles.avatar_url || undefined} />
                             <AvatarFallback className="text-xs bg-muted">
                               {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
-                        </Link>)}
-                      {directReports.length > 5 && <span className="ml-2 text-sm text-muted-foreground">+{directReports.length - 5}</span>}
+                        </Link>
+                      ))}
+                      {directReports.length > 5 && <span className="ml-1.5 text-xs text-muted-foreground">+{directReports.length - 5}</span>}
                     </div>
-                  </div>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
