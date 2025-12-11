@@ -2,10 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowRight, TrendingDown, TrendingUp, Timer } from "lucide-react";
+import { AlertCircle, TrendingDown, TrendingUp, Timer } from "lucide-react";
 import { format, startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 interface AttendanceTrackerProps {
   employeeId: string;
@@ -14,7 +13,6 @@ interface AttendanceTrackerProps {
 
 export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const currentDate = new Date();
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -297,15 +295,6 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
         </div>
       </div>
 
-      {/* View Full History Link */}
-      <Button 
-        variant="outline" 
-        className="w-full justify-between"
-        onClick={() => navigate(`/team/${employeeId}/attendance`)}
-      >
-        <span>View Full Attendance History</span>
-        <ArrowRight className="h-4 w-4" />
-      </Button>
     </div>
   );
 };
