@@ -726,29 +726,31 @@ const BulkImport = () => {
 
             {step === 'preview' && (
               <div className="space-y-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{file?.name}</p>
-                    <Button variant="outline" size="sm" onClick={resetState}>
-                      Change File
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{parsedData.length} employees found</p>
-                </div>
-
-                {validationErrors.length > 0 && (() => {
-                  const rowsWithErrors = new Set(validationErrors.map(err => err.match(/^Row (\d+):/)?.[1]).filter(Boolean)).size;
-                  return (
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                      <div className="flex items-center gap-4 text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <span className="text-sm font-medium">{validationErrors.length} Validation Errors</span>
-                        <span className="text-xs">•</span>
-                        <span className="text-sm">{rowsWithErrors} {rowsWithErrors === 1 ? 'row' : 'rows'} with errors</span>
-                      </div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{file?.name}</p>
+                      <Button variant="outline" size="sm" onClick={resetState}>
+                        Change File
+                      </Button>
                     </div>
-                  );
-                })()}
+                    <p className="text-xs text-muted-foreground mt-1">{parsedData.length} employees found</p>
+                  </div>
+
+                  {validationErrors.length > 0 && (() => {
+                    const rowsWithErrors = new Set(validationErrors.map(err => err.match(/^Row (\d+):/)?.[1]).filter(Boolean)).size;
+                    return (
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2 shrink-0">
+                        <div className="flex items-center gap-2 text-destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <span className="text-sm font-medium">{validationErrors.length} Errors</span>
+                          <span className="text-xs">•</span>
+                          <span className="text-sm">{rowsWithErrors} {rowsWithErrors === 1 ? 'row' : 'rows'}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
