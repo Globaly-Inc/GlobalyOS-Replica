@@ -375,13 +375,15 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
         <ArrowRight className="h-4 w-4" />
       </Button>
 
-      <EditScheduleDialog
-        open={showScheduleDialog}
-        onOpenChange={setShowScheduleDialog}
-        employeeId={employeeId}
-        organizationId={organizationId || ""}
-        currentSchedule={schedule}
-      />
+      {organizationId && (
+        <EditScheduleDialog
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          employeeId={employeeId}
+          organizationId={organizationId}
+          currentSchedule={schedule}
+        />
+      )}
     </div>
   );
 };
