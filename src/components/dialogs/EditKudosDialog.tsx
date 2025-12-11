@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -66,13 +66,15 @@ export const EditKudosDialog = ({
   const [selectOpen, setSelectOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    employeeIds: initialRecipientIds,
-    comment: initialComment,
+    employeeIds: [] as string[],
+    comment: "",
   });
 
-  // Reset form when dialog opens
+  // Reset form when dialog opens - use a ref to track previous open state
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
+      // Dialog just opened
       setFormData({
         employeeIds: initialRecipientIds,
         comment: initialComment,
@@ -80,7 +82,8 @@ export const EditKudosDialog = ({
       setErrors({});
       setSearchQuery("");
     }
-  }, [open, initialRecipientIds, initialComment]);
+    prevOpenRef.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (open) {
