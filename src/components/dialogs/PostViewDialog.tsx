@@ -57,7 +57,7 @@ const PostViewDialog = ({ open, onOpenChange, post }: PostViewDialogProps) => {
               <img 
                 src={post.imageUrl} 
                 alt="Post image" 
-                className="w-full h-auto object-cover"
+                className="max-w-full h-auto rounded-lg"
               />
             </div>
           )}
