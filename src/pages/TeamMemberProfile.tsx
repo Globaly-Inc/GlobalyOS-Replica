@@ -845,34 +845,60 @@ const TeamMemberProfile = () => {
                 </div>
                 <div className="p-4">
                   {employeeSchedule ? (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-muted/50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Start</p>
-                        <p className="font-semibold text-sm">
-                          {(() => {
-                            const [hours, minutes] = employeeSchedule.work_start_time.split(":");
+                    <div className="space-y-4">
+                      {/* 7-Day Schedule Grid */}
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {[
+                          { key: 'mon', label: 'Mon', working: true },
+                          { key: 'tue', label: 'Tue', working: true },
+                          { key: 'wed', label: 'Wed', working: true },
+                          { key: 'thu', label: 'Thu', working: true },
+                          { key: 'fri', label: 'Fri', working: true },
+                          { key: 'sat', label: 'Sat', working: false },
+                          { key: 'sun', label: 'Sun', working: false },
+                        ].map((day) => {
+                          const formatTime12 = (time: string) => {
+                            const [hours, minutes] = time.split(":");
                             const hour = parseInt(hours);
                             const ampm = hour >= 12 ? "PM" : "AM";
                             const hour12 = hour % 12 || 12;
-                            return `${hour12}:${minutes} ${ampm}`;
-                          })()}
-                        </p>
+                            return `${hour12}:${minutes}`;
+                          };
+                          
+                          return (
+                            <div 
+                              key={day.key} 
+                              className={`rounded-lg p-2 text-center ${
+                                day.working 
+                                  ? 'bg-primary/10 border border-primary/20' 
+                                  : 'bg-muted/50 border border-transparent'
+                              }`}
+                            >
+                              <p className={`text-xs font-medium mb-1 ${day.working ? 'text-primary' : 'text-muted-foreground'}`}>
+                                {day.label}
+                              </p>
+                              {day.working ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-[10px] font-semibold text-foreground">
+                                    {formatTime12(employeeSchedule.work_start_time)}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">to</p>
+                                  <p className="text-[10px] font-semibold text-foreground">
+                                    {formatTime12(employeeSchedule.work_end_time)}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground py-2">Off</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="bg-muted/50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">End</p>
-                        <p className="font-semibold text-sm">
-                          {(() => {
-                            const [hours, minutes] = employeeSchedule.work_end_time.split(":");
-                            const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? "PM" : "AM";
-                            const hour12 = hour % 12 || 12;
-                            return `${hour12}:${minutes} ${ampm}`;
-                          })()}
-                        </p>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Grace</p>
-                        <p className="font-semibold text-sm">{employeeSchedule.late_threshold_minutes}m</p>
+                      
+                      {/* Grace Period */}
+                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                        <span>Grace period:</span>
+                        <span className="font-medium text-foreground">{employeeSchedule.late_threshold_minutes} minutes</span>
                       </div>
                     </div>
                   ) : (
