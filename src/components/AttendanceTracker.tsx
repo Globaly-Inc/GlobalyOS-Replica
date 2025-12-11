@@ -212,10 +212,14 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
           </div>
           {canManageSchedule && (
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
-              className="h-8 px-2"
-              onClick={() => setShowScheduleDialog(true)}
+              className="h-8 px-3"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowScheduleDialog(true);
+              }}
             >
               <Settings2 className="h-4 w-4 mr-1" />
               Configure
@@ -245,7 +249,11 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
                 variant="link" 
                 size="sm" 
                 className="mt-1 h-auto p-0"
-                onClick={() => setShowScheduleDialog(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowScheduleDialog(true);
+                }}
               >
                 Set up schedule
               </Button>
@@ -367,15 +375,13 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
         <ArrowRight className="h-4 w-4" />
       </Button>
 
-      {organizationId && (
-        <EditScheduleDialog
-          open={showScheduleDialog}
-          onOpenChange={setShowScheduleDialog}
-          employeeId={employeeId}
-          organizationId={organizationId}
-          currentSchedule={schedule}
-        />
-      )}
+      <EditScheduleDialog
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        employeeId={employeeId}
+        organizationId={organizationId || ""}
+        currentSchedule={schedule}
+      />
     </div>
   );
 };
