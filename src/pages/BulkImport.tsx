@@ -697,6 +697,7 @@ const BulkImport = () => {
                     <table className="w-full text-xs min-w-max border-collapse">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-muted">
+                          <th className="w-10 px-2 py-2 font-medium border border-border/50 bg-muted text-center text-muted-foreground">#</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">First Name *</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Last Name *</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Email *</th>
@@ -719,6 +720,7 @@ const BulkImport = () => {
                       <tbody>
                         {parsedData.map((emp, i) => (
                           <tr key={i} className="border-b last:border-0">
+                            <td className="px-2 py-1.5 border border-border/50 text-center text-muted-foreground text-xs bg-muted/30">{i + 1}</td>
                             <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.first_name}
