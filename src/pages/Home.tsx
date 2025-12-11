@@ -19,9 +19,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { Link } from "react-router-dom";
 import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
-
 type DateFilter = "all" | "today" | "week" | "month";
-
 interface FeedItem {
   id: string;
   type: string;
@@ -380,18 +378,20 @@ const Home = () => {
   };
 
   // Filter items by date
-  const filterByDate = <T extends { created_at: string }>(items: T[]): T[] => {
+  const filterByDate = <T extends {
+    created_at: string;
+  },>(items: T[]): T[] => {
     if (dateFilter === "all") return items;
-    
     const now = new Date();
     let cutoffDate: Date;
-    
     switch (dateFilter) {
       case "today":
         cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         break;
       case "week":
-        cutoffDate = startOfWeek(now, { weekStartsOn: 1 });
+        cutoffDate = startOfWeek(now, {
+          weekStartsOn: 1
+        });
         break;
       case "month":
         cutoffDate = startOfMonth(now);
@@ -399,15 +399,12 @@ const Home = () => {
       default:
         return items;
     }
-    
     return items.filter(item => isAfter(new Date(item.created_at), cutoffDate));
   };
-
   const filteredUpdates = filterByDate(updates);
   const filteredKudos = filterByDate(kudos);
   const winsAndAchievements = filteredUpdates.filter(u => u.type === "win" || u.type === "achievement");
   const regularUpdates = filteredUpdates.filter(u => u.type === "update");
-  
   const renderFeedContent = (items: (FeedItem | KudosItem)[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
       if ("comment" in item) {
@@ -581,7 +578,7 @@ const Home = () => {
                 
                 {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Post Update
+                    Post
                   </Button>}
               </div>
 
