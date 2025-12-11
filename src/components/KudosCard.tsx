@@ -1,5 +1,6 @@
 import { Kudos } from "@/types/employee";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { formatDateTime } from "@/lib/utils";
 
 interface KudosCardProps {
   kudos: Kudos;
@@ -37,10 +38,7 @@ export const KudosCard = ({ kudos }: KudosCardProps) => {
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground truncate">{kudos.givenBy}</p>
           <p className="text-xs text-muted-foreground">
-            {new Date(kudos.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
+            {formatDateTime(kudos.date)}
           </p>
         </div>
       </div>
