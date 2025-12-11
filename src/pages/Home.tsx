@@ -18,7 +18,6 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { Link } from "react-router-dom";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
-
 interface FeedItem {
   id: string;
   type: string;
@@ -31,7 +30,6 @@ interface FeedItem {
     };
   };
 }
-
 interface KudosItem {
   id: string;
   comment: string;
@@ -49,7 +47,6 @@ interface KudosItem {
     };
   };
 }
-
 interface LeaveTypeBalance {
   id: string;
   balance: number;
@@ -59,8 +56,6 @@ interface LeaveTypeBalance {
     category: string;
   };
 }
-
-
 interface PersonOnLeave {
   id: string;
   employee: {
@@ -73,7 +68,6 @@ interface PersonOnLeave {
   };
   leave_type: string;
 }
-
 interface UpcomingEvent {
   id: string;
   date: Date;
@@ -90,7 +84,6 @@ const mapDbTypeToUiType = (dbType: string): "win" | "announcement" | "achievemen
   if (dbType === "update") return "announcement";
   return dbType as "win" | "announcement" | "achievement";
 };
-
 const Home = () => {
   const [updates, setUpdates] = useState<FeedItem[]>([]);
   const [kudos, setKudos] = useState<KudosItem[]>([]);
@@ -104,11 +97,17 @@ const Home = () => {
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
-  const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
-  
-  const { isHR, isAdmin } = useUserRole();
-  const { currentOrg } = useOrganization();
-
+  const [dailyQuote, setDailyQuote] = useState<{
+    quote: string;
+    author: string;
+  } | null>(null);
+  const {
+    isHR,
+    isAdmin
+  } = useUserRole();
+  const {
+    currentOrg
+  } = useOrganization();
   useEffect(() => {
     if (currentOrg) {
       checkEmployeeProfile();
@@ -118,53 +117,30 @@ const Home = () => {
       loadDailyQuote();
 
       // Set up real-time subscriptions for auto-refresh
-      const updatesChannel = supabase
-        .channel('home-updates')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'updates',
-            filter: `organization_id=eq.${currentOrg.id}`
-          },
-          () => {
-            loadFeed();
-          }
-        )
-        .subscribe();
-
-      const kudosChannel = supabase
-        .channel('home-kudos')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'kudos',
-            filter: `organization_id=eq.${currentOrg.id}`
-          },
-          () => {
-            loadFeed();
-          }
-        )
-        .subscribe();
-
-      const leaveChannel = supabase
-        .channel('home-leave')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'leave_requests',
-            filter: `organization_id=eq.${currentOrg.id}`
-          },
-          () => {
-            loadLeaveData();
-          }
-        )
-        .subscribe();
+      const updatesChannel = supabase.channel('home-updates').on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'updates',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        loadFeed();
+      }).subscribe();
+      const kudosChannel = supabase.channel('home-kudos').on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'kudos',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        loadFeed();
+      }).subscribe();
+      const leaveChannel = supabase.channel('home-leave').on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'leave_requests',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        loadLeaveData();
+      }).subscribe();
 
       // Cleanup subscriptions on unmount
       return () => {
@@ -174,19 +150,15 @@ const Home = () => {
       };
     }
   }, [currentOrg?.id]);
-
   const loadDailyQuote = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quote`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
         }
-      );
+      });
       if (response.ok) {
         const data = await response.json();
         setDailyQuote(data);
@@ -200,45 +172,38 @@ const Home = () => {
       });
     }
   };
-
   const checkEmployeeProfile = async () => {
     if (!currentOrg) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     // Get user's profile name
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .maybeSingle();
-
+    const {
+      data: profileData
+    } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
     if (profileData) {
       const firstName = profileData.full_name.split(" ")[0];
       setCurrentUserName(firstName);
     }
-
-    const { data } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("organization_id", currentOrg.id)
-      .maybeSingle();
-
+    const {
+      data
+    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     setHasEmployeeProfile(!!data);
     setCurrentEmployeeId(data?.id || null);
   };
-
   const loadUpcomingEvents = async () => {
     if (!currentOrg) return;
-    
     const today = new Date();
     const nextDays = 30; // Look ahead 30 days
-    
+
     // Load all employees with their dates
-    const { data: employees } = await supabase
-      .from("employees")
-      .select(`
+    const {
+      data: employees
+    } = await supabase.from("employees").select(`
         id,
         date_of_birth,
         join_date,
@@ -246,34 +211,27 @@ const Home = () => {
           full_name,
           avatar_url
         )
-      `)
-      .eq("organization_id", currentOrg.id)
-      .eq("status", "active");
-
+      `).eq("organization_id", currentOrg.id).eq("status", "active");
     if (!employees) return;
-
     const birthdays: UpcomingEvent[] = [];
     const anniversaries: UpcomingEvent[] = [];
-
     employees.forEach((emp: any) => {
       // Check birthday
       if (emp.date_of_birth) {
         const dob = parseISO(emp.date_of_birth);
         const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-        
+
         // If birthday has passed this year, check next year
         if (thisYearBirthday < today && !isSameDay(thisYearBirthday, today)) {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
         }
-        
         const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
         if (daysUntil >= 0 && daysUntil <= nextDays) {
           birthdays.push({
             id: emp.id,
             date: thisYearBirthday,
             daysUntil,
-            profiles: emp.profiles,
+            profiles: emp.profiles
           });
         }
       }
@@ -282,26 +240,24 @@ const Home = () => {
       if (emp.join_date) {
         const joinDate = parseISO(emp.join_date);
         const yearsWorked = differenceInYears(today, joinDate);
-        
+
         // Only show if they've worked at least 1 year
         if (yearsWorked >= 1) {
           const thisYearAnniversary = new Date(today.getFullYear(), joinDate.getMonth(), joinDate.getDate());
-          
+
           // If anniversary has passed this year, check next year
           if (thisYearAnniversary < today && !isSameDay(thisYearAnniversary, today)) {
             thisYearAnniversary.setFullYear(today.getFullYear() + 1);
           }
-          
           const daysUntil = Math.ceil((thisYearAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           const upcomingYears = thisYearAnniversary.getFullYear() - joinDate.getFullYear();
-          
           if (daysUntil >= 0 && daysUntil <= nextDays) {
             anniversaries.push({
               id: emp.id,
               date: thisYearAnniversary,
               daysUntil,
               yearsCount: upcomingYears,
-              profiles: emp.profiles,
+              profiles: emp.profiles
             });
           }
         }
@@ -311,23 +267,24 @@ const Home = () => {
     // Sort by days until event
     birthdays.sort((a, b) => a.daysUntil - b.daysUntil);
     anniversaries.sort((a, b) => a.daysUntil - b.daysUntil);
-
     setUpcomingBirthdays(birthdays.slice(0, 5));
     setUpcomingAnniversaries(anniversaries.slice(0, 5));
   };
-
   const loadLeaveData = async () => {
     if (!currentOrg) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
-
     const today = format(new Date(), "yyyy-MM-dd");
     const currentYear = new Date().getFullYear();
 
     // Load people on leave today
-    const { data: leaveRequests } = await supabase
-      .from("leave_requests")
-      .select(`
+    const {
+      data: leaveRequests
+    } = await supabase.from("leave_requests").select(`
         id,
         leave_type,
         employee:employees!leave_requests_employee_id_fkey(
@@ -338,28 +295,19 @@ const Home = () => {
             avatar_url
           )
         )
-      `)
-      .eq("organization_id", currentOrg.id)
-      .eq("status", "approved")
-      .lte("start_date", today)
-      .gte("end_date", today);
-
+      `).eq("organization_id", currentOrg.id).eq("status", "approved").lte("start_date", today).gte("end_date", today);
     if (leaveRequests) {
       setPeopleOnLeave(leaveRequests as PersonOnLeave[]);
     }
 
     // Load current user's leave balance from new flexible table
-    const { data: employeeData } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("organization_id", currentOrg.id)
-      .maybeSingle();
-
+    const {
+      data: employeeData
+    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     if (employeeData) {
-      const { data: balanceData } = await supabase
-        .from("leave_type_balances")
-        .select(`
+      const {
+        data: balanceData
+      } = await supabase.from("leave_type_balances").select(`
           id,
           balance,
           leave_type:leave_types!inner(
@@ -367,24 +315,20 @@ const Home = () => {
             name,
             category
           )
-        `)
-        .eq("employee_id", employeeData.id)
-        .eq("year", currentYear);
-
+        `).eq("employee_id", employeeData.id).eq("year", currentYear);
       if (balanceData) {
         setLeaveBalances(balanceData as LeaveTypeBalance[]);
       }
     }
   };
-
   const loadFeed = async () => {
     if (!currentOrg) return;
     setLoading(true);
-    
+
     // Load updates
-    const { data: updatesData } = await supabase
-      .from("updates")
-      .select(`
+    const {
+      data: updatesData
+    } = await supabase.from("updates").select(`
         id,
         type,
         content,
@@ -395,14 +339,14 @@ const Home = () => {
             avatar_url
           )
         )
-      `)
-      .eq("organization_id", currentOrg.id)
-      .order("created_at", { ascending: false });
+      `).eq("organization_id", currentOrg.id).order("created_at", {
+      ascending: false
+    });
 
     // Load kudos
-    const { data: kudosData } = await supabase
-      .from("kudos")
-      .select(`
+    const {
+      data: kudosData
+    } = await supabase.from("kudos").select(`
         id,
         comment,
         created_at,
@@ -418,95 +362,65 @@ const Home = () => {
             full_name
           )
         )
-      `)
-      .eq("organization_id", currentOrg.id)
-      .order("created_at", { ascending: false });
-
+      `).eq("organization_id", currentOrg.id).order("created_at", {
+      ascending: false
+    });
     if (updatesData) setUpdates(updatesData as FeedItem[]);
     if (kudosData) setKudos(kudosData as KudosItem[]);
     setLoading(false);
   };
-
-  const winsAndAchievements = updates.filter(u => 
-    u.type === "win" || u.type === "achievement"
-  );
-
+  const winsAndAchievements = updates.filter(u => u.type === "win" || u.type === "achievement");
   const regularUpdates = updates.filter(u => u.type === "update");
-
-  const renderFeedContent = (items: (FeedItem | KudosItem)[]) => (
-    <>
-      {items
-        .sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .map((item) => {
-          if ("comment" in item) {
-            const kudosItem = item as KudosItem;
-            return (
-              <KudosCard
-                key={item.id}
-                kudos={{
-                  id: kudosItem.id,
-                  employeeId: kudosItem.employee.id,
-                  employeeName: kudosItem.employee.profiles.full_name,
-                  givenBy: kudosItem.given_by.profiles.full_name,
-                  comment: kudosItem.comment,
-                  date: kudosItem.created_at,
-                  avatar: kudosItem.employee.profiles.avatar_url || undefined,
-                }}
-              />
-            );
-          } else {
-            const updateItem = item as FeedItem;
-            return (
-              <UpdateCard
-                key={item.id}
-                update={{
-                  id: updateItem.id,
-                  employeeId: "",
-                  employeeName: updateItem.employee.profiles.full_name,
-                  content: updateItem.content,
-                  date: updateItem.created_at,
-                  type: mapDbTypeToUiType(updateItem.type),
-                  avatar: updateItem.employee.profiles.avatar_url || undefined,
-                }}
-              />
-            );
-          }
-        })}
-    </>
-  );
-
-  return (
-    <Layout>
+  const renderFeedContent = (items: (FeedItem | KudosItem)[]) => <>
+      {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
+      if ("comment" in item) {
+        const kudosItem = item as KudosItem;
+        return <KudosCard key={item.id} kudos={{
+          id: kudosItem.id,
+          employeeId: kudosItem.employee.id,
+          employeeName: kudosItem.employee.profiles.full_name,
+          givenBy: kudosItem.given_by.profiles.full_name,
+          comment: kudosItem.comment,
+          date: kudosItem.created_at,
+          avatar: kudosItem.employee.profiles.avatar_url || undefined
+        }} />;
+      } else {
+        const updateItem = item as FeedItem;
+        return <UpdateCard key={item.id} update={{
+          id: updateItem.id,
+          employeeId: "",
+          employeeName: updateItem.employee.profiles.full_name,
+          content: updateItem.content,
+          date: updateItem.created_at,
+          type: mapDbTypeToUiType(updateItem.type),
+          avatar: updateItem.employee.profiles.avatar_url || undefined
+        }} />;
+      }
+    })}
+    </>;
+  return <Layout>
       <div className="space-y-6">
         <AdminSetup />
         
         {/* Page Title */}
         {(() => {
-          const hour = new Date().getHours();
-          let greeting = "Good evening";
-          let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
-          let TimeIcon = Moon;
-          
-          if (hour < 12) {
-            greeting = "Good morning";
-            gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
-            TimeIcon = Sunrise;
-          } else if (hour < 17) {
-            greeting = "Good afternoon";
-            gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
-            TimeIcon = Sun;
-          }
-          
-          return (
-            <div 
-              className={`relative overflow-hidden rounded-xl p-6 shadow-md bg-gradient-to-r ${gradientClass} animate-fade-in`}
-              style={{
-                backgroundSize: '200% 200%',
-                animation: 'gradient-shift 8s ease infinite, fade-in 0.3s ease-out',
-              }}
-            >
+        const hour = new Date().getHours();
+        let greeting = "Good evening";
+        let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
+        let TimeIcon = Moon;
+        if (hour < 12) {
+          greeting = "Good morning";
+          gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
+          TimeIcon = Sunrise;
+        } else if (hour < 17) {
+          greeting = "Good afternoon";
+          gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
+          TimeIcon = Sun;
+        }
+        return <div className={`relative overflow-hidden rounded-xl p-6 shadow-md bg-gradient-to-r ${gradientClass} animate-fade-in`} style={{
+          backgroundSize: '200% 200%',
+          animation: 'gradient-shift 8s ease infinite, fade-in 0.3s ease-out'
+        }}>
               <style>{`
                 @keyframes gradient-shift {
                   0% { background-position: 0% 50%; }
@@ -529,8 +443,7 @@ const Home = () => {
                 </div>
                 
                 {/* Right side - Quote */}
-                {dailyQuote && (
-                  <div className="md:text-right md:max-w-md">
+                {dailyQuote && <div className="md:text-right md:max-w-md">
                     <div className="flex md:justify-end gap-2 items-start">
                       <Quote className="h-4 w-4 text-white/60 flex-shrink-0 mt-1 hidden md:block" />
                       <div>
@@ -542,16 +455,13 @@ const Home = () => {
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
+                  </div>}
               </div>
-            </div>
-          );
-        })()}
+            </div>;
+      })()}
 
         {/* Action Buttons */}
-        {!hasEmployeeProfile && isHR && (
-          <Card className="p-6 border-accent/50 bg-accent-light/50">
+        {!hasEmployeeProfile && isHR && <Card className="p-6 border-accent/50 bg-accent-light/50">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-foreground">Create Your Employee Profile</h3>
@@ -560,15 +470,13 @@ const Home = () => {
                 </p>
               </div>
               <AddEmployeeDialog onSuccess={() => {
-                checkEmployeeProfile();
-                loadFeed();
-              }} />
+            checkEmployeeProfile();
+            loadFeed();
+          }} />
             </div>
-          </Card>
-        )}
+          </Card>}
 
-        {!hasEmployeeProfile && !isHR && (
-          <Card className="p-6 border-amber-200 bg-amber-50">
+        {!hasEmployeeProfile && !isHR && <Card className="p-6 border-amber-200 bg-amber-50">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-foreground">Employee Profile Not Found</h3>
@@ -577,8 +485,7 @@ const Home = () => {
                 </p>
               </div>
             </div>
-          </Card>
-        )}
+          </Card>}
 
         {/* Two Column Layout */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -604,95 +511,66 @@ const Home = () => {
                     <span>Announcements</span>
                   </TabsTrigger>
                 </TabsList>
-                {hasEmployeeProfile && (
-                  <Button onClick={() => setPostDialogOpen(true)}>
+                {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Post Update
-                  </Button>
-                )}
+                  </Button>}
               </div>
 
               <TabsContent value="all" className="space-y-4">
-                {loading ? (
-                  <Card className="p-12 text-center">
+                {loading ? <Card className="p-12 text-center">
                     <p className="text-muted-foreground">Loading feed...</p>
-                  </Card>
-                ) : (
-                  <>
+                  </Card> : <>
                     {renderFeedContent([...updates, ...kudos])}
-                    {updates.length === 0 && kudos.length === 0 && (
-                      <Card className="p-12 text-center">
+                    {updates.length === 0 && kudos.length === 0 && <Card className="p-12 text-center">
                         <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
-                      </Card>
-                    )}
-                  </>
-                )}
+                      </Card>}
+                  </>}
               </TabsContent>
 
               <TabsContent value="wins" className="space-y-4">
-                {winsAndAchievements.map((update) => (
-                  <UpdateCard
-                    key={update.id}
-                    update={{
-                      id: update.id,
-                      employeeId: "",
-                      employeeName: update.employee.profiles.full_name,
-                      content: update.content,
-                      date: update.created_at,
-                      type: update.type as "win" | "achievement",
-                      avatar: update.employee.profiles.avatar_url || undefined,
-                    }}
-                  />
-                ))}
-                {winsAndAchievements.length === 0 && (
-                  <Card className="p-12 text-center">
+                {winsAndAchievements.map(update => <UpdateCard key={update.id} update={{
+                id: update.id,
+                employeeId: "",
+                employeeName: update.employee.profiles.full_name,
+                content: update.content,
+                date: update.created_at,
+                type: update.type as "win" | "achievement",
+                avatar: update.employee.profiles.avatar_url || undefined
+              }} />)}
+                {winsAndAchievements.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No wins yet!</p>
-                  </Card>
-                )}
+                  </Card>}
               </TabsContent>
 
               <TabsContent value="kudos" className="space-y-4">
-                {kudos.map((kudosItem) => (
-                  <KudosCard
-                    key={kudosItem.id}
-                    kudos={{
-                      id: kudosItem.id,
-                      employeeId: kudosItem.employee.id,
-                      employeeName: kudosItem.employee.profiles.full_name,
-                      givenBy: kudosItem.given_by.profiles.full_name,
-                      comment: kudosItem.comment,
-                      date: kudosItem.created_at,
-                      avatar: kudosItem.employee.profiles.avatar_url || undefined,
-                    }}
-                  />
-                ))}
-                {kudos.length === 0 && (
-                  <Card className="p-12 text-center">
+                {kudos.map(kudosItem => <KudosCard key={kudosItem.id} kudos={{
+                id: kudosItem.id,
+                employeeId: kudosItem.employee.id,
+                employeeName: kudosItem.employee.profiles.full_name,
+                givenBy: kudosItem.given_by.profiles.full_name,
+                comment: kudosItem.comment,
+                date: kudosItem.created_at,
+                avatar: kudosItem.employee.profiles.avatar_url || undefined
+              }} />)}
+                {kudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>
-                  </Card>
-                )}
+                  </Card>}
               </TabsContent>
 
               <TabsContent value="announcements" className="space-y-4">
-                {regularUpdates.map((update) => (
-                  <UpdateCard
-                    key={update.id}
-                    update={{
-                      id: update.id,
-                      employeeId: "",
-                      employeeName: update.employee.profiles.full_name,
-                      content: update.content,
-                      date: update.created_at,
-                      type: "announcement",
-                      avatar: update.employee.profiles.avatar_url || undefined,
-                    }}
-                  />
-                ))}
-                {regularUpdates.length === 0 && (
-                  <Card className="p-12 text-center">
+                {regularUpdates.map(update => <UpdateCard key={update.id} update={{
+                id: update.id,
+                employeeId: "",
+                employeeName: update.employee.profiles.full_name,
+                content: update.content,
+                date: update.created_at,
+                type: "announcement",
+                avatar: update.employee.profiles.avatar_url || undefined
+              }} />)}
+                {regularUpdates.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No announcements yet!</p>
-                  </Card>
-                )}
+                  </Card>}
               </TabsContent>
             </Tabs>
           </div>
@@ -709,14 +587,10 @@ const Home = () => {
                   <Palmtree className="h-5 w-5 text-primary" />
                   On Leave Today
                 </h3>
-                {peopleOnLeave.length > 0 && (
-                  <span className="text-sm text-muted-foreground">{peopleOnLeave.length} people</span>
-                )}
+                {peopleOnLeave.length > 0 && <span className="text-sm text-muted-foreground">{peopleOnLeave.length} people</span>}
               </div>
-              {peopleOnLeave.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {peopleOnLeave.map((leave) => (
-                    <HoverCard key={leave.id}>
+              {peopleOnLeave.length > 0 ? <div className="flex flex-wrap gap-2">
+                  {peopleOnLeave.map(leave => <HoverCard key={leave.id}>
                       <HoverCardTrigger asChild>
                         <Link to={`/team/${leave.employee.id}`}>
                           <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
@@ -751,45 +625,30 @@ const Home = () => {
                           </div>
                         </div>
                       </HoverCardContent>
-                    </HoverCard>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No one is on leave today</p>
-              )}
+                    </HoverCard>)}
+                </div> : <p className="text-sm text-muted-foreground">No one is on leave today</p>}
             </Card>
 
             {/* Current User Leave Balance */}
-            {hasEmployeeProfile && (
-              <Card className="p-6">
+            {hasEmployeeProfile && <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                     <Calendar className="h-5 w-5 text-primary" />
-                    Your Leave Balance
+                    My Leave Balance
                   </h3>
-                  <Button 
-                    size="sm"
-                    onClick={() => setLeaveDialogOpen(true)}
-                  >
+                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
                     Request
                   </Button>
                 </div>
-                {leaveBalances.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-3">
-                    {leaveBalances.slice(0, 3).map((item) => (
-                      <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
+                {leaveBalances.length > 0 ? <div className="grid grid-cols-3 gap-3">
+                    {leaveBalances.slice(0, 3).map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
                         <div className="text-2xl font-bold text-primary">
                           {item.balance}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">{item.leave_type.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No leave balance set for this year</p>
-                )}
-              </Card>
-            )}
+                      </div>)}
+                  </div> : <p className="text-sm text-muted-foreground">No leave balance set for this year</p>}
+              </Card>}
 
             {/* Upcoming Birthdays */}
             <Card className="p-6">
@@ -797,14 +656,8 @@ const Home = () => {
                 <Cake className="h-5 w-5 text-primary" />
                 Upcoming Birthdays
               </h3>
-              {upcomingBirthdays.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingBirthdays.map((birthday) => (
-                    <Link
-                      key={birthday.id}
-                      to={`/team/${birthday.id}`}
-                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
-                    >
+              {upcomingBirthdays.length > 0 ? <div className="space-y-3">
+                  {upcomingBirthdays.map(birthday => <Link key={birthday.id} to={`/team/${birthday.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={birthday.profiles.avatar_url || undefined} />
                         <AvatarFallback className="text-xs">
@@ -819,12 +672,8 @@ const Home = () => {
                           {birthday.daysUntil === 0 ? "Today! 🎉" : birthday.daysUntil === 1 ? "Tomorrow" : `In ${birthday.daysUntil} days`}
                         </p>
                       </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No upcoming birthdays</p>
-              )}
+                    </Link>)}
+                </div> : <p className="text-sm text-muted-foreground">No upcoming birthdays</p>}
             </Card>
 
             {/* Work Anniversaries */}
@@ -833,14 +682,8 @@ const Home = () => {
                 <Award className="h-5 w-5 text-primary" />
                 Work Anniversaries
               </h3>
-              {upcomingAnniversaries.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingAnniversaries.map((anniversary) => (
-                    <Link
-                      key={anniversary.id}
-                      to={`/team/${anniversary.id}`}
-                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
-                    >
+              {upcomingAnniversaries.length > 0 ? <div className="space-y-3">
+                  {upcomingAnniversaries.map(anniversary => <Link key={anniversary.id} to={`/team/${anniversary.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={anniversary.profiles.avatar_url || undefined} />
                         <AvatarFallback className="text-xs">
@@ -855,35 +698,16 @@ const Home = () => {
                           {anniversary.yearsCount} {anniversary.yearsCount === 1 ? "year" : "years"} · {anniversary.daysUntil === 0 ? "Today! 🎉" : anniversary.daysUntil === 1 ? "Tomorrow" : `In ${anniversary.daysUntil} days`}
                         </p>
                       </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>
-              )}
+                    </Link>)}
+                </div> : <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>}
             </Card>
           </div>
         </div>
       </div>
 
-      <PostUpdateDialog
-        open={postDialogOpen}
-        onOpenChange={setPostDialogOpen}
-        onSuccess={loadFeed}
-        canPostAnnouncement={isAdmin || isHR}
-      />
+      <PostUpdateDialog open={postDialogOpen} onOpenChange={setPostDialogOpen} onSuccess={loadFeed} canPostAnnouncement={isAdmin || isHR} />
 
-      {currentEmployeeId && (
-        <AddLeaveRequestDialog
-          employeeId={currentEmployeeId}
-          open={leaveDialogOpen}
-          onOpenChange={setLeaveDialogOpen}
-          onSuccess={loadLeaveData}
-          trigger={null}
-        />
-      )}
-    </Layout>
-  );
+      {currentEmployeeId && <AddLeaveRequestDialog employeeId={currentEmployeeId} open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSuccess={loadLeaveData} trigger={null} />}
+    </Layout>;
 };
-
 export default Home;
