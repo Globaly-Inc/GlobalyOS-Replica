@@ -432,7 +432,7 @@ const TeamMemberProfile = () => {
                   </span>
                 )}
               </div>
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 space-y-1.5 flex flex-col justify-center">
                 {/* Name with Status Badges */}
                 <div className="group flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
