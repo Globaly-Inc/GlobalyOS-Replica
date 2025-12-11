@@ -280,9 +280,12 @@ const OrgChart = () => {
   };
 
   const departments = groupByDepartment(employees);
-  const sortedDepartments = Array.from(departments.entries()).sort((a, b) => 
-    a[0].localeCompare(b[0])
-  );
+  const sortedDepartments = Array.from(departments.entries()).sort((a, b) => {
+    // Always put Management first
+    if (a[0].toLowerCase() === 'management') return -1;
+    if (b[0].toLowerCase() === 'management') return 1;
+    return a[0].localeCompare(b[0]);
+  });
 
   return (
     <Layout>
