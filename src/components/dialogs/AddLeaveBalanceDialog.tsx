@@ -32,7 +32,7 @@ interface LeaveType {
 
 interface AddLeaveBalanceDialogProps {
   employeeId: string;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export const AddLeaveBalanceDialog = ({
@@ -158,7 +158,7 @@ export const AddLeaveBalanceDialog = ({
       setLeaveType("");
       setAmount("");
       setReason("");
-      onSuccess();
+      onSuccess?.();
     } catch (error: any) {
       console.error("Error updating leave balance:", error);
       toast.error(error.message || "Failed to update leave balance");
