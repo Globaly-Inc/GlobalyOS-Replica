@@ -13,6 +13,7 @@ const Home = lazy(() => import("./pages/Home"));
 const Team = lazy(() => import("./pages/Team"));
 const TeamMemberProfile = lazy(() => import("./pages/TeamMemberProfile"));
 const InviteTeamMember = lazy(() => import("./pages/InviteTeamMember"));
+const BulkImport = lazy(() => import("./pages/BulkImport"));
 const OrgChart = lazy(() => import("./pages/OrgChart"));
 const Growth = lazy(() => import("./pages/Growth"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
               <Route path="/team/invite" element={<ProtectedRoute><InviteTeamMember /></ProtectedRoute>} />
+              <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
               <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
               <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
               <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
