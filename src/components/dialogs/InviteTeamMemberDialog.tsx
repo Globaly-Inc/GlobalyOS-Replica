@@ -193,31 +193,40 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
 
   const handleChange = useCallback((field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing valid input
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
   }, []);
 
   const handleBlur = useCallback((field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    // Validate field on blur
-    validateField(field);
   }, []);
 
-  const validateField = useCallback((field: string) => {
-    try {
-      const fieldSchema = inviteSchema.shape[field as keyof typeof inviteSchema.shape];
-      if (fieldSchema) {
-        fieldSchema.parse(formData[field as keyof FormDataType]);
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[field];
-          return newErrors;
-        });
+  // Validate on formData or touched changes
+  useEffect(() => {
+    Object.keys(touched).forEach(field => {
+      if (touched[field]) {
+        try {
+          const fieldSchema = inviteSchema.shape[field as keyof typeof inviteSchema.shape];
+          if (fieldSchema) {
+            fieldSchema.parse(formData[field as keyof FormDataType]);
+            setErrors(prev => {
+              const newErrors = { ...prev };
+              delete newErrors[field];
+              return newErrors;
+            });
+          }
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            setErrors(prev => ({ ...prev, [field]: error.errors[0]?.message || 'Invalid value' }));
+          }
+        }
       }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setErrors(prev => ({ ...prev, [field]: error.errors[0]?.message || 'Invalid value' }));
-      }
-    }
-  }, [formData]);
+    });
+  }, [formData, touched]);
 
   const getSectionErrors = useCallback((section: Section): string[] => {
     const sectionFields: Record<Section, string[]> = {
