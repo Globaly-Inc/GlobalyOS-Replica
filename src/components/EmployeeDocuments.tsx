@@ -255,7 +255,12 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-xs truncate" title={doc.file_name}>{doc.file_name}</p>
-                            <p className="text-[10px] text-muted-foreground">{formatFileSize(doc.file_size)}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {formatFileSize(doc.file_size)} · {formatDateTime(doc.created_at)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              by {doc.uploaded_by?.profiles?.full_name?.split(' ')[0] || 'Unknown'}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center justify-end gap-0.5 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
