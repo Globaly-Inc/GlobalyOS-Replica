@@ -6,10 +6,60 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
-import { ArrowLeft, Volume2, VolumeX, Bell, Heart, AtSign, Calendar, Moon, RotateCcw } from "lucide-react";
+import { useNotificationPreferences, SOUND_OPTIONS, SoundType } from "@/hooks/useNotificationPreferences";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { ArrowLeft, Volume2, VolumeX, Bell, Heart, AtSign, Calendar, Moon, RotateCcw, Play, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+const SoundSelector = ({ 
+  selectedSound, 
+  onSelectSound 
+}: { 
+  selectedSound: SoundType; 
+  onSelectSound: (sound: SoundType) => void;
+}) => {
+  const { playNotificationSound } = useNotificationSound();
+
+  const handlePreview = (sound: SoundType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    playNotificationSound(sound);
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {SOUND_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          onClick={() => onSelectSound(option.value)}
+          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+            selectedSound === option.value
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/50 hover:bg-muted/50"
+          }`}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {selectedSound === option.value && (
+                <Check className="h-4 w-4 text-primary shrink-0" />
+              )}
+              <span className="text-sm font-medium">{option.label}</span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{option.description}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={(e) => handlePreview(option.value, e)}
+          >
+            <Play className="h-4 w-4" />
+          </Button>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const NotificationPreferences = () => {
   const navigate = useNavigate();
@@ -63,12 +113,12 @@ const NotificationPreferences = () => {
                 <div>
                   <CardTitle className="text-base">Notification Sound</CardTitle>
                   <CardDescription>
-                    Play a chime when new notifications arrive
+                    Play a sound when new notifications arrive
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label htmlFor="sound-toggle" className="text-sm">
                   Enable notification sound
@@ -79,6 +129,19 @@ const NotificationPreferences = () => {
                   onCheckedChange={(checked) => updatePreference("soundEnabled", checked)}
                 />
               </div>
+              
+              {preferences.soundEnabled && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Choose Sound</Label>
+                    <SoundSelector
+                      selectedSound={preferences.soundType}
+                      onSelectSound={(sound) => updatePreference("soundType", sound)}
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

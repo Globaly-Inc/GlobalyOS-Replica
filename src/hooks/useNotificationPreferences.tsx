@@ -1,5 +1,30 @@
 import { useState, useEffect, useCallback } from "react";
 
+export type SoundType = 
+  | "chime"
+  | "bell"
+  | "pop"
+  | "ding"
+  | "whoosh"
+  | "bubble"
+  | "marimba"
+  | "ping"
+  | "sparkle"
+  | "soft";
+
+export const SOUND_OPTIONS: { value: SoundType; label: string; description: string }[] = [
+  { value: "chime", label: "Chime", description: "Pleasant ascending notes" },
+  { value: "bell", label: "Bell", description: "Classic notification bell" },
+  { value: "pop", label: "Pop", description: "Quick playful pop" },
+  { value: "ding", label: "Ding", description: "Simple single ding" },
+  { value: "whoosh", label: "Whoosh", description: "Soft swoosh sound" },
+  { value: "bubble", label: "Bubble", description: "Bubbly water drop" },
+  { value: "marimba", label: "Marimba", description: "Wooden marimba tone" },
+  { value: "ping", label: "Ping", description: "Sharp digital ping" },
+  { value: "sparkle", label: "Sparkle", description: "Magical sparkle effect" },
+  { value: "soft", label: "Soft Tone", description: "Gentle muted tone" },
+];
+
 export interface QuietHours {
   enabled: boolean;
   startTime: string; // HH:mm format
@@ -8,6 +33,7 @@ export interface QuietHours {
 
 export interface NotificationPreferences {
   soundEnabled: boolean;
+  soundType: SoundType;
   notificationTypes: {
     kudos: boolean;
     mentions: boolean;
@@ -19,6 +45,7 @@ export interface NotificationPreferences {
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
   soundEnabled: true,
+  soundType: "chime",
   notificationTypes: {
     kudos: true,
     mentions: true,
