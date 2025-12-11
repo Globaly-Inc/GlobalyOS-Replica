@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
+import { Heart } from "lucide-react";
 
 interface KudosCardProps {
   kudos: Kudos;
@@ -21,19 +22,26 @@ export const KudosCard = ({ kudos }: KudosCardProps) => {
     <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500">
       <div className="p-4">
         {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
-          <Avatar className="h-10 w-10 border border-border/50">
-            {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
-            <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-              {kudos.givenBy.split(" ").map((n) => n[0]).join("")}
-            </AvatarFallback>
-          </Avatar>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border border-border/50">
+              {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
+              <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                {kudos.givenBy.split(" ").map((n) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div>
+              <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDateTime(kudos.date)}
+              </p>
+            </div>
+          </div>
           
-          <div>
-            <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatDateTime(kudos.date)}
-            </p>
+          {/* Post type icon on right */}
+          <div className="p-2 rounded-full bg-pink-100 text-pink-600">
+            <Heart className="h-4 w-4" />
           </div>
         </div>
         
