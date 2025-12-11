@@ -486,16 +486,16 @@ const Home = () => {
         {(() => {
           const hour = new Date().getHours();
           let greeting = "Good evening";
-          let gradientClass = "from-indigo-600 via-purple-600 to-pink-500"; // Evening
+          let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
           let TimeIcon = Moon;
           
           if (hour < 12) {
             greeting = "Good morning";
-            gradientClass = "from-amber-400 via-orange-400 to-yellow-300"; // Morning
+            gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
             TimeIcon = Sunrise;
           } else if (hour < 17) {
             greeting = "Good afternoon";
-            gradientClass = "from-sky-400 via-blue-500 to-cyan-400"; // Afternoon
+            gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
             TimeIcon = Sun;
           }
           
