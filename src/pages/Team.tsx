@@ -45,7 +45,7 @@ interface UserRole {
 
 const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -175,22 +175,32 @@ const Team = () => {
         </PageHeader>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
-            <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
-              <TabsTrigger value="all" className="gap-1.5">
-                All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
-              </TabsTrigger>
-              <TabsTrigger value="active" className="gap-1.5">
-                Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
-              </TabsTrigger>
-              <TabsTrigger value="invited" className="gap-1.5">
-                Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
-              </TabsTrigger>
-              <TabsTrigger value="inactive" className="gap-1.5">
-                Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {(isAdmin || isHR) ? (
+            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
+              <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
+                <TabsTrigger value="all" className="gap-1.5">
+                  All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
+                </TabsTrigger>
+                <TabsTrigger value="active" className="gap-1.5">
+                  Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
+                </TabsTrigger>
+                <TabsTrigger value="invited" className="gap-1.5">
+                  Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
+                </TabsTrigger>
+                <TabsTrigger value="inactive" className="gap-1.5">
+                  Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : (
+            <Tabs value="active" className="w-full sm:w-auto">
+              <TabsList className="sm:w-auto sm:inline-flex">
+                <TabsTrigger value="active" className="gap-1.5">
+                  Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
