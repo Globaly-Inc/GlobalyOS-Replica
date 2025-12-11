@@ -314,7 +314,7 @@ const OrgChart = () => {
             <p className="text-muted-foreground">No employees found.</p>
           </Card>
         ) : (
-          <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 lg:grid-cols-3 items-start">
+          <div className="grid gap-x-4 md:grid-cols-2 lg:grid-cols-3 items-start">
             {sortedDepartments.map(([department, deptEmployees]) => {
               const tree = buildDepartmentTree(deptEmployees);
               const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
