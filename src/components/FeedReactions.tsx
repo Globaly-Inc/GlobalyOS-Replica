@@ -38,6 +38,31 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
     loadReactions();
   }, [targetId, currentOrg?.id]);
 
+  // Real-time subscription for reactions
+  useEffect(() => {
+    if (!currentOrg?.id || !targetId) return;
+
+    const channel = supabase
+      .channel(`reactions-${targetId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "feed_reactions",
+          filter: `target_id=eq.${targetId}`,
+        },
+        () => {
+          loadReactions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [targetId, currentOrg?.id]);
+
   const loadCurrentEmployee = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !currentOrg) return;
