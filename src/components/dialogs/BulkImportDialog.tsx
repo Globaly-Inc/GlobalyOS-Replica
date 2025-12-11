@@ -503,26 +503,57 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
               </div>
             )}
 
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-primary"></span>
+                <span>Required</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/30"></span>
+                <span>Optional</span>
+              </div>
+            </div>
+
             <ScrollArea className="flex-1 border rounded-lg">
-              <div className="p-4">
-                <table className="w-full text-xs">
+              <div className="p-4 overflow-x-auto">
+                <table className="w-full text-xs min-w-max">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-2">Name</th>
-                      <th className="text-left p-2">Email</th>
-                      <th className="text-left p-2">Position</th>
-                      <th className="text-left p-2">Department</th>
-                      <th className="text-left p-2">Join Date</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Name *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Email *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Phone *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Department *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Position *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Join Date *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">DOB *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Office *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Manager *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Street *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">City *</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">State *</th>
+                      <th className="text-left p-2">Postcode</th>
+                      <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Country *</th>
+                      <th className="text-left p-2">Role</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsedData.map((emp, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="p-2">{emp.first_name} {emp.last_name}</td>
-                        <td className="p-2">{emp.email}</td>
-                        <td className="p-2">{emp.position}</td>
-                        <td className="p-2">{emp.department}</td>
-                        <td className="p-2">{emp.join_date}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.first_name} {emp.last_name}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.email}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.phone}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.department}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.position}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.join_date}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.date_of_birth}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.office_name}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.manager_email}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.street}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.city}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.state}</td>
+                        <td className="p-2">{emp.postcode}</td>
+                        <td className="p-2 border-l-2 border-l-primary/30">{emp.country}</td>
+                        <td className="p-2">{emp.role || 'user'}</td>
                       </tr>
                     ))}
                   </tbody>
