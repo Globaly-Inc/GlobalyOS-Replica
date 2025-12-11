@@ -393,6 +393,7 @@ const TeamMemberProfile = () => {
         content,
         created_at,
         employee_id,
+        image_url,
         employee:employees!inner(
           id,
           profiles!inner(
@@ -414,6 +415,7 @@ const TeamMemberProfile = () => {
           content,
           created_at,
           employee_id,
+          image_url,
           employee:employees!inner(
             id,
             profiles!inner(
@@ -438,6 +440,7 @@ const TeamMemberProfile = () => {
           content: w.content,
           date: w.created_at,
           avatar: w.employee.profiles.avatar_url,
+          image_url: w.image_url,
           type: w.type as "win",
           taggedMembers: []
         });
@@ -455,6 +458,7 @@ const TeamMemberProfile = () => {
             content: w.content,
             date: w.created_at,
             avatar: w.employee.profiles.avatar_url,
+            image_url: w.image_url,
             type: w.type as "win",
             taggedMembers: []
           });
