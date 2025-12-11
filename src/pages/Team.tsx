@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight } from "lucide-react";
+import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
+import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphanedUsersDialog";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
@@ -74,6 +75,7 @@ const Team = () => {
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [recoverDialogOpen, setRecoverDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
@@ -330,6 +332,12 @@ const Team = () => {
           title="Team Directory" 
           subtitle={`Meet our amazing team of ${employees.length} members`}
         >
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setRecoverDialogOpen(true)} className="gap-2">
+              <UserCog className="h-4 w-4" />
+              Recover Users
+            </Button>
+          )}
           {isHR && (
             <>
               <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="gap-2">
@@ -541,6 +549,11 @@ const Team = () => {
         open={inviteDialogOpen}
         onOpenChange={setInviteDialogOpen}
         onSuccess={loadEmployees}
+      />
+
+      <RecoverOrphanedUsersDialog
+        open={recoverDialogOpen}
+        onOpenChange={setRecoverDialogOpen}
       />
     </Layout>
   );

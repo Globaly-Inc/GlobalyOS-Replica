@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.get-vapid-public-key]
 verify_jwt = false
+
+[functions.recover-orphaned-user]
+verify_jwt = false
+
+[functions.list-orphaned-users]
+verify_jwt = false
