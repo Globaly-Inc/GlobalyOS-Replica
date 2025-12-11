@@ -26,6 +26,7 @@ export interface Kudos {
   comment: string;
   date: string;
   avatar?: string;
+  batchId?: string;
   otherRecipients?: string[];
 }
 

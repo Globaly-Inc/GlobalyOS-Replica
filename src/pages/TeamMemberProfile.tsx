@@ -680,6 +680,7 @@ const TeamMemberProfile = () => {
                       givenByAvatar: k.given_by.profiles.avatar_url,
                       comment: k.comment,
                       date: k.created_at,
+                      batchId: k.batch_id || undefined,
                       otherRecipients: k.otherRecipients
                     }} onDelete={loadKudos} />)}
                   </div>

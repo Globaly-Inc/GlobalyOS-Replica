@@ -482,6 +482,7 @@ const Home = () => {
           comment: kudosItem.comment,
           date: kudosItem.created_at,
           avatar: kudosItem.employee.profiles.avatar_url || undefined,
+          batchId: kudosItem.batch_id || undefined,
           otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
         }} onDelete={loadFeed} />;
       } else {
