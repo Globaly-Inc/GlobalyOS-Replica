@@ -217,36 +217,36 @@ export const PositionTimeline = ({
     <>
       <div className="relative pb-1">
         {/* Timeline line */}
-        <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-border" />
+        <div className="absolute left-[13px] top-0 bottom-0 w-0.5 bg-border" />
 
         {/* Current Position */}
-        <div className="relative pl-10 pb-4 group">
+        <div className="relative pl-12 pb-5 group">
           {/* Timeline dot - highlighted for current */}
-          <div className="absolute left-1.5 top-0.5 w-3 h-3 rounded-full bg-primary border-2 border-background ring-2 ring-primary/30" />
+          <div className="absolute left-1.5 top-1 w-4 h-4 rounded-full bg-primary border-2 border-background ring-2 ring-primary/30" />
           
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="default" className="text-xs px-2 py-0.5">
                     Current
                   </Badge>
                 </div>
-                <h4 className="font-medium text-xs">{currentPosition}</h4>
-                <p className="text-[11px] text-muted-foreground">{currentDepartment}</p>
+                <h4 className="font-medium text-sm">{currentPosition}</h4>
+                <p className="text-sm text-muted-foreground">{currentDepartment}</p>
                 
                 {showSalary && currentSalary && (
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <p className="text-[11px] font-medium text-primary">
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm font-medium text-primary">
                       {revealedSalaries.has("current") ? formatSalary(currentSalary, currentCurrency) : "••••••••"}
                     </p>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5"
+                      className="h-6 w-6"
                       onClick={() => toggleSalaryVisibility("current")}
                     >
-                      {revealedSalaries.has("current") ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {revealedSalaries.has("current") ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                 )}
@@ -272,52 +272,52 @@ export const PositionTimeline = ({
           const Icon = config.icon;
 
           return (
-            <div key={entry.id} className="relative pl-10 pb-4 last:pb-0 group">
+            <div key={entry.id} className="relative pl-12 pb-5 last:pb-0 group">
               {/* Timeline dot */}
-              <div className={`absolute left-1.5 top-0.5 w-3 h-3 rounded-full ${config.color} border-2 border-background`} />
+              <div className={`absolute left-1.5 top-1 w-4 h-4 rounded-full ${config.color} border-2 border-background`} />
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                        <Icon className="h-2 w-2 mr-0.5" />
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs px-2 py-0.5">
+                        <Icon className="h-3 w-3 mr-1" />
                         {config.label}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {formatDate(entry.effective_date)}
                         {entry.end_date && (
                           <> - {formatDate(entry.end_date)}</>
                         )}
                       </span>
                     </div>
-                    <h4 className="font-medium text-xs">{entry.position}</h4>
-                    <p className="text-[11px] text-muted-foreground">{entry.department}</p>
+                    <h4 className="font-medium text-sm">{entry.position}</h4>
+                    <p className="text-sm text-muted-foreground">{entry.department}</p>
                     
                     {showSalary && entry.salary && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[11px] font-medium text-primary">
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm font-medium text-primary">
                           {revealedSalaries.has(entry.id) ? formatSalary(entry.salary, currentCurrency) : "••••••••"}
                         </p>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5"
+                          className="h-6 w-6"
                           onClick={() => toggleSalaryVisibility(entry.id)}
                         >
-                          {revealedSalaries.has(entry.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          {revealedSalaries.has(entry.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                     )}
                     
                     {entry.manager && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Manager: {entry.manager.profiles.full_name}
                       </p>
                     )}
 
                     {entry.notes && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 italic">
+                      <p className="text-xs text-muted-foreground mt-1 italic">
                         {entry.notes}
                       </p>
                     )}
