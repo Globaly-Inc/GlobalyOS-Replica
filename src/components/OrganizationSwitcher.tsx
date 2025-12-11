@@ -1,4 +1,4 @@
-import { Building2, ChevronDown, Check, Settings } from "lucide-react";
+import { Building2, ChevronDown, Settings, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -12,7 +12,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useNavigate } from "react-router-dom";
 
 export const OrganizationSwitcher = () => {
-  const { currentOrg, organizations, switchOrganization } = useOrganization();
+  const { currentOrg, organizations, switchOrganization, orgRole } = useOrganization();
   const navigate = useNavigate();
 
   if (!currentOrg) return null;
@@ -61,14 +61,18 @@ export const OrganizationSwitcher = () => {
             )}
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => navigate("/settings")}
-          className="cursor-pointer"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Organization Settings
-        </DropdownMenuItem>
+        {orgRole === 'owner' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => navigate("/signup")}
+              className="cursor-pointer"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Org
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
