@@ -608,8 +608,23 @@ const InviteTeamMember = () => {
                     <p className="text-sm text-destructive">{errors.dateOfBirth}</p>
                   )}
                 </div>
+                <FormInputField
+                  id="phone"
+                  label="Personal Phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(value) => handleChange('phone', value)}
+                  onBlur={() => {
+                    handleBlur('phone');
+                    validateField('phone', formData.phone);
+                  }}
+                  required
+                  placeholder="+1 234 567 8900"
+                  error={errors.phone}
+                  touched={touched.phone}
+                />
               </div>
-              <div className="grid gap-6 sm:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-2">
                 <FormInputField
                   id="email"
                   label="Company Email"
@@ -635,21 +650,6 @@ const InviteTeamMember = () => {
                   placeholder="john@gmail.com"
                   error={errors.personalEmail}
                   touched={touched.personalEmail}
-                />
-                <FormInputField
-                  id="phone"
-                  label="Personal Phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(value) => handleChange('phone', value)}
-                  onBlur={() => {
-                    handleBlur('phone');
-                    validateField('phone', formData.phone);
-                  }}
-                  required
-                  placeholder="+1 234 567 8900"
-                  error={errors.phone}
-                  touched={touched.phone}
                 />
               </div>
             </CardContent>
