@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2 } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2, Pencil, Plus } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
 import { EditScheduleDialog } from "./dialogs/EditScheduleDialog";
+import { EditAttendanceDialog } from "./dialogs/EditAttendanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface AttendanceTrackerProps {
@@ -22,7 +23,10 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
   const monthEnd = endOfMonth(currentDate);
   const { isAdmin, isHR } = useUserRole();
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<any>(null);
   const canManageSchedule = isAdmin || isHR;
+  const canEditAttendance = isAdmin || isHR;
 
   const { data: todayRecord } = useQuery({
     queryKey: ["attendance-today", employeeId],
@@ -282,7 +286,22 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
 
       {/* Attendance History */}
       <div>
-        <p className="text-sm font-medium text-muted-foreground mb-3">Recent History</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-muted-foreground">Recent History</p>
+          {canEditAttendance && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingRecord(null);
+                setShowAttendanceDialog(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Record
+            </Button>
+          )}
+        </div>
         {!monthRecords || monthRecords.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">No attendance records this month</p>
         ) : (
@@ -290,7 +309,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
             {monthRecords.slice(0, 5).map((record) => (
               <div
                 key={record.id}
-                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
                   {getStatusIcon(record.status)}
@@ -307,6 +326,19 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
                     <span className="text-sm font-medium">{record.work_hours.toFixed(1)}h</span>
                   )}
                   {getStatusBadge(record.status)}
+                  {canEditAttendance && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setEditingRecord(record);
+                        setShowAttendanceDialog(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -315,13 +347,22 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
       </div>
 
       {organizationId && (
-        <EditScheduleDialog
-          open={showScheduleDialog}
-          onOpenChange={setShowScheduleDialog}
-          employeeId={employeeId}
-          organizationId={organizationId}
-          currentSchedule={schedule}
-        />
+        <>
+          <EditScheduleDialog
+            open={showScheduleDialog}
+            onOpenChange={setShowScheduleDialog}
+            employeeId={employeeId}
+            organizationId={organizationId}
+            currentSchedule={schedule}
+          />
+          <EditAttendanceDialog
+            open={showAttendanceDialog}
+            onOpenChange={setShowAttendanceDialog}
+            record={editingRecord}
+            employeeId={employeeId}
+            organizationId={organizationId}
+          />
+        </>
       )}
     </div>
   );
