@@ -52,7 +52,7 @@ export const OrganizationSwitcher = () => {
             <span className="flex-1 truncate">{org.name}</span>
             {org.id === currentOrg.id && (
               <Settings 
-                className="ml-2 h-4 w-4 p-0.5 rounded text-muted-foreground hover:bg-muted hover:text-primary cursor-pointer transition-colors" 
+                className="ml-2 h-6 w-6 p-1 rounded text-muted-foreground hover:bg-muted hover:text-primary cursor-pointer transition-colors" 
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate("/settings");
