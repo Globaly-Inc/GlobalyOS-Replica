@@ -418,12 +418,11 @@ Your HR System Isn't.</span>
 
           <div ref={whoSection.ref} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             {whoItsFor.map((item, index) => {
-            // Use illustrations for each card
-            const illustrations = [maleTeamIllustration, femaleTeamIllustration, maleTeam2Illustration, workAnniversaryIllustration];
+            const Icon = item.icon;
             return <AnimatedCard key={index} index={index} isVisible={whoSection.isVisible}>
                   <Card className="p-6 text-center h-full hover:shadow-lg transition-all duration-300 group flex flex-col">
-                    <div className="h-24 w-24 mx-auto mb-4 overflow-hidden rounded-2xl">
-                      <img src={illustrations[index]} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="h-24 w-24 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300">
+                      <Icon className="h-12 w-12 text-primary group-hover:scale-105 transition-transform duration-300" />
                     </div>
                     <h3 className="font-semibold text-foreground mb-2">
                       {item.title}
