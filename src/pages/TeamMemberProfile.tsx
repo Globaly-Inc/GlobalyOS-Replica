@@ -676,11 +676,12 @@ const TeamMemberProfile = () => {
                       employeeId: k.employee.id,
                       employeeName: k.employee.profiles.full_name,
                       givenBy: k.given_by.profiles.full_name,
+                      givenById: k.given_by.id,
                       givenByAvatar: k.given_by.profiles.avatar_url,
                       comment: k.comment,
                       date: k.created_at,
                       otherRecipients: k.otherRecipients
-                    }} />)}
+                    }} onDelete={loadKudos} />)}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>

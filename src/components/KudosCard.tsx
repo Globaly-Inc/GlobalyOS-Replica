@@ -3,14 +3,37 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
-import { Heart } from "lucide-react";
+import { Heart, Pencil, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface KudosCardProps {
   kudos: Kudos;
+  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export const KudosCard = ({ kudos }: KudosCardProps) => {
+export const KudosCard = ({ kudos, onDelete, onEdit }: KudosCardProps) => {
   const getFirstName = (fullName: string) => fullName.split(" ")[0];
+  const { toast } = useToast();
+  const { isAdmin, isHR } = useUserRole();
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const allRecipients = [
     getFirstName(kudos.employeeName),
@@ -18,46 +41,140 @@ export const KudosCard = ({ kudos }: KudosCardProps) => {
   ];
   const recipientText = allRecipients.join(", ");
 
+  useEffect(() => {
+    const fetchCurrentEmployee = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (employee) {
+        setCurrentEmployeeId(employee.id);
+      }
+    };
+    fetchCurrentEmployee();
+  }, []);
+
+  // Can edit/delete if admin, HR, or the person who gave the kudos
+  const canEditDelete = isAdmin || isHR || currentEmployeeId === kudos.givenById;
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("kudos").delete().eq("id", kudos.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Kudos deleted",
+        description: "The kudos has been successfully deleted.",
+      });
+      
+      onDelete?.();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete the kudos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500">
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border border-border/50">
-              {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
-              <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-                {kudos.givenBy.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+    <>
+      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500">
+        <div className="p-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border border-border/50">
+                {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
+                <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                  {kudos.givenBy.split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div>
+                <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatDateTime(kudos.date)}
+                </p>
+              </div>
+            </div>
             
-            <div>
-              <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(kudos.date)}
-              </p>
+            {/* Post type icon on right with hover actions */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              {isHovered && canEditDelete ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={onEdit}
+                    className="p-2 rounded-full bg-pink-100 text-pink-600 hover:opacity-80 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="p-2 rounded-full bg-red-100 text-red-600 hover:opacity-80 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2 rounded-full bg-pink-100 text-pink-600">
+                  <Heart className="h-4 w-4" />
+                </div>
+              )}
             </div>
           </div>
           
-          {/* Post type icon on right */}
-          <div className="p-2 rounded-full bg-pink-100 text-pink-600">
-            <Heart className="h-4 w-4" />
+          {/* Content */}
+          <div className="mb-3">
+            <p className="text-sm font-medium text-foreground mb-1">
+              🙌 Kudos to {recipientText}
+            </p>
+            <RichTextContent content={kudos.comment} className="text-sm" />
+          </div>
+          
+          {/* Reactions */}
+          <div className="pt-3 border-t border-border/50">
+            <FeedReactions targetType="kudos" targetId={kudos.id} />
           </div>
         </div>
-        
-        {/* Content */}
-        <div className="mb-3">
-          <p className="text-sm font-medium text-foreground mb-1">
-            🙌 Kudos to {recipientText}
-          </p>
-          <RichTextContent content={kudos.comment} className="text-sm" />
-        </div>
-        
-        {/* Reactions */}
-        <div className="pt-3 border-t border-border/50">
-          <FeedReactions targetType="kudos" targetId={kudos.id} />
-        </div>
       </div>
-    </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Kudos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this kudos? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
