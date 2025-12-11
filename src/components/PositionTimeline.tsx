@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,104 +164,102 @@ export const PositionTimeline = ({
 
   return (
     <>
-      <Card>
-        <CardContent className="pt-6">
-          {/* Current Position */}
-          <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20 group relative">
-            <div className="flex items-center justify-between mb-2">
-              <Badge variant="default">Current</Badge>
-              {canEdit && employeeId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={handleCurrentEditOpen}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <h3 className="font-semibold text-lg">{currentPosition}</h3>
-            <p className="text-sm text-muted-foreground">{currentDepartment}</p>
-            {currentSalary && (
-              <p className="text-sm font-medium mt-1">{formatSalary(currentSalary, currentCurrency)}/year</p>
+      <div>
+        {/* Current Position */}
+        <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20 group relative">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="default">Current</Badge>
+            {canEdit && employeeId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleCurrentEditOpen}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
             )}
           </div>
+          <h3 className="font-semibold text-lg">{currentPosition}</h3>
+          <p className="text-sm text-muted-foreground">{currentDepartment}</p>
+          {currentSalary && (
+            <p className="text-sm font-medium mt-1">{formatSalary(currentSalary, currentCurrency)}/year</p>
+          )}
+        </div>
 
-          {/* Timeline */}
-          {sortedEntries.length > 0 && (
-            <div className="space-y-4">
-              <div className="relative">
-                {/* Timeline line */}
-                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+        {/* Timeline */}
+        {sortedEntries.length > 0 && (
+          <div className="space-y-4">
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
 
-                {sortedEntries.map((entry, index) => {
-                  const config = changeTypeConfig[entry.change_type] || changeTypeConfig.initial;
-                  const Icon = config.icon;
-                  const isLast = index === sortedEntries.length - 1;
+              {sortedEntries.map((entry, index) => {
+                const config = changeTypeConfig[entry.change_type] || changeTypeConfig.initial;
+                const Icon = config.icon;
+                const isLast = index === sortedEntries.length - 1;
 
-                  return (
-                    <div key={entry.id} className="relative pl-12 pb-6 last:pb-0 group">
-                      {/* Timeline dot */}
-                      <div className={`absolute left-2 top-1 w-4 h-4 rounded-full ${config.color} border-4 border-background`} />
+                return (
+                  <div key={entry.id} className="relative pl-12 pb-6 last:pb-0 group">
+                    {/* Timeline dot */}
+                    <div className={`absolute left-2 top-1 w-4 h-4 rounded-full ${config.color} border-4 border-background`} />
 
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-xs">
-                                <Icon className="h-3 w-3 mr-1" />
-                                {config.label}
-                              </Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {format(new Date(entry.effective_date), 'MMM d, yyyy')}
-                                {entry.end_date && !isLast && (
-                                  <> - {format(new Date(entry.end_date), 'MMM d, yyyy')}</>
-                                )}
-                              </span>
-                            </div>
-                            <h4 className="font-semibold">{entry.position}</h4>
-                            <p className="text-sm text-muted-foreground">{entry.department}</p>
-                            
-                            {entry.salary && (
-                              <p className="text-sm font-medium mt-1">
-                                {formatSalary(entry.salary)}
-                              </p>
-                            )}
-                            
-                            {entry.manager && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Manager: {entry.manager.profiles.full_name}
-                              </p>
-                            )}
-
-                            {entry.notes && (
-                              <p className="text-sm text-muted-foreground mt-2 italic">
-                                {entry.notes}
-                              </p>
-                            )}
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">
+                              <Icon className="h-3 w-3 mr-1" />
+                              {config.label}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(entry.effective_date), 'MMM d, yyyy')}
+                              {entry.end_date && !isLast && (
+                                <> - {format(new Date(entry.end_date), 'MMM d, yyyy')}</>
+                              )}
+                            </span>
                           </div>
+                          <h4 className="font-semibold">{entry.position}</h4>
+                          <p className="text-sm text-muted-foreground">{entry.department}</p>
                           
-                          {canEdit && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleEdit(entry)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                          {entry.salary && (
+                            <p className="text-sm font-medium mt-1">
+                              {formatSalary(entry.salary)}
+                            </p>
+                          )}
+                          
+                          {entry.manager && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Manager: {entry.manager.profiles.full_name}
+                            </p>
+                          )}
+
+                          {entry.notes && (
+                            <p className="text-sm text-muted-foreground mt-2 italic">
+                              {entry.notes}
+                            </p>
                           )}
                         </div>
+                        
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleEdit(entry)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
 
       <EditPositionHistoryDialog
         entry={editingEntry}

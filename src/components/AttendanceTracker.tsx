@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
@@ -133,121 +132,116 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
     : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Today's Check-in */}
       {showCheckIn && (
-        <Card>
-          <CardContent className="pt-4">
-            {!todayRecord ? (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground mb-4">You haven't checked in today</p>
-                <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending}>
-                  Check In
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Check In</p>
-                    <p className="text-lg font-semibold">
-                      {todayRecord.check_in_time
-                        ? format(new Date(todayRecord.check_in_time), "h:mm a")
-                        : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Check Out</p>
-                    <p className="text-lg font-semibold">
-                      {todayRecord.check_out_time
-                        ? format(new Date(todayRecord.check_out_time), "h:mm a")
-                        : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Hours</p>
-                    <p className="text-lg font-semibold">
-                      {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
-                    </p>
-                  </div>
+        <div className="p-4 rounded-lg bg-muted/50 border">
+          <p className="text-sm font-medium text-muted-foreground mb-3">Today's Attendance</p>
+          {!todayRecord ? (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground mb-4">You haven't checked in today</p>
+              <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending}>
+                Check In
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Check In</p>
+                  <p className="text-base font-semibold">
+                    {todayRecord.check_in_time
+                      ? format(new Date(todayRecord.check_in_time), "h:mm a")
+                      : "-"}
+                  </p>
                 </div>
-                {!todayRecord.check_out_time && (
-                  <Button
-                    onClick={() => checkOutMutation.mutate()}
-                    disabled={checkOutMutation.isPending}
-                    className="w-full"
-                  >
-                    Check Out
-                  </Button>
-                )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Check Out</p>
+                  <p className="text-base font-semibold">
+                    {todayRecord.check_out_time
+                      ? format(new Date(todayRecord.check_out_time), "h:mm a")
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Hours</p>
+                  <p className="text-base font-semibold">
+                    {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
+                  </p>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              {!todayRecord.check_out_time && (
+                <Button
+                  onClick={() => checkOutMutation.mutate()}
+                  disabled={checkOutMutation.isPending}
+                  className="w-full"
+                  size="sm"
+                >
+                  Check Out
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Monthly Statistics */}
-      <Card>
-        <CardContent className="pt-4">
-          {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 rounded-lg bg-primary/5">
-                <div className="text-2xl font-bold text-primary">{stats.present}</div>
-                <div className="text-sm text-muted-foreground mt-1">Present</div>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-primary/5">
-                <div className="text-2xl font-bold text-primary">{stats.late}</div>
-                <div className="text-sm text-muted-foreground mt-1">Late</div>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-primary/5">
-                <div className="text-2xl font-bold text-primary">{stats.absent}</div>
-                <div className="text-sm text-muted-foreground mt-1">Absent</div>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-primary/5">
-                <div className="text-2xl font-bold text-primary">
-                  {stats.avgHours.toFixed(1)}h
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">Avg Hours</div>
-              </div>
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="text-center p-3 rounded-lg bg-primary/5">
+            <div className="text-2xl font-bold text-primary">{stats.present}</div>
+            <div className="text-xs text-muted-foreground mt-1">Present</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-primary/5">
+            <div className="text-2xl font-bold text-primary">{stats.late}</div>
+            <div className="text-xs text-muted-foreground mt-1">Late</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-primary/5">
+            <div className="text-2xl font-bold text-primary">{stats.absent}</div>
+            <div className="text-xs text-muted-foreground mt-1">Absent</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-primary/5">
+            <div className="text-2xl font-bold text-primary">
+              {stats.avgHours.toFixed(1)}h
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="text-xs text-muted-foreground mt-1">Avg Hours</div>
+          </div>
+        </div>
+      )}
 
       {/* Attendance History */}
-      <Card>
-        <CardContent className="pt-4">
-          {!monthRecords || monthRecords.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No attendance records this month</p>
-          ) : (
-            <div className="space-y-2">
-              {monthRecords.map((record) => (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(record.status)}
-                    <div>
-                      <p className="font-medium">{format(new Date(record.date), "EEE, MMM d")}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {record.check_in_time && format(new Date(record.check_in_time), "h:mm a")}
-                        {record.check_out_time && ` - ${format(new Date(record.check_out_time), "h:mm a")}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {record.work_hours && (
-                      <span className="text-sm font-medium">{record.work_hours.toFixed(1)}h</span>
-                    )}
-                    {getStatusBadge(record.status)}
+      <div>
+        <p className="text-sm font-medium text-muted-foreground mb-3">Recent History</p>
+        {!monthRecords || monthRecords.length === 0 ? (
+          <p className="text-muted-foreground text-center py-4">No attendance records this month</p>
+        ) : (
+          <div className="space-y-2">
+            {monthRecords.slice(0, 5).map((record) => (
+              <div
+                key={record.id}
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {getStatusIcon(record.status)}
+                  <div>
+                    <p className="font-medium text-sm">{format(new Date(record.date), "EEE, MMM d")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {record.check_in_time && format(new Date(record.check_in_time), "h:mm a")}
+                      {record.check_out_time && ` - ${format(new Date(record.check_out_time), "h:mm a")}`}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="flex items-center gap-2">
+                  {record.work_hours && (
+                    <span className="text-sm font-medium">{record.work_hours.toFixed(1)}h</span>
+                  )}
+                  {getStatusBadge(record.status)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

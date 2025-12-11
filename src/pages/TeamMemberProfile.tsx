@@ -446,45 +446,51 @@ const TeamMemberProfile = () => {
               </Card>}
 
             {/* Leave Management */}
-            <div className="space-y-3">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                <Calendar className="h-5 w-5 text-primary" />
-                Leave Balances
-              </h2>
-              <LeaveManagement employeeId={id!} />
-            </div>
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Leave Balances
+                </h2>
+              </div>
+              <div className="p-4">
+                <LeaveManagement employeeId={id!} />
+              </div>
+            </Card>
 
             {/* Kudos Received */}
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Heart className="h-5 w-5 text-primary" />
                   Kudos Received
                   {kudos.length > 0 && <Badge variant="secondary" className="ml-1">{kudos.length}</Badge>}
                 </h2>
                 <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
               </div>
-              {kudos.length > 0 ? (
-                <div className="space-y-3">
-                  {kudos.map(k => <KudosCard key={k.id} kudos={{
-                    id: k.id,
-                    employeeId: k.employee.id,
-                    employeeName: k.employee.profiles.full_name,
-                    givenBy: k.given_by.profiles.full_name,
-                    comment: k.comment,
-                    date: k.created_at
-                  }} compact />)}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>
-              )}
+              <div className="p-4">
+                {kudos.length > 0 ? (
+                  <div className="space-y-3">
+                    {kudos.map(k => <KudosCard key={k.id} kudos={{
+                      id: k.id,
+                      employeeId: k.employee.id,
+                      employeeName: k.employee.profiles.full_name,
+                      givenBy: k.given_by.profiles.full_name,
+                      comment: k.comment,
+                      date: k.created_at
+                    }} compact />)}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>
+                )}
+              </div>
             </Card>
 
             {/* Position Timeline */}
             {canViewSensitiveData && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
@@ -493,44 +499,50 @@ const TeamMemberProfile = () => {
                     loadEmployee();
                   }} />
                 </div>
-                <PositionTimeline 
-                  entries={positionHistory} 
-                  currentPosition={employee.position} 
-                  currentDepartment={employee.department} 
-                  currentSalary={employee.remuneration}
-                  currentCurrency={employee.remuneration_currency || "USD"}
-                  employeeId={id}
-                  canEdit={canViewSensitiveData}
-                  onRefresh={() => {
-                    loadPositionHistory();
-                    loadEmployee();
-                  }}
-                />
-              </div>
+                <div className="p-4">
+                  <PositionTimeline 
+                    entries={positionHistory} 
+                    currentPosition={employee.position} 
+                    currentDepartment={employee.department} 
+                    currentSalary={employee.remuneration}
+                    currentCurrency={employee.remuneration_currency || "USD"}
+                    employeeId={id}
+                    canEdit={canViewSensitiveData}
+                    onRefresh={() => {
+                      loadPositionHistory();
+                      loadEmployee();
+                    }}
+                  />
+                </div>
+              </Card>
             )}
 
             {/* Learning & Development */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <GraduationCap className="h-5 w-5 text-primary" />
                   Learning & Development
                 </h2>
                 <AddLearningDialog employeeId={id!} />
               </div>
-              <LearningDevelopment employeeId={id!} />
-            </div>
+              <div className="p-4">
+                <LearningDevelopment employeeId={id!} />
+              </div>
+            </Card>
 
             {/* Attendance Tracking */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Clock className="h-5 w-5 text-primary" />
                   Attendance Tracking
                 </h2>
               </div>
-              <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
-            </div>
+              <div className="p-4">
+                <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
+              </div>
+            </Card>
           </div>
         </div>
       </div>
