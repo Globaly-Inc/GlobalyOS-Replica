@@ -460,7 +460,8 @@ const TeamMemberProfile = () => {
                   entries={positionHistory} 
                   currentPosition={employee.position} 
                   currentDepartment={employee.department} 
-                  currentSalary={employee.salary}
+                  currentSalary={employee.remuneration}
+                  currentCurrency={employee.remuneration_currency || "USD"}
                   employeeId={id}
                   canEdit={canViewSensitiveData}
                   onRefresh={() => {
