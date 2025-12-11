@@ -306,11 +306,7 @@ Your HR System Isn't.</span>
 
             {/* Problem Illustration */}
             <AnimatedCard index={6} isVisible={problemSection.isVisible} className="hidden md:flex items-center justify-center">
-              <img 
-                src={problemIllustration} 
-                alt="Problem illustration" 
-                className="w-full max-w-xl h-auto"
-              />
+              <img src={problemIllustration} alt="Problem illustration" className="w-full max-w-xl h-auto" />
             </AnimatedCard>
           </div>
         </div>
