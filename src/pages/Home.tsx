@@ -493,7 +493,7 @@ const Home = () => {
   const regularUpdates = filteredUpdates.filter(u => u.type === "update");
 
   // Group kudos by batch_id to show multiple recipients in one card
-  type GroupedKudosItem = KudosItem & { otherRecipients?: { name: string; avatar?: string }[] };
+  type GroupedKudosItem = KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] };
   
   const groupedKudos: GroupedKudosItem[] = (() => {
     const grouped: Map<string, KudosItem[]> = new Map();
@@ -516,6 +516,7 @@ const Home = () => {
       if (items.length > 0) {
         const first = items[0];
         const others = items.slice(1).map(k => ({
+          id: k.employee.id,
           name: k.employee.profiles.full_name,
           avatar: k.employee.profiles.avatar_url || undefined
         }));
@@ -526,10 +527,10 @@ const Home = () => {
     return [...result, ...standalone];
   })();
 
-  const renderFeedContent = (items: (FeedItem | (KudosItem & { otherRecipients?: { name: string; avatar?: string }[] }))[]) => <>
+  const renderFeedContent = (items: (FeedItem | (KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] }))[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
       if ("comment" in item) {
-        const kudosItem = item as KudosItem & { otherRecipients?: { name: string; avatar?: string }[] };
+        const kudosItem = item as KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] };
         return <KudosCard key={kudosItem.batch_id || item.id} kudos={{
           id: kudosItem.id,
           employeeId: kudosItem.employee.id,
@@ -541,7 +542,8 @@ const Home = () => {
           date: kudosItem.created_at,
           avatar: kudosItem.employee.profiles.avatar_url || undefined,
           batchId: kudosItem.batch_id || undefined,
-          otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
+          otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
+          otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
         }} onDelete={loadFeed} />;
       } else {
         const updateItem = item as FeedItem;
@@ -750,7 +752,9 @@ const Home = () => {
                 comment: kudosItem.comment,
                 date: kudosItem.created_at,
                 avatar: kudosItem.employee.profiles.avatar_url || undefined,
-                otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
+                batchId: kudosItem.batch_id || undefined,
+                otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
+                otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
               }} onDelete={loadFeed} />)}
                 {groupedKudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>

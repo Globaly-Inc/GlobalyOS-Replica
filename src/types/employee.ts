@@ -28,6 +28,7 @@ export interface Kudos {
   avatar?: string;
   batchId?: string;
   otherRecipients?: string[];
+  otherRecipientIds?: string[];
 }
 
 export interface UpdateMention {
