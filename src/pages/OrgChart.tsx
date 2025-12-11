@@ -215,36 +215,38 @@ const OrgChart = () => {
     const hasChildren = employee.children.length > 0;
 
     return (
-      <div className={cn("relative", level > 0 && "ml-4")}>
-        {/* Horizontal connector from vertical line to card */}
-        {level > 0 && (
-          <div 
-            className="absolute top-4 -left-4 w-4 h-0.5" 
-            style={{ backgroundColor: departmentColor.bg }} 
-          />
-        )}
-        
+      <div className="relative">
         <EmployeeCard employee={employee} departmentColor={departmentColor} />
 
         {hasChildren && (
-          <div className="relative mt-2 pl-4">
-            {/* Vertical line connecting children */}
+          <div className="relative ml-3 mt-1">
+            {/* Vertical line from parent down to children */}
             <div 
               className="absolute left-0 top-0 w-0.5"
               style={{ 
                 backgroundColor: departmentColor.bg,
-                height: `calc(100% - 20px)`
+                height: `calc(100% - 16px)`
               }} 
             />
-            <div className="space-y-2">
+            <div className="pl-5 space-y-1">
               {employee.children.map((child, index) => (
-                <EmployeeTree 
-                  key={child.id} 
-                  employee={child} 
-                  level={level + 1} 
-                  departmentColor={departmentColor}
-                  isLast={index === employee.children.length - 1}
-                />
+                <div key={child.id} className="relative">
+                  {/* Horizontal branch line connecting to vertical line */}
+                  <div 
+                    className="absolute left-0 top-4 h-0.5"
+                    style={{ 
+                      backgroundColor: departmentColor.bg,
+                      width: '20px',
+                      marginLeft: '-20px'
+                    }} 
+                  />
+                  <EmployeeTree 
+                    employee={child} 
+                    level={level + 1} 
+                    departmentColor={departmentColor}
+                    isLast={index === employee.children.length - 1}
+                  />
+                </div>
               ))}
             </div>
           </div>
