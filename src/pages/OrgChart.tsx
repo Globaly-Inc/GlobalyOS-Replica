@@ -2,11 +2,10 @@ import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Users, ArrowLeft, ChevronDown } from "lucide-react";
+import { Users, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -85,29 +84,26 @@ const OrgChart = () => {
     <Card
       onClick={() => navigate(`/team/${employee.id}`)}
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-primary/50",
-        isRoot && "border-primary/30 shadow-md"
+        "cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/50 max-w-xs",
+        isRoot && "border-primary/30"
       )}
     >
-      <div className="p-3">
-        <div className="flex items-center gap-3">
-          <Avatar className={cn("border-2 border-primary/20", isRoot ? "h-12 w-12" : "h-10 w-10")}>
+      <div className="px-2 py-1.5">
+        <div className="flex items-center gap-2">
+          <Avatar className="h-6 w-6 border border-primary/20">
             <AvatarImage src={employee.profiles.avatar_url || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-xs">
+            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-[10px]">
               {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h3 className={cn("font-semibold text-foreground truncate", isRoot ? "text-sm" : "text-xs")}>
+            <h3 className="text-xs font-medium text-foreground truncate">
               {employee.profiles.full_name}
             </h3>
-            <p className="text-xs text-muted-foreground truncate">{employee.position}</p>
-            <Badge variant="secondary" className="text-xs mt-1">
-              {employee.department}
-            </Badge>
+            <p className="text-[10px] text-muted-foreground truncate">{employee.position}</p>
           </div>
           {employee.children.length > 0 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <Users className="h-3 w-3" />
               <span>{employee.children.length}</span>
             </div>
