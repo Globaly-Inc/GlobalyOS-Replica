@@ -24,12 +24,13 @@ import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search } from "lucide-react";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +71,7 @@ const TeamMemberProfile = () => {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
   const [currentLeave, setCurrentLeave] = useState<{ leave_type: string } | null>(null);
+  const [documentSearch, setDocumentSearch] = useState('');
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -970,14 +972,27 @@ const TeamMemberProfile = () => {
             {/* Documents - Admin/HR, own profile, or manager */}
             {canViewAllDetails && (
               <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
                     <FolderOpen className="h-5 w-5 text-primary" />
                     Documents
                   </h2>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search documents..."
+                      value={documentSearch}
+                      onChange={(e) => setDocumentSearch(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
                 </div>
                 <div className="p-4">
-                  <EmployeeDocuments employeeId={id!} isOwnProfile={isOwnProfile} />
+                  <EmployeeDocuments 
+                    employeeId={id!} 
+                    isOwnProfile={isOwnProfile} 
+                    searchQuery={documentSearch}
+                  />
                 </div>
               </Card>
             )}

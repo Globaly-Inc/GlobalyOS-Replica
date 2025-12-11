@@ -38,6 +38,7 @@ interface Document {
 interface EmployeeDocumentsProps {
   employeeId: string;
   isOwnProfile: boolean;
+  searchQuery?: string;
 }
 
 const FOLDERS = [
@@ -48,7 +49,7 @@ const FOLDERS = [
 
 type FolderType = typeof FOLDERS[number]['id'];
 
-export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocumentsProps) => {
+export const EmployeeDocuments = ({ employeeId, isOwnProfile, searchQuery = '' }: EmployeeDocumentsProps) => {
   const { toast } = useToast();
   const { isAdmin, isHR } = useUserRole();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -191,8 +192,21 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
   };
 
   const getDocumentsForFolder = (folder: string) => {
-    return documents.filter(doc => doc.folder === folder);
+    return documents.filter(doc => {
+      const matchesFolder = doc.folder === folder;
+      const matchesSearch = !searchQuery || 
+        doc.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.uploaded_by?.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesFolder && matchesSearch;
+    });
   };
+
+  const totalSearchResults = searchQuery 
+    ? documents.filter(doc => 
+        doc.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.uploaded_by?.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      ).length 
+    : 0;
 
   const canPreview = (doc: Document) => {
     const ext = doc.file_name.split('.').pop()?.toLowerCase();
