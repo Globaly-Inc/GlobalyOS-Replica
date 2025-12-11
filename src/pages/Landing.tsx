@@ -289,9 +289,9 @@ Your HR System Isn't.</span>
             {/* Chaos side */}
             <div className="space-y-4">
               <AnimatedCard index={0} isVisible={problemSection.isVisible}>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-4">
-                  <X className="h-4 w-4" /> The Problem
-                </div>
+                <h2 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 text-destructive text-xl font-semibold mb-4">
+                  <X className="h-5 w-5" /> The Problem
+                </h2>
               </AnimatedCard>
               {["HR data scattered across Google Docs, Excel, chats and email", "Hard to see when someone was promoted and why", "Salary changes and previous agreements are unclear", "Performance reviews feel subjective and inconsistent", "Growth plans and training rarely tracked properly"].map((problem, index) => <AnimatedCard key={index} index={index + 1} isVisible={problemSection.isVisible}>
                   <div className="flex items-start gap-3 p-4 rounded-lg bg-background border border-border h-full">
