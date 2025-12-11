@@ -44,26 +44,19 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
     )}>
       <div className="p-4">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border border-border/50">
-              <AvatarImage src={update.avatar} alt={update.employeeName} />
-              <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-                {update.employeeName.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div>
-              <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(update.date)}
-              </p>
-            </div>
-          </div>
+        <div className="flex items-start gap-3 mb-3">
+          <Avatar className="h-10 w-10 border border-border/50">
+            <AvatarImage src={update.avatar} alt={update.employeeName} />
+            <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+              {update.employeeName.split(" ").map((n) => n[0]).join("")}
+            </AvatarFallback>
+          </Avatar>
           
-          {/* Post type icon on right */}
-          <div className={cn("p-2 rounded-full", config.iconBg)}>
-            <Icon className="h-4 w-4" />
+          <div>
+            <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDateTime(update.date)}
+            </p>
           </div>
         </div>
         
