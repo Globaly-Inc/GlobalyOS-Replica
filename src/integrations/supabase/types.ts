@@ -943,7 +943,9 @@ export type Database = {
           created_at: string
           email: string
           expires_at: string
+          failed_attempts: number | null
           id: string
+          ip_address: string | null
           verified: boolean
         }
         Insert: {
@@ -951,7 +953,9 @@ export type Database = {
           created_at?: string
           email: string
           expires_at: string
+          failed_attempts?: number | null
           id?: string
+          ip_address?: string | null
           verified?: boolean
         }
         Update: {
@@ -959,7 +963,9 @@ export type Database = {
           created_at?: string
           email?: string
           expires_at?: string
+          failed_attempts?: number | null
           id?: string
+          ip_address?: string | null
           verified?: boolean
         }
         Relationships: []
