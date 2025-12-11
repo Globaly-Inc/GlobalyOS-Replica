@@ -14,6 +14,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
 import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -48,6 +49,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
   const { playNotificationSound } = useNotificationSound();
+  const { shouldPlaySound } = useNotificationPreferences();
   const previousCountRef = useRef<number>(0);
 
   // Send push notification when a new notification is created
@@ -80,9 +82,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       
       const newCount = count || 0;
       
-      // Play sound and trigger push if count increased
+      // Play sound if count increased and preferences allow
       if (newCount > previousCountRef.current && previousCountRef.current !== 0) {
-        playNotificationSound();
+        if (shouldPlaySound()) {
+          playNotificationSound();
+        }
       }
       
       previousCountRef.current = newCount;
@@ -103,9 +107,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           filter: `user_id=eq.${user?.id}`,
         },
         (payload) => {
-          // Play notification sound for new notifications
-          playNotificationSound();
-          
+          // Play notification sound based on preferences
+          const notificationType = (payload.new as { type?: string })?.type;
+          if (shouldPlaySound(notificationType)) {
+            playNotificationSound();
+          }
           // Send push notification
           sendPushNotification(payload.new);
           
@@ -142,7 +148,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, playNotificationSound, sendPushNotification]);
+  }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound]);
 
   useEffect(() => {
     const loadUserProfile = async () => {
