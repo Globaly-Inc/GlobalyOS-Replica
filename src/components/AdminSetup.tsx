@@ -7,6 +7,7 @@ import { Shield } from "lucide-react";
 
 export const AdminSetup = () => {
   const [hasRole, setHasRole] = useState<boolean | null>(null);
+  const [hasOrganization, setHasOrganization] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,26 @@ export const AdminSetup = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Check if user has any organization membership
+      const { data: orgData, error: orgError } = await supabase
+        .from('organization_members')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (orgError) {
+        console.error('Error checking organization:', orgError);
+      }
+
+      const userHasOrg = orgData && orgData.length > 0;
+      setHasOrganization(userHasOrg);
+
+      // If user doesn't belong to any organization, don't show admin setup
+      if (!userHasOrg) {
+        setHasRole(true); // This will hide the card
+        return;
+      }
 
       const { data, error } = await supabase
         .from('user_roles')
@@ -63,7 +84,7 @@ export const AdminSetup = () => {
     }
   };
 
-  // Don't show if user already has a role
+  // Don't show if user already has a role or if we're still loading
   if (hasRole === true || hasRole === null) return null;
 
   return (
