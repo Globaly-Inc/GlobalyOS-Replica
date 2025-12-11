@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Calendar, Award, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
@@ -30,11 +29,7 @@ export const LearningDevelopment = ({ employeeId }: LearningDevelopmentProps) =>
 
   if (!learningRecords || learningRecords.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-muted-foreground text-center">No learning records yet.</p>
-        </CardContent>
-      </Card>
+      <p className="text-muted-foreground text-center py-6">No learning records yet.</p>
     );
   }
 
@@ -63,57 +58,55 @@ export const LearningDevelopment = ({ employeeId }: LearningDevelopmentProps) =>
   };
 
   return (
-    <Card>
-      <CardContent className="pt-4 space-y-4">
-        {learningRecords.map((record) => (
-          <div
-            key={record.id}
-            className="border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  {getTypeIcon(record.type)}
-                  <h4 className="font-semibold">{record.title}</h4>
-                </div>
-                {record.provider && (
-                  <p className="text-sm text-muted-foreground">{record.provider}</p>
-                )}
-                {record.description && (
-                  <p className="text-sm text-muted-foreground">{record.description}</p>
-                )}
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {record.completion_date && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>Completed: {format(new Date(record.completion_date), "MMM d, yyyy")}</span>
-                    </div>
-                  )}
-                  {record.expiry_date && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>Expires: {format(new Date(record.expiry_date), "MMM d, yyyy")}</span>
-                    </div>
-                  )}
-                </div>
+    <div className="space-y-4">
+      {learningRecords.map((record) => (
+        <div
+          key={record.id}
+          className="border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                {getTypeIcon(record.type)}
+                <h4 className="font-semibold">{record.title}</h4>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <Badge className={getStatusColor(record.status)}>
-                  {record.status.replace("_", " ")}
-                </Badge>
-                {record.cost && (
-                  <span className="text-sm text-muted-foreground">
-                    ${Number(record.cost).toLocaleString()}
-                  </span>
+              {record.provider && (
+                <p className="text-sm text-muted-foreground">{record.provider}</p>
+              )}
+              {record.description && (
+                <p className="text-sm text-muted-foreground">{record.description}</p>
+              )}
+              <div className="flex flex-wrap gap-2 text-sm">
+                {record.completion_date && (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>Completed: {format(new Date(record.completion_date), "MMM d, yyyy")}</span>
+                  </div>
                 )}
-                <Badge variant="outline" className="capitalize">
-                  {record.type}
-                </Badge>
+                {record.expiry_date && (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>Expires: {format(new Date(record.expiry_date), "MMM d, yyyy")}</span>
+                  </div>
+                )}
               </div>
             </div>
+            <div className="flex flex-col items-end gap-2">
+              <Badge className={getStatusColor(record.status)}>
+                {record.status.replace("_", " ")}
+              </Badge>
+              {record.cost && (
+                <span className="text-sm text-muted-foreground">
+                  ${Number(record.cost).toLocaleString()}
+                </span>
+              )}
+              <Badge variant="outline" className="capitalize">
+                {record.type}
+              </Badge>
+            </div>
           </div>
-        ))}
-      </CardContent>
-    </Card>
+        </div>
+      ))}
+    </div>
   );
 };

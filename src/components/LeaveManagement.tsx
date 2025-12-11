@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { History } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -57,39 +56,37 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   };
 
   return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <Link to={`/team/${employeeId}/leave-history`}>
-            <Button size="sm" variant="ghost">
-              <History className="h-4 w-4 mr-1" />
-              Leave History
-            </Button>
-          </Link>
-          {canManageLeave && (
-            <AddLeaveBalanceDialog
-              employeeId={employeeId}
-              onSuccess={handleLeaveBalanceUpdate}
-            />
-          )}
-        </div>
-        {balances.length > 0 ? (
-          <div className="grid grid-cols-3 gap-4">
-            {balances.slice(0, 3).map((item) => (
-              <div key={item.id} className="text-center p-4 rounded-lg bg-primary/5">
-                <div className="text-3xl font-bold text-primary">
-                  {item.balance}
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">{item.leave_type.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No leave balance set for this year
-          </p>
+    <div>
+      <div className="flex items-center justify-end gap-2 mb-4">
+        <Link to={`/team/${employeeId}/leave-history`}>
+          <Button size="sm" variant="ghost">
+            <History className="h-4 w-4 mr-1" />
+            Leave History
+          </Button>
+        </Link>
+        {canManageLeave && (
+          <AddLeaveBalanceDialog
+            employeeId={employeeId}
+            onSuccess={handleLeaveBalanceUpdate}
+          />
         )}
-      </CardContent>
-    </Card>
+      </div>
+      {balances.length > 0 ? (
+        <div className="grid grid-cols-3 gap-4">
+          {balances.slice(0, 3).map((item) => (
+            <div key={item.id} className="text-center p-4 rounded-lg bg-primary/5">
+              <div className="text-3xl font-bold text-primary">
+                {item.balance}
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">{item.leave_type.name}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          No leave balance set for this year
+        </p>
+      )}
+    </div>
   );
 };
