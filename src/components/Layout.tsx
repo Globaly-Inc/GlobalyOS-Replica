@@ -142,15 +142,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="hidden md:flex md:items-center md:gap-2">
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 px-3 h-10"
-              onClick={() => setLeaveDialogOpen(true)}
-              disabled={!userProfile?.employeeId}
-            >
-              <CalendarPlus className="h-4 w-4" />
-              <span className="text-sm font-medium">Request Leave</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setLeaveDialogOpen(true)}
+                  disabled={!userProfile?.employeeId}
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Request Leave</p>
+              </TooltipContent>
+            </Tooltip>
             <Button 
               variant="outline" 
               className="flex items-center gap-2 px-2 h-10 hover:bg-secondary"
