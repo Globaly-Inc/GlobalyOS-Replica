@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, TrendingDown, TrendingUp, Timer } from "lucide-react";
-import { format, startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
+import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks, isSameWeek } from "date-fns";
 import { toast } from "sonner";
 
 interface AttendanceTrackerProps {
@@ -13,9 +14,14 @@ interface AttendanceTrackerProps {
 
 export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const currentDate = new Date();
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+  const isCurrentWeek = isSameWeek(selectedDate, currentDate, { weekStartsOn: 1 });
+
+  const goToPreviousWeek = () => setSelectedDate(subWeeks(selectedDate, 1));
+  const goToNextWeek = () => setSelectedDate(addWeeks(selectedDate, 1));
 
   const { data: todayRecord } = useQuery({
     queryKey: ["attendance-today", employeeId],
@@ -246,10 +252,29 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       {/* Weekly Summary */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold text-sm">This Week's Summary</p>
-          <Badge variant="outline" className="text-xs">
-            {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}
-          </Badge>
+          <p className="font-semibold text-sm">{isCurrentWeek ? "This Week's Summary" : "Weekly Summary"}</p>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6" 
+              onClick={goToPreviousWeek}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Badge variant="outline" className="text-xs">
+              {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}
+            </Badge>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6" 
+              onClick={goToNextWeek}
+              disabled={isCurrentWeek}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
