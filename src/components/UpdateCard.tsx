@@ -97,11 +97,11 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
         
         {/* Image if present */}
         {update.imageUrl && (
-          <div className="mb-3 rounded-lg overflow-hidden">
+          <div className="mb-3">
             <img 
               src={update.imageUrl} 
               alt="Post image" 
-              className="w-full max-h-96 object-cover"
+              className="max-w-full h-auto rounded-lg"
             />
           </div>
         )}
