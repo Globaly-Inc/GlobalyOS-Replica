@@ -607,43 +607,45 @@ const TeamMemberProfile = () => {
                 
                 {/* Address - full for those with access, partial (city/country) for others */}
                 {canViewAllDetails ? (
-                  <div className="flex items-start gap-3">
+                  <div className="group flex items-start gap-3">
                     <MapPin className="h-5 w-5 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm text-muted-foreground">Full Address</p>
                         {canEditPersonalDetails && (
-                          <EditAddressDialog
-                            address={{
-                              street: employee.street,
-                              city: employee.city,
-                              state: employee.state,
-                              postcode: employee.postcode,
-                              country: employee.country,
-                            }}
-                            onSave={async (address) => {
-                              const { error } = await supabase
-                                .from("employees")
-                                .update({
-                                  street: address.street || null,
-                                  city: address.city || null,
-                                  state: address.state || null,
-                                  postcode: address.postcode || null,
-                                  country: address.country || null,
-                                })
-                                .eq("id", id);
-                              if (error) {
-                                toast({
-                                  title: "Update failed",
-                                  description: error.message,
-                                  variant: "destructive",
-                                });
-                              } else {
-                                toast({ title: "Address updated" });
-                                loadEmployee();
-                              }
-                            }}
-                          />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <EditAddressDialog
+                              address={{
+                                street: employee.street,
+                                city: employee.city,
+                                state: employee.state,
+                                postcode: employee.postcode,
+                                country: employee.country,
+                              }}
+                              onSave={async (address) => {
+                                const { error } = await supabase
+                                  .from("employees")
+                                  .update({
+                                    street: address.street || null,
+                                    city: address.city || null,
+                                    state: address.state || null,
+                                    postcode: address.postcode || null,
+                                    country: address.country || null,
+                                  })
+                                  .eq("id", id);
+                                if (error) {
+                                  toast({
+                                    title: "Update failed",
+                                    description: error.message,
+                                    variant: "destructive",
+                                  });
+                                } else {
+                                  toast({ title: "Address updated" });
+                                  loadEmployee();
+                                }
+                              }}
+                            />
+                          </span>
                         )}
                       </div>
                       {fullAddress ? (
@@ -691,12 +693,16 @@ const TeamMemberProfile = () => {
                 />
                 
                 {/* Office - visible to all, editable only by Admin/HR */}
-                <div className="flex items-start gap-3">
+                <div className="group flex items-start gap-3">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Office</p>
-                      {canEditJoinDateAndOffice && <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={loadEmployee} />}
+                      {canEditJoinDateAndOffice && (
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={loadEmployee} />
+                        </span>
+                      )}
                     </div>
                     {employee.offices ? <>
                         <p className="text-sm font-medium text-foreground">{employee.offices.name}</p>
