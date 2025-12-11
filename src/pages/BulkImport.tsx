@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -242,6 +242,13 @@ const BulkImport = () => {
       i === rowIndex ? { ...emp, [field]: value } : emp
     ));
     setValidationErrors(errors);
+  };
+
+  const deleteRow = (rowIndex: number) => {
+    const updated = parsedData.filter((_, i) => i !== rowIndex);
+    setParsedData(updated);
+    setEditingCell(null);
+    setValidationErrors(validateData(updated));
   };
 
   useEffect(() => {
@@ -706,6 +713,7 @@ const BulkImport = () => {
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Postcode</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Country *</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Role</th>
+                          <th className="w-10 px-2 py-2 font-medium border border-border/50 bg-muted"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -854,6 +862,15 @@ const BulkImport = () => {
                                 onSave={(v) => updateCellValue(i, 'role', v)}
                                 onNavigate={navigateCell}
                               />
+                            </td>
+                            <td className="p-0 border border-border/50 text-center">
+                              <button
+                                onClick={() => deleteRow(i)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                                title="Remove row"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </td>
                           </tr>
                         ))}
