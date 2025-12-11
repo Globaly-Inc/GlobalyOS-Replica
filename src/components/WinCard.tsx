@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDateTime } from "@/lib/utils";
 import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { FeedReactions } from "@/components/FeedReactions";
-import PostViewDialog from "@/components/dialogs/PostViewDialog";
 
 interface WinCardProps {
   win: {
@@ -20,14 +18,10 @@ interface WinCardProps {
 }
 
 const WinCard = ({ win }: WinCardProps) => {
-  const [showDialog, setShowDialog] = useState(false);
-
   return (
-    <>
-      <div 
-        className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500 flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-        onClick={() => setShowDialog(true)}
-      >
+    <div 
+      className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-amber-500 flex flex-col"
+    >
         <div className="p-4 flex-1">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
@@ -74,25 +68,10 @@ const WinCard = ({ win }: WinCardProps) => {
             </div>
           )}
         </div>
-        <div className="px-4 py-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
-          <FeedReactions targetType="update" targetId={win.id} />
-        </div>
+      <div className="px-4 py-2 border-t border-border/50">
+        <FeedReactions targetType="update" targetId={win.id} />
       </div>
-
-      <PostViewDialog 
-        open={showDialog} 
-        onOpenChange={setShowDialog} 
-        post={{
-          id: win.id,
-          employeeName: win.employeeName,
-          avatar: win.avatar,
-          date: win.date,
-          content: win.content,
-          imageUrl: win.image_url,
-          taggedMembers: win.taggedMembers
-        }}
-      />
-    </>
+    </div>
   );
 };
 
