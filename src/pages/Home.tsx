@@ -489,14 +489,18 @@ const Home = () => {
           let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
           let TimeIcon = Moon;
           
+          let iconColor = "text-blue-200"; // Moon - cool blue/silver
+          
           if (hour < 12) {
             greeting = "Good morning";
             gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
             TimeIcon = Sunrise;
+            iconColor = "text-orange-300"; // Warm sunrise orange
           } else if (hour < 17) {
             greeting = "Good afternoon";
             gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
             TimeIcon = Sun;
+            iconColor = "text-yellow-300"; // Bright sun yellow
           }
           
           return (
@@ -513,11 +517,25 @@ const Home = () => {
                   50% { background-position: 100% 50%; }
                   100% { background-position: 0% 50%; }
                 }
+                @keyframes icon-float {
+                  0%, 100% { transform: translateY(0) rotate(0deg); }
+                  25% { transform: translateY(-2px) rotate(2deg); }
+                  75% { transform: translateY(2px) rotate(-2deg); }
+                }
+                @keyframes icon-glow {
+                  0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4)); }
+                  50% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.7)); }
+                }
+                .greeting-icon {
+                  animation: icon-float 4s ease-in-out infinite, icon-glow 3s ease-in-out infinite;
+                }
               `}</style>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 {/* Left side - Greeting */}
                 <div className="flex items-center gap-3">
-                  <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
+                  <div className="greeting-icon p-2 rounded-full bg-white/10 backdrop-blur-sm">
+                    <TimeIcon className={`h-8 w-8 ${iconColor} drop-shadow-lg`} strokeWidth={1.5} />
+                  </div>
                   <div>
                     <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
                       {greeting}{currentUserName ? `, ${currentUserName}` : ""}
