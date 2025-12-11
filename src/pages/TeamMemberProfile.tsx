@@ -235,6 +235,7 @@ const TeamMemberProfile = () => {
   const loadEmployee = async () => {
     const { data } = await supabase.from("employees").select(`
         id,
+        user_id,
         position,
         department,
         salary,
