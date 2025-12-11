@@ -41,7 +41,7 @@ export const OrganizationSwitcher = () => {
           <DropdownMenuItem
             key={org.id}
             onClick={() => switchOrganization(org.id)}
-            className="cursor-pointer"
+            className="cursor-pointer group"
           >
             <Avatar className="h-5 w-5 rounded mr-2">
               <AvatarImage src={org.logo_url || ""} alt={org.name} className="object-cover" />
@@ -52,7 +52,7 @@ export const OrganizationSwitcher = () => {
             <span className="flex-1 truncate">{org.name}</span>
             {org.id === currentOrg.id && (
               <Settings 
-                className="ml-2 h-4 w-4 text-muted-foreground hover:text-primary cursor-pointer" 
+                className="ml-2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary cursor-pointer transition-opacity" 
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate("/settings");
