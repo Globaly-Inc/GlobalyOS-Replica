@@ -13,16 +13,16 @@ export type SoundType =
   | "soft";
 
 export const SOUND_OPTIONS: { value: SoundType; label: string; description: string }[] = [
-  { value: "chime", label: "Chime", description: "Pleasant ascending notes" },
-  { value: "bell", label: "Bell", description: "Classic notification bell" },
-  { value: "pop", label: "Pop", description: "Quick playful pop" },
-  { value: "ding", label: "Ding", description: "Simple single ding" },
-  { value: "whoosh", label: "Whoosh", description: "Soft swoosh sound" },
-  { value: "bubble", label: "Bubble", description: "Bubbly water drop" },
-  { value: "marimba", label: "Marimba", description: "Wooden marimba tone" },
-  { value: "ping", label: "Ping", description: "Sharp digital ping" },
-  { value: "sparkle", label: "Sparkle", description: "Magical sparkle effect" },
-  { value: "soft", label: "Soft Tone", description: "Gentle muted tone" },
+  { value: "chime", label: "Gentle Chime", description: "Soft ascending tones" },
+  { value: "bell", label: "Soft Bell", description: "Muted bell tone" },
+  { value: "pop", label: "Subtle Pop", description: "Quiet little pop" },
+  { value: "ding", label: "Mellow Ding", description: "Warm single note" },
+  { value: "whoosh", label: "Whisper", description: "Airy soft breath" },
+  { value: "bubble", label: "Droplet", description: "Gentle water drop" },
+  { value: "marimba", label: "Wooden", description: "Soft wooden tap" },
+  { value: "ping", label: "Hush", description: "Barely-there ping" },
+  { value: "sparkle", label: "Twinkle", description: "Delicate shimmer" },
+  { value: "soft", label: "Zen", description: "Calming meditation tone" },
 ];
 
 export interface QuietHours {
