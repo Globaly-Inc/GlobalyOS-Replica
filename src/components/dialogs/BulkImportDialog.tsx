@@ -182,6 +182,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     return errors;
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_ROWS = 1000;
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -195,10 +198,35 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       return;
     }
 
+    // Security: Check file size to prevent memory exhaustion
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setFile(selectedFile);
     
     const text = await selectedFile.text();
     const parsed = parseCSV(text);
+
+    // Security: Limit number of rows to prevent DoS
+    if (parsed.length > MAX_ROWS) {
+      toast({
+        title: "Too many rows",
+        description: `Maximum ${MAX_ROWS} employees per import. Your file has ${parsed.length} rows.`,
+        variant: "destructive",
+      });
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     const errors = validateData(parsed);
 
     setParsedData(parsed);
