@@ -139,7 +139,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="hidden md:flex md:items-center md:gap-2">
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 px-3 py-1 h-auto"
+              className="flex items-center gap-2 px-3 h-10"
               onClick={() => navigate("/?requestLeave=true")}
             >
               <CalendarPlus className="h-4 w-4" />
@@ -147,18 +147,18 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </Button>
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 px-2 py-1 h-auto hover:bg-secondary"
+              className="flex items-center gap-2 px-2 h-10 hover:bg-secondary"
               onClick={handleViewProfile}
               disabled={!userProfile?.employeeId}
             >
-              <Avatar className="h-8 w-8 border-2 border-primary/10">
+              <Avatar className="h-7 w-7 border-2 border-primary/10">
                 <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
                   {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col items-start gap-0.5">
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex flex-col items-start gap-0">
+                <span className="text-sm font-medium text-foreground leading-tight">
                   {userProfile?.fullName || "Loading..."}
                 </span>
                 <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
@@ -173,7 +173,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     variant="ghost" 
                     size="icon" 
                     onClick={handleSignOut}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
