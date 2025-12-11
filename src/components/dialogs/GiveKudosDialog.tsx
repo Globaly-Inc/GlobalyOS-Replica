@@ -22,7 +22,7 @@ interface Employee {
   };
 }
 
-export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSuccess?: () => void; preselectedEmployeeId?: string }) => {
+export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "default" }: { onSuccess?: () => void; preselectedEmployeeId?: string; variant?: "default" | "outline" }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -141,7 +141,7 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId }: { onSucces
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button variant={variant} size="sm" className="gap-2">
           <Heart className="h-4 w-4" />
           Give Kudos
         </Button>
