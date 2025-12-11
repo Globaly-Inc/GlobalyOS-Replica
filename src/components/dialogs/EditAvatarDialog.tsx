@@ -77,7 +77,11 @@ export const EditAvatarDialog = ({ userId, currentAvatarUrl, userName, onSuccess
       setOpen(false);
       setAvatarFile(null);
       setAvatarPreview(null);
-      onSuccess();
+      
+      // Small delay to ensure database write is committed before refetching
+      setTimeout(() => {
+        onSuccess();
+      }, 500);
     } catch (error: any) {
       toast({
         title: "Error updating photo",
