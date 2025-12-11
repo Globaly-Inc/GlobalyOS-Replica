@@ -64,6 +64,9 @@ const TeamMemberProfile = () => {
   // Can manage leave balance - only Admin/HR
   const canManageLeave = isAdminOrHR;
   
+  // Can view Leave Balances and Attendance - Admin/HR, own profile, or manager
+  const canViewLeaveAndAttendance = isAdminOrHR || isOwnProfile || isManagerOfEmployee;
+  
   // Can give kudos - anyone except to themselves
   const canGiveKudos = !isOwnProfile;
   
@@ -627,29 +630,31 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* Leave Management */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Leave Balances
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Link to={`/team/${id}/leave-history`}>
-                    <Button size="sm" variant="ghost">
-                      <History className="h-4 w-4 mr-1" />
-                      Leave History
-                    </Button>
-                  </Link>
-                  {canManageLeave && (
-                    <AddLeaveBalanceDialog employeeId={id!} />
-                  )}
+            {/* Leave Management - Admin/HR, own profile, or manager */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Leave Balances
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Link to={`/team/${id}/leave-history`}>
+                      <Button size="sm" variant="ghost">
+                        <History className="h-4 w-4 mr-1" />
+                        Leave History
+                      </Button>
+                    </Link>
+                    {canManageLeave && (
+                      <AddLeaveBalanceDialog employeeId={id!} />
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="p-4">
-                <LeaveManagement employeeId={id!} />
-              </div>
-            </Card>
+                <div className="p-4">
+                  <LeaveManagement employeeId={id!} />
+                </div>
+              </Card>
+            )}
 
             {/* Kudos Received */}
             <Card className="overflow-hidden">
@@ -731,18 +736,20 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-            {/* Attendance Tracking */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Attendance Tracking
-                </h2>
-              </div>
-              <div className="p-4">
-                <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
-              </div>
-            </Card>
+            {/* Attendance Tracking - Admin/HR, own profile, or manager */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Attendance Tracking
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
