@@ -256,12 +256,12 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Create auth user with service role
+        // Create auth user with service role - confirm email immediately since added by admin
         const tempPassword = crypto.randomUUID();
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: emp.email.toLowerCase(),
           password: tempPassword,
-          email_confirm: false,
+          email_confirm: true,
           user_metadata: { full_name: fullName }
         });
 
