@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, ChevronDown, Settings } from "lucide-react";
+import { Users, Home, Menu, LogOut, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,45 +134,45 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             ))}
           </nav>
 
-          <div className="hidden md:flex md:items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 px-2">
-                  <Avatar className="h-8 w-8 border-2 border-primary/10">
-                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
-                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col items-start gap-0.5">
-                    <span className="text-sm font-medium text-foreground">
-                      {userProfile?.fullName || "Loading..."}
-                    </span>
-                    <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
-                      {roleConfig.label}
-                    </Badge>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-popover">
-                {userProfile?.employeeId && (
-                  <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    View Profile
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="hidden md:flex md:items-center md:gap-2">
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2 px-2 hover:bg-secondary"
+              onClick={handleViewProfile}
+              disabled={!userProfile?.employeeId}
+            >
+              <Avatar className="h-8 w-8 border-2 border-primary/10">
+                <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
+                  {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-sm font-medium text-foreground">
+                  {userProfile?.fullName || "Loading..."}
+                </span>
+                <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
+                  {roleConfig.label}
+                </Badge>
+              </div>
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleSignOut}
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Logout</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {/* Mobile Navigation */}
