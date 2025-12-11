@@ -8,6 +8,7 @@ import { useScrollAnimation, AnimatedSection } from "@/hooks/useScrollAnimation"
 
 // Import illustrations
 import heroIllustration from "@/assets/illustrations/hero-illustration.svg";
+import problemIllustration from "@/assets/illustrations/problem-illustration.svg";
 import frugalityIllustration from "@/assets/illustrations/frugality.png";
 import femaleTeamIllustration from "@/assets/illustrations/female-team.png";
 import maleTeamIllustration from "@/assets/illustrations/male-team.png";
@@ -303,12 +304,13 @@ Your HR System Isn't.</span>
                 </AnimatedCard>)}
             </div>
 
-            {/* Arrow */}
+            {/* Problem Illustration */}
             <AnimatedCard index={6} isVisible={problemSection.isVisible} className="hidden md:flex items-center justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-destructive/20 to-primary/20 blur-3xl" />
-                <ArrowRight className="relative h-16 w-16 text-primary" />
-              </div>
+              <img 
+                src={problemIllustration} 
+                alt="Problem illustration" 
+                className="w-full max-w-md h-auto"
+              />
             </AnimatedCard>
           </div>
         </div>
