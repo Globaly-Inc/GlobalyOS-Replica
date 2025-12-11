@@ -437,7 +437,8 @@ const TeamMemberProfile = () => {
           content: w.content,
           date: w.created_at,
           avatar: w.employee.profiles.avatar_url,
-          type: w.type as "win"
+          type: w.type as "win",
+          taggedMembers: []
         });
       });
     }
@@ -453,10 +454,39 @@ const TeamMemberProfile = () => {
             content: w.content,
             date: w.created_at,
             avatar: w.employee.profiles.avatar_url,
-            type: w.type as "win"
+            type: w.type as "win",
+            taggedMembers: []
           });
         }
       });
+    }
+    
+    // Fetch tagged members for each win
+    const winIds = Array.from(allWins.keys());
+    if (winIds.length > 0) {
+      const { data: mentions } = await supabase
+        .from("update_mentions")
+        .select(`
+          update_id,
+          employee:employees!inner(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .in("update_id", winIds);
+      
+      if (mentions) {
+        mentions.forEach((m: any) => {
+          const win = allWins.get(m.update_id);
+          if (win) {
+            win.taggedMembers.push({
+              id: m.employee.id,
+              name: m.employee.profiles.full_name,
+              avatar: m.employee.profiles.avatar_url
+            });
+          }
+        });
+      }
     }
     
     // Sort by date descending
@@ -1074,6 +1104,22 @@ const TeamMemberProfile = () => {
                               </div>
                             </div>
                             <RichTextContent content={item.data.content} className="text-sm mb-3" />
+                            {item.data.taggedMembers && item.data.taggedMembers.length > 0 && (
+                              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                <span className="text-xs text-muted-foreground">with</span>
+                                {item.data.taggedMembers.map((member: any) => (
+                                  <Link key={member.id} to={`/team/${member.id}`} className="flex items-center gap-1.5 hover:bg-muted/50 rounded-full pr-2 transition-colors">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={member.avatar} />
+                                      <AvatarFallback className="text-[10px] bg-muted">
+                                        {member.name?.split(" ").map((n: string) => n[0]).join("")}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-medium text-foreground">{member.name?.split(" ")[0]}</span>
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
                             <div className="pt-3 border-t border-border/50">
                               <FeedReactions targetType="update" targetId={item.data.id} />
                             </div>
