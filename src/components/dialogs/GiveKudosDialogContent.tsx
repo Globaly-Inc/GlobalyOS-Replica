@@ -11,8 +11,8 @@ import { ChevronDown, X, Search } from "lucide-react";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AIWritingAssist } from "@/components/AIWritingAssist";
 
 // Helper to get plain text length from HTML
 const getTextLength = (html: string): number => {
@@ -281,7 +281,15 @@ export const GiveKudosDialogContent = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Your Message *</Label>
+        <div className="flex items-center justify-between">
+          <Label>Your Message *</Label>
+          <AIWritingAssist
+            type="kudos"
+            currentText={formData.comment}
+            onTextGenerated={(text) => setFormData({ ...formData, comment: text })}
+            context={selectedNames.length > 0 ? `Thanking ${selectedNames.join(", ")}` : undefined}
+          />
+        </div>
         <RichTextEditor
           value={formData.comment}
           onChange={(value) => setFormData({ ...formData, comment: value })}
