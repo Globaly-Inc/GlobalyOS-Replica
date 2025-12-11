@@ -1285,6 +1285,14 @@ const TeamMemberProfile = () => {
                     <Clock className="h-5 w-5 text-primary" />
                     Attendance Tracking
                   </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.href = `/team/${id}/attendance`}
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    View History
+                  </Button>
                 </div>
                 <div className="p-4">
                   <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
