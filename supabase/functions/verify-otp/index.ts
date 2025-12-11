@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_FAILED_ATTEMPTS_PER_OTP = 5;
+const MAX_VERIFICATION_ATTEMPTS_PER_IP_PER_HOUR = 20;
+
+function getClientIP(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  const realIP = req.headers.get('x-real-ip');
+  if (realIP) {
+    return realIP.trim();
+  }
+  return 'unknown';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,7 +37,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('Verifying OTP for:', email);
+    const clientIP = getClientIP(req);
+    console.log('Verifying OTP for:', email, 'IP:', clientIP);
 
     // Create Supabase client with service role (bypasses RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -34,19 +50,57 @@ serve(async (req) => {
       }
     });
 
-    // Find the OTP record
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    // IP-based rate limiting for verification attempts
+    if (clientIP !== 'unknown') {
+      // Count total failed attempts from this IP in the last hour
+      const { data: ipAttempts, error: ipError } = await supabase
+        .from('otp_codes')
+        .select('failed_attempts')
+        .eq('ip_address', clientIP)
+        .gte('created_at', oneHourAgo);
+
+      if (!ipError && ipAttempts) {
+        const totalFailedAttempts = ipAttempts.reduce((sum, record) => sum + (record.failed_attempts || 0), 0);
+        if (totalFailedAttempts >= MAX_VERIFICATION_ATTEMPTS_PER_IP_PER_HOUR) {
+          console.log(`IP verification rate limit exceeded for ${clientIP}: ${totalFailedAttempts} failed attempts`);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Too many failed attempts. Please try again later.',
+              retryAfter: 3600
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
+    // Find the most recent unverified OTP record for this email
     const { data: otpRecord, error: fetchError } = await supabase
       .from('otp_codes')
       .select('*')
       .eq('email', email.toLowerCase())
-      .eq('code', code)
       .eq('verified', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (fetchError || !otpRecord) {
-      console.error('OTP not found or already used:', fetchError);
+      console.error('No pending OTP found:', fetchError);
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired code' }),
+        JSON.stringify({ error: 'No pending verification code found. Please request a new one.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if this OTP has too many failed attempts
+    if (otpRecord.failed_attempts >= MAX_FAILED_ATTEMPTS_PER_OTP) {
+      console.error('OTP locked due to too many failed attempts');
+      // Invalidate this OTP
+      await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
+      return new Response(
+        JSON.stringify({ error: 'Too many failed attempts. Please request a new code.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -54,10 +108,33 @@ serve(async (req) => {
     // Check if OTP is expired
     if (new Date(otpRecord.expires_at) < new Date()) {
       console.error('OTP expired');
-      // Delete expired OTP
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
       return new Response(
         JSON.stringify({ error: 'Code has expired. Please request a new one.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if code matches
+    if (otpRecord.code !== code) {
+      console.error('Invalid OTP code');
+      // Increment failed attempts
+      const newFailedAttempts = (otpRecord.failed_attempts || 0) + 1;
+      await supabase
+        .from('otp_codes')
+        .update({ 
+          failed_attempts: newFailedAttempts,
+          ip_address: clientIP !== 'unknown' ? clientIP : otpRecord.ip_address 
+        })
+        .eq('id', otpRecord.id);
+
+      const remainingAttempts = MAX_FAILED_ATTEMPTS_PER_OTP - newFailedAttempts;
+      const errorMessage = remainingAttempts > 0 
+        ? `Invalid code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
+        : 'Invalid code. Please request a new one.';
+
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

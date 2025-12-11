@@ -9,10 +9,23 @@ const corsHeaders = {
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-const MAX_REQUESTS_PER_HOUR = 3;
+const MAX_REQUESTS_PER_EMAIL_PER_HOUR = 3;
+const MAX_REQUESTS_PER_IP_PER_HOUR = 10;
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function getClientIP(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  const realIP = req.headers.get('x-real-ip');
+  if (realIP) {
+    return realIP.trim();
+  }
+  return 'unknown';
 }
 
 serve(async (req) => {
@@ -32,7 +45,8 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.toLowerCase();
-    console.log('Generating OTP for:', normalizedEmail, 'isSignup:', isSignup);
+    const clientIP = getClientIP(req);
+    console.log('Generating OTP for:', normalizedEmail, 'isSignup:', isSignup, 'IP:', clientIP);
 
     // Create Supabase client with service role (bypasses RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -44,19 +58,19 @@ serve(async (req) => {
       }
     });
 
-    // Rate limiting: Check requests in the last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    
-    const { count, error: countError } = await supabase
+
+    // Email-based rate limiting
+    const { count: emailCount, error: emailCountError } = await supabase
       .from('otp_codes')
       .select('*', { count: 'exact', head: true })
       .eq('email', normalizedEmail)
       .gte('created_at', oneHourAgo);
 
-    if (countError) {
-      console.error('Error checking rate limit:', countError);
-    } else if (count !== null && count >= MAX_REQUESTS_PER_HOUR) {
-      console.log(`Rate limit exceeded for ${normalizedEmail}: ${count} requests in last hour`);
+    if (emailCountError) {
+      console.error('Error checking email rate limit:', emailCountError);
+    } else if (emailCount !== null && emailCount >= MAX_REQUESTS_PER_EMAIL_PER_HOUR) {
+      console.log(`Email rate limit exceeded for ${normalizedEmail}: ${emailCount} requests in last hour`);
       return new Response(
         JSON.stringify({ 
           error: 'Too many requests. Please try again in an hour.',
@@ -66,7 +80,29 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Rate limit check passed: ${count || 0}/${MAX_REQUESTS_PER_HOUR} requests in last hour`);
+    // IP-based rate limiting
+    if (clientIP !== 'unknown') {
+      const { count: ipCount, error: ipCountError } = await supabase
+        .from('otp_codes')
+        .select('*', { count: 'exact', head: true })
+        .eq('ip_address', clientIP)
+        .gte('created_at', oneHourAgo);
+
+      if (ipCountError) {
+        console.error('Error checking IP rate limit:', ipCountError);
+      } else if (ipCount !== null && ipCount >= MAX_REQUESTS_PER_IP_PER_HOUR) {
+        console.log(`IP rate limit exceeded for ${clientIP}: ${ipCount} requests in last hour`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Too many requests from this location. Please try again later.',
+            retryAfter: 3600
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    console.log(`Rate limit check passed for email: ${emailCount || 0}/${MAX_REQUESTS_PER_EMAIL_PER_HOUR}, IP: ${clientIP}`);
 
     // Generate 6-digit OTP
     const otpCode = generateOTP();
@@ -74,13 +110,15 @@ serve(async (req) => {
 
     console.log('Generated OTP code, expires at:', expiresAt.toISOString());
 
-    // Store OTP in database (don't delete old ones - we need them for rate limiting)
+    // Store OTP in database with IP address
     const { error: insertError } = await supabase
       .from('otp_codes')
       .insert({
         email: normalizedEmail,
         code: otpCode,
         expires_at: expiresAt.toISOString(),
+        ip_address: clientIP !== 'unknown' ? clientIP : null,
+        failed_attempts: 0,
       });
 
     if (insertError) {
