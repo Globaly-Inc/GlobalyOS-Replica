@@ -397,7 +397,7 @@ const TeamMemberProfile = () => {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-3">
-              {/* Name and Company Email */}
+              {/* Name */}
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
                 {isAdminOrHR && (
@@ -408,6 +408,12 @@ const TeamMemberProfile = () => {
                     onSuccess={() => { loadEmployee(); loadUserRole(); }}
                   />
                 )}
+              </div>
+              
+              {/* Company Email */}
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                <span className="text-sm">{employee.profiles.email}</span>
               </div>
               
               {/* Position and Department */}
@@ -519,15 +525,6 @@ const TeamMemberProfile = () => {
                 </h2>
               </div>
               <div className="p-4 space-y-4">
-                {/* Company Email - visible to all */}
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Company Email</p>
-                    <p className="text-sm font-medium text-foreground">{employee.profiles.email}</p>
-                  </div>
-                </div>
-                
                 {/* Personal Email - only for those with full access */}
                 {canViewAllDetails && (
                   <EditableField 
