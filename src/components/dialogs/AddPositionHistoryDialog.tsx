@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { z } from "zod";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const positionHistorySchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -49,6 +50,8 @@ interface AddPositionHistoryDialogProps {
 export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionHistoryDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const { currentOrg } = useOrganization();
   const [formData, setFormData] = useState({
     position: "",
     department: "",
@@ -61,6 +64,25 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (open && currentOrg) {
+      loadDepartments();
+    }
+  }, [open, currentOrg]);
+
+  const loadDepartments = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from("employees")
+      .select("department")
+      .eq("organization_id", currentOrg.id);
+    
+    if (data) {
+      const uniqueDepts = [...new Set(data.map(e => e.department).filter(Boolean))].sort();
+      setDepartments(uniqueDepts);
+    }
+  };
 
   const formatSalary = (salary: number, currency: string = "USD") => {
     return new Intl.NumberFormat('en-US', {
@@ -171,12 +193,21 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
 
             <div>
               <Label htmlFor="department">Department *</Label>
-              <Input
-                id="department"
+              <Select
                 value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                placeholder="e.g., Engineering"
-              />
+                onValueChange={(value) => setFormData({ ...formData, department: value })}
+              >
+                <SelectTrigger id="department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.department && <p className="text-sm text-destructive mt-1">{errors.department}</p>}
             </div>
           </div>
