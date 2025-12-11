@@ -19,7 +19,7 @@ import {
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { EditKudosDialog } from "./dialogs/EditKudosDialog";
-import KudosViewDialog from "./dialogs/KudosViewDialog";
+
 
 interface KudosCardProps {
   kudos: Kudos;
@@ -34,7 +34,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showViewDialog, setShowViewDialog] = useState(false);
+  
   const [isDeleting, setIsDeleting] = useState(false);
   
   const allRecipients = [
@@ -98,8 +98,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   return (
     <>
       <div 
-        className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500 flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-        onClick={() => setShowViewDialog(true)}
+        className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500 flex flex-col"
       >
         <div className="p-4 flex-1">
           {/* Header */}
@@ -203,18 +202,6 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
         />
       )}
 
-      <KudosViewDialog
-        open={showViewDialog}
-        onOpenChange={setShowViewDialog}
-        kudos={{
-          id: kudos.id,
-          givenBy: kudos.givenBy,
-          givenByAvatar: kudos.givenByAvatar,
-          date: kudos.date,
-          comment: kudos.comment,
-          recipientText
-        }}
-      />
     </>
   );
 };
