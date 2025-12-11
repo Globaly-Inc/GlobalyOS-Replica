@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown, X, Search } from "lucide-react";
 
@@ -246,7 +246,7 @@ export const EditKudosDialog = ({
                     />
                   </div>
                 </div>
-                <ScrollArea className="h-[200px]">
+                <div className="h-[200px] overflow-y-auto">
                   <div className="p-2 space-y-1">
                     {employees
                       .filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -273,7 +273,7 @@ export const EditKudosDialog = ({
                       <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
               </PopoverContent>
             </Popover>
             
