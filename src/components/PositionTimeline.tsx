@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil } from "lucide-react";
 import { format } from "date-fns";
@@ -33,6 +34,7 @@ interface PositionTimelineProps {
   currentPosition: string;
   currentDepartment: string;
   currentSalary: number | null;
+  currentCurrency?: string;
   employeeId?: string;
   canEdit?: boolean;
   onRefresh?: () => void;
@@ -46,11 +48,31 @@ const changeTypeConfig: Record<string, { label: string; color: string; icon: any
   initial: { label: "Joined", color: "bg-gray-500", icon: UserCheck },
 };
 
+const currencies = [
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "EUR", symbol: "€", name: "Euro" },
+  { code: "GBP", symbol: "£", name: "British Pound" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee" },
+  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
+  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
+  { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
+  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
+];
+
+const paymentFrequencies = [
+  { value: "weekly", label: "Weekly", multiplier: 52 },
+  { value: "monthly", label: "Monthly", multiplier: 12 },
+  { value: "annual", label: "Annual", multiplier: 1 },
+];
+
 export const PositionTimeline = ({ 
   entries, 
   currentPosition, 
   currentDepartment,
   currentSalary,
+  currentCurrency = "USD",
   employeeId,
   canEdit = false,
   onRefresh
@@ -63,6 +85,8 @@ export const PositionTimeline = ({
     position: currentPosition,
     department: currentDepartment,
     salary: currentSalary?.toString() || "",
+    currency: currentCurrency,
+    paymentFrequency: "annual" as string,
   });
 
   // Sort entries by effective_date descending (most recent first)
@@ -70,15 +94,21 @@ export const PositionTimeline = ({
     new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
   );
 
-  const formatSalary = (salary: number | null) => {
+  const formatSalary = (salary: number | null, currency: string = "USD") => {
     if (!salary) return "N/A";
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(salary);
   };
+
+  const annualPay = useMemo(() => {
+    const amount = parseFloat(currentEditData.salary) || 0;
+    const frequency = paymentFrequencies.find(f => f.value === currentEditData.paymentFrequency);
+    return amount * (frequency?.multiplier || 1);
+  }, [currentEditData.salary, currentEditData.paymentFrequency]);
 
   const handleEdit = (entry: TimelineEntry) => {
     setEditingEntry(entry);
@@ -94,6 +124,8 @@ export const PositionTimeline = ({
       position: currentPosition,
       department: currentDepartment,
       salary: currentSalary?.toString() || "",
+      currency: currentCurrency,
+      paymentFrequency: "annual",
     });
     setCurrentEditOpen(true);
   };
@@ -103,12 +135,18 @@ export const PositionTimeline = ({
     setCurrentEditLoading(true);
 
     try {
+      // Calculate annual salary for storage
+      const amount = parseFloat(currentEditData.salary) || 0;
+      const frequency = paymentFrequencies.find(f => f.value === currentEditData.paymentFrequency);
+      const annualSalary = amount * (frequency?.multiplier || 1);
+
       const { error } = await supabase
         .from("employees")
         .update({
           position: currentEditData.position,
           department: currentEditData.department,
-          salary: currentEditData.salary ? parseFloat(currentEditData.salary) : null,
+          remuneration: annualSalary || null,
+          remuneration_currency: currentEditData.currency,
         })
         .eq("id", employeeId);
 
@@ -147,7 +185,7 @@ export const PositionTimeline = ({
             <h3 className="font-semibold text-lg">{currentPosition}</h3>
             <p className="text-sm text-muted-foreground">{currentDepartment}</p>
             {currentSalary && (
-              <p className="text-sm font-medium mt-1">{formatSalary(currentSalary)}</p>
+              <p className="text-sm font-medium mt-1">{formatSalary(currentSalary, currentCurrency)}/year</p>
             )}
           </div>
 
@@ -258,16 +296,69 @@ export const PositionTimeline = ({
                 placeholder="e.g., Engineering"
               />
             </div>
-            <div>
-              <Label htmlFor="current-salary">Salary (USD)</Label>
-              <Input
-                id="current-salary"
-                type="number"
-                value={currentEditData.salary}
-                onChange={(e) => setCurrentEditData({ ...currentEditData, salary: e.target.value })}
-                placeholder="e.g., 85000"
-              />
+            
+            <div className="space-y-3">
+              <Label>Remuneration</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="current-currency" className="text-xs text-muted-foreground">Currency</Label>
+                  <Select
+                    value={currentEditData.currency}
+                    onValueChange={(value) => setCurrentEditData({ ...currentEditData, currency: value })}
+                  >
+                    <SelectTrigger id="current-currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {currencies.map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          {currency.symbol} {currency.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="current-salary" className="text-xs text-muted-foreground">Amount</Label>
+                  <Input
+                    id="current-salary"
+                    type="number"
+                    value={currentEditData.salary}
+                    onChange={(e) => setCurrentEditData({ ...currentEditData, salary: e.target.value })}
+                    placeholder="e.g., 85000"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="current-frequency" className="text-xs text-muted-foreground">Frequency</Label>
+                  <Select
+                    value={currentEditData.paymentFrequency}
+                    onValueChange={(value) => setCurrentEditData({ ...currentEditData, paymentFrequency: value })}
+                  >
+                    <SelectTrigger id="current-frequency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {paymentFrequencies.map((freq) => (
+                        <SelectItem key={freq.value} value={freq.value}>
+                          {freq.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Annual Pay Calculation */}
+              {currentEditData.salary && (
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <p className="text-xs text-muted-foreground">Annual Pay</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {formatSalary(annualPay, currentEditData.currency)}
+                  </p>
+                </div>
+              )}
             </div>
+
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setCurrentEditOpen(false)}>
                 Cancel
