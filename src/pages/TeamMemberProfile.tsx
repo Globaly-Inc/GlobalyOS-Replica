@@ -254,6 +254,7 @@ const TeamMemberProfile = () => {
     const { data } = await supabase.from("employees").select(`
         id,
         user_id,
+        status,
         position,
         department,
         salary,
