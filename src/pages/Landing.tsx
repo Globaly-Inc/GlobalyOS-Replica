@@ -412,7 +412,7 @@ const Landing = () => {
               <img 
                 src={heroIllustration} 
                 alt="TeamHub employee management illustration" 
-                className="w-full max-w-lg h-auto"
+                className="w-full max-w-lg h-auto animate-float"
               />
             </div>
           </div>
