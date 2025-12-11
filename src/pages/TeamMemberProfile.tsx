@@ -1202,7 +1202,7 @@ const TeamMemberProfile = () => {
                   </h2>
                 </div>
                 <div className="p-4">
-                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
+                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} organizationId={employee?.organization_id} />
                 </div>
               </Card>
             )}

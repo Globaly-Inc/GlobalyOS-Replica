@@ -1,0 +1,240 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { QrCode, RefreshCw, Download, Building2 } from "lucide-react";
+import { toast } from "sonner";
+import { useOrganization } from "@/hooks/useOrganization";
+import QRCode from "qrcode";
+
+interface Office {
+  id: string;
+  name: string;
+  city: string | null;
+  country: string | null;
+}
+
+export const QRCodeGenerator = () => {
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
+  const [selectedOffice, setSelectedOffice] = useState<string>("");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+
+  // Fetch offices
+  const { data: offices } = useQuery({
+    queryKey: ["offices", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("offices")
+        .select("id, name, city, country")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      
+      if (error) throw error;
+      return data as Office[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch current QR code for selected office
+  const { data: currentQRCode, isLoading: isLoadingQR } = useQuery({
+    queryKey: ["qr-code", selectedOffice],
+    queryFn: async () => {
+      if (!selectedOffice) return null;
+      const { data, error } = await supabase
+        .from("office_qr_codes")
+        .select("*")
+        .eq("office_id", selectedOffice)
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      if (error && error.code !== "PGRST116") throw error;
+      return data;
+    },
+    enabled: !!selectedOffice,
+  });
+
+  // Generate QR code image when code changes
+  useEffect(() => {
+    const generateQRImage = async () => {
+      if (currentQRCode?.code) {
+        try {
+          const dataUrl = await QRCode.toDataURL(currentQRCode.code, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: "#000000",
+              light: "#ffffff",
+            },
+          });
+          setQrCodeDataUrl(dataUrl);
+        } catch (error) {
+          console.error("Error generating QR code image:", error);
+        }
+      } else {
+        setQrCodeDataUrl("");
+      }
+    };
+    generateQRImage();
+  }, [currentQRCode?.code]);
+
+  // Get current employee ID
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["current-employee"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Generate new QR code mutation
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedOffice || !currentOrg?.id || !currentEmployee?.id) {
+        throw new Error("Missing required data");
+      }
+
+      // Deactivate existing QR code
+      await supabase
+        .from("office_qr_codes")
+        .update({ is_active: false })
+        .eq("office_id", selectedOffice)
+        .eq("is_active", true);
+
+      // Generate new unique code
+      const newCode = `${selectedOffice}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+      // Insert new QR code
+      const { error } = await supabase
+        .from("office_qr_codes")
+        .insert({
+          office_id: selectedOffice,
+          organization_id: currentOrg.id,
+          code: newCode,
+          created_by: currentEmployee.id,
+          is_active: true,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["qr-code", selectedOffice] });
+      toast.success("New QR code generated successfully");
+    },
+    onError: (error: any) => {
+      console.error("Error generating QR code:", error);
+      toast.error("Failed to generate QR code");
+    },
+  });
+
+  const handleDownload = () => {
+    if (!qrCodeDataUrl || !selectedOffice) return;
+    
+    const selectedOfficeName = offices?.find(o => o.id === selectedOffice)?.name || "office";
+    const link = document.createElement("a");
+    link.download = `qr-code-${selectedOfficeName.toLowerCase().replace(/\s+/g, "-")}.png`;
+    link.href = qrCodeDataUrl;
+    link.click();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <QrCode className="h-4 w-4" />
+          Attendance QR Code
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">Select Office</label>
+          <Select value={selectedOffice} onValueChange={setSelectedOffice}>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose an office" />
+            </SelectTrigger>
+            <SelectContent>
+              {offices?.map((office) => (
+                <SelectItem key={office.id} value={office.id}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span>{office.name}</span>
+                    {office.city && (
+                      <span className="text-muted-foreground text-xs">({office.city})</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedOffice && (
+          <>
+            {isLoadingQR ? (
+              <div className="flex items-center justify-center h-[200px]">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : qrCodeDataUrl ? (
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <img 
+                    src={qrCodeDataUrl} 
+                    alt="Attendance QR Code" 
+                    className="w-[200px] h-[200px]"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Generated: {currentQRCode?.created_at ? new Date(currentQRCode.created_at).toLocaleString() : "N/A"}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                <QrCode className="h-12 w-12 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No QR code generated yet</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+                className="flex-1"
+                size="sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                {currentQRCode ? "Regenerate" : "Generate"}
+              </Button>
+              {qrCodeDataUrl && (
+                <Button
+                  onClick={handleDownload}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {currentQRCode && (
+              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-2 rounded-lg text-center">
+                Regenerating will expire the current QR code
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

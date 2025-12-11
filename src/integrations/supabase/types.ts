@@ -258,6 +258,61 @@ export type Database = {
           },
         ]
       }
+      employee_schedules: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          late_threshold_minutes: number
+          organization_id: string | null
+          updated_at: string
+          work_end_time: string
+          work_start_time: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          late_threshold_minutes?: number
+          organization_id?: string | null
+          updated_at?: string
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          late_threshold_minutes?: number
+          organization_id?: string | null
+          updated_at?: string
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_schedules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           bank_details: string | null
@@ -1046,6 +1101,65 @@ export type Database = {
           },
         ]
       }
+      office_qr_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_qr_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_qr_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_qr_codes_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_qr_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offices: {
         Row: {
           address: string | null
@@ -1733,6 +1847,10 @@ export type Database = {
       }
       is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
+      validate_qr_and_record_attendance: {
+        Args: { _action: string; _qr_code: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "hr" | "user"
