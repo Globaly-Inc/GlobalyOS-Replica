@@ -116,6 +116,67 @@ export type Database = {
           },
         ]
       }
+      employee_documents: {
+        Row: {
+          created_at: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          folder: string
+          id: string
+          organization_id: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          folder: string
+          id?: string
+          organization_id?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          folder?: string
+          id?: string
+          organization_id?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_projects: {
         Row: {
           created_at: string
