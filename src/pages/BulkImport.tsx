@@ -13,6 +13,7 @@ import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ParsedEmployee {
   first_name: string;
@@ -169,6 +170,34 @@ const EditableCell = ({
         </span>
       )}
     </div>
+  );
+};
+
+// Dropdown cell component for selectable fields
+const SelectableCell = ({ 
+  value, 
+  options,
+  onSave,
+  placeholder = "Select..."
+}: { 
+  value: string; 
+  options: { value: string; label: string }[];
+  onSave: (value: string) => void;
+  placeholder?: string;
+}) => {
+  return (
+    <Select value={value} onValueChange={onSave}>
+      <SelectTrigger className="h-7 text-xs border-0 rounded-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="bg-popover z-50">
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 };
 
@@ -794,12 +823,11 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className="p-0 border border-border/50">
-                              <EditableCell
+                              <SelectableCell
                                 value={emp.office_name}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'office_name'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'office_name' })}
+                                options={offices.map(o => ({ value: o.name, label: o.name }))}
                                 onSave={(v) => updateCellValue(i, 'office_name', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select office"
                               />
                             </td>
                             <td className="p-0 border border-border/50">
@@ -857,12 +885,15 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className="p-0 border border-border/50">
-                              <EditableCell
+                              <SelectableCell
                                 value={emp.role || 'user'}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'role'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'role' })}
+                                options={[
+                                  { value: 'user', label: 'User' },
+                                  { value: 'hr', label: 'HR' },
+                                  { value: 'admin', label: 'Admin' }
+                                ]}
                                 onSave={(v) => updateCellValue(i, 'role', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select role"
                               />
                             </td>
                             <td className="p-0 border border-border/50 text-center">
