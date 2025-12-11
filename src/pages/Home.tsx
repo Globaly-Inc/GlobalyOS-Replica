@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Quote } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -487,20 +487,137 @@ const Home = () => {
           const hour = new Date().getHours();
           let greeting = "Good evening";
           let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
-          let TimeIcon = Moon;
           
-          let iconColor = "text-blue-200"; // Moon - cool blue/silver
+          // Custom sun/moon phase SVG based on time
+          const renderTimeIcon = () => {
+            if (hour >= 5 && hour < 8) {
+              // Early morning - Rising sun
+              return (
+                <svg viewBox="0 0 64 64" className="h-10 w-10">
+                  <defs>
+                    <linearGradient id="sunriseGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                      <stop offset="0%" stopColor="#f97316" />
+                      <stop offset="100%" stopColor="#fbbf24" />
+                    </linearGradient>
+                  </defs>
+                  {/* Horizon line */}
+                  <line x1="8" y1="40" x2="56" y2="40" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+                  {/* Rising sun (half visible) */}
+                  <circle cx="32" cy="40" r="14" fill="url(#sunriseGrad)" />
+                  {/* Sun rays */}
+                  {[0, 30, 60, 90, 120, 150].map((angle, i) => (
+                    <line
+                      key={i}
+                      x1={32 + Math.cos((angle * Math.PI) / 180) * 18}
+                      y1={40 - Math.sin((angle * Math.PI) / 180) * 18}
+                      x2={32 + Math.cos((angle * Math.PI) / 180) * 24}
+                      y2={40 - Math.sin((angle * Math.PI) / 180) * 24}
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      opacity="0.8"
+                    />
+                  ))}
+                </svg>
+              );
+            } else if (hour >= 8 && hour < 17) {
+              // Daytime - Full sun
+              return (
+                <svg viewBox="0 0 64 64" className="h-10 w-10">
+                  <defs>
+                    <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#fef08a" />
+                      <stop offset="70%" stopColor="#fbbf24" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </radialGradient>
+                  </defs>
+                  {/* Sun core */}
+                  <circle cx="32" cy="32" r="12" fill="url(#sunGrad)" />
+                  {/* Sun rays */}
+                  {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
+                    <line
+                      key={i}
+                      x1={32 + Math.cos((angle * Math.PI) / 180) * 16}
+                      y1={32 + Math.sin((angle * Math.PI) / 180) * 16}
+                      x2={32 + Math.cos((angle * Math.PI) / 180) * 24}
+                      y2={32 + Math.sin((angle * Math.PI) / 180) * 24}
+                      stroke="#fbbf24"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                  ))}
+                </svg>
+              );
+            } else if (hour >= 17 && hour < 20) {
+              // Evening - Setting sun
+              return (
+                <svg viewBox="0 0 64 64" className="h-10 w-10">
+                  <defs>
+                    <linearGradient id="sunsetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#fb923c" />
+                      <stop offset="100%" stopColor="#dc2626" />
+                    </linearGradient>
+                  </defs>
+                  {/* Horizon line */}
+                  <line x1="8" y1="40" x2="56" y2="40" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+                  {/* Setting sun (half visible) */}
+                  <circle cx="32" cy="40" r="14" fill="url(#sunsetGrad)" />
+                  {/* Fading rays */}
+                  {[0, 45, 90, 135, 180].map((angle, i) => (
+                    <line
+                      key={i}
+                      x1={32 + Math.cos((angle * Math.PI) / 180) * 18}
+                      y1={40 - Math.sin((angle * Math.PI) / 180) * 18}
+                      x2={32 + Math.cos((angle * Math.PI) / 180) * 22}
+                      y2={40 - Math.sin((angle * Math.PI) / 180) * 22}
+                      stroke="#fb923c"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      opacity="0.6"
+                    />
+                  ))}
+                </svg>
+              );
+            } else {
+              // Night - Crescent moon with stars
+              return (
+                <svg viewBox="0 0 64 64" className="h-10 w-10">
+                  <defs>
+                    <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#f1f5f9" />
+                      <stop offset="100%" stopColor="#cbd5e1" />
+                    </linearGradient>
+                  </defs>
+                  {/* Stars */}
+                  <circle cx="12" cy="16" r="1.5" fill="#fef9c3" opacity="0.8" />
+                  <circle cx="52" cy="12" r="1" fill="#fef9c3" opacity="0.6" />
+                  <circle cx="48" cy="28" r="1.5" fill="#fef9c3" opacity="0.7" />
+                  <circle cx="16" cy="48" r="1" fill="#fef9c3" opacity="0.5" />
+                  <circle cx="56" cy="48" r="1.2" fill="#fef9c3" opacity="0.6" />
+                  {/* Crescent moon */}
+                  <path
+                    d="M 38 12 
+                       A 18 18 0 1 1 38 52 
+                       A 14 14 0 1 0 38 12"
+                    fill="url(#moonGrad)"
+                  />
+                  {/* Moon crater details */}
+                  <circle cx="28" cy="28" r="2" fill="#94a3b8" opacity="0.3" />
+                  <circle cx="24" cy="38" r="1.5" fill="#94a3b8" opacity="0.2" />
+                </svg>
+              );
+            }
+          };
           
-          if (hour < 12) {
+          if (hour >= 5 && hour < 12) {
             greeting = "Good morning";
-            gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
-            TimeIcon = Sunrise;
-            iconColor = "text-orange-300"; // Warm sunrise orange
-          } else if (hour < 17) {
+            gradientClass = "from-gray-500 via-slate-500 to-gray-600";
+          } else if (hour >= 12 && hour < 17) {
             greeting = "Good afternoon";
-            gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
-            TimeIcon = Sun;
-            iconColor = "text-yellow-300"; // Bright sun yellow
+            gradientClass = "from-slate-600 via-gray-500 to-slate-600";
+          } else if (hour >= 17 && hour < 20) {
+            greeting = "Good evening";
+            gradientClass = "from-slate-600 via-gray-700 to-slate-700";
           }
           
           return (
@@ -526,6 +643,10 @@ const Home = () => {
                   0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4)); }
                   50% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.7)); }
                 }
+                @keyframes twinkle {
+                  0%, 100% { opacity: 0.5; }
+                  50% { opacity: 1; }
+                }
                 .greeting-icon {
                   animation: icon-float 4s ease-in-out infinite, icon-glow 3s ease-in-out infinite;
                 }
@@ -534,7 +655,7 @@ const Home = () => {
                 {/* Left side - Greeting */}
                 <div className="flex items-center gap-3">
                   <div className="greeting-icon p-2 rounded-full bg-white/10 backdrop-blur-sm">
-                    <TimeIcon className={`h-8 w-8 ${iconColor} drop-shadow-lg`} strokeWidth={1.5} />
+                    {renderTimeIcon()}
                   </div>
                   <div>
                     <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
