@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, Sparkles } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, Sparkles, CalendarPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -791,7 +791,8 @@ const Home = () => {
                     <Calendar className="h-5 w-5 text-primary" />
                     My Leave Balance
                   </h3>
-                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
+                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)} className="flex items-center gap-1.5">
+                    <CalendarPlus className="h-4 w-4" />
                     Request
                   </Button>
                 </div>
