@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Users, ArrowLeft, Building2, ArrowUpRight } from "lucide-react";
+import { Users, ArrowLeft, Building2, ArrowUpRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ const DEPARTMENT_COLORS = [
 const OrgChart = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
 
@@ -288,7 +290,18 @@ const OrgChart = () => {
     return "";
   };
 
-  const departments = groupByDepartment(employees);
+  // Filter employees based on search query
+  const filteredEmployees = useMemo(() => {
+    if (!searchQuery.trim()) return employees;
+    const query = searchQuery.toLowerCase();
+    return employees.filter(emp => 
+      emp.profiles.full_name.toLowerCase().includes(query) ||
+      emp.department.toLowerCase().includes(query) ||
+      emp.position.toLowerCase().includes(query)
+    );
+  }, [employees, searchQuery]);
+
+  const departments = groupByDepartment(filteredEmployees);
   const sortedDepartments = Array.from(departments.entries()).sort((a, b) => {
     // Always put Management first
     if (a[0].toLowerCase() === 'management') return -1;
@@ -309,18 +322,42 @@ const OrgChart = () => {
           Back to Team
         </Button>
         
-        <PageHeader 
-          title="Organization Chart" 
-          subtitle="Company hierarchy by department"
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <PageHeader 
+            title="Organization Chart" 
+            subtitle="Company hierarchy by department"
+          />
+          
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employee, department, position..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
 
         {loading ? (
           <Card className="p-12 text-center rounded-2xl">
             <p className="text-muted-foreground">Loading organization chart...</p>
           </Card>
-        ) : employees.length === 0 ? (
+        ) : filteredEmployees.length === 0 ? (
           <Card className="p-12 text-center rounded-2xl">
-            <p className="text-muted-foreground">No employees found.</p>
+            <p className="text-muted-foreground">
+              {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
+            </p>
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
