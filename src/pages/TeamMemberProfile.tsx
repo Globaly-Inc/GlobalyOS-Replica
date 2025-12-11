@@ -85,6 +85,7 @@ const TeamMemberProfile = () => {
   const [documentSearch, setDocumentSearch] = useState('');
   const [editStatusOpen, setEditStatusOpen] = useState(false);
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
+  const [employeeSchedule, setEmployeeSchedule] = useState<any>(null);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -159,8 +160,19 @@ const TeamMemberProfile = () => {
       loadUserRole();
       loadEmployeeProjects();
       loadCurrentLeave();
+      loadEmployeeSchedule();
     }
   }, [id]);
+
+  const loadEmployeeSchedule = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("employee_schedules")
+      .select("*")
+      .eq("employee_id", id)
+      .maybeSingle();
+    setEmployeeSchedule(data);
+  };
 
   const loadCurrentLeave = async () => {
     if (!id) return;
@@ -805,6 +817,77 @@ const TeamMemberProfile = () => {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
+            {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Work Schedule
+                  </h2>
+                  {isAdminOrHR && employee?.organization_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setEditScheduleOpen(true)}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1" />
+                      {employeeSchedule ? 'Edit' : 'Set Up'}
+                    </Button>
+                  )}
+                </div>
+                <div className="p-4">
+                  {employeeSchedule ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-muted/50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Start</p>
+                        <p className="font-semibold text-sm">
+                          {(() => {
+                            const [hours, minutes] = employeeSchedule.work_start_time.split(":");
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            const hour12 = hour % 12 || 12;
+                            return `${hour12}:${minutes} ${ampm}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">End</p>
+                        <p className="font-semibold text-sm">
+                          {(() => {
+                            const [hours, minutes] = employeeSchedule.work_end_time.split(":");
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            const hour12 = hour % 12 || 12;
+                            return `${hour12}:${minutes} ${ampm}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Grace</p>
+                        <p className="font-semibold text-sm">{employeeSchedule.late_threshold_minutes}m</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">No schedule configured</p>
+                      {isAdminOrHR && employee?.organization_id && (
+                        <Button 
+                          variant="link" 
+                          size="sm" 
+                          className="mt-1 h-auto p-0"
+                          onClick={() => setEditScheduleOpen(true)}
+                        >
+                          Set up schedule
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             {/* Position Timeline - visible to all, but salary and edit restricted */}
             {canViewPositionTimeline && (
               <Card className="overflow-hidden">
@@ -1202,17 +1285,6 @@ const TeamMemberProfile = () => {
                     <Clock className="h-5 w-5 text-primary" />
                     Attendance Tracking
                   </h2>
-                  {isAdminOrHR && employee?.organization_id && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 px-3"
-                      onClick={() => setEditScheduleOpen(true)}
-                    >
-                      <Settings2 className="h-4 w-4 mr-1" />
-                      Configure Schedule
-                    </Button>
-                  )}
                 </div>
                 <div className="p-4">
                   <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} organizationId={employee?.organization_id} />
@@ -1239,6 +1311,8 @@ const TeamMemberProfile = () => {
           onOpenChange={setEditScheduleOpen}
           employeeId={id!}
           organizationId={employee.organization_id}
+          currentSchedule={employeeSchedule}
+          onSuccess={loadEmployeeSchedule}
         />
       )}
     </Layout>;
