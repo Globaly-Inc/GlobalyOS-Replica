@@ -904,16 +904,15 @@ const InviteTeamMember = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="manager">Manager</Label>
+                  <Label htmlFor="manager">Manager <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.managerId}
-                    onValueChange={(value) => handleChange('managerId', value === '__none__' ? '' : value)}
+                    onValueChange={(value) => handleChange('managerId', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select manager (optional)" />
+                    <SelectTrigger className={touched.managerId && errors.managerId ? "border-destructive" : ""}>
+                      <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No manager</SelectItem>
                       {teamMembers.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.profiles.full_name}
@@ -921,19 +920,21 @@ const InviteTeamMember = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {touched.managerId && errors.managerId && (
+                    <p className="text-sm text-destructive">{errors.managerId}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="office">Office</Label>
+                  <Label htmlFor="office">Office <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.officeId}
-                    onValueChange={(value) => handleChange('officeId', value === '__none__' ? '' : value)}
+                    onValueChange={(value) => handleChange('officeId', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select office (optional)" />
+                    <SelectTrigger className={touched.officeId && errors.officeId ? "border-destructive" : ""}>
+                      <SelectValue placeholder="Select office" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No office assigned</SelectItem>
                       {offices.map((office) => (
                         <SelectItem key={office.id} value={office.id}>
                           {office.name}
@@ -941,6 +942,9 @@ const InviteTeamMember = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {touched.officeId && errors.officeId && (
+                    <p className="text-sm text-destructive">{errors.officeId}</p>
+                  )}
                 </div>
               </div>
 
