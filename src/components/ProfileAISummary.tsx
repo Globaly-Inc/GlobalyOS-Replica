@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProfileAISummaryProps {
+  employeeId: string;
   employee: {
     name: string;
     position: string;
@@ -18,19 +19,21 @@ interface ProfileAISummaryProps {
     recentKudos?: string[];
     directReportsCount: number;
     managerName?: string;
+    organizationId?: string;
   };
 }
 
-export const ProfileAISummary = ({ employee }: ProfileAISummaryProps) => {
+export const ProfileAISummary = ({ employeeId, employee }: ProfileAISummaryProps) => {
   const [summary, setSummary] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [isCached, setIsCached] = useState(false);
   const { toast } = useToast();
 
-  const generateSummary = async () => {
+  const generateSummary = async (forceRegenerate = false) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-profile-summary", {
-        body: { employee },
+        body: { employee, employeeId, forceRegenerate },
       });
 
       if (error) throw error;
@@ -45,6 +48,7 @@ export const ProfileAISummary = ({ employee }: ProfileAISummaryProps) => {
       }
 
       setSummary(data.summary);
+      setIsCached(data.cached);
     } catch (error) {
       console.error("Error generating summary:", error);
       toast({
@@ -58,8 +62,8 @@ export const ProfileAISummary = ({ employee }: ProfileAISummaryProps) => {
   };
 
   useEffect(() => {
-    generateSummary();
-  }, [employee.name]);
+    generateSummary(false);
+  }, [employeeId]);
 
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -71,9 +75,10 @@ export const ProfileAISummary = ({ employee }: ProfileAISummaryProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={generateSummary}
+          onClick={() => generateSummary(true)}
           disabled={loading}
           className="text-white hover:bg-white/20 hover:text-white h-8 px-2"
+          title="Regenerate summary"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
