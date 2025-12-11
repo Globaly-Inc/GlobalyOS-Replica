@@ -1580,7 +1580,6 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
-      cleanup_expired_otps: { Args: never; Returns: undefined }
       get_current_employee_id: { Args: never; Returns: string }
       get_employee_for_viewer: {
         Args: { target_employee_id: string }
