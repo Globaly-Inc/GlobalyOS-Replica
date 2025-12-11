@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, SquarePen, CalendarPlus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
@@ -135,6 +135,9 @@ const Home = () => {
     quote: string;
     author: string;
   } | null>(null);
+  const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
+  const seenItemIdsRef = useRef<Set<string>>(new Set());
+  const isInitialLoadRef = useRef(true);
   const {
     isHR,
     isAdmin
@@ -447,8 +450,52 @@ const Home = () => {
       `).eq("organization_id", currentOrg.id).order("created_at", {
       ascending: false
     });
-    if (updatesData) setUpdates(updatesData as FeedItem[]);
-    if (kudosData) setKudos(kudosData as KudosItem[]);
+    if (updatesData) {
+      // Track new items for animation
+      const newUpdates: string[] = [];
+      updatesData.forEach((item: any) => {
+        if (!seenItemIdsRef.current.has(item.id) && !isInitialLoadRef.current) {
+          newUpdates.push(item.id);
+        }
+        seenItemIdsRef.current.add(item.id);
+      });
+      if (newUpdates.length > 0) {
+        setNewItemIds(prev => new Set([...prev, ...newUpdates]));
+        // Clear animation after it plays
+        setTimeout(() => {
+          setNewItemIds(prev => {
+            const next = new Set(prev);
+            newUpdates.forEach(id => next.delete(id));
+            return next;
+          });
+        }, 600);
+      }
+      setUpdates(updatesData as FeedItem[]);
+    }
+    if (kudosData) {
+      // Track new kudos for animation
+      const newKudosIds: string[] = [];
+      kudosData.forEach((item: any) => {
+        const itemId = item.batch_id || item.id;
+        if (!seenItemIdsRef.current.has(itemId) && !isInitialLoadRef.current) {
+          newKudosIds.push(itemId);
+        }
+        seenItemIdsRef.current.add(itemId);
+      });
+      if (newKudosIds.length > 0) {
+        setNewItemIds(prev => new Set([...prev, ...newKudosIds]));
+        // Clear animation after it plays
+        setTimeout(() => {
+          setNewItemIds(prev => {
+            const next = new Set(prev);
+            newKudosIds.forEach(id => next.delete(id));
+            return next;
+          });
+        }, 600);
+      }
+      setKudos(kudosData as KudosItem[]);
+    }
+    isInitialLoadRef.current = false;
     setLoading(false);
   };
 
@@ -531,6 +578,9 @@ const Home = () => {
     }[];
   }))[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
+      const itemKey = "comment" in item ? ((item as any).batch_id || item.id) : item.id;
+      const isNew = newItemIds.has(itemKey);
+      
       if ("comment" in item) {
         const kudosItem = item as KudosItem & {
           otherRecipients?: {
@@ -539,38 +589,42 @@ const Home = () => {
             avatar?: string;
           }[];
         };
-        return <KudosCard key={kudosItem.batch_id || item.id} kudos={{
-          id: kudosItem.id,
-          employeeId: kudosItem.employee.id,
-          employeeName: kudosItem.employee.profiles.full_name,
-          givenBy: kudosItem.given_by.profiles.full_name,
-          givenById: kudosItem.given_by.id,
-          givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
-          comment: kudosItem.comment,
-          date: kudosItem.created_at,
-          avatar: kudosItem.employee.profiles.avatar_url || undefined,
-          batchId: kudosItem.batch_id || undefined,
-          otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-          otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
-        }} onDelete={loadFeed} />;
+        return <div key={kudosItem.batch_id || item.id} className={isNew ? "animate-fade-in" : ""}>
+          <KudosCard kudos={{
+            id: kudosItem.id,
+            employeeId: kudosItem.employee.id,
+            employeeName: kudosItem.employee.profiles.full_name,
+            givenBy: kudosItem.given_by.profiles.full_name,
+            givenById: kudosItem.given_by.id,
+            givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
+            comment: kudosItem.comment,
+            date: kudosItem.created_at,
+            avatar: kudosItem.employee.profiles.avatar_url || undefined,
+            batchId: kudosItem.batch_id || undefined,
+            otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
+            otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
+          }} onDelete={loadFeed} />
+        </div>;
       } else {
         const updateItem = item as FeedItem;
-        return <UpdateCard key={item.id} update={{
-          id: updateItem.id,
-          employeeId: updateItem.employee_id,
-          employeeName: updateItem.employee.profiles.full_name,
-          content: updateItem.content,
-          date: updateItem.created_at,
-          type: mapDbTypeToUiType(updateItem.type),
-          avatar: updateItem.employee.profiles.avatar_url || undefined,
-          imageUrl: updateItem.image_url || undefined,
-          mentions: updateItem.mentions?.map(m => ({
-            id: m.id,
-            employeeId: m.employee_id,
-            employeeName: m.employee?.profiles?.full_name || "Unknown",
-            avatar: m.employee?.profiles?.avatar_url || undefined
-          }))
-        }} onDelete={loadFeed} />;
+        return <div key={item.id} className={isNew ? "animate-fade-in" : ""}>
+          <UpdateCard update={{
+            id: updateItem.id,
+            employeeId: updateItem.employee_id,
+            employeeName: updateItem.employee.profiles.full_name,
+            content: updateItem.content,
+            date: updateItem.created_at,
+            type: mapDbTypeToUiType(updateItem.type),
+            avatar: updateItem.employee.profiles.avatar_url || undefined,
+            imageUrl: updateItem.image_url || undefined,
+            mentions: updateItem.mentions?.map(m => ({
+              id: m.id,
+              employeeId: m.employee_id,
+              employeeName: m.employee?.profiles?.full_name || "Unknown",
+              avatar: m.employee?.profiles?.avatar_url || undefined
+            }))
+          }} onDelete={loadFeed} />
+        </div>;
       }
     })}
     </>;
