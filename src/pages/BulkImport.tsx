@@ -726,14 +726,14 @@ const BulkImport = () => {
 
             {step === 'preview' && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div>
+                  <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{file?.name}</p>
-                    <p className="text-xs text-muted-foreground">{parsedData.length} employees found</p>
+                    <Button variant="outline" size="sm" onClick={resetState}>
+                      Change File
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={resetState}>
-                    Change File
-                  </Button>
+                  <p className="text-xs text-muted-foreground">{parsedData.length} employees found</p>
                 </div>
 
                 {validationErrors.length > 0 && (() => {
