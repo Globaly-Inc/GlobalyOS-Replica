@@ -24,6 +24,7 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree } from "lucide-react";
+import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -806,6 +807,23 @@ const TeamMemberProfile = () => {
           </div>
 
           <div className="space-y-6 lg:col-span-2">
+            {/* AI Summary Card */}
+            <ProfileAISummary 
+              employee={{
+                name: employee.profiles.full_name,
+                position: employee.position,
+                department: employee.department,
+                joinDate: employee.join_date,
+                office: employee.offices?.name,
+                superpowers: employee.superpowers,
+                projects: employeeProjects.map(ep => ep.project.name),
+                kudosCount: kudos.length,
+                recentKudos: kudos.slice(0, 3).map(k => k.comment),
+                directReportsCount: directReports.length,
+                managerName: manager?.profiles?.full_name,
+              }}
+            />
+
             {employee.superpowers && employee.superpowers.length > 0 && (
               <Card className="overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
