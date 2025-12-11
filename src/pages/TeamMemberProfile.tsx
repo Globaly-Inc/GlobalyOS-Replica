@@ -10,6 +10,7 @@ import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistor
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
+import { EmployeeDocuments } from "@/components/EmployeeDocuments";
 
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
@@ -23,7 +24,7 @@ import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen } from "lucide-react";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
@@ -965,6 +966,21 @@ const TeamMemberProfile = () => {
                 <LearningDevelopment employeeId={id!} />
               </div>
             </Card>
+
+            {/* Documents - Admin/HR, own profile, or manager */}
+            {canViewAllDetails && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <FolderOpen className="h-5 w-5 text-primary" />
+                    Documents
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <EmployeeDocuments employeeId={id!} isOwnProfile={isOwnProfile} />
+                </div>
+              </Card>
+            )}
 
             {/* Attendance Tracking - Admin/HR, own profile, or manager */}
             {canViewLeaveAndAttendance && (
