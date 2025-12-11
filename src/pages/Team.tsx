@@ -5,16 +5,20 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, Building2, Settings, Upload } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
+import { cn } from "@/lib/utils";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
+type ViewMode = 'cards' | 'orgchart';
 
 interface Employee {
   id: string;
@@ -43,10 +47,28 @@ interface UserRole {
   role: string;
 }
 
+// Department color palette for org chart view
+const DEPARTMENT_COLORS = [
+  { bg: "hsl(221, 83%, 53%)", light: "hsl(221, 83%, 96%)", border: "hsl(221, 83%, 80%)" },
+  { bg: "hsl(142, 71%, 45%)", light: "hsl(142, 71%, 96%)", border: "hsl(142, 71%, 80%)" },
+  { bg: "hsl(262, 83%, 58%)", light: "hsl(262, 83%, 96%)", border: "hsl(262, 83%, 85%)" },
+  { bg: "hsl(25, 95%, 53%)", light: "hsl(25, 95%, 96%)", border: "hsl(25, 95%, 80%)" },
+  { bg: "hsl(340, 82%, 52%)", light: "hsl(340, 82%, 96%)", border: "hsl(340, 82%, 85%)" },
+  { bg: "hsl(187, 85%, 43%)", light: "hsl(187, 85%, 96%)", border: "hsl(187, 85%, 80%)" },
+  { bg: "hsl(47, 96%, 53%)", light: "hsl(47, 96%, 94%)", border: "hsl(47, 96%, 70%)" },
+  { bg: "hsl(0, 84%, 60%)", light: "hsl(0, 84%, 96%)", border: "hsl(0, 84%, 85%)" },
+];
+
+interface TreeNode extends Employee {
+  children: TreeNode[];
+  isExternalManager?: boolean;
+}
+
 const Team = () => {
   // Team directory page component
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -148,6 +170,159 @@ const Team = () => {
       (employee.offices?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+  // Org chart helper functions
+  const departmentColorMap = useMemo(() => {
+    const uniqueDepts = [...new Set(filteredEmployees.map(e => e.department || "Unassigned"))].sort();
+    const map = new Map<string, typeof DEPARTMENT_COLORS[0]>();
+    uniqueDepts.forEach((dept, index) => {
+      map.set(dept, DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length]);
+    });
+    return map;
+  }, [filteredEmployees]);
+
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, Employee>();
+    filteredEmployees.forEach(emp => map.set(emp.id, emp));
+    return map;
+  }, [filteredEmployees]);
+
+  const groupByDepartment = (emps: Employee[]): Map<string, Employee[]> => {
+    const departments = new Map<string, Employee[]>();
+    emps.forEach((emp) => {
+      const dept = emp.department || "Unassigned";
+      if (!departments.has(dept)) departments.set(dept, []);
+      departments.get(dept)!.push(emp);
+    });
+    return departments;
+  };
+
+  const buildDepartmentTree = (deptEmployees: Employee[]): TreeNode[] => {
+    const map = new Map<string, TreeNode>();
+    const roots: TreeNode[] = [];
+    const deptIds = new Set(deptEmployees.map(e => e.id));
+
+    deptEmployees.forEach((emp) => {
+      map.set(emp.id, { ...emp, children: [] });
+    });
+
+    deptEmployees.forEach((emp) => {
+      if (emp.manager_id && !deptIds.has(emp.manager_id)) {
+        const externalManager = employeeMap.get(emp.manager_id);
+        if (externalManager && !map.has(emp.manager_id)) {
+          map.set(emp.manager_id, { ...externalManager, children: [], isExternalManager: true });
+        }
+      }
+    });
+
+    deptEmployees.forEach((emp) => {
+      const node = map.get(emp.id)!;
+      if (emp.manager_id && map.has(emp.manager_id)) {
+        map.get(emp.manager_id)!.children.push(node);
+      } else if (!emp.manager_id) {
+        roots.push(node);
+      } else {
+        const externalManager = map.get(emp.manager_id);
+        if (externalManager) {
+          externalManager.children.push(node);
+        } else {
+          roots.push(node);
+        }
+      }
+    });
+
+    map.forEach((node) => {
+      if (node.isExternalManager) roots.unshift(node);
+    });
+
+    return roots;
+  };
+
+  const getGridSpan = (count: number, index: number): string => {
+    if (count > 8) return "md:col-span-2";
+    if (index === 0 && count > 4) return "md:col-span-2 lg:col-span-1";
+    return "";
+  };
+
+  const departments = groupByDepartment(filteredEmployees);
+  const sortedDepartments = Array.from(departments.entries()).sort((a, b) => {
+    if (a[0].toLowerCase() === 'management') return -1;
+    if (b[0].toLowerCase() === 'management') return 1;
+    return a[0].localeCompare(b[0]);
+  });
+
+  // Org chart sub-components
+  const OrgEmployeeCard = ({ employee, departmentColor }: { employee: TreeNode; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
+    const isExternal = employee.isExternalManager;
+    const empDeptColor = departmentColorMap.get(employee.department || "Unassigned") || DEPARTMENT_COLORS[0];
+    
+    return (
+      <Card
+        onClick={() => navigate(`/team/${employee.id}`)}
+        className={cn(
+          "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] max-w-[200px] rounded-xl",
+          isExternal && "border-dashed"
+        )}
+        style={{
+          borderColor: isExternal ? empDeptColor.border : undefined,
+          backgroundColor: isExternal ? empDeptColor.light : undefined,
+        }}
+      >
+        <div className="px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6 flex-shrink-0" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: empDeptColor.bg }}>
+              <AvatarImage src={employee.profiles.avatar_url || undefined} />
+              <AvatarFallback style={{ background: empDeptColor.bg }} className="text-white text-[10px]">
+                {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <h3 className="text-xs font-medium text-foreground truncate">{employee.profiles.full_name}</h3>
+                {isExternal && <ArrowUpRight className="h-3 w-3 flex-shrink-0" style={{ color: empDeptColor.bg }} />}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate">{employee.position}</p>
+              {isExternal && (
+                <Badge variant="outline" className="text-[8px] px-1 py-0 mt-0.5" style={{ borderColor: empDeptColor.bg, color: empDeptColor.bg }}>
+                  {employee.department}
+                </Badge>
+              )}
+            </div>
+            {employee.children.length > 0 && !isExternal && (
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground flex-shrink-0">
+                <Users className="h-3 w-3" /><span>{employee.children.length}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
+  const OrgEmployeeTree = ({ employee, level = 0, departmentColor }: { employee: TreeNode; level?: number; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
+    const hasChildren = employee.children.length > 0;
+    return (
+      <div className="relative">
+        <OrgEmployeeCard employee={employee} departmentColor={departmentColor} />
+        {hasChildren && (
+          <div className="ml-3 mt-2 pl-5 space-y-2">
+            {employee.children.map((child, index) => {
+              const isLastChild = index === employee.children.length - 1;
+              return (
+                <div key={child.id} className="relative">
+                  <div className="absolute w-0.5 rounded-full" style={{ backgroundColor: departmentColor.bg, left: '-20px', top: index === 0 ? '-8px' : '-12px', height: index === 0 ? '24px' : '28px' }} />
+                  {!isLastChild && <div className="absolute w-0.5 rounded-full" style={{ backgroundColor: departmentColor.bg, left: '-20px', top: '16px', bottom: '-12px' }} />}
+                  <div className="absolute top-4 h-0.5 rounded-full" style={{ backgroundColor: departmentColor.bg, width: '16px', left: '-16px' }} />
+                  <div className="absolute w-2 h-2 rounded-full border-2" style={{ borderColor: departmentColor.bg, backgroundColor: 'white', left: '-22px', top: '12px' }} />
+                  <OrgEmployeeTree employee={child} level={level + 1} departmentColor={departmentColor} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -155,10 +330,6 @@ const Team = () => {
           title="Team Directory" 
           subtitle={`Meet our amazing team of ${employees.length} members`}
         >
-          <Button variant="outline" onClick={() => navigate('/org-chart')} className="gap-2">
-            <Building2 className="h-4 w-4" />
-            Org Chart
-          </Button>
           {isHR && (
             <>
               <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="gap-2">
@@ -177,32 +348,57 @@ const Team = () => {
           )}
         </PageHeader>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          {(isAdmin || isHR) ? (
-            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
-              <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
-                <TabsTrigger value="all" className="gap-1.5">
-                  All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
-                </TabsTrigger>
-                <TabsTrigger value="active" className="gap-1.5">
-                  Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
-                </TabsTrigger>
-                <TabsTrigger value="invited" className="gap-1.5">
-                  Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
-                </TabsTrigger>
-                <TabsTrigger value="inactive" className="gap-1.5">
-                  Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          ) : (
-            <Tabs value="active" className="w-full sm:w-auto">
-              <TabsList className="sm:w-auto sm:inline-flex">
-                <TabsTrigger value="active" className="gap-1.5">
-                  Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* View Toggle */}
+          <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+            <Button
+              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="gap-1.5 h-8"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Cards
+            </Button>
+            <Button
+              variant={viewMode === 'orgchart' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('orgchart')}
+              className="gap-1.5 h-8"
+            >
+              <Building2 className="h-4 w-4" />
+              Org Chart
+            </Button>
+          </div>
+
+          {/* Status Filter - only in cards view */}
+          {viewMode === 'cards' && (
+            (isAdmin || isHR) ? (
+              <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
+                <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
+                  <TabsTrigger value="all" className="gap-1.5">
+                    All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="active" className="gap-1.5">
+                    Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="invited" className="gap-1.5">
+                    Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="inactive" className="gap-1.5">
+                    Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : (
+              <Tabs value="active" className="w-full sm:w-auto">
+                <TabsList className="sm:w-auto sm:inline-flex">
+                  <TabsTrigger value="active" className="gap-1.5">
+                    Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )
           )}
 
           <div className="relative flex-1">
@@ -220,7 +416,7 @@ const Team = () => {
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">Loading team members...</p>
           </Card>
-        ) : (
+        ) : viewMode === 'cards' ? (
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredEmployees.map((employee) => (
@@ -253,6 +449,66 @@ const Team = () => {
               </div>
             )}
           </>
+        ) : (
+          /* Org Chart View */
+          filteredEmployees.length === 0 ? (
+            <Card className="p-12 text-center rounded-2xl">
+              <p className="text-muted-foreground">
+                {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
+              </p>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+              {sortedDepartments.map(([department, deptEmployees], index) => {
+                const tree = buildDepartmentTree(deptEmployees);
+                const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
+                const gridSpan = getGridSpan(deptEmployees.length, index);
+                
+                return (
+                  <Card 
+                    key={department} 
+                    className={cn(
+                      "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
+                      gridSpan
+                    )}
+                    style={{ 
+                      borderColor: deptColor.border,
+                      background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
+                    }}
+                  >
+                    <div 
+                      className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
+                      style={{ backgroundColor: deptColor.light, borderBottomColor: deptColor.border }}
+                    >
+                      <div 
+                        className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
+                        style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
+                      />
+                      <div className="p-2 rounded-xl" style={{ backgroundColor: deptColor.bg }}>
+                        <Building2 className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                        <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
+                      </div>
+                      <Badge 
+                        className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
+                        style={{ backgroundColor: deptColor.bg }}
+                      >
+                        {deptEmployees.length}
+                      </Badge>
+                    </div>
+                    
+                    <div className="p-4 space-y-4">
+                      {tree.map((root) => (
+                        <OrgEmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
 
