@@ -145,3 +145,40 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* PWA Safe area support for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Mobile-first touch interactions */
+@media (hover: none) and (pointer: coarse) {
+  .touch-action-manipulation {
+    touch-action: manipulation;
+  }
+  
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Prevent overscroll on iOS */
+html {
+  overscroll-behavior: none;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

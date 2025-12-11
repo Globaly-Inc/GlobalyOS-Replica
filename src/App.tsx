@@ -23,6 +23,7 @@ const LeaveHistory = lazy(() => import("./pages/LeaveHistory"));
 const AttendanceHistory = lazy(() => import("./pages/AttendanceHistory"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
+const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/join" element={<Join />} />
+              <Route path="/install" element={<Install />} />
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
               <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
