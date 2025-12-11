@@ -3,15 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
-import { Trophy, Megaphone, Heart, Image, X, Users } from "lucide-react";
+import { Trophy, Megaphone, Heart, Image, X, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GiveKudosDialogContent } from "./GiveKudosDialogContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
-
+import { Badge } from "@/components/ui/badge";
 import { useOrganization } from "@/hooks/useOrganization";
 
 // Helper to get plain text length from HTML
@@ -36,9 +38,10 @@ interface PostUpdateDialogProps {
 
 interface TeamMember {
   id: string;
-  name: string;
-  avatar?: string;
-  position: string;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
 }
 
 type PostType = "win" | "announcement" | "kudos" | null;
@@ -53,7 +56,8 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [showMemberSelector, setShowMemberSelector] = useState(false);
+  const [memberSelectOpen, setMemberSelectOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { currentOrg } = useOrganization();
 
   const [formData, setFormData] = useState({
@@ -88,14 +92,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
         .neq("user_id", user.id);
 
       if (employees) {
-        setTeamMembers(
-          employees.map((emp: any) => ({
-            id: emp.id,
-            name: emp.profiles?.full_name || "Unknown",
-            avatar: emp.profiles?.avatar_url,
-            position: "",
-          }))
-        );
+        setTeamMembers(employees as TeamMember[]);
       }
     };
 
@@ -260,7 +257,8 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     setImageFile(null);
     setImagePreview(null);
     setSelectedMembers([]);
-    setShowMemberSelector(false);
+    setMemberSelectOpen(false);
+    setSearchQuery("");
     setErrors({});
   };
 
@@ -379,78 +377,82 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
             {/* Tag Team Members (optional) */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Tag Team Members (optional)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowMemberSelector(!showMemberSelector)}
-                  className="h-8"
-                >
-                  <Users className="h-4 w-4 mr-1" />
-                  {selectedMembers.length > 0 ? `${selectedMembers.length} selected` : "Add"}
-                </Button>
-              </div>
+              <Label>Tag Team Members (optional)</Label>
+              <Popover open={memberSelectOpen} onOpenChange={setMemberSelectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={memberSelectOpen}
+                    className="w-full justify-between font-normal h-auto min-h-10"
+                  >
+                    <span className="text-muted-foreground">
+                      {selectedMembers.length === 0 
+                        ? "Choose team members..." 
+                        : `${selectedMembers.length} selected`}
+                    </span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search team members..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8 h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="h-[200px] overflow-y-auto">
+                    <div className="p-2 space-y-1">
+                      {teamMembers
+                        .filter(member => member.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((member) => (
+                          <div
+                            key={member.id}
+                            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                            onClick={() => toggleMember(member.id)}
+                          >
+                            <Checkbox
+                              checked={selectedMembers.includes(member.id)}
+                              className="pointer-events-none"
+                            />
+                            <Avatar className="h-6 w-6">
+                              {member.profiles.avatar_url && <AvatarImage src={member.profiles.avatar_url} />}
+                              <AvatarFallback className="text-xs bg-muted">
+                                {member.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{member.profiles.full_name}</span>
+                          </div>
+                        ))}
+                      {teamMembers.filter(member => member.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
               
-              {/* Selected members display */}
-              {selectedMembers.length > 0 && !showMemberSelector && (
-                <div className="flex flex-wrap gap-2">
+              {selectedMembers.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
                   {selectedMembers.map(memberId => {
                     const member = teamMembers.find(m => m.id === memberId);
                     if (!member) return null;
                     return (
-                      <div
-                        key={memberId}
-                        className="flex items-center gap-1 bg-muted rounded-full pl-1 pr-2 py-1"
-                      >
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback className="text-xs">
-                            {member.name.split(" ").map(n => n[0]).join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs">{member.name.split(" ")[0]}</span>
-                        <button
-                          type="button"
+                      <Badge key={memberId} variant="secondary" className="gap-1">
+                        {member.profiles.full_name}
+                        <X 
+                          className="h-3 w-3 cursor-pointer hover:text-destructive" 
                           onClick={() => toggleMember(memberId)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
+                        />
+                      </Badge>
                     );
                   })}
-                </div>
-              )}
-
-              {/* Member selector */}
-              {showMemberSelector && (
-                <div className="h-40 border rounded-lg p-2 overflow-y-auto">
-                  <div className="space-y-1">
-                    {teamMembers.map(member => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                        onClick={() => toggleMember(member.id)}
-                      >
-                        <Checkbox
-                          checked={selectedMembers.includes(member.id)}
-                          className="pointer-events-none"
-                        />
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback className="text-xs">
-                            {member.name.split(" ").map(n => n[0]).join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{member.name}</span>
-                      </div>
-                    ))}
-                    {teamMembers.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
