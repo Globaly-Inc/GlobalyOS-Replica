@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
+import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -40,6 +41,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
@@ -140,7 +142,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <Button 
               variant="outline" 
               className="flex items-center gap-2 px-3 h-10"
-              onClick={() => navigate("/?requestLeave=true")}
+              onClick={() => setLeaveDialogOpen(true)}
+              disabled={!userProfile?.employeeId}
             >
               <CalendarPlus className="h-4 w-4" />
               <span className="text-sm font-medium">Request Leave</span>
@@ -249,6 +252,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       </header>
 
       <main className="container px-4 pt-2 pb-8 md:px-8">{children}</main>
+
+      {userProfile?.employeeId && (
+        <AddLeaveRequestDialog
+          employeeId={userProfile.employeeId}
+          open={leaveDialogOpen}
+          onOpenChange={setLeaveDialogOpen}
+        />
+      )}
     </div>
   );
 };
