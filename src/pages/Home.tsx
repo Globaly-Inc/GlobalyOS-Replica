@@ -695,7 +695,7 @@ const Home = () => {
                   
                   {/* Date Filter */}
                   <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-                    <SelectTrigger className="w-[130px] h-9 bg-background">
+                    <SelectTrigger className="w-[130px] h-auto py-2 bg-background">
                       <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
                       <SelectValue />
                     </SelectTrigger>
@@ -708,7 +708,7 @@ const Home = () => {
                   </Select>
                 </div>
                 
-                {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
+                {hasEmployeeProfile && <Button className="h-auto py-2" onClick={() => setPostDialogOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4" />
                     Post
                   </Button>}
