@@ -348,6 +348,8 @@ const BulkImport = () => {
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedEmployee[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [existingEmails, setExistingEmails] = useState<Set<string>>(new Set());
+  const [checkingExisting, setCheckingExisting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
@@ -455,10 +457,33 @@ const BulkImport = () => {
     }
   };
 
+  const checkExistingEmployees = async (emails: string[]): Promise<Set<string>> => {
+    if (!currentOrg || emails.length === 0) return new Set();
+    
+    setCheckingExisting(true);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('email')
+        .in('email', emails.map(e => e.toLowerCase()));
+      
+      const existing = new Set<string>(
+        (data || []).map((p: { email: string }) => p.email.toLowerCase())
+      );
+      return existing;
+    } catch (err) {
+      console.error('Error checking existing employees:', err);
+      return new Set();
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
+
   const resetState = () => {
     setFile(null);
     setParsedData([]);
     setValidationErrors([]);
+    setExistingEmails(new Set());
     setImportResults([]);
     setStep('upload');
     if (fileInputRef.current) {
@@ -636,6 +661,11 @@ const BulkImport = () => {
     }
 
     const errors = validateData(parsed);
+    
+    // Check for existing employees
+    const emailsToCheck = parsed.map(emp => emp.email).filter(e => e);
+    const existing = await checkExistingEmployees(emailsToCheck);
+    setExistingEmails(existing);
 
     setParsedData(parsed);
     setValidationErrors(errors);
@@ -827,7 +857,7 @@ const BulkImport = () => {
 
             {step === 'preview' && (
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{file?.name}</p>
@@ -838,19 +868,38 @@ const BulkImport = () => {
                     <p className="text-xs text-muted-foreground mt-1">{parsedData.length} employees found</p>
                   </div>
 
-                  {validationErrors.length > 0 && (() => {
-                    const rowsWithErrors = new Set(validationErrors.map(err => err.match(/^Row (\d+):/)?.[1]).filter(Boolean)).size;
-                    return (
-                      <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2 shrink-0">
-                        <div className="flex items-center gap-2 text-destructive">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {existingEmails.size > 0 && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 shrink-0">
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                           <AlertCircle className="h-4 w-4" />
-                          <span className="text-sm font-medium">{validationErrors.length} Errors</span>
-                          <span className="text-xs">•</span>
-                          <span className="text-sm">{rowsWithErrors} {rowsWithErrors === 1 ? 'row' : 'rows'}</span>
+                          <span className="text-sm font-medium">{existingEmails.size} Already Exist</span>
+                          <span className="text-xs text-amber-600/70 dark:text-amber-400/70">(will be skipped)</span>
                         </div>
                       </div>
-                    );
-                  })()}
+                    )}
+
+                    {validationErrors.length > 0 && (() => {
+                      const rowsWithErrors = new Set(validationErrors.map(err => err.match(/^Row (\d+):/)?.[1]).filter(Boolean)).size;
+                      return (
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2 shrink-0">
+                          <div className="flex items-center gap-2 text-destructive">
+                            <XCircle className="h-4 w-4" />
+                            <span className="text-sm font-medium">{validationErrors.length} Errors</span>
+                            <span className="text-xs">•</span>
+                            <span className="text-sm">{rowsWithErrors} {rowsWithErrors === 1 ? 'row' : 'rows'}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {checkingExisting && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-xs">Checking existing...</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
 
@@ -883,6 +932,7 @@ const BulkImport = () => {
                           const rowNum = i + 2; // CSV row number (1-indexed + header)
                           const rowErrors = validationErrors.filter(err => err.startsWith(`Row ${rowNum}:`));
                           const rowHasError = rowErrors.length > 0;
+                          const isExisting = existingEmails.has(emp.email?.toLowerCase());
                           
                           // Helper to get field-specific error
                           const getFieldError = (field: string): string | undefined => {
@@ -912,20 +962,33 @@ const BulkImport = () => {
                           };
                           
                           return (
-                          <tr key={i} className={`border-b last:border-0 ${rowHasError ? 'bg-destructive/10' : ''}`}>
-                            <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${rowHasError ? 'bg-destructive/20 text-destructive font-medium' : 'bg-muted/30 text-muted-foreground'}`}>
-                              {rowHasError ? (
+                          <tr key={i} className={`border-b last:border-0 ${rowHasError ? 'bg-destructive/10' : isExisting ? 'bg-amber-500/10' : ''}`}>
+                            <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${
+                              rowHasError 
+                                ? 'bg-destructive/20 text-destructive font-medium' 
+                                : isExisting 
+                                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium'
+                                  : 'bg-muted/30 text-muted-foreground'
+                            }`}>
+                              {rowHasError || isExisting ? (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="cursor-help">{i + 1}</span>
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="max-w-xs">
-                                      <ul className="text-xs space-y-1">
-                                        {rowErrors.map((err, idx) => (
-                                          <li key={idx}>{err.replace(`Row ${rowNum}: `, '')}</li>
-                                        ))}
-                                      </ul>
+                                      {isExisting && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
+                                          Employee already exists - will be skipped
+                                        </p>
+                                      )}
+                                      {rowErrors.length > 0 && (
+                                        <ul className="text-xs space-y-1">
+                                          {rowErrors.map((err, idx) => (
+                                            <li key={idx}>{err.replace(`Row ${rowNum}: `, '')}</li>
+                                          ))}
+                                        </ul>
+                                      )}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
