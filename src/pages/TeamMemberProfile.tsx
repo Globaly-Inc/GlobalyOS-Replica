@@ -623,6 +623,40 @@ const TeamMemberProfile = () => {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
+            {/* Position Timeline - visible to all, but salary and edit restricted */}
+            {canViewPositionTimeline && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Position Timeline
+                  </h2>
+                  {canEditPositionTimeline && (
+                    <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
+                      loadPositionHistory();
+                      loadEmployee();
+                    }} />
+                  )}
+                </div>
+                <div className="p-4">
+                  <PositionTimeline 
+                    entries={positionHistory} 
+                    currentPosition={employee.position} 
+                    currentDepartment={employee.department} 
+                    currentSalary={canViewSalary ? employee.remuneration : undefined}
+                    currentCurrency={employee.remuneration_currency || "USD"}
+                    employeeId={id}
+                    canEdit={canEditPositionTimeline}
+                    showSalary={canViewSalary}
+                    onRefresh={() => {
+                      loadPositionHistory();
+                      loadEmployee();
+                    }}
+                  />
+                </div>
+              </Card>
+            )}
+
             {/* Personal Details */}
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
@@ -921,39 +955,6 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-            {/* Position Timeline - visible to all, but salary and edit restricted */}
-            {canViewPositionTimeline && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Position Timeline
-                  </h2>
-                  {canEditPositionTimeline && (
-                    <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
-                      loadPositionHistory();
-                      loadEmployee();
-                    }} />
-                  )}
-                </div>
-                <div className="p-4">
-                  <PositionTimeline 
-                    entries={positionHistory} 
-                    currentPosition={employee.position} 
-                    currentDepartment={employee.department} 
-                    currentSalary={canViewSalary ? employee.remuneration : undefined}
-                    currentCurrency={employee.remuneration_currency || "USD"}
-                    employeeId={id}
-                    canEdit={canEditPositionTimeline}
-                    showSalary={canViewSalary}
-                    onRefresh={() => {
-                      loadPositionHistory();
-                      loadEmployee();
-                    }}
-                  />
-                </div>
-              </Card>
-            )}
 
             {/* Learning & Development */}
             <Card className="overflow-hidden">
