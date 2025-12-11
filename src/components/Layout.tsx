@@ -49,7 +49,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
   const { playNotificationSound } = useNotificationSound();
-  const { shouldPlaySound } = useNotificationPreferences();
+  const { preferences, shouldPlaySound } = useNotificationPreferences();
   const previousCountRef = useRef<number>(0);
 
   // Send push notification when a new notification is created
@@ -85,7 +85,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       // Play sound if count increased and preferences allow
       if (newCount > previousCountRef.current && previousCountRef.current !== 0) {
         if (shouldPlaySound()) {
-          playNotificationSound();
+          playNotificationSound(preferences.soundType);
         }
       }
       
@@ -110,7 +110,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           // Play notification sound based on preferences
           const notificationType = (payload.new as { type?: string })?.type;
           if (shouldPlaySound(notificationType)) {
-            playNotificationSound();
+            playNotificationSound(preferences.soundType);
           }
           // Send push notification
           sendPushNotification(payload.new);
@@ -148,7 +148,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound]);
+  }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound, preferences.soundType]);
 
   useEffect(() => {
     const loadUserProfile = async () => {
