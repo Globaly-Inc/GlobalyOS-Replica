@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks, isSameWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks, isSameWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 
 interface AttendanceTrackerProps {
   employeeId: string;
@@ -194,11 +195,39 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
   const metrics = calculateWeeklyMetrics();
 
+  // Calculate daily work hours for chart
+  const dailyChartData = useMemo(() => {
+    const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    return days.map(day => {
+      const dayRecords = weekRecords?.filter(r => isSameDay(new Date(r.date), day)) || [];
+      const totalHours = dayRecords.reduce((sum, r) => sum + (r.work_hours || 0), 0);
+      const isToday = isSameDay(day, currentDate);
+      return {
+        day: format(day, "EEE"),
+        fullDate: format(day, "MMM d"),
+        hours: Number(totalHours.toFixed(1)),
+        isToday,
+      };
+    });
+  }, [weekRecords, weekStart, weekEnd, currentDate]);
+
   const formatMinutesToHours = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover border rounded-lg px-3 py-2 shadow-lg">
+          <p className="text-xs font-medium">{payload[0].payload.fullDate}</p>
+          <p className="text-sm font-bold text-primary">{payload[0].value}h worked</p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -342,6 +371,39 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
             <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
               {metrics.totalWorkHours.toFixed(1)}h
             </p>
+          </div>
+        </div>
+
+        {/* Daily Hours Chart */}
+        <div className="mt-4 p-3 rounded-xl bg-muted/30 border">
+          <p className="text-xs font-medium text-muted-foreground mb-3">Daily Work Hours</p>
+          <div className="h-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <XAxis 
+                  dataKey="day" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(value) => `${value}h`}
+                  width={35}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
+                <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={32}>
+                  {dailyChartData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.isToday ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.5)'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
