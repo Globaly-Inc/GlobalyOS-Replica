@@ -411,177 +411,202 @@ const TeamMemberProfile = () => {
         </Link>
 
         <Card className="p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="group relative">
-              <Avatar className="h-20 w-20 border-4 border-primary/10">
-                <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
-                  {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                </AvatarFallback>
-              </Avatar>
-              {(isAdminOrHR || isOwnProfile) && (
-                <span className="absolute -bottom-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <EditAvatarDialog
-                    userId={employee.user_id}
-                    currentAvatarUrl={employee.profiles.avatar_url}
-                    userName={employee.profiles.full_name}
-                    onSuccess={loadEmployee}
-                  />
-                </span>
-              )}
-            </div>
-            <div className="flex-1 space-y-1.5">
-              {/* Name with Status Badges */}
-              <div className="group flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
-                {isAdminOrHR && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditNameDialog
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Left side - Employee Info */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start flex-1">
+              <div className="group relative">
+                <Avatar className="h-20 w-20 border-4 border-primary/10">
+                  <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
+                    {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                {(isAdminOrHR || isOwnProfile) && (
+                  <span className="absolute -bottom-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditAvatarDialog
                       userId={employee.user_id}
-                      currentName={employee.profiles.full_name}
+                      currentAvatarUrl={employee.profiles.avatar_url}
+                      userName={employee.profiles.full_name}
                       onSuccess={loadEmployee}
                     />
                   </span>
                 )}
-                <Badge 
-                  variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'}
-                  className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}
-                >
-                  {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
-                </Badge>
-                {currentLeave && (
-                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
-                    <Palmtree className="h-3 w-3" />
-                    On {currentLeave.leave_type}
+              </div>
+              <div className="flex-1 space-y-1.5">
+                {/* Name with Status Badges */}
+                <div className="group flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
+                  {isAdminOrHR && (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditNameDialog
+                        userId={employee.user_id}
+                        currentName={employee.profiles.full_name}
+                        onSuccess={loadEmployee}
+                      />
+                    </span>
+                  )}
+                  <Badge 
+                    variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'}
+                    className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
                   </Badge>
-                )}
-              </div>
-              
-              {/* Position, Department and Projects */}
-              <div className="group flex items-center gap-2 flex-wrap">
-                <p className="text-base font-medium text-primary">{employee.position}</p>
-                <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
-                {isAdminOrHR && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditEmployeeInfoDialog
-                      employeeId={id!}
-                      currentPosition={employee.position}
-                      currentDepartment={employee.department}
-                      onSuccess={loadEmployee}
-                    />
-                  </span>
-                )}
-                <span className="text-muted-foreground">·</span>
-                {employeeProjects.length > 0 ? (
-                  employeeProjects.map((ep) => (
-                    <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
-                      <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{ color: ep.project.color }} />
-                      {ep.project.name}
+                  {currentLeave && (
+                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
+                      <Palmtree className="h-3 w-3" />
+                      On {currentLeave.leave_type}
                     </Badge>
-                  ))
-                ) : (
-                  <span className="text-xs text-muted-foreground italic">No projects</span>
-                )}
-                {isAdminOrHR && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditProjectsDialog
-                      employeeId={id!}
-                      onSuccess={loadEmployeeProjects}
-                    />
-                  </span>
-                )}
-              </div>
-              
-              {/* Email and User Role */}
-              <div className="group flex items-center gap-2 flex-wrap">
-                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
-                {isAdminOrHR && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditEmailDialog
-                      userId={employee.user_id}
-                      currentEmail={employee.profiles.email}
-                      onSuccess={loadEmployee}
-                    />
-                  </span>
-                )}
-                <span className="text-muted-foreground">·</span>
-                <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
-                  {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
-                </Badge>
-                {isAdminOrHR && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditUserRoleDialog
-                      userId={employee.user_id}
-                      currentRole={userRole}
-                      onSuccess={loadUserRole}
-                    />
-                  </span>
-                )}
-              </div>
-              
-              {/* Manager and Manages */}
-              <div className="flex flex-wrap items-center gap-4 pt-1">
-                {/* Manager */}
-                <div className="group flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Manager:</span>
-                  {manager ? (
-                    <div className="flex items-center gap-1.5">
-                      <Link to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                        <Avatar className="h-6 w-6 border-2 border-background">
-                          <AvatarImage src={manager.profiles.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs bg-muted">
-                            {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
-                      </Link>
-                      {canEditManager && (
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                            loadEmployee();
-                            loadDirectReports();
-                          }} />
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground italic">Not assigned</span>
-                      {canEditManager && (
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                            loadEmployee();
-                            loadDirectReports();
-                          }} />
-                        </span>
-                      )}
-                    </div>
                   )}
                 </div>
                 
-                {/* Direct Reports */}
-                {directReports.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">Manages:</span>
-                    <div className="flex items-center">
-                      {directReports.slice(0, 5).map((report, index) => (
-                        <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" style={{
-                          marginLeft: index === 0 ? 0 : '-20%'
-                        }} title={report.profiles.full_name}>
-                          <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
-                            <AvatarImage src={report.profiles.avatar_url || undefined} />
+                {/* Position, Department and Projects */}
+                <div className="group flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-medium text-primary">{employee.position}</p>
+                  <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
+                  {isAdminOrHR && (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditEmployeeInfoDialog
+                        employeeId={id!}
+                        currentPosition={employee.position}
+                        currentDepartment={employee.department}
+                        onSuccess={loadEmployee}
+                      />
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">·</span>
+                  {employeeProjects.length > 0 ? (
+                    employeeProjects.map((ep) => (
+                      <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
+                        <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{ color: ep.project.color }} />
+                        {ep.project.name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">No projects</span>
+                  )}
+                  {isAdminOrHR && (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditProjectsDialog
+                        employeeId={id!}
+                        onSuccess={loadEmployeeProjects}
+                      />
+                    </span>
+                  )}
+                </div>
+                
+                {/* Email and User Role */}
+                <div className="group flex items-center gap-2 flex-wrap">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
+                  {isAdminOrHR && (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditEmailDialog
+                        userId={employee.user_id}
+                        currentEmail={employee.profiles.email}
+                        onSuccess={loadEmployee}
+                      />
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">·</span>
+                  <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
+                    {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
+                  </Badge>
+                  {isAdminOrHR && (
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditUserRoleDialog
+                        userId={employee.user_id}
+                        currentRole={userRole}
+                        onSuccess={loadUserRole}
+                      />
+                    </span>
+                  )}
+                </div>
+                
+                {/* Manager and Manages */}
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  {/* Manager */}
+                  <div className="group flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Manager:</span>
+                    {manager ? (
+                      <div className="flex items-center gap-1.5">
+                        <Link to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                          <Avatar className="h-6 w-6 border-2 border-background">
+                            <AvatarImage src={manager.profiles.avatar_url || undefined} />
                             <AvatarFallback className="text-xs bg-muted">
-                              {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                              {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
+                          <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
                         </Link>
-                      ))}
-                      {directReports.length > 5 && <span className="ml-1.5 text-xs text-muted-foreground">+{directReports.length - 5}</span>}
-                    </div>
+                        {canEditManager && (
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                              loadEmployee();
+                              loadDirectReports();
+                            }} />
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground italic">Not assigned</span>
+                        {canEditManager && (
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                              loadEmployee();
+                              loadDirectReports();
+                            }} />
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
+                  
+                  {/* Direct Reports */}
+                  {directReports.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Manages:</span>
+                      <div className="flex items-center">
+                        {directReports.slice(0, 5).map((report, index) => (
+                          <Link key={report.id} to={`/team/${report.id}`} className="hover:z-10 transition-transform hover:scale-110" style={{
+                            marginLeft: index === 0 ? 0 : '-20%'
+                          }} title={report.profiles.full_name}>
+                            <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
+                              <AvatarImage src={report.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs bg-muted">
+                                {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
+                        ))}
+                        {directReports.length > 5 && <span className="ml-1.5 text-xs text-muted-foreground">+{directReports.length - 5}</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Right side - AI Summary */}
+            <div className="lg:w-80 lg:border-l lg:pl-4">
+              <ProfileAISummary 
+                employeeId={id!}
+                employee={{
+                  name: employee.profiles.full_name,
+                  position: employee.position,
+                  department: employee.department,
+                  joinDate: employee.join_date,
+                  office: employee.offices?.name,
+                  superpowers: employee.superpowers,
+                  projects: employeeProjects.map(ep => ep.project.name),
+                  kudosCount: kudos.length,
+                  recentKudos: kudos.slice(0, 3).map(k => k.comment),
+                  directReportsCount: directReports.length,
+                  managerName: manager?.profiles?.full_name,
+                  organizationId: employee.organization_id,
+                }}
+                compact
+              />
             </div>
           </div>
         </Card>
@@ -807,25 +832,6 @@ const TeamMemberProfile = () => {
           </div>
 
           <div className="space-y-6 lg:col-span-2">
-            {/* AI Summary Card */}
-            <ProfileAISummary 
-              employeeId={id!}
-              employee={{
-                name: employee.profiles.full_name,
-                position: employee.position,
-                department: employee.department,
-                joinDate: employee.join_date,
-                office: employee.offices?.name,
-                superpowers: employee.superpowers,
-                projects: employeeProjects.map(ep => ep.project.name),
-                kudosCount: kudos.length,
-                recentKudos: kudos.slice(0, 3).map(k => k.comment),
-                directReportsCount: directReports.length,
-                managerName: manager?.profiles?.full_name,
-                organizationId: employee.organization_id,
-              }}
-            />
-
             {employee.superpowers && employee.superpowers.length > 0 && (
               <Card className="overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">

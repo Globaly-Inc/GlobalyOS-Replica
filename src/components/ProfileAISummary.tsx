@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,9 +20,10 @@ interface ProfileAISummaryProps {
     managerName?: string;
     organizationId?: string;
   };
+  compact?: boolean;
 }
 
-export const ProfileAISummary = ({ employeeId, employee }: ProfileAISummaryProps) => {
+export const ProfileAISummary = ({ employeeId, employee, compact = false }: ProfileAISummaryProps) => {
   const [summary, setSummary] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [isCached, setIsCached] = useState(false);
@@ -66,10 +66,10 @@ export const ProfileAISummary = ({ employeeId, employee }: ProfileAISummaryProps
   }, [employeeId]);
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/20">
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Sparkles className="h-5 w-5" />
+    <div className={`rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white ${compact ? '' : 'overflow-hidden'}`}>
+      <div className={`flex items-center justify-between ${compact ? 'px-3 py-2' : 'px-5 py-4'} border-b border-white/20`}>
+        <h2 className={`flex items-center gap-2 ${compact ? 'text-sm' : 'text-base'} font-semibold`}>
+          <Sparkles className={compact ? "h-4 w-4" : "h-5 w-5"} />
           AI Summary
         </h2>
         <Button
@@ -77,24 +77,24 @@ export const ProfileAISummary = ({ employeeId, employee }: ProfileAISummaryProps
           size="sm"
           onClick={() => generateSummary(true)}
           disabled={loading}
-          className="text-white hover:bg-white/20 hover:text-white h-8 px-2"
+          className={`text-white hover:bg-white/20 hover:text-white ${compact ? 'h-6 w-6 p-0' : 'h-8 px-2'}`}
           title="Regenerate summary"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
-      <div className="p-4">
+      <div className={compact ? "px-3 py-2" : "p-4"}>
         {loading ? (
-          <div className="flex items-center gap-2 text-sm text-white/80">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            Generating summary...
+          <div className={`flex items-center gap-2 ${compact ? 'text-xs' : 'text-sm'} text-white/80`}>
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            Generating...
           </div>
         ) : summary ? (
-          <p className="text-sm leading-relaxed text-white/95">{summary}</p>
+          <p className={`${compact ? 'text-xs' : 'text-sm'} leading-relaxed text-white/95`}>{summary}</p>
         ) : (
-          <p className="text-sm text-white/70 italic">Click regenerate to create a summary.</p>
+          <p className={`${compact ? 'text-xs' : 'text-sm'} text-white/70 italic`}>Click to generate summary.</p>
         )}
       </div>
-    </Card>
+    </div>
   );
 };
