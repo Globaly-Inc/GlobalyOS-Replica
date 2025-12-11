@@ -155,37 +155,37 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound, preferences.soundType]);
 
   // Fetch today's attendance record to check if user is checked in
+  const fetchTodayAttendance = useCallback(async () => {
+    if (!user?.id) return;
+
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!employee) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    // Find active session (checked in but not out)
+    const { data: activeSession } = await supabase
+      .from("attendance_records")
+      .select("check_in_time, check_out_time")
+      .eq("employee_id", employee.id)
+      .eq("date", today)
+      .is("check_out_time", null)
+      .order("check_in_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeSession?.check_in_time) {
+      setCheckInTime(new Date(activeSession.check_in_time));
+    } else {
+      setCheckInTime(null);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
-    const fetchTodayAttendance = async () => {
-      if (!user?.id) return;
-
-      const { data: employee } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!employee) return;
-
-      const today = new Date().toISOString().split('T')[0];
-      // Find active session (checked in but not out)
-      const { data: activeSession } = await supabase
-        .from("attendance_records")
-        .select("check_in_time, check_out_time")
-        .eq("employee_id", employee.id)
-        .eq("date", today)
-        .is("check_out_time", null)
-        .order("check_in_time", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (activeSession?.check_in_time) {
-        setCheckInTime(new Date(activeSession.check_in_time));
-      } else {
-        setCheckInTime(null);
-      }
-    };
-
     fetchTodayAttendance();
 
     // Subscribe to attendance changes
@@ -207,7 +207,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [fetchTodayAttendance]);
+
+  // Re-fetch attendance when QR scanner closes
+  useEffect(() => {
+    if (!qrScannerOpen) {
+      fetchTodayAttendance();
+    }
+  }, [qrScannerOpen, fetchTodayAttendance]);
 
   // Update elapsed time every second
   useEffect(() => {
