@@ -415,7 +415,8 @@ Your HR System Isn't.</span>
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Designed for Growing,{" "}
-              <span className="text-muted-foreground">People-First Companies</span>
+              <span className="text-muted-foreground">
+People-First Companies</span>
             </h2>
           </AnimatedSection>
 
@@ -446,7 +447,8 @@ Your HR System Isn't.</span>
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               From Spreadsheets to a Clean HR System{" "}
-              <span className="text-muted-foreground">in 3 Steps</span>
+              <span className="text-muted-foreground">
+in 3 Steps</span>
             </h2>
           </AnimatedSection>
 
