@@ -10,7 +10,7 @@ import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistor
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
-import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
+
 import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
@@ -447,13 +447,10 @@ const TeamMemberProfile = () => {
 
             {/* Leave Management */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Leave Balances
-                </h2>
-                <AddLeaveRequestDialog employeeId={id!} />
-              </div>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Calendar className="h-5 w-5 text-primary" />
+                Leave Balances
+              </h2>
               <LeaveManagement employeeId={id!} />
             </div>
 
