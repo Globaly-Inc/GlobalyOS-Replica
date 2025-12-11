@@ -593,7 +593,7 @@ const InviteTeamMember = () => {
                   touched={touched.lastName}
                 />
               </div>
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-2 items-end">
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
                   <Input
