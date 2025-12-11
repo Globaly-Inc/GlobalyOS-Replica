@@ -28,16 +28,57 @@ function getClientIP(req: Request): string {
   return 'unknown';
 }
 
+function getUserAgent(req: Request): string {
+  return req.headers.get('user-agent') || 'unknown';
+}
+
+async function logLoginAttempt(
+  supabase: any,
+  email: string,
+  ipAddress: string,
+  userAgent: string,
+  attemptType: string,
+  success: boolean,
+  failureReason?: string
+) {
+  try {
+    await supabase.from('login_attempts').insert({
+      email: email.toLowerCase(),
+      ip_address: ipAddress !== 'unknown' ? ipAddress : null,
+      attempt_type: attemptType,
+      success,
+      failure_reason: failureReason || null,
+      user_agent: userAgent !== 'unknown' ? userAgent : null,
+    });
+  } catch (error) {
+    console.error('Failed to log login attempt:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const clientIP = getClientIP(req);
+  const userAgent = getUserAgent(req);
+
+  // Create Supabase client with service role (bypasses RLS)
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
 
   try {
     const { email, isSignup, fullName } = await req.json();
 
     if (!email) {
       console.error('No email provided');
+      await logLoginAttempt(supabase, 'unknown', clientIP, userAgent, 'otp_request', false, 'missing_email');
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -45,18 +86,7 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.toLowerCase();
-    const clientIP = getClientIP(req);
     console.log('Generating OTP for:', normalizedEmail, 'isSignup:', isSignup, 'IP:', clientIP);
-
-    // Create Supabase client with service role (bypasses RLS)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
@@ -71,6 +101,7 @@ serve(async (req) => {
       console.error('Error checking email rate limit:', emailCountError);
     } else if (emailCount !== null && emailCount >= MAX_REQUESTS_PER_EMAIL_PER_HOUR) {
       console.log(`Email rate limit exceeded for ${normalizedEmail}: ${emailCount} requests in last hour`);
+      await logLoginAttempt(supabase, normalizedEmail, clientIP, userAgent, 'otp_request', false, 'email_rate_limit_exceeded');
       return new Response(
         JSON.stringify({ 
           error: 'Too many requests. Please try again in an hour.',
@@ -92,6 +123,7 @@ serve(async (req) => {
         console.error('Error checking IP rate limit:', ipCountError);
       } else if (ipCount !== null && ipCount >= MAX_REQUESTS_PER_IP_PER_HOUR) {
         console.log(`IP rate limit exceeded for ${clientIP}: ${ipCount} requests in last hour`);
+        await logLoginAttempt(supabase, normalizedEmail, clientIP, userAgent, 'otp_request', false, 'ip_rate_limit_exceeded');
         return new Response(
           JSON.stringify({ 
             error: 'Too many requests from this location. Please try again later.',
@@ -123,6 +155,7 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Failed to store OTP:', insertError);
+      await logLoginAttempt(supabase, normalizedEmail, clientIP, userAgent, 'otp_request', false, 'database_error');
       return new Response(
         JSON.stringify({ error: 'Failed to generate OTP' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -206,6 +239,7 @@ serve(async (req) => {
 
     if (emailError) {
       console.error('Failed to send email:', emailError);
+      await logLoginAttempt(supabase, normalizedEmail, clientIP, userAgent, 'otp_request', false, 'email_send_failed');
       return new Response(
         JSON.stringify({ error: 'Failed to send verification email' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -213,6 +247,7 @@ serve(async (req) => {
     }
 
     console.log('OTP email sent successfully');
+    await logLoginAttempt(supabase, normalizedEmail, clientIP, userAgent, 'otp_request', true);
 
     return new Response(
       JSON.stringify({ success: true, message: 'OTP sent to your email' }),
@@ -220,6 +255,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in send-otp function:', error);
+    await logLoginAttempt(supabase, 'unknown', clientIP, userAgent, 'otp_request', false, 'unknown_error');
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

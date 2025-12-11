@@ -22,6 +22,33 @@ function getClientIP(req: Request): string {
   return 'unknown';
 }
 
+function getUserAgent(req: Request): string {
+  return req.headers.get('user-agent') || 'unknown';
+}
+
+async function logLoginAttempt(
+  supabase: any,
+  email: string,
+  ipAddress: string,
+  userAgent: string,
+  attemptType: string,
+  success: boolean,
+  failureReason?: string
+) {
+  try {
+    await supabase.from('login_attempts').insert({
+      email: email.toLowerCase(),
+      ip_address: ipAddress !== 'unknown' ? ipAddress : null,
+      attempt_type: attemptType,
+      success,
+      failure_reason: failureReason || null,
+      user_agent: userAgent !== 'unknown' ? userAgent : null,
+    });
+  } catch (error) {
+    console.error('Failed to log login attempt:', error);
+  }
+}
+
 async function verifyTurnstileToken(token: string, ip: string): Promise<boolean> {
   const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
   if (!secretKey) {
@@ -56,29 +83,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIP = getClientIP(req);
+  const userAgent = getUserAgent(req);
+
+  // Create Supabase client with service role (bypasses RLS)
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+
   try {
     const { email, code, turnstileToken } = await req.json();
 
     if (!email || !code) {
       console.error('Missing email or code');
+      await logLoginAttempt(supabase, email || 'unknown', clientIP, userAgent, 'otp_verify_failed', false, 'missing_credentials');
       return new Response(
         JSON.stringify({ error: 'Email and code are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const clientIP = getClientIP(req);
     console.log('Verifying OTP for:', email, 'IP:', clientIP);
-
-    // Create Supabase client with service role (bypasses RLS)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
@@ -94,6 +124,7 @@ serve(async (req) => {
         const totalFailedAttempts = ipAttempts.reduce((sum, record) => sum + (record.failed_attempts || 0), 0);
         if (totalFailedAttempts >= MAX_VERIFICATION_ATTEMPTS_PER_IP_PER_HOUR) {
           console.log(`IP verification rate limit exceeded for ${clientIP}: ${totalFailedAttempts} failed attempts`);
+          await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'ip_rate_limit_exceeded');
           return new Response(
             JSON.stringify({ 
               error: 'Too many failed attempts. Please try again later.',
@@ -117,6 +148,7 @@ serve(async (req) => {
 
     if (fetchError || !otpRecord) {
       console.error('No pending OTP found:', fetchError);
+      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'no_pending_otp');
       return new Response(
         JSON.stringify({ error: 'No pending verification code found. Please request a new one.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,6 +160,7 @@ serve(async (req) => {
     if (currentFailedAttempts >= CAPTCHA_REQUIRED_AFTER_FAILURES) {
       if (!turnstileToken) {
         console.log('CAPTCHA required but not provided');
+        await logLoginAttempt(supabase, email, clientIP, userAgent, 'captcha_required', false, 'captcha_not_provided');
         return new Response(
           JSON.stringify({ 
             error: 'Please complete the security verification.',
@@ -142,6 +175,7 @@ serve(async (req) => {
       const isValidCaptcha = await verifyTurnstileToken(turnstileToken, clientIP);
       if (!isValidCaptcha) {
         console.log('Invalid CAPTCHA token');
+        await logLoginAttempt(supabase, email, clientIP, userAgent, 'captcha_failed', false, 'invalid_captcha_token');
         return new Response(
           JSON.stringify({ 
             error: 'Security verification failed. Please try again.',
@@ -157,6 +191,7 @@ serve(async (req) => {
     if (currentFailedAttempts >= MAX_FAILED_ATTEMPTS_PER_OTP) {
       console.error('OTP locked due to too many failed attempts');
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
+      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'otp_locked_max_attempts');
       return new Response(
         JSON.stringify({ error: 'Too many failed attempts. Please request a new code.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -167,6 +202,7 @@ serve(async (req) => {
     if (new Date(otpRecord.expires_at) < new Date()) {
       console.error('OTP expired');
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
+      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'otp_expired');
       return new Response(
         JSON.stringify({ error: 'Code has expired. Please request a new one.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -191,6 +227,8 @@ serve(async (req) => {
       let errorMessage = remainingAttempts > 0 
         ? `Invalid code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
         : 'Invalid code. Please request a new one.';
+
+      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'invalid_code');
 
       return new Response(
         JSON.stringify({ 
@@ -229,6 +267,7 @@ serve(async (req) => {
 
       if (linkError) {
         console.error('Failed to generate magic link:', linkError);
+        await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'magic_link_generation_failed');
         return new Response(
           JSON.stringify({ error: 'Failed to sign in' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -264,6 +303,7 @@ serve(async (req) => {
 
       if (createError) {
         console.error('Failed to create user:', createError);
+        await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'user_creation_failed');
         return new Response(
           JSON.stringify({ error: 'Failed to create account' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -328,6 +368,7 @@ serve(async (req) => {
     }
 
     console.log('OTP verification complete');
+    await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_success', true);
 
     return new Response(
       JSON.stringify({ 
@@ -340,6 +381,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in verify-otp function:', error);
+    await logLoginAttempt(supabase, 'unknown', clientIP, userAgent, 'otp_verify_failed', false, 'unknown_error');
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
