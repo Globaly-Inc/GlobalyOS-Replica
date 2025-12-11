@@ -251,17 +251,37 @@ const TeamMemberProfile = () => {
         id,
         comment,
         created_at,
+        batch_id,
         employee:employees!kudos_employee_id_fkey(
           id,
           profiles!inner(full_name, avatar_url)
         ),
         given_by:employees!kudos_given_by_id_fkey(
-          profiles!inner(full_name)
+          profiles!inner(full_name, avatar_url)
         )
       `).eq("employee_id", id).order("created_at", {
       ascending: false
     });
-    if (data) setKudos(data);
+    
+    if (data) {
+      // Fetch other recipients for batch kudos
+      const kudosWithOthers = await Promise.all(data.map(async (k: any) => {
+        if (k.batch_id) {
+          const { data: batchKudos } = await supabase
+            .from("kudos")
+            .select("employee:employees!kudos_employee_id_fkey(profiles!inner(full_name))")
+            .eq("batch_id", k.batch_id)
+            .neq("employee_id", id);
+          
+          return {
+            ...k,
+            otherRecipients: batchKudos?.map((bk: any) => bk.employee.profiles.full_name) || []
+          };
+        }
+        return { ...k, otherRecipients: [] };
+      }));
+      setKudos(kudosWithOthers);
+    }
   };
 
   if (loading) {
@@ -653,7 +673,8 @@ const TeamMemberProfile = () => {
                       givenBy: k.given_by.profiles.full_name,
                       givenByAvatar: k.given_by.profiles.avatar_url,
                       comment: k.comment,
-                      date: k.created_at
+                      date: k.created_at,
+                      otherRecipients: k.otherRecipients
                     }} />)}
                   </div>
                 ) : (
