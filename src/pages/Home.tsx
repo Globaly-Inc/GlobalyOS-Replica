@@ -848,12 +848,14 @@ const Home = () => {
                               {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium text-foreground truncate flex-1">
-                            {leave.employee.profiles.full_name.split(" ")[0]}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(parseISO(leave.start_date), "MMM d")}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium text-foreground truncate block">
+                              {leave.employee.profiles.full_name.split(" ")[0]}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {leave.leave_type} · {format(parseISO(leave.start_date), "d MMM yyyy")}
+                            </span>
+                          </div>
                         </Link>
                       ))}
                     </div>
