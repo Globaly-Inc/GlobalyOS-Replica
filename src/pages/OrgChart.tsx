@@ -251,8 +251,18 @@ const OrgChart = () => {
                     className="absolute top-4 h-0.5"
                     style={{ 
                       backgroundColor: departmentColor.bg,
-                      width: '20px',
-                      left: '-20px'
+                      width: '16px',
+                      left: '-16px'
+                    }} 
+                  />
+                  {/* Connection dot at junction */}
+                  <div 
+                    className="absolute w-2 h-2 rounded-full border-2"
+                    style={{ 
+                      borderColor: departmentColor.bg,
+                      backgroundColor: 'white',
+                      left: '-22px',
+                      top: '12px'
                     }} 
                   />
                   <div className="pb-2">
