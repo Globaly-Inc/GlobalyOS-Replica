@@ -11,7 +11,7 @@ import { ChevronDown, X, Search } from "lucide-react";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Helper to get plain text length from HTML
@@ -222,7 +222,7 @@ export const GiveKudosDialogContent = ({
                 />
               </div>
             </div>
-            <ScrollArea className="h-[200px]">
+            <div className="h-[200px] overflow-y-auto">
               <div className="p-2 space-y-1">
                 {employees
                   .filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -254,7 +254,7 @@ export const GiveKudosDialogContent = ({
                   <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </PopoverContent>
         </Popover>
         

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { GiveKudosDialogContent } from "./GiveKudosDialogContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { useOrganization } from "@/hooks/useOrganization";
 
 // Helper to get plain text length from HTML
@@ -426,7 +426,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
               {/* Member selector */}
               {showMemberSelector && (
-                <ScrollArea className="h-40 border rounded-lg p-2">
+                <div className="h-40 border rounded-lg p-2 overflow-y-auto">
                   <div className="space-y-1">
                     {teamMembers.map(member => (
                       <div
@@ -451,7 +451,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                       <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
               )}
             </div>
 
