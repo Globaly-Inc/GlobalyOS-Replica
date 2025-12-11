@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,32 @@ const positionHistorySchema = z.object({
   position: z.string().min(1, "Position is required"),
   department: z.string().min(1, "Department is required"),
   salary: z.string().optional(),
+  currency: z.string().optional(),
+  paymentFrequency: z.string().optional(),
   effective_date: z.string().min(1, "Effective date is required"),
   end_date: z.string().optional(),
   change_type: z.enum(["promotion", "lateral_move", "salary_increase", "manager_change", "initial"]),
   notes: z.string().optional(),
 });
+
+const currencies = [
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "EUR", symbol: "€", name: "Euro" },
+  { code: "GBP", symbol: "£", name: "British Pound" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee" },
+  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
+  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
+  { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
+  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
+];
+
+const paymentFrequencies = [
+  { value: "weekly", label: "Weekly", multiplier: 52 },
+  { value: "monthly", label: "Monthly", multiplier: 12 },
+  { value: "annual", label: "Annual", multiplier: 1 },
+];
 
 interface AddPositionHistoryDialogProps {
   employeeId: string;
@@ -32,12 +53,29 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
     position: "",
     department: "",
     salary: "",
+    currency: "USD",
+    paymentFrequency: "annual",
     effective_date: "",
     end_date: "",
     change_type: "promotion" as const,
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const formatSalary = (salary: number, currency: string = "USD") => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(salary);
+  };
+
+  const annualPay = useMemo(() => {
+    const amount = parseFloat(formData.salary) || 0;
+    const frequency = paymentFrequencies.find(f => f.value === formData.paymentFrequency);
+    return amount * (frequency?.multiplier || 1);
+  }, [formData.salary, formData.paymentFrequency]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +85,11 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
     try {
       // Validate
       const validated = positionHistorySchema.parse(formData);
+
+      // Calculate annual salary
+      const amount = parseFloat(validated.salary || "0");
+      const frequency = paymentFrequencies.find(f => f.value === validated.paymentFrequency);
+      const annualSalary = amount * (frequency?.multiplier || 1);
 
       // Prepare data
       const historyData: any = {
@@ -60,7 +103,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
       };
 
       if (validated.salary) {
-        historyData.salary = parseFloat(validated.salary);
+        historyData.salary = annualSalary;
       }
 
       const { error } = await supabase
@@ -75,6 +118,8 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
         position: "",
         department: "",
         salary: "",
+        currency: "USD",
+        paymentFrequency: "annual",
         effective_date: "",
         end_date: "",
         change_type: "promotion",
@@ -136,20 +181,71 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="salary">Salary (USD)</Label>
-              <Input
-                id="salary"
-                type="number"
-                step="0.01"
-                value={formData.salary}
-                onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                placeholder="e.g., 85000"
-              />
-              {errors.salary && <p className="text-sm text-destructive mt-1">{errors.salary}</p>}
+          <div className="space-y-3">
+            <Label>Salary</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label htmlFor="currency" className="text-xs text-muted-foreground">Currency</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                >
+                  <SelectTrigger id="currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.symbol} {currency.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="salary" className="text-xs text-muted-foreground">Amount</Label>
+                <Input
+                  id="salary"
+                  type="number"
+                  step="0.01"
+                  value={formData.salary}
+                  onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                  placeholder="e.g., 85000"
+                />
+                {errors.salary && <p className="text-sm text-destructive mt-1">{errors.salary}</p>}
+              </div>
+              <div>
+                <Label htmlFor="paymentFrequency" className="text-xs text-muted-foreground">Frequency</Label>
+                <Select
+                  value={formData.paymentFrequency}
+                  onValueChange={(value) => setFormData({ ...formData, paymentFrequency: value })}
+                >
+                  <SelectTrigger id="paymentFrequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {paymentFrequencies.map((freq) => (
+                      <SelectItem key={freq.value} value={freq.value}>
+                        {freq.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            {/* Annual Pay Calculation */}
+            {formData.salary && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <p className="text-xs text-muted-foreground">Annual Pay</p>
+                <p className="text-lg font-semibold text-primary">
+                  {formatSalary(annualPay, formData.currency)}
+                </p>
+              </div>
+            )}
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="change_type">Change Type *</Label>
               <Select
@@ -159,7 +255,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover">
                   <SelectItem value="initial">Joined Company</SelectItem>
                   <SelectItem value="promotion">Promotion</SelectItem>
                   <SelectItem value="lateral_move">Lateral Move</SelectItem>
