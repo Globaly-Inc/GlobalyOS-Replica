@@ -9,12 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft, Trash2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface ParsedEmployee {
   first_name: string;
@@ -231,6 +234,90 @@ const SelectableCell = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <div>{selectContent}</div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs bg-destructive text-destructive-foreground">
+            <p className="text-xs">{error}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return selectContent;
+};
+
+// Searchable dropdown cell component for fields with many options
+const SearchableSelectCell = ({ 
+  value, 
+  options,
+  onSave,
+  placeholder = "Select...",
+  error
+}: { 
+  value: string; 
+  options: { value: string; label: string }[];
+  onSave: (value: string) => void;
+  placeholder?: string;
+  error?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  const selectContent = (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "flex h-7 w-full items-center justify-between px-2 text-xs bg-transparent hover:bg-primary/5 transition-colors",
+            error ? "text-destructive" : ""
+          )}
+        >
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : <span className="text-muted-foreground">{placeholder}</span>}
+          </span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0 z-50" align="start">
+        <Command>
+          <CommandInput placeholder="Search..." className="h-8 text-xs" />
+          <CommandList>
+            <CommandEmpty className="py-2 text-xs text-center">No results found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={() => {
+                    onSave(opt.value);
+                    setOpen(false);
+                  }}
+                  className="text-xs"
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-3 w-3",
+                      value === opt.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {opt.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+
+  if (error) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full">{selectContent}</div>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs bg-destructive text-destructive-foreground">
             <p className="text-xs">{error}</p>
@@ -922,7 +1009,7 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('manager_email') ? 'border-destructive' : 'border-border/50'}`}>
-                              <SelectableCell
+                              <SearchableSelectCell
                                 value={emp.manager_email}
                                 options={teamMembers.map(m => ({ value: m.email, label: `${m.full_name} (${m.email})` }))}
                                 onSave={(v) => updateCellValue(i, 'manager_email', v)}
