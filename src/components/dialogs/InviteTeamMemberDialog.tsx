@@ -598,7 +598,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         <div className="flex gap-3 pt-4 border-t">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading} className="flex-1">
-            {loading ? <span className="flex items-center gap-2"><span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Sending...</span> : <><UserPlus className="h-4 w-4 mr-2" />Send Invitation</>}
+            {loading ? <span className="flex items-center gap-2"><span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Sending...</span> : <><UserPlus className="h-4 w-4 mr-2" />Send Confirmation</>}
           </Button>
         </div>
       </DialogContent>
