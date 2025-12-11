@@ -210,16 +210,12 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
             </div>
             <p className="font-semibold">Work Schedule</p>
           </div>
-          {canManageSchedule && (
+          {canManageSchedule && organizationId && (
             <Button 
               variant="outline" 
               size="sm" 
               className="h-8 px-3"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowScheduleDialog(true);
-              }}
+              onClick={() => setShowScheduleDialog(true)}
             >
               <Settings2 className="h-4 w-4 mr-1" />
               Configure
@@ -244,16 +240,12 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
         ) : (
           <div className="bg-background/60 rounded-lg p-4 text-center">
             <p className="text-sm text-muted-foreground">No schedule configured</p>
-            {canManageSchedule && (
+            {canManageSchedule && organizationId && (
               <Button 
                 variant="link" 
                 size="sm" 
                 className="mt-1 h-auto p-0"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowScheduleDialog(true);
-                }}
+                onClick={() => setShowScheduleDialog(true)}
               >
                 Set up schedule
               </Button>
