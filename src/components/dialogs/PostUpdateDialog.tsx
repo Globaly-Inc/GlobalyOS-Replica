@@ -429,8 +429,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                       >
                         <Checkbox
                           checked={selectedMembers.includes(member.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          onCheckedChange={() => toggleMember(member.id)}
+                          className="pointer-events-none"
                         />
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={member.avatar} />
