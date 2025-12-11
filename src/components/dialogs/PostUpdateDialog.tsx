@@ -265,7 +265,11 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Share with Team</DialogTitle>
+          <DialogTitle>
+            {selectedType === "win" ? "Posting a Win" : 
+             selectedType === "announcement" ? "Posting an Announcement" : 
+             selectedType === "kudos" ? "Give Kudos" : "Share with Team"}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Post Type Selection */}
@@ -300,14 +304,6 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
         {/* Win/Announcement Form */}
         {selectedType && selectedType !== "kudos" && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)}>
-                ← Back
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Posting a {selectedType === "win" ? "Win" : "Announcement"}
-              </span>
-            </div>
 
             <div className="space-y-2">
               <Label>
