@@ -66,38 +66,40 @@ const Team = () => {
     if (!currentOrg) return;
     setLoading(true);
     
-    // Fetch employees with office data
+    // Use employee_directory view for secure, non-sensitive data access
+    // This view only exposes non-sensitive fields and respects org membership
     const { data: employeeData } = await supabase
-      .from("employees")
-      .select(`
-        id,
-        user_id,
-        position,
-        department,
-        join_date,
-        phone,
-        city,
-        country,
-        manager_id,
-        status,
-        office_id,
-        profiles!inner(
-          full_name,
-          email,
-          avatar_url
-        ),
-        offices(
-          name
-        )
-      `)
+      .from("employee_directory")
+      .select("*")
       .eq("organization_id", currentOrg.id)
       .order("created_at", { ascending: false });
 
     if (employeeData) {
-      setEmployees(employeeData as Employee[]);
+      // Transform view data to match Employee interface
+      const transformedEmployees = employeeData.map((e: any) => ({
+        id: e.id,
+        user_id: e.user_id,
+        position: e.position,
+        department: e.department,
+        join_date: e.join_date,
+        phone: null, // Not exposed in directory view for privacy
+        city: e.city,
+        country: e.country,
+        manager_id: e.manager_id,
+        status: e.status,
+        office_id: e.office_id,
+        profiles: {
+          full_name: e.full_name,
+          email: e.email,
+          avatar_url: e.avatar_url,
+        },
+        offices: e.office_name ? { name: e.office_name } : null,
+      }));
+      
+      setEmployees(transformedEmployees as Employee[]);
       
       // Fetch user roles for all employees
-      const userIds = employeeData.map(e => e.user_id);
+      const userIds = employeeData.map((e: any) => e.user_id);
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("user_id, role")
