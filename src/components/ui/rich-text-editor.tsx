@@ -188,12 +188,10 @@ export const RichTextContent = ({
   return (
     <div 
       className={cn(
-        "prose prose-sm max-w-none leading-snug",
-        "prose-p:my-0 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0",
-        "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "prose prose-sm max-w-none",
         "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
-        "[&_li]:ml-0",
-        "[&_p:empty]:hidden [&_br]:block [&_br]:h-2 [&_br]:content-['']",
+        "[&_p]:my-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0",
+        "whitespace-pre-line",
         "text-foreground/80",
         className
       )}
