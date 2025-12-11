@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, Sparkles, CalendarPlus } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -335,20 +335,15 @@ const Home = () => {
     }
 
     // Load upcoming team leave for managers (direct reports' approved leave in the future)
-    const { data: employeeCheck } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("organization_id", currentOrg.id)
-      .maybeSingle();
-
+    const {
+      data: employeeCheck
+    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     if (employeeCheck) {
       const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
       const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
-      
-      const { data: teamLeave } = await supabase
-        .from("leave_requests")
-        .select(`
+      const {
+        data: teamLeave
+      } = await supabase.from("leave_requests").select(`
           id,
           start_date,
           end_date,
@@ -362,17 +357,11 @@ const Home = () => {
               avatar_url
             )
           )
-        `)
-        .eq("organization_id", currentOrg.id)
-        .eq("status", "approved")
-        .gte("start_date", tomorrow)
-        .lte("start_date", nextMonth)
-        .order("start_date", { ascending: true });
-
+        `).eq("organization_id", currentOrg.id).eq("status", "approved").gte("start_date", tomorrow).lte("start_date", nextMonth).order("start_date", {
+        ascending: true
+      });
       if (teamLeave) {
-        const directReportsLeave = teamLeave.filter((req: any) => 
-          req.employee?.manager_id === employeeCheck.id
-        );
+        const directReportsLeave = teamLeave.filter((req: any) => req.employee?.manager_id === employeeCheck.id);
         setUpcomingTeamLeave(directReportsLeave as UpcomingTeamLeave[]);
       }
     }
@@ -493,26 +482,32 @@ const Home = () => {
   const regularUpdates = filteredUpdates.filter(u => u.type === "update");
 
   // Group kudos by batch_id to show multiple recipients in one card
-  type GroupedKudosItem = KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] };
-  
+  type GroupedKudosItem = KudosItem & {
+    otherRecipients?: {
+      id: string;
+      name: string;
+      avatar?: string;
+    }[];
+  };
   const groupedKudos: GroupedKudosItem[] = (() => {
     const grouped: Map<string, KudosItem[]> = new Map();
     const standalone: GroupedKudosItem[] = [];
-    
     filteredKudos.forEach(k => {
       if (k.batch_id) {
         const existing = grouped.get(k.batch_id) || [];
         existing.push(k);
         grouped.set(k.batch_id, existing);
       } else {
-        standalone.push({ ...k, otherRecipients: undefined });
+        standalone.push({
+          ...k,
+          otherRecipients: undefined
+        });
       }
     });
-    
+
     // Convert grouped kudos to single representative items with otherRecipients
     const result: GroupedKudosItem[] = [];
-    
-    grouped.forEach((items) => {
+    grouped.forEach(items => {
       if (items.length > 0) {
         const first = items[0];
         const others = items.slice(1).map(k => ({
@@ -520,17 +515,30 @@ const Home = () => {
           name: k.employee.profiles.full_name,
           avatar: k.employee.profiles.avatar_url || undefined
         }));
-        result.push({ ...first, otherRecipients: others });
+        result.push({
+          ...first,
+          otherRecipients: others
+        });
       }
     });
-    
     return [...result, ...standalone];
   })();
-
-  const renderFeedContent = (items: (FeedItem | (KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] }))[]) => <>
+  const renderFeedContent = (items: (FeedItem | (KudosItem & {
+    otherRecipients?: {
+      id: string;
+      name: string;
+      avatar?: string;
+    }[];
+  }))[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
       if ("comment" in item) {
-        const kudosItem = item as KudosItem & { otherRecipients?: { id: string; name: string; avatar?: string }[] };
+        const kudosItem = item as KudosItem & {
+          otherRecipients?: {
+            id: string;
+            name: string;
+            avatar?: string;
+          }[];
+        };
         return <KudosCard key={kudosItem.batch_id || item.id} kudos={{
           id: kudosItem.id,
           employeeId: kudosItem.employee.id,
@@ -560,7 +568,7 @@ const Home = () => {
             id: m.id,
             employeeId: m.employee_id,
             employeeName: m.employee?.profiles?.full_name || "Unknown",
-            avatar: m.employee?.profiles?.avatar_url || undefined,
+            avatar: m.employee?.profiles?.avatar_url || undefined
           }))
         }} onDelete={loadFeed} />;
       }
@@ -710,7 +718,7 @@ const Home = () => {
                 
                 {hasEmployeeProfile && <Button className="h-auto py-2" onClick={() => setPostDialogOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Post
+                    New Post
                   </Button>}
               </div>
 
@@ -791,8 +799,7 @@ const Home = () => {
                     <Calendar className="h-5 w-5 text-primary" />
                     My Leave Balance
                   </h3>
-                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)} className="flex items-center gap-1.5">
-                    <CalendarPlus className="h-4 w-4" />
+                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
                     Request
                   </Button>
                 </div>
@@ -855,8 +862,7 @@ const Home = () => {
                 </div> : <p className="text-sm text-muted-foreground">No one is on leave today</p>}
               
               {/* Upcoming Team Leave - for managers */}
-              {upcomingTeamLeave.length > 0 && (
-                <>
+              {upcomingTeamLeave.length > 0 && <>
                   <div className="border-t border-border my-4" />
                   <div>
                     <h4 className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
@@ -865,18 +871,10 @@ const Home = () => {
                     </h4>
                     <div className="space-y-2">
                       {upcomingTeamLeave.slice(0, 3).map(leave => {
-                        const isMultiDay = leave.start_date !== leave.end_date;
-                        const daysLabel = leave.days_count === 1 ? "1 day" : `${leave.days_count} days`;
-                        const dateRange = isMultiDay 
-                          ? `${format(parseISO(leave.start_date), "d MMM")} - ${format(parseISO(leave.end_date), "d MMM yyyy")}`
-                          : format(parseISO(leave.start_date), "d MMM yyyy");
-                        
-                        return (
-                          <Link 
-                            key={leave.id} 
-                            to={`/team/${leave.employee.id}`}
-                            className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors"
-                          >
+                    const isMultiDay = leave.start_date !== leave.end_date;
+                    const daysLabel = leave.days_count === 1 ? "1 day" : `${leave.days_count} days`;
+                    const dateRange = isMultiDay ? `${format(parseISO(leave.start_date), "d MMM")} - ${format(parseISO(leave.end_date), "d MMM yyyy")}` : format(parseISO(leave.start_date), "d MMM yyyy");
+                    return <Link key={leave.id} to={`/team/${leave.employee.id}`} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors">
                             <Avatar className="h-6 w-6 flex-shrink-0">
                               <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
                               <AvatarFallback className="text-xs bg-primary/10 text-primary">
@@ -889,13 +887,11 @@ const Home = () => {
                             <span className="text-xs text-muted-foreground truncate">
                               {leave.leave_type} · {daysLabel} · {dateRange}
                             </span>
-                          </Link>
-                        );
-                      })}
+                          </Link>;
+                  })}
                     </div>
                   </div>
-                </>
-              )}
+                </>}
             </Card>
             {/* Upcoming Birthdays */}
             <Card className="p-6">
