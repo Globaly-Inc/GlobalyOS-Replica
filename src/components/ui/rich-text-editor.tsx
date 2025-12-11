@@ -124,6 +124,8 @@ export const RichTextEditor = ({
             "p-3 outline-none prose prose-sm max-w-none",
             "prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0",
             "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+            "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+            "[&_li]:ml-0",
             "text-foreground"
           )}
           style={{ minHeight }}
@@ -189,6 +191,8 @@ export const RichTextContent = ({
         "prose prose-sm max-w-none",
         "prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0",
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+        "[&_li]:ml-0",
         "text-foreground/80",
         className
       )}
