@@ -320,7 +320,8 @@ Your HR System Isn't.</span>
               <CheckCircle2 className="h-4 w-4" /> The Solution
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              TeamHub Creates a Living Timeline for Every Employee
+              TeamHub Creates a Living Timeline{" "}
+              <span className="text-muted-foreground">for Every Employee</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               Centralise everything about a team member into one structured,
@@ -376,7 +377,8 @@ Your HR System Isn't.</span>
         <div className="container mx-auto px-4 md:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              What You Can Do With TeamHub
+              What You Can Do{" "}
+              <span className="text-muted-foreground">With TeamHub</span>
             </h2>
             <p className="mt-4 text-muted-foreground">
               Powerful features designed for modern people management
@@ -412,7 +414,8 @@ Your HR System Isn't.</span>
         <div className="container mx-auto px-4 md:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              Designed for Growing, People-First Companies
+              Designed for Growing,{" "}
+              <span className="text-muted-foreground">People-First Companies</span>
             </h2>
           </AnimatedSection>
 
@@ -442,7 +445,8 @@ Your HR System Isn't.</span>
         <div className="container mx-auto px-4 md:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              From Spreadsheets to a Clean HR System in 3 Steps
+              From Spreadsheets to a Clean HR System{" "}
+              <span className="text-muted-foreground">in 3 Steps</span>
             </h2>
           </AnimatedSection>
 
@@ -470,7 +474,8 @@ Your HR System Isn't.</span>
           <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto mb-16">
             <AnimatedSection>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-                Turn HR Data Into Clear, Confident Decisions
+                Turn HR Data Into{" "}
+                <span className="text-muted-foreground">Clear, Confident Decisions</span>
               </h2>
             </AnimatedSection>
             <AnimatedSection delay={200} className="flex justify-center">
@@ -519,7 +524,8 @@ Your HR System Isn't.</span>
             </AnimatedSection>
             <AnimatedSection className="text-center md:text-left">
               <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-                Simple Subscription for Modern Teams
+                Simple Subscription{" "}
+                <span className="text-muted-foreground">for Modern Teams</span>
               </h2>
               <p className="mt-4 text-muted-foreground">
                 Subscription-based SaaS – monthly and yearly plans, pay as you
@@ -564,7 +570,8 @@ Your HR System Isn't.</span>
         <div className="container mx-auto px-4 md:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              Frequently Asked Questions
+              Frequently Asked{" "}
+              <span className="text-muted-foreground">Questions</span>
             </h2>
           </AnimatedSection>
 
