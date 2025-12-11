@@ -747,9 +747,11 @@ const BulkImport = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {parsedData.map((emp, i) => (
-                          <tr key={i} className="border-b last:border-0">
-                            <td className="px-2 py-1.5 border border-border/50 text-center text-muted-foreground text-xs bg-muted/30">{i + 1}</td>
+                        {parsedData.map((emp, i) => {
+                          const rowHasError = validationErrors.some(err => err.startsWith(`Row ${i + 1}:`));
+                          return (
+                          <tr key={i} className={`border-b last:border-0 ${rowHasError ? 'bg-destructive/10' : ''}`}>
+                            <td className={`px-2 py-1.5 border border-border/50 text-center text-xs ${rowHasError ? 'bg-destructive/20 text-destructive font-medium' : 'bg-muted/30 text-muted-foreground'}`}>{i + 1}</td>
                             <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.first_name}
@@ -906,7 +908,8 @@ const BulkImport = () => {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                        )})}
+
                       </tbody>
                     </table>
                   </div>
