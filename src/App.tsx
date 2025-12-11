@@ -20,6 +20,7 @@ const Signup = lazy(() => import("./pages/Signup"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Join = lazy(() => import("./pages/Join"));
 const LeaveHistory = lazy(() => import("./pages/LeaveHistory"));
+const AttendanceHistory = lazy(() => import("./pages/AttendanceHistory"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
               <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
               <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
+              <Route path="/team/:id/attendance" element={<ProtectedRoute><AttendanceHistory /></ProtectedRoute>} />
               <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
               <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

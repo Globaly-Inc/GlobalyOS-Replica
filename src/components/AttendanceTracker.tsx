@@ -2,13 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2, Pencil, Plus } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2, ArrowRight, TrendingDown, TrendingUp, Timer } from "lucide-react";
+import { format, startOfWeek, endOfWeek, differenceInMinutes, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
 import { EditScheduleDialog } from "./dialogs/EditScheduleDialog";
-import { EditAttendanceDialog } from "./dialogs/EditAttendanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useNavigate } from "react-router-dom";
 
 interface AttendanceTrackerProps {
   employeeId: string;
@@ -18,15 +18,13 @@ interface AttendanceTrackerProps {
 
 export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizationId }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const currentDate = new Date();
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const { isAdmin, isHR } = useUserRole();
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
   const canManageSchedule = isAdmin || isHR;
-  const canEditAttendance = isAdmin || isHR;
 
   const { data: todayRecord } = useQuery({
     queryKey: ["attendance-today", employeeId],
@@ -43,15 +41,15 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
     },
   });
 
-  const { data: monthRecords } = useQuery({
-    queryKey: ["attendance-month", employeeId, format(monthStart, "yyyy-MM")],
+  const { data: weekRecords } = useQuery({
+    queryKey: ["attendance-week", employeeId, format(weekStart, "yyyy-MM-dd")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("attendance_records")
         .select("*")
         .eq("employee_id", employeeId)
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"))
+        .gte("date", format(weekStart, "yyyy-MM-dd"))
+        .lte("date", format(weekEnd, "yyyy-MM-dd"))
         .order("date", { ascending: false });
 
       if (error) throw error;
@@ -89,7 +87,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-month"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-week"] });
       toast.success("Checked in successfully");
     },
     onError: () => {
@@ -111,28 +109,13 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-month"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-week"] });
       toast.success("Checked out successfully");
     },
     onError: () => {
       toast.error("Failed to check out");
     },
   });
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "present":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case "absent":
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case "late":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      case "half_day":
-        return <Clock className="h-4 w-4 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -144,20 +127,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
     return <Badge className={variants[status] || ""}>{status.replace("_", " ")}</Badge>;
   };
 
-  const stats = monthRecords
-    ? {
-        total: monthRecords.length,
-        present: monthRecords.filter((r) => r.status === "present").length,
-        absent: monthRecords.filter((r) => r.status === "absent").length,
-        late: monthRecords.filter((r) => r.status === "late").length,
-        avgHours:
-          monthRecords.reduce((sum, r) => sum + (r.work_hours || 0), 0) / 
-          monthRecords.filter((r) => r.work_hours).length || 0,
-      }
-    : null;
-
   const formatTime = (time: string) => {
-    // Convert HH:MM:SS to HH:MM AM/PM
     const [hours, minutes] = time.split(":");
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? "PM" : "AM";
@@ -165,85 +135,160 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
     return `${hour12}:${minutes} ${ampm}`;
   };
 
+  // Calculate weekly metrics
+  const calculateWeeklyMetrics = () => {
+    if (!weekRecords || !schedule) {
+      return { lateMinutes: 0, earlyMinutes: 0, earlyCheckouts: 0, totalWorkHours: 0, daysWorked: 0 };
+    }
+
+    let lateMinutes = 0;
+    let earlyMinutes = 0;
+    let earlyCheckouts = 0;
+    let totalWorkHours = 0;
+    let daysWorked = 0;
+
+    const scheduleStart = schedule.work_start_time;
+    const scheduleEnd = schedule.work_end_time;
+
+    weekRecords.forEach((record) => {
+      if (record.check_in_time) {
+        daysWorked++;
+        const checkInTime = new Date(record.check_in_time);
+        const checkInHHMM = format(checkInTime, "HH:mm:ss");
+        
+        // Calculate late minutes
+        if (checkInHHMM > scheduleStart) {
+          const [schedH, schedM] = scheduleStart.split(":").map(Number);
+          const schedDate = new Date(checkInTime);
+          schedDate.setHours(schedH, schedM, 0, 0);
+          lateMinutes += Math.max(0, differenceInMinutes(checkInTime, schedDate));
+        }
+        
+        // Calculate early arrival
+        if (checkInHHMM < scheduleStart) {
+          const [schedH, schedM] = scheduleStart.split(":").map(Number);
+          const schedDate = new Date(checkInTime);
+          schedDate.setHours(schedH, schedM, 0, 0);
+          earlyMinutes += Math.max(0, differenceInMinutes(schedDate, checkInTime));
+        }
+
+        // Calculate early checkouts
+        if (record.check_out_time) {
+          const checkOutTime = new Date(record.check_out_time);
+          const checkOutHHMM = format(checkOutTime, "HH:mm:ss");
+          if (checkOutHHMM < scheduleEnd) {
+            earlyCheckouts++;
+          }
+        }
+
+        if (record.work_hours) {
+          totalWorkHours += record.work_hours;
+        }
+      }
+    });
+
+    return { lateMinutes, earlyMinutes, earlyCheckouts, totalWorkHours, daysWorked };
+  };
+
+  const metrics = calculateWeeklyMetrics();
+
+  const formatMinutesToHours = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Schedule Info */}
-      {(schedule || canManageSchedule) && (
-        <div className="p-4 rounded-lg bg-muted/50 border">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-muted-foreground">Work Schedule</p>
+    <div className="space-y-5">
+      {/* Work Schedule */}
+      <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <p className="font-semibold">Work Schedule</p>
+          </div>
+          {canManageSchedule && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-2"
+              onClick={() => setShowScheduleDialog(true)}
+            >
+              <Settings2 className="h-4 w-4 mr-1" />
+              Configure
+            </Button>
+          )}
+        </div>
+        {schedule ? (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-background/60 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Start</p>
+              <p className="font-semibold text-sm">{formatTime(schedule.work_start_time)}</p>
+            </div>
+            <div className="bg-background/60 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">End</p>
+              <p className="font-semibold text-sm">{formatTime(schedule.work_end_time)}</p>
+            </div>
+            <div className="bg-background/60 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Grace</p>
+              <p className="font-semibold text-sm">{schedule.late_threshold_minutes}m</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-background/60 rounded-lg p-4 text-center">
+            <p className="text-sm text-muted-foreground">No schedule configured</p>
             {canManageSchedule && (
               <Button 
-                variant="ghost" 
+                variant="link" 
                 size="sm" 
-                className="h-8 w-8 p-0"
+                className="mt-1 h-auto p-0"
                 onClick={() => setShowScheduleDialog(true)}
               >
-                <Settings2 className="h-4 w-4" />
+                Set up schedule
               </Button>
             )}
           </div>
-          {schedule ? (
-            <div className="flex items-center gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Start: </span>
-                <span className="font-medium">{formatTime(schedule.work_start_time)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">End: </span>
-                <span className="font-medium">{formatTime(schedule.work_end_time)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Late after: </span>
-                <span className="font-medium">{schedule.late_threshold_minutes} min</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No schedule set</p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Today's Check-in */}
       {showCheckIn && (
-        <div className="p-4 rounded-lg bg-muted/50 border">
-          <p className="text-sm font-medium text-muted-foreground mb-3">Today's Attendance</p>
+        <div className="p-4 rounded-xl bg-muted/50 border">
+          <p className="text-sm font-semibold mb-3">Today's Status</p>
           {!todayRecord ? (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground mb-4">You haven't checked in today</p>
-              <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending}>
+            <div className="text-center py-3">
+              <p className="text-muted-foreground text-sm mb-3">Not checked in yet</p>
+              <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending} size="sm">
                 Check In
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Check In</p>
-                  <p className="text-base font-semibold">
-                    {todayRecord.check_in_time
-                      ? format(new Date(todayRecord.check_in_time), "h:mm a")
-                      : "-"}
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">In</p>
+                    <p className="font-semibold text-sm">
+                      {todayRecord.check_in_time ? format(new Date(todayRecord.check_in_time), "h:mm a") : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Out</p>
+                    <p className="font-semibold text-sm">
+                      {todayRecord.check_out_time ? format(new Date(todayRecord.check_out_time), "h:mm a") : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Hours</p>
+                    <p className="font-semibold text-sm">
+                      {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Check Out</p>
-                  <p className="text-base font-semibold">
-                    {todayRecord.check_out_time
-                      ? format(new Date(todayRecord.check_out_time), "h:mm a")
-                      : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Hours</p>
-                  <p className="text-base font-semibold">
-                    {todayRecord.work_hours ? `${todayRecord.work_hours.toFixed(1)}h` : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  {getStatusBadge(todayRecord.status)}
-                </div>
+                {getStatusBadge(todayRecord.status)}
               </div>
               {!todayRecord.check_out_time && (
                 <Button
@@ -260,109 +305,76 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
         </div>
       )}
 
-      {/* Monthly Statistics */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="text-center p-3 rounded-lg bg-primary/5">
-            <div className="text-2xl font-bold text-primary">{stats.present}</div>
-            <div className="text-xs text-muted-foreground mt-1">Present</div>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-primary/5">
-            <div className="text-2xl font-bold text-primary">{stats.late}</div>
-            <div className="text-xs text-muted-foreground mt-1">Late</div>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-primary/5">
-            <div className="text-2xl font-bold text-primary">{stats.absent}</div>
-            <div className="text-xs text-muted-foreground mt-1">Absent</div>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-primary/5">
-            <div className="text-2xl font-bold text-primary">
-              {stats.avgHours.toFixed(1)}h
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">Avg Hours</div>
-          </div>
-        </div>
-      )}
-
-      {/* Attendance History */}
+      {/* Weekly Summary */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium text-muted-foreground">Recent History</p>
-          {canEditAttendance && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditingRecord(null);
-                setShowAttendanceDialog(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Record
-            </Button>
-          )}
+          <p className="font-semibold text-sm">This Week's Summary</p>
+          <Badge variant="outline" className="text-xs">
+            {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}
+          </Badge>
         </div>
-        {!monthRecords || monthRecords.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">No attendance records this month</p>
-        ) : (
-          <div className="space-y-2">
-            {monthRecords.slice(0, 5).map((record) => (
-              <div
-                key={record.id}
-                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(record.status)}
-                  <div>
-                    <p className="font-medium text-sm">{format(new Date(record.date), "EEE, MMM d")}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {record.check_in_time && format(new Date(record.check_in_time), "h:mm a")}
-                      {record.check_out_time && ` - ${format(new Date(record.check_out_time), "h:mm a")}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {record.work_hours && (
-                    <span className="text-sm font-medium">{record.work_hours.toFixed(1)}h</span>
-                  )}
-                  {getStatusBadge(record.status)}
-                  {canEditAttendance && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        setEditingRecord(record);
-                        setShowAttendanceDialog(true);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+        
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingDown className="h-4 w-4 text-red-500" />
+              <p className="text-xs text-red-600 dark:text-red-400 font-medium">Late Hours</p>
+            </div>
+            <p className="text-xl font-bold text-red-700 dark:text-red-300">
+              {formatMinutesToHours(metrics.lateMinutes)}
+            </p>
           </div>
-        )}
+          
+          <div className="p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/50">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium">Early Arrivals</p>
+            </div>
+            <p className="text-xl font-bold text-green-700 dark:text-green-300">
+              {formatMinutesToHours(metrics.earlyMinutes)}
+            </p>
+          </div>
+          
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Early Checkouts</p>
+            </div>
+            <p className="text-xl font-bold text-amber-700 dark:text-amber-300">
+              {metrics.earlyCheckouts}
+            </p>
+          </div>
+          
+          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50">
+            <div className="flex items-center gap-2 mb-1">
+              <Timer className="h-4 w-4 text-blue-500" />
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Hours Worked</p>
+            </div>
+            <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+              {metrics.totalWorkHours.toFixed(1)}h
+            </p>
+          </div>
+        </div>
       </div>
 
+      {/* View Full History Link */}
+      <Button 
+        variant="outline" 
+        className="w-full justify-between"
+        onClick={() => navigate(`/team/${employeeId}/attendance`)}
+      >
+        <span>View Full Attendance History</span>
+        <ArrowRight className="h-4 w-4" />
+      </Button>
+
       {organizationId && (
-        <>
-          <EditScheduleDialog
-            open={showScheduleDialog}
-            onOpenChange={setShowScheduleDialog}
-            employeeId={employeeId}
-            organizationId={organizationId}
-            currentSchedule={schedule}
-          />
-          <EditAttendanceDialog
-            open={showAttendanceDialog}
-            onOpenChange={setShowAttendanceDialog}
-            record={editingRecord}
-            employeeId={employeeId}
-            organizationId={organizationId}
-          />
-        </>
+        <EditScheduleDialog
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          employeeId={employeeId}
+          organizationId={organizationId}
+          currentSchedule={schedule}
+        />
       )}
     </div>
   );
