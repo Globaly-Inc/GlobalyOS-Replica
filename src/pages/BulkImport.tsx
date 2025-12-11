@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft, Trash2, Check, ChevronsUpDown } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info, ArrowLeft, Trash2, Check, ChevronsUpDown, CalendarIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -17,8 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { getCountryFlag } from "@/lib/countryFlags";
+import { format, parse, isValid } from "date-fns";
 
 // Country list for dropdown
 const COUNTRIES = [
@@ -355,6 +357,90 @@ const SearchableSelectCell = ({
             </CommandGroup>
           </CommandList>
         </Command>
+      </PopoverContent>
+    </Popover>
+  );
+
+  if (error) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full">{selectContent}</div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs bg-destructive text-destructive-foreground">
+            <p className="text-xs">{error}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return selectContent;
+};
+
+// Date picker cell component for date fields
+const DatePickerCell = ({ 
+  value, 
+  onSave,
+  placeholder = "Select date",
+  error,
+  disableFuture = false,
+  disablePast = false
+}: { 
+  value: string; 
+  onSave: (value: string) => void;
+  placeholder?: string;
+  error?: string;
+  disableFuture?: boolean;
+  disablePast?: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+  
+  // Parse YYYY-MM-DD string to Date
+  const parseDate = (dateStr: string): Date | undefined => {
+    if (!dateStr) return undefined;
+    const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : undefined;
+  };
+  
+  const selectedDate = parseDate(value);
+  
+  const handleSelect = (date: Date | undefined) => {
+    if (date) {
+      onSave(format(date, 'yyyy-MM-dd'));
+    }
+    setOpen(false);
+  };
+
+  const selectContent = (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex h-7 w-full items-center justify-between px-2 text-xs bg-transparent hover:bg-primary/5 transition-colors",
+            error ? "text-destructive" : ""
+          )}
+        >
+          <span className="truncate">
+            {selectedDate ? format(selectedDate, 'd MMM yyyy') : <span className="text-muted-foreground">{placeholder}</span>}
+          </span>
+          <CalendarIcon className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 z-50 bg-popover" align="start">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleSelect}
+          disabled={(date) => {
+            if (disableFuture && date > new Date()) return true;
+            if (disablePast && date < new Date()) return true;
+            return date < new Date("1900-01-01");
+          }}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
       </PopoverContent>
     </Popover>
   );
@@ -1128,23 +1214,20 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('join_date') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <DatePickerCell
                                 value={emp.join_date}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'join_date'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'join_date' })}
                                 onSave={(v) => updateCellValue(i, 'join_date', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select date"
                                 error={getFieldError('join_date')}
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('date_of_birth') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <DatePickerCell
                                 value={emp.date_of_birth}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'date_of_birth'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'date_of_birth' })}
                                 onSave={(v) => updateCellValue(i, 'date_of_birth', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select date"
                                 error={getFieldError('date_of_birth')}
+                                disableFuture
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('office_name') ? 'border-destructive' : 'border-border/50'}`}>
