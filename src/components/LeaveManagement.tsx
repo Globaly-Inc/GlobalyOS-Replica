@@ -40,22 +40,25 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
+  // Filter to only show leave types with balance > 0
+  const balancesWithValue = balances.filter((item) => item.balance > 0);
+
   return (
     <div>
-      {balances.length > 0 ? (
-        <div className="grid grid-cols-3 gap-4">
-          {balances.slice(0, 3).map((item) => (
-            <div key={item.id} className="text-center p-4 rounded-lg bg-primary/5">
-              <div className="text-3xl font-bold text-primary">
+      {balancesWithValue.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {balancesWithValue.map((item) => (
+            <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
+              <div className="text-2xl font-bold text-primary">
                 {item.balance}
               </div>
-              <div className="text-sm text-muted-foreground mt-1">{item.leave_type.name}</div>
+              <div className="text-xs text-muted-foreground mt-1 truncate">{item.leave_type.name}</div>
             </div>
           ))}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground text-center py-4">
-          No leave balance set for this year
+          No leave balance available
         </p>
       )}
     </div>
