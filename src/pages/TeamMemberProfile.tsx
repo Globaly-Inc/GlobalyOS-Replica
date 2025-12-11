@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
+import { FeedReactions } from "@/components/FeedReactions";
 import { UpdateCard } from "@/components/UpdateCard";
 import { Update } from "@/types/employee";
 import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
@@ -1072,7 +1073,10 @@ const TeamMemberProfile = () => {
                                 <Trophy className="h-4 w-4" />
                               </div>
                             </div>
-                            <RichTextContent content={item.data.content} className="text-sm" />
+                            <RichTextContent content={item.data.content} className="text-sm mb-3" />
+                            <div className="pt-3 border-t border-border/50">
+                              <FeedReactions targetType="update" targetId={item.data.id} />
+                            </div>
                           </div>
                         </div>
                       )
