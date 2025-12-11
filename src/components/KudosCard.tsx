@@ -4,7 +4,6 @@ import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 import { Heart, Pencil, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -19,20 +18,21 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { EditKudosDialog } from "./dialogs/EditKudosDialog";
 
 interface KudosCardProps {
   kudos: Kudos;
   onDelete?: () => void;
-  onEdit?: () => void;
 }
 
-export const KudosCard = ({ kudos, onDelete, onEdit }: KudosCardProps) => {
+export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   const getFirstName = (fullName: string) => fullName.split(" ")[0];
   const { toast } = useToast();
   const { isAdmin, isHR } = useUserRole();
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const allRecipients = [
@@ -118,7 +118,7 @@ export const KudosCard = ({ kudos, onDelete, onEdit }: KudosCardProps) => {
               {isHovered && canEditDelete ? (
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={onEdit}
+                    onClick={() => setShowEditDialog(true)}
                     className="p-2 rounded-full bg-pink-100 text-pink-600 hover:opacity-80 transition-colors"
                     title="Edit"
                   >
@@ -175,6 +175,15 @@ export const KudosCard = ({ kudos, onDelete, onEdit }: KudosCardProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditKudosDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        kudosId={kudos.id}
+        batchId={kudos.batchId}
+        initialComment={kudos.comment}
+        onSuccess={onDelete}
+      />
     </>
   );
 };
