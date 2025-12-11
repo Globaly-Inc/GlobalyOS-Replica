@@ -60,9 +60,78 @@ interface TeamMember {
   full_name: string;
 }
 
+interface EditingCell {
+  rowIndex: number;
+  field: string;
+}
+
 const CSV_TEMPLATE = `first_name (required),last_name (required),email (required),personal_email,phone (required),department (required),position (required),join_date (required),date_of_birth (required),office_name (required),manager_email (required),street (required),city (required),state (required),postcode,country (required),id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
 John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,Head Office,manager@company.com,123 Main Street,New York,New York,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
 Sarah,Smith,sarah.smith@company.com,sarah@gmail.com,+1987654321,Marketing,Marketing Manager,2024-02-01,1988-08-15,Head Office,manager@company.com,456 Oak Avenue,Los Angeles,California,90001,United States,ID789012,TAX456,85000,USD,Tom Smith,+1122334455,Spouse,hr`;
+
+// Editable cell component
+const EditableCell = ({ 
+  value, 
+  onSave, 
+  isEditing, 
+  onStartEdit,
+  className = ""
+}: { 
+  value: string; 
+  onSave: (value: string) => void; 
+  isEditing: boolean;
+  onStartEdit: () => void;
+  className?: string;
+}) => {
+  const [editValue, setEditValue] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    setEditValue(value);
+  }, [value]);
+
+  const handleSave = () => {
+    onSave(editValue);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setEditValue(value);
+      onSave(value);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <Input
+        ref={inputRef}
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="h-6 text-xs px-1 py-0 min-w-[80px]"
+      />
+    );
+  }
+
+  return (
+    <span 
+      onClick={onStartEdit}
+      className={`cursor-pointer hover:bg-primary/10 px-1 py-0.5 rounded transition-colors ${className}`}
+    >
+      {value || <span className="text-muted-foreground italic">empty</span>}
+    </span>
+  );
+};
 
 const BulkImport = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -73,10 +142,25 @@ const BulkImport = () => {
   const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
   const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
+
+  const updateCellValue = (rowIndex: number, field: string, value: string) => {
+    setParsedData(prev => {
+      const updated = [...prev];
+      (updated[rowIndex] as any)[field] = value;
+      return updated;
+    });
+    setEditingCell(null);
+    // Re-validate after update
+    const errors = validateData(parsedData.map((emp, i) => 
+      i === rowIndex ? { ...emp, [field]: value } : emp
+    ));
+    setValidationErrors(errors);
+  };
 
   useEffect(() => {
     if (currentOrg) {
@@ -524,7 +608,8 @@ const BulkImport = () => {
                     <table className="w-full text-xs min-w-max">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Name *</th>
+                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">First Name *</th>
+                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Last Name *</th>
                           <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Email *</th>
                           <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Phone *</th>
                           <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Department *</th>
@@ -543,22 +628,135 @@ const BulkImport = () => {
                       </thead>
                       <tbody>
                         {parsedData.map((emp, i) => (
-                          <tr key={i} className="border-b last:border-0">
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.first_name} {emp.last_name}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.email}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.phone}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.department}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.position}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.join_date}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.date_of_birth}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.office_name}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.manager_email}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.street}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.city}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.state}</td>
-                            <td className="p-2">{emp.postcode}</td>
-                            <td className="p-2 border-l-2 border-l-primary/30">{emp.country}</td>
-                            <td className="p-2">{emp.role || 'user'}</td>
+                          <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.first_name}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'first_name'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'first_name' })}
+                                onSave={(v) => updateCellValue(i, 'first_name', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.last_name}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'last_name'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'last_name' })}
+                                onSave={(v) => updateCellValue(i, 'last_name', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.email}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'email'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'email' })}
+                                onSave={(v) => updateCellValue(i, 'email', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.phone}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'phone'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'phone' })}
+                                onSave={(v) => updateCellValue(i, 'phone', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.department}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'department'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'department' })}
+                                onSave={(v) => updateCellValue(i, 'department', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.position}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'position'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'position' })}
+                                onSave={(v) => updateCellValue(i, 'position', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.join_date}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'join_date'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'join_date' })}
+                                onSave={(v) => updateCellValue(i, 'join_date', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.date_of_birth}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'date_of_birth'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'date_of_birth' })}
+                                onSave={(v) => updateCellValue(i, 'date_of_birth', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.office_name}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'office_name'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'office_name' })}
+                                onSave={(v) => updateCellValue(i, 'office_name', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.manager_email}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'manager_email'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'manager_email' })}
+                                onSave={(v) => updateCellValue(i, 'manager_email', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.street || ''}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'street'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'street' })}
+                                onSave={(v) => updateCellValue(i, 'street', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.city || ''}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'city'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'city' })}
+                                onSave={(v) => updateCellValue(i, 'city', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.state || ''}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'state'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'state' })}
+                                onSave={(v) => updateCellValue(i, 'state', v)}
+                              />
+                            </td>
+                            <td className="p-1.5">
+                              <EditableCell
+                                value={emp.postcode || ''}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'postcode'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'postcode' })}
+                                onSave={(v) => updateCellValue(i, 'postcode', v)}
+                              />
+                            </td>
+                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                              <EditableCell
+                                value={emp.country || ''}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'country'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'country' })}
+                                onSave={(v) => updateCellValue(i, 'country', v)}
+                              />
+                            </td>
+                            <td className="p-1.5">
+                              <EditableCell
+                                value={emp.role || 'user'}
+                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'role'}
+                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'role' })}
+                                onSave={(v) => updateCellValue(i, 'role', v)}
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
