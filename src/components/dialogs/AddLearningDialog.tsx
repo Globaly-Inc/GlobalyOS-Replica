@@ -104,9 +104,9 @@ export const AddLearningDialog = ({ employeeId }: AddLearningDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Learning Record
+        <Button size="sm" variant="outline">
+          <Plus className="h-4 w-4 mr-1" />
+          Add Record
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
