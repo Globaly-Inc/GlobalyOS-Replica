@@ -50,15 +50,6 @@ export const OrganizationSwitcher = () => {
               </AvatarFallback>
             </Avatar>
             <span className="flex-1 truncate">{org.name}</span>
-            {org.id === currentOrg.id && (
-              <Settings 
-                className="ml-2 h-6 w-6 p-1 rounded text-muted-foreground hover:bg-muted hover:text-primary cursor-pointer transition-colors" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate("/settings");
-                }}
-              />
-            )}
           </DropdownMenuItem>
         ))}
         {(orgRole === 'owner' || orgRole === 'admin') && (
