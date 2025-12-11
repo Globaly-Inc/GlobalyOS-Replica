@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -44,7 +44,46 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!user?.id) return;
+      
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+      
+      setUnreadCount(count || 0);
+    };
+
+    fetchUnreadCount();
+
+    // Real-time subscription for notification updates
+    const channel = supabase
+      .channel("layout-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -176,6 +215,26 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <p>Request Leave</p>
               </TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10 relative"
+                  onClick={() => navigate("/notifications")}
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Notifications</p>
+              </TooltipContent>
+            </Tooltip>
             <Button 
               variant="outline" 
               className="flex items-center gap-2 px-2 h-10 hover:bg-secondary"
@@ -255,6 +314,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     </NavLink>
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
+                    <button
+                      onClick={() => navigate("/notifications")}
+                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      <div className="relative">
+                        <Bell className="h-5 w-5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      Notifications
+                    </button>
                     {userProfile?.employeeId && (
                       <button
                         onClick={handleViewProfile}

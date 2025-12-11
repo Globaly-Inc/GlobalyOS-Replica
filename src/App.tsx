@@ -20,6 +20,7 @@ const Signup = lazy(() => import("./pages/Signup"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Join = lazy(() => import("./pages/Join"));
 const LeaveHistory = lazy(() => import("./pages/LeaveHistory"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
               <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
