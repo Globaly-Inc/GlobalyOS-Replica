@@ -234,6 +234,7 @@ export const GiveKudosDialogContent = ({
                       >
                         <Checkbox
                           checked={formData.employeeIds.includes(employee.id)}
+                          onClick={(e) => e.stopPropagation()}
                           onCheckedChange={() => !isPreselected && toggleEmployee(employee.id)}
                           disabled={isPreselected}
                         />
