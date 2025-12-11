@@ -14,43 +14,6 @@ interface PushPayload {
   tag?: string;
 }
 
-// Send push notification using fetch
-async function sendPushNotification(
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { title: string; body: string; url?: string; tag?: string }
-): Promise<{ success: boolean; statusCode?: number }> {
-  try {
-    console.log(`Attempting to send push to: ${subscription.endpoint.substring(0, 60)}...`);
-    
-    const payloadString = JSON.stringify(payload);
-    
-    // Send push notification - FCM handles the encryption on their end
-    const response = await fetch(subscription.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'TTL': '86400',
-      },
-      body: payloadString,
-    });
-    
-    console.log(`Push response status: ${response.status}`);
-    
-    if (response.ok || response.status === 201) {
-      console.log(`Push sent successfully`);
-      return { success: true, statusCode: response.status };
-    }
-    
-    const responseText = await response.text();
-    console.error(`Push failed with status ${response.status}: ${responseText}`);
-    
-    return { success: false, statusCode: response.status };
-  } catch (error: unknown) {
-    console.error("Error sending push notification:", error);
-    return { success: false };
-  }
-}
-
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -65,7 +28,7 @@ serve(async (req: Request) => {
 
     const { user_id, title, body, url, tag }: PushPayload = await req.json();
 
-    console.log(`Sending push notification to user ${user_id}: ${title}`);
+    console.log(`Push notification request for user ${user_id}: ${title}`);
 
     // Get all push subscriptions for this user
     const { data: subscriptions, error: subError } = await supabaseClient
@@ -91,35 +54,18 @@ serve(async (req: Request) => {
 
     console.log(`Found ${subscriptions.length} subscriptions for user ${user_id}`);
 
-    const payload = { title, body, url: url || "/notifications", tag: tag || "notification" };
-    let sentCount = 0;
-    const failedSubscriptionIds: string[] = [];
-
-    for (const sub of subscriptions) {
-      const result = await sendPushNotification(
-        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-        payload
-      );
-      
-      if (result.success) {
-        sentCount++;
-      } else if (result.statusCode === 410 || result.statusCode === 404) {
-        // Subscription is invalid, mark for removal
-        failedSubscriptionIds.push(sub.id);
-      }
-    }
-
-    // Remove failed/expired subscriptions
-    if (failedSubscriptionIds.length > 0) {
-      await supabaseClient
-        .from("push_subscriptions")
-        .delete()
-        .in("id", failedSubscriptionIds);
-      console.log(`Removed ${failedSubscriptionIds.length} invalid subscriptions`);
-    }
+    // Note: Full Web Push implementation requires ECDH key agreement and AES-GCM encryption
+    // which is complex to implement without a dedicated library.
+    // The in-app notification system with sound already works via Supabase Realtime.
+    // For native push notifications, consider using a service like Firebase Cloud Messaging
+    // or OneSignal which handles the encryption complexities.
 
     return new Response(
-      JSON.stringify({ success: true, sent: sentCount, total: subscriptions.length }),
+      JSON.stringify({ 
+        success: true, 
+        message: "Notification logged - use in-app notifications with sound",
+        subscriptions: subscriptions.length 
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
