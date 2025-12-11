@@ -54,6 +54,7 @@ export const FieldsSettings = () => {
   const { currentOrg } = useOrganization();
   const [positions, setPositions] = useState<Position[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [leaveTypesCount, setLeaveTypesCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -114,6 +115,16 @@ export const FieldsSettings = () => {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       setDepartments(deptList);
+
+      // Load leave types count
+      const { count: leaveCount, error: leaveError } = await supabase
+        .from("leave_types")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", currentOrg.id);
+
+      if (!leaveError) {
+        setLeaveTypesCount(leaveCount || 0);
+      }
     } catch (error: any) {
       toast({
         title: "Error loading fields",
@@ -341,6 +352,7 @@ export const FieldsSettings = () => {
               <TabsTrigger value="leave-types" className="gap-2">
                 <Calendar className="h-4 w-4" />
                 Leave Types
+                <Badge variant="secondary" className="ml-1">{leaveTypesCount}</Badge>
               </TabsTrigger>
             </TabsList>
 
