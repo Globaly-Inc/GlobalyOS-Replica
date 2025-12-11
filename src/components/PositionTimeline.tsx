@@ -82,7 +82,7 @@ export const PositionTimeline = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentEditOpen, setCurrentEditOpen] = useState(false);
   const [currentEditLoading, setCurrentEditLoading] = useState(false);
-  const [salaryRevealed, setSalaryRevealed] = useState(false);
+  const [revealedSalaries, setRevealedSalaries] = useState<Set<string>>(new Set());
   const [currentEditData, setCurrentEditData] = useState({
     position: currentPosition,
     department: currentDepartment,
@@ -115,6 +115,18 @@ export const PositionTimeline = ({
       return `${annual}/year (${monthly}/month)`;
     }
     return `${annual}/year`;
+  };
+
+  const toggleSalaryVisibility = (id: string) => {
+    setRevealedSalaries(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   };
 
   const annualPay = useMemo(() => {
@@ -201,15 +213,15 @@ export const PositionTimeline = ({
                 {showSalary && currentSalary && (
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[11px] font-medium text-primary">
-                      {salaryRevealed ? formatSalary(currentSalary, currentCurrency) : "••••••••"}
+                      {revealedSalaries.has("current") ? formatSalary(currentSalary, currentCurrency) : "••••••••"}
                     </p>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-5 w-5"
-                      onClick={() => setSalaryRevealed(!salaryRevealed)}
+                      onClick={() => toggleSalaryVisibility("current")}
                     >
-                      {salaryRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {revealedSalaries.has("current") ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                     </Button>
                   </div>
                 )}
@@ -258,9 +270,19 @@ export const PositionTimeline = ({
                     <p className="text-[11px] text-muted-foreground">{entry.department}</p>
                     
                     {showSalary && entry.salary && (
-                      <p className="text-[11px] font-medium mt-0.5 text-primary">
-                        {salaryRevealed ? formatSalary(entry.salary, currentCurrency) : "••••••••"}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-[11px] font-medium text-primary">
+                          {revealedSalaries.has(entry.id) ? formatSalary(entry.salary, currentCurrency) : "••••••••"}
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={() => toggleSalaryVisibility(entry.id)}
+                        >
+                          {revealedSalaries.has(entry.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </Button>
+                      </div>
                     )}
                     
                     {entry.manager && (
