@@ -63,7 +63,7 @@ interface TeamMember {
   full_name: string;
 }
 
-const CSV_TEMPLATE = `first_name,last_name,email,personal_email,phone,department,position,join_date,date_of_birth,office_name,manager_email,street,city,state,postcode,country,id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
+const CSV_TEMPLATE = `first_name (required),last_name (required),email (required),personal_email,phone (required),department (required),position (required),join_date (required),date_of_birth (required),office_name (required),manager_email (required),street (required),city (required),state (required),postcode,country (required),id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
 John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,Head Office,manager@company.com,123 Main Street,New York,New York,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
 Sarah,Smith,sarah.smith@company.com,sarah@gmail.com,+1987654321,Marketing,Marketing Manager,2024-02-01,1988-08-15,Head Office,manager@company.com,456 Oak Avenue,Los Angeles,California,90001,United States,ID789012,TAX456,85000,USD,Tom Smith,+1122334455,Spouse,hr`;
 
@@ -144,7 +144,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s*\(required\)\s*/gi, '').replace(/\s+/g, '_'));
     const employees: ParsedEmployee[] = [];
 
     for (let i = 1; i < lines.length; i++) {
