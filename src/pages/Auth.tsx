@@ -9,6 +9,7 @@ import { Users, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const otpEmailSchema = z.object({
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
@@ -24,6 +25,25 @@ const Auth = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+
+  // Fetch Turnstile site key on mount
+  useEffect(() => {
+    const fetchTurnstileConfig = async () => {
+      try {
+        const response = await supabase.functions.invoke('get-turnstile-config');
+        if (response.data?.siteKey) {
+          setTurnstileSiteKey(response.data.siteKey);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Turnstile config:', error);
+      }
+    };
+    fetchTurnstileConfig();
+  }, []);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -88,6 +108,9 @@ const Auth = () => {
       if (success) {
         setOtpSent(true);
         setResendCooldown(60);
+        setFailedAttempts(0);
+        setShowCaptcha(false);
+        setTurnstileToken(null);
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -112,6 +135,9 @@ const Auth = () => {
     if (success) {
       setResendCooldown(60);
       setOtpCode("");
+      setFailedAttempts(0);
+      setShowCaptcha(false);
+      setTurnstileToken(null);
     }
     setLoading(false);
   };
@@ -122,13 +148,23 @@ const Auth = () => {
       setErrors({ otpCode: "Please enter the 6-digit code" });
       return;
     }
+
+    // Check if CAPTCHA is required but not completed
+    if (showCaptcha && !turnstileToken) {
+      setErrors({ otpCode: "Please complete the security verification" });
+      return;
+    }
     
     setLoading(true);
     setErrors({});
 
     try {
       const response = await supabase.functions.invoke('verify-otp', {
-        body: { email: otpEmail, code: otpCode }
+        body: { 
+          email: otpEmail, 
+          code: otpCode,
+          turnstileToken: turnstileToken 
+        }
       });
 
       if (response.error) {
@@ -138,6 +174,14 @@ const Auth = () => {
           variant: "destructive",
         });
       } else if (response.data?.error) {
+        // Check if CAPTCHA is now required
+        if (response.data.captchaRequired) {
+          setShowCaptcha(true);
+          setTurnstileToken(null);
+        }
+        if (response.data.failedAttempts !== undefined) {
+          setFailedAttempts(response.data.failedAttempts);
+        }
         toast({
           title: "Verification failed",
           description: response.data.error,
@@ -176,6 +220,26 @@ const Auth = () => {
     setOtpCode("");
     setErrors({});
     setResendCooldown(0);
+    setFailedAttempts(0);
+    setShowCaptcha(false);
+    setTurnstileToken(null);
+  };
+
+  const handleTurnstileVerify = (token: string) => {
+    setTurnstileToken(token);
+  };
+
+  const handleTurnstileError = () => {
+    setTurnstileToken(null);
+    toast({
+      title: "Verification failed",
+      description: "Security verification failed. Please try again.",
+      variant: "destructive",
+    });
+  };
+
+  const handleTurnstileExpire = () => {
+    setTurnstileToken(null);
   };
 
   const formatCooldown = (seconds: number) => {
@@ -244,7 +308,30 @@ const Auth = () => {
               </InputOTP>
             </div>
             {errors.otpCode && <p className="text-sm text-destructive text-center">{errors.otpCode}</p>}
-            <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
+            
+            {/* Show Turnstile CAPTCHA after 2 failed attempts */}
+            {showCaptcha && turnstileSiteKey && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground text-center">
+                  Please complete the security verification
+                </p>
+                <TurnstileWidget
+                  siteKey={turnstileSiteKey}
+                  onVerify={handleTurnstileVerify}
+                  onError={handleTurnstileError}
+                  onExpire={handleTurnstileExpire}
+                />
+                {turnstileToken && (
+                  <p className="text-sm text-green-600 text-center">✓ Verified</p>
+                )}
+              </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || otpCode.length !== 6 || (showCaptcha && !turnstileToken)}
+            >
               {loading ? "Verifying..." : "Verify & Sign In"}
             </Button>
             <div className="flex gap-2">
