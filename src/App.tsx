@@ -10,7 +10,6 @@ import Team from "./pages/Team";
 import TeamMemberProfile from "./pages/TeamMemberProfile";
 import InviteTeamMember from "./pages/InviteTeamMember";
 import OrgChart from "./pages/OrgChart";
-import Kudos from "./pages/Kudos";
 import Growth from "./pages/Growth";
 import Auth from "./pages/Auth";
 import Signup from "./pages/Signup";
@@ -42,7 +41,6 @@ const App = () => (
             <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
             <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
             <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
-            <Route path="/kudos" element={<ProtectedRoute><Kudos /></ProtectedRoute>} />
             <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
