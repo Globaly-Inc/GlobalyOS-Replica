@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, AlertCircle, Loader2, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface BulkImportDialogProps {
   open: boolean;
@@ -21,13 +22,13 @@ interface ParsedEmployee {
   last_name: string;
   email: string;
   personal_email?: string;
-  phone?: string;
+  phone: string;
   department: string;
   position: string;
   join_date: string;
-  date_of_birth?: string;
-  office_name?: string;
-  manager_email?: string;
+  date_of_birth: string;
+  office_name: string;
+  manager_email: string;
   street?: string;
   city?: string;
   state?: string;
@@ -51,9 +52,19 @@ interface ImportResult {
   invitationSent?: boolean;
 }
 
+interface Office {
+  id: string;
+  name: string;
+}
+
+interface TeamMember {
+  id: string;
+  email: string;
+  full_name: string;
+}
+
 const CSV_TEMPLATE = `first_name,last_name,email,personal_email,phone,department,position,join_date,date_of_birth,office_name,manager_email,street,city,state,postcode,country,id_number,tax_number,remuneration,remuneration_currency,emergency_contact_name,emergency_contact_phone,emergency_contact_relationship,role
-John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,New York Office,manager@company.com,123 Main St,New York,NY,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
-Jane,Smith,jane.smith@company.com,,+1234567891,Marketing,Marketing Manager,2024-02-01,,London Office,,456 High St,London,,SW1A 1AA,United Kingdom,,,85000,GBP,,,admin`;
+John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,Head Office,manager@company.com,123 Main St,New York,NY,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user`;
 
 export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -62,9 +73,43 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
+
+  useEffect(() => {
+    if (open && currentOrg) {
+      loadOffices();
+      loadTeamMembers();
+    }
+  }, [open, currentOrg?.id]);
+
+  const loadOffices = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('offices')
+      .select('id, name')
+      .eq('organization_id', currentOrg.id)
+      .order('name');
+    if (data) setOffices(data);
+  };
+
+  const loadTeamMembers = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('employees')
+      .select(`id, profiles!inner(email, full_name)`)
+      .eq('organization_id', currentOrg.id);
+    if (data) {
+      setTeamMembers(data.map((d: any) => ({
+        id: d.id,
+        email: d.profiles.email,
+        full_name: d.profiles.full_name
+      })));
+    }
+  };
 
   const resetState = () => {
     setFile(null);
@@ -138,6 +183,8 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   const validateData = (data: ParsedEmployee[]): string[] => {
     const errors: string[] = [];
     const emails = new Set<string>();
+    const officeNames = offices.map(o => o.name.toLowerCase());
+    const managerEmails = teamMembers.map(m => m.email.toLowerCase());
 
     data.forEach((emp, index) => {
       const row = index + 2;
@@ -157,6 +204,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       } else {
         emails.add(emp.email.toLowerCase());
       }
+      if (!emp.phone?.trim()) {
+        errors.push(`Row ${row}: Phone is required`);
+      }
       if (!emp.department?.trim()) {
         errors.push(`Row ${row}: Department is required`);
       }
@@ -168,11 +218,22 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(emp.join_date)) {
         errors.push(`Row ${row}: Join date must be in YYYY-MM-DD format`);
       }
-      if (emp.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(emp.date_of_birth)) {
+      if (!emp.date_of_birth?.trim()) {
+        errors.push(`Row ${row}: Date of birth is required`);
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(emp.date_of_birth)) {
         errors.push(`Row ${row}: Date of birth must be in YYYY-MM-DD format`);
       }
-      if (emp.manager_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emp.manager_email)) {
+      if (!emp.office_name?.trim()) {
+        errors.push(`Row ${row}: Office name is required`);
+      } else if (!officeNames.includes(emp.office_name.toLowerCase())) {
+        errors.push(`Row ${row}: Office "${emp.office_name}" not found. Available: ${offices.map(o => o.name).join(', ')}`);
+      }
+      if (!emp.manager_email?.trim()) {
+        errors.push(`Row ${row}: Manager email is required`);
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emp.manager_email)) {
         errors.push(`Row ${row}: Invalid manager email format`);
+      } else if (!managerEmails.includes(emp.manager_email.toLowerCase())) {
+        errors.push(`Row ${row}: Manager "${emp.manager_email}" not found in team`);
       }
       if (emp.role && !['admin', 'hr', 'user'].includes(emp.role.toLowerCase())) {
         errors.push(`Row ${row}: Role must be admin, hr, or user`);
@@ -342,6 +403,62 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
                 Download Template
               </Button>
             </div>
+
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                  <Info className="h-4 w-4" />
+                  <span className="text-sm">View required fields & available options</span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <div className="text-xs space-y-3 p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Required Fields:</p>
+                    <p className="text-muted-foreground">first_name, last_name, email, phone, department, position, join_date, date_of_birth, office_name, manager_email</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Available Offices:</p>
+                    {offices.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {offices.map(office => (
+                          <Badge key={office.id} variant="secondary" className="text-xs">{office.name}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground italic">No offices configured</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Available Managers (use email):</p>
+                    {teamMembers.length > 0 ? (
+                      <ScrollArea className="h-24">
+                        <div className="space-y-1">
+                          {teamMembers.map(member => (
+                            <div key={member.id} className="text-muted-foreground">
+                              {member.full_name} — <span className="font-mono text-xs">{member.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <p className="text-muted-foreground italic">No team members yet</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Role Options:</p>
+                    <div className="flex gap-1">
+                      <Badge variant="secondary" className="text-xs">admin</Badge>
+                      <Badge variant="secondary" className="text-xs">hr</Badge>
+                      <Badge variant="secondary" className="text-xs">user</Badge>
+                    </div>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
 
