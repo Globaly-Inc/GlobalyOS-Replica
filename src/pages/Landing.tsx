@@ -22,7 +22,6 @@ import {
   ArrowRight,
   ChevronRight,
   Star,
-  Calendar,
   DollarSign,
   GraduationCap,
   Shield,
@@ -31,6 +30,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { useScrollAnimation, AnimatedSection } from "@/hooks/useScrollAnimation";
 
 // Timeline data for the interactive animation
 const timelineItems = [
@@ -104,7 +104,7 @@ const features = [
     icon: TrendingUp,
     title: "Role & Compensation History",
     items: [
-      "Timeline of positions, departments and reporting lines",
+      "Timeline of positions and reporting lines",
       "Salary history with increments and dates",
       "Leadership notes on key changes",
     ],
@@ -113,18 +113,18 @@ const features = [
     icon: Star,
     title: "Performance Review Engine",
     items: [
-      "Templates for manager, peer, self and HR reviews",
+      "Templates for manager, peer, self reviews",
       "Rating scales and comment boxes",
-      "Historical comparison across review cycles",
+      "Historical comparison across cycles",
     ],
   },
   {
     icon: Target,
     title: "Career & Growth Planning",
     items: [
-      "Clear role responsibilities and expectations",
+      "Clear role responsibilities & expectations",
       "Skills to develop and priorities",
-      "Linked trainings and learning outcomes",
+      "Linked trainings and outcomes",
     ],
   },
   {
@@ -133,7 +133,16 @@ const features = [
     items: [
       "HR remarks and agreements",
       "Onboarding/offboarding checklists",
-      "Attachments under the employee profile",
+      "Attachments under employee profile",
+    ],
+  },
+  {
+    icon: Zap,
+    title: "Always Up-to-Date SaaS",
+    items: [
+      "No servers to manage",
+      "Automatic updates and backups",
+      "Access from anywhere, anytime",
     ],
   },
 ];
@@ -146,7 +155,7 @@ const whoItsFor = [
   },
   {
     icon: Users,
-    title: "People & Culture / HR Managers",
+    title: "People & Culture / HR",
     description: "Streamline HR operations and documentation",
   },
   {
@@ -207,7 +216,7 @@ const pricingPlans = [
   },
   {
     name: "Scale",
-    description: "For larger teams needing custom onboarding and advanced reporting.",
+    description: "For larger teams needing custom onboarding and reporting.",
     features: [
       "Everything in Growth",
       "Advanced analytics",
@@ -246,11 +255,45 @@ const faqs = [
   },
 ];
 
+// Animated card component with stagger support
+const AnimatedCard = ({
+  children,
+  className = "",
+  index = 0,
+  isVisible = true,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  index?: number;
+  isVisible?: boolean;
+}) => (
+  <div
+    className={`transition-all duration-500 ease-out ${className}`}
+    style={{
+      transitionDelay: `${index * 100}ms`,
+      opacity: isVisible ? 1 : 0,
+      transform: isVisible ? "translateY(0)" : "translateY(20px)",
+    }}
+  >
+    {children}
+  </div>
+);
+
 const Landing = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTimelineItem, setActiveTimelineItem] = useState(0);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Section visibility states
+  const problemSection = useScrollAnimation();
+  const solutionSection = useScrollAnimation();
+  const featuresSection = useScrollAnimation();
+  const whoSection = useScrollAnimation();
+  const howSection = useScrollAnimation();
+  const valueSection = useScrollAnimation();
+  const pricingSection = useScrollAnimation();
+  const faqSection = useScrollAnimation();
 
   // Handle scroll for sticky nav
   useEffect(() => {
@@ -380,7 +423,7 @@ const Landing = () => {
         <div className="container relative mx-auto px-4 md:px-8 py-20">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Left Content */}
-            <div className="max-w-xl">
+            <div className="max-w-xl animate-fade-in">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-tight">
                 All Your People Data, In One{" "}
                 <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -425,7 +468,7 @@ const Landing = () => {
             </div>
 
             {/* Right - Interactive Timeline Card */}
-            <div className="relative" ref={timelineRef}>
+            <div className="relative animate-fade-in" ref={timelineRef} style={{ animationDelay: "200ms" }}>
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-3xl blur-3xl opacity-50" />
               <Card className="relative bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl rounded-2xl overflow-hidden">
                 {/* Card Header */}
@@ -549,21 +592,26 @@ const Landing = () => {
       {/* Problem Section */}
       <section id="problem" className="py-20 md:py-32 bg-muted/30">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Your People Are Growing.{" "}
               <span className="text-muted-foreground">
                 Your HR System Isn't.
               </span>
             </h2>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+          <div
+            ref={problemSection.ref}
+            className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto"
+          >
             {/* Chaos side */}
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-4">
-                <X className="h-4 w-4" /> The Problem
-              </div>
+              <AnimatedCard index={0} isVisible={problemSection.isVisible}>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-4">
+                  <X className="h-4 w-4" /> The Problem
+                </div>
+              </AnimatedCard>
               {[
                 "HR data scattered across Google Docs, Excel, chats and email",
                 "Hard to see when someone was promoted and why",
@@ -571,25 +619,32 @@ const Landing = () => {
                 "Performance reviews feel subjective and inconsistent",
                 "Growth plans and training rarely tracked properly",
               ].map((problem, index) => (
-                <div
+                <AnimatedCard
                   key={index}
-                  className="flex items-start gap-3 p-4 rounded-lg bg-background border border-border"
+                  index={index + 1}
+                  isVisible={problemSection.isVisible}
                 >
-                  <div className="h-6 w-6 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                    <X className="h-3 w-3 text-destructive" />
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-background border border-border h-full">
+                    <div className="h-6 w-6 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                      <X className="h-3 w-3 text-destructive" />
+                    </div>
+                    <p className="text-muted-foreground">{problem}</p>
                   </div>
-                  <p className="text-muted-foreground">{problem}</p>
-                </div>
+                </AnimatedCard>
               ))}
             </div>
 
             {/* Arrow */}
-            <div className="hidden md:flex items-center justify-center">
+            <AnimatedCard
+              index={6}
+              isVisible={problemSection.isVisible}
+              className="hidden md:flex items-center justify-center"
+            >
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-destructive/20 to-primary/20 blur-3xl" />
                 <ArrowRight className="relative h-16 w-16 text-primary" />
               </div>
-            </div>
+            </AnimatedCard>
           </div>
         </div>
       </section>
@@ -597,7 +652,7 @@ const Landing = () => {
       {/* Solution Section */}
       <section id="solution" className="py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               <CheckCircle2 className="h-4 w-4" /> The Solution
             </div>
@@ -608,9 +663,12 @@ const Landing = () => {
               Centralise everything about a team member into one structured,
               always-up-to-date profile.
             </p>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div
+            ref={solutionSection.ref}
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          >
             {[
               {
                 icon: Shield,
@@ -645,18 +703,21 @@ const Landing = () => {
             ].map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card
+                <AnimatedCard
                   key={index}
-                  className="p-6 hover:shadow-lg transition-all duration-300 hover:border-primary/20 group"
+                  index={index}
+                  isVisible={solutionSection.isVisible}
                 >
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    {item.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{item.desc}</p>
-                </Card>
+                  <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 hover:border-primary/20 group">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                      <Icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-foreground mb-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  </Card>
+                </AnimatedCard>
               );
             })}
           </div>
@@ -666,41 +727,47 @@ const Landing = () => {
       {/* Features Section */}
       <section id="features" className="py-20 md:py-32 bg-muted/30">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               What You Can Do With TeamHub
             </h2>
             <p className="mt-4 text-muted-foreground">
               Powerful features designed for modern people management
             </p>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div
+            ref={featuresSection.ref}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"
+          >
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <Card
+                <AnimatedCard
                   key={index}
-                  className="p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+                  index={index}
+                  isVisible={featuresSection.isVisible}
                 >
-                  <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 group-hover:from-primary/30 group-hover:to-primary/10 transition-all">
-                    <Icon className="h-7 w-7 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">
-                    {feature.title}
-                  </h3>
-                  <ul className="space-y-2">
-                    {feature.items.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 text-sm text-muted-foreground"
-                      >
-                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
+                  <Card className="p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group flex flex-col">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4 group-hover:from-primary/30 group-hover:to-primary/10 transition-all">
+                      <Icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">
+                      {feature.title}
+                    </h3>
+                    <ul className="space-y-2 flex-1">
+                      {feature.items.map((item, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-sm text-muted-foreground"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                </AnimatedCard>
               );
             })}
           </div>
@@ -710,30 +777,36 @@ const Landing = () => {
       {/* Who It's For Section */}
       <section id="who-its-for" className="py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Designed for Growing, People-First Companies
             </h2>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+          <div
+            ref={whoSection.ref}
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto"
+          >
             {whoItsFor.map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card
+                <AnimatedCard
                   key={index}
-                  className="p-6 text-center hover:shadow-lg transition-all duration-300 group"
+                  index={index}
+                  isVisible={whoSection.isVisible}
                 >
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                    <Icon className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    {item.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </Card>
+                  <Card className="p-6 text-center h-full hover:shadow-lg transition-all duration-300 group flex flex-col">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                      <Icon className="h-7 w-7 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-foreground mb-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground flex-1">
+                      {item.description}
+                    </p>
+                  </Card>
+                </AnimatedCard>
               );
             })}
           </div>
@@ -743,29 +816,37 @@ const Landing = () => {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-20 md:py-32 bg-muted/30">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               From Spreadsheets to a Clean HR System in 3 Steps
             </h2>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div
+            ref={howSection.ref}
+            className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          >
             {howItWorks.map((item, index) => (
-              <div key={index} className="relative">
+              <AnimatedCard
+                key={index}
+                index={index}
+                isVisible={howSection.isVisible}
+                className="relative"
+              >
                 {/* Connector line */}
                 {index < howItWorks.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-primary/50 to-primary/10 -translate-x-1/2" />
+                  <div className="hidden md:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-primary/50 to-primary/10 -translate-x-1/2 z-0" />
                 )}
-                <Card className="p-8 text-center hover:shadow-lg transition-all duration-300 relative">
-                  <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto mb-6 text-primary-foreground text-3xl font-bold">
+                <Card className="p-6 text-center h-full hover:shadow-lg transition-all duration-300 relative z-10 flex flex-col">
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto mb-6 text-primary-foreground text-2xl font-bold">
                     {item.step}
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">
+                  <h3 className="text-lg font-semibold text-foreground mb-3">
                     {item.title}
                   </h3>
-                  <p className="text-muted-foreground">{item.description}</p>
+                  <p className="text-sm text-muted-foreground flex-1">{item.description}</p>
                 </Card>
-              </div>
+              </AnimatedCard>
             ))}
           </div>
         </div>
@@ -774,13 +855,16 @@ const Landing = () => {
       {/* Business Value Section */}
       <section id="value" className="py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Turn HR Data Into Clear, Confident Decisions
             </h2>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div
+            ref={valueSection.ref}
+            className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto"
+          >
             {[
               {
                 icon: Target,
@@ -805,20 +889,23 @@ const Landing = () => {
             ].map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card
+                <AnimatedCard
                   key={index}
-                  className="p-6 flex items-start gap-4 hover:shadow-lg transition-all duration-300"
+                  index={index}
+                  isVisible={valueSection.isVisible}
                 >
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
-                  </div>
-                </Card>
+                  <Card className="p-6 flex items-start gap-4 h-full hover:shadow-lg transition-all duration-300">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground mb-1">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </Card>
+                </AnimatedCard>
               );
             })}
           </div>
@@ -828,7 +915,7 @@ const Landing = () => {
       {/* Pricing Section */}
       <section id="pricing" className="py-20 md:py-32 bg-muted/30">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Simple Subscription for Modern Teams
             </h2>
@@ -836,81 +923,95 @@ const Landing = () => {
               Subscription-based SaaS – monthly and yearly plans, pay as you
               grow.
             </p>
-          </div>
+          </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div
+            ref={pricingSection.ref}
+            className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch"
+          >
             {pricingPlans.map((plan, index) => (
-              <Card
+              <AnimatedCard
                 key={index}
-                className={`p-8 relative hover:shadow-xl transition-all duration-300 ${
-                  plan.popular
-                    ? "border-primary shadow-lg scale-105"
-                    : "hover:-translate-y-1"
-                }`}
+                index={index}
+                isVisible={pricingSection.isVisible}
+                className={plan.popular ? "md:-mt-4 md:mb-4" : ""}
               >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  {plan.name}
-                </h3>
-                <p className="text-muted-foreground mb-6">{plan.description}</p>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
-                  onClick={() => scrollToSection("pricing")}
+                <Card
+                  className={`p-6 relative h-full flex flex-col hover:shadow-xl transition-all duration-300 ${
+                    plan.popular
+                      ? "border-primary shadow-lg"
+                      : "hover:-translate-y-1"
+                  }`}
                 >
-                  Book a Demo
-                </Button>
-              </Card>
+                  {plan.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                      Most Popular
+                    </div>
+                  )}
+                  <h3 className="text-xl font-bold text-foreground mb-2">
+                    {plan.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
+                  <ul className="space-y-3 mb-6 flex-1">
+                    {plan.features.map((feature, i) => (
+                      <li
+                        key={i}
+                        className="flex items-center gap-2 text-sm text-muted-foreground"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="w-full"
+                    variant={plan.popular ? "default" : "outline"}
+                    onClick={() => scrollToSection("pricing")}
+                  >
+                    Book a Demo
+                  </Button>
+                </Card>
+              </AnimatedCard>
             ))}
           </div>
 
-          <div className="text-center mt-12">
+          <AnimatedSection className="text-center mt-12" delay={300}>
             <Button size="lg" className="gap-2">
               Book a Demo <ArrowRight className="h-4 w-4" />
             </Button>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
       {/* FAQ Section */}
       <section id="faq" className="py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
+          <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               Frequently Asked Questions
             </h2>
-          </div>
+          </AnimatedSection>
 
-          <div className="max-w-2xl mx-auto">
+          <div ref={faqSection.ref} className="max-w-2xl mx-auto">
             <Accordion type="single" collapsible className="space-y-4">
               {faqs.map((faq, index) => (
-                <AccordionItem
+                <AnimatedCard
                   key={index}
-                  value={`item-${index}`}
-                  className="bg-card border border-border rounded-lg px-6"
+                  index={index}
+                  isVisible={faqSection.isVisible}
                 >
-                  <AccordionTrigger className="text-left font-medium hover:no-underline">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
+                  <AccordionItem
+                    value={`item-${index}`}
+                    className="bg-card border border-border rounded-lg px-6"
+                  >
+                    <AccordionTrigger className="text-left font-medium hover:no-underline">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                </AnimatedCard>
               ))}
             </Accordion>
           </div>
