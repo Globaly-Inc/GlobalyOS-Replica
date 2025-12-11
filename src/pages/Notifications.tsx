@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDateTime } from "@/lib/utils";
-import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2 } from "lucide-react";
+import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface Notification {
@@ -32,10 +34,19 @@ interface Notification {
 const Notifications = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isSupported, isSubscribed, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [markingAllRead, setMarkingAllRead] = useState(false);
+
+  const handlePushToggle = async () => {
+    if (isSubscribed) {
+      await unsubscribe();
+    } else {
+      await subscribe();
+    }
+  };
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -234,6 +245,34 @@ const Notifications = () => {
             </Button>
           )}
         </div>
+
+        {/* Push Notification Settings */}
+        {isSupported && (
+          <Card className="mb-6">
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                {isSubscribed ? (
+                  <BellRing className="h-5 w-5 text-primary" />
+                ) : (
+                  <BellOff className="h-5 w-5 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">Push Notifications</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isSubscribed 
+                      ? "You'll receive browser notifications even when the app is in background" 
+                      : "Enable to receive notifications even when the app is not in focus"}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={isSubscribed}
+                onCheckedChange={handlePushToggle}
+                disabled={pushLoading}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
