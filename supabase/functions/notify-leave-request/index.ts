@@ -4,6 +4,9 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+// Rate limiting constants
+const MAX_NOTIFICATIONS_PER_IP_PER_HOUR = 30;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -30,11 +33,22 @@ const getLeaveTypeLabel = (type: string) => {
   return labels[type] || type;
 };
 
+// Get client IP from request headers
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+         req.headers.get('x-real-ip') ||
+         req.headers.get('cf-connecting-ip') ||
+         'unknown';
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const clientIP = getClientIP(req);
+  console.log('Leave notification request from IP:', clientIP);
 
   try {
     const supabaseClient = createClient(
@@ -42,6 +56,23 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // IP-based rate limiting using login_attempts table
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: ipRequestCount } = await supabaseClient
+      .from('login_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIP)
+      .eq('attempt_type', 'leave_notify')
+      .gte('created_at', oneHourAgo);
+
+    if (ipRequestCount !== null && ipRequestCount >= MAX_NOTIFICATIONS_PER_IP_PER_HOUR) {
+      console.log(`Rate limit exceeded for IP ${clientIP}: ${ipRequestCount} requests`);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const {
       employee_id,
@@ -55,6 +86,14 @@ serve(async (req: Request) => {
     }: LeaveNotificationRequest = await req.json();
 
     console.log("Processing leave notification for:", employee_name);
+
+    // Log the notification attempt
+    await supabaseClient.from('login_attempts').insert({
+      email: employee_id,
+      ip_address: clientIP,
+      attempt_type: 'leave_notify',
+      success: true,
+    });
 
     // Get the employee's manager_id
     const { data: employee, error: empError } = await supabaseClient

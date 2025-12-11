@@ -1,15 +1,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Rate limiting constants
+const MAX_SUMMARIES_PER_IP_PER_HOUR = 50;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Get client IP from request headers
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+         req.headers.get('x-real-ip') ||
+         req.headers.get('cf-connecting-ip') ||
+         'unknown';
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const clientIP = getClientIP(req);
 
   try {
     const { employee, employeeId, forceRegenerate } = await req.json();
@@ -35,6 +48,31 @@ serve(async (req) => {
         });
       }
     }
+
+    // IP-based rate limiting using login_attempts table (only for non-cached requests)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: ipRequestCount } = await supabase
+      .from('login_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIP)
+      .eq('attempt_type', 'profile_summary')
+      .gte('created_at', oneHourAgo);
+
+    if (ipRequestCount !== null && ipRequestCount >= MAX_SUMMARIES_PER_IP_PER_HOUR) {
+      console.log(`Rate limit exceeded for IP ${clientIP}: ${ipRequestCount} requests`);
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Log the summary generation attempt
+    await supabase.from('login_attempts').insert({
+      email: employeeId || 'unknown',
+      ip_address: clientIP,
+      attempt_type: 'profile_summary',
+      success: true,
+    });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     

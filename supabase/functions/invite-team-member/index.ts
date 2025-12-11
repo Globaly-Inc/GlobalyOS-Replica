@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
+// Rate limiting constants
+const MAX_INVITES_PER_IP_PER_HOUR = 20;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -43,12 +46,49 @@ function generateOtpCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Get client IP from request headers
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+         req.headers.get('x-real-ip') ||
+         req.headers.get('cf-connecting-ip') ||
+         'unknown';
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIP = getClientIP(req);
+  console.log('Invite request from IP:', clientIP);
+
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    // IP-based rate limiting using login_attempts table
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: ipRequestCount } = await supabase
+      .from('login_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIP)
+      .eq('attempt_type', 'invite')
+      .gte('created_at', oneHourAgo);
+
+    if (ipRequestCount !== null && ipRequestCount >= MAX_INVITES_PER_IP_PER_HOUR) {
+      console.log(`Rate limit exceeded for IP ${clientIP}: ${ipRequestCount} requests`);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const data: InviteRequest = await req.json();
     const { 
       email, personalEmail, phone, fullName, firstName, lastName, dateOfBirth,
@@ -70,13 +110,12 @@ serve(async (req: Request) => {
     const normalizedEmail = email.toLowerCase().trim();
     console.log('Inviting team member:', normalizedEmail, 'with role:', role);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+    // Log the invite attempt
+    await supabase.from('login_attempts').insert({
+      email: normalizedEmail,
+      ip_address: clientIP,
+      attempt_type: 'invite',
+      success: true,
     });
 
     // Check if user already exists
