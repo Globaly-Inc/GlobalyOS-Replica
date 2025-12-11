@@ -41,13 +41,16 @@ export const EditProfileInfoDialog = ({
 
       // Update email via edge function if changed
       if (email !== currentEmail) {
-        const { data: { session } } = await supabase.auth.getSession();
         const response = await supabase.functions.invoke("update-user-email", {
           body: { userId, newEmail: email },
         });
 
-        if (response.error) throw new Error(response.error.message);
-        if (response.data?.error) throw new Error(response.data.error);
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        if (response.data?.error) {
+          throw new Error(response.data.error);
+        }
       }
 
       toast({ title: "Profile updated successfully" });
