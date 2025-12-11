@@ -894,12 +894,6 @@ const TeamMemberProfile = () => {
                           );
                         })}
                       </div>
-                      
-                      {/* Grace Period */}
-                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <span>Grace period:</span>
-                        <span className="font-medium text-foreground">{employeeSchedule.late_threshold_minutes} minutes</span>
-                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-4">
