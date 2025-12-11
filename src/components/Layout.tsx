@@ -116,9 +116,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
           </div>
 
-          <div className="hidden md:block mr-4">
-            <OrganizationSwitcher />
-          </div>
+          {(userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
+            <div className="hidden md:block mr-4">
+              <OrganizationSwitcher />
+            </div>
+          )}
           
           <nav className="hidden md:flex md:flex-1 md:items-center md:space-x-1">
             {navigation.map((item) => (
