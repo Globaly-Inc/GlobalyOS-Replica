@@ -41,15 +41,19 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         }
 
         const today = new Date().toISOString().split('T')[0];
-        const { data: attendance } = await supabase
+        // Find any active session (checked in but not out)
+        const { data: activeSession } = await supabase
           .from("attendance_records")
-          .select("check_in_time, check_out_time")
+          .select("id, check_in_time, check_out_time")
           .eq("employee_id", employee.id)
           .eq("date", today)
+          .is("check_out_time", null)
+          .order("check_in_time", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
-        // If checked in but not checked out, next action is check_out
-        if (attendance?.check_in_time && !attendance?.check_out_time) {
+        // If there's an active session, next action is check_out
+        if (activeSession) {
           setCurrentAction("check_out");
         } else {
           setCurrentAction("check_in");
