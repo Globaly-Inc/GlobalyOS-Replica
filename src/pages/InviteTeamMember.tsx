@@ -63,6 +63,8 @@ const inviteSchema = z.object({
   emergencyContactPhone: z.string().trim().max(20).optional(),
   emergencyContactRelationship: z.string().trim().max(50).optional(),
   role: z.enum(['admin', 'hr', 'user']),
+  managerId: z.string().min(1, "Please select a manager"),
+  officeId: z.string().min(1, "Please select an office"),
 });
 
 type FormDataType = z.infer<typeof inviteSchema>;
@@ -100,7 +102,7 @@ const InviteTeamMember = () => {
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormDataType & { personalEmail: string; managerId: string; officeId: string }>({
+  const [formData, setFormData] = useState<FormDataType>({
     email: "",
     personalEmail: "",
     phone: "",
@@ -308,8 +310,8 @@ const InviteTeamMember = () => {
           ...validated,
           fullName: `${validated.firstName} ${validated.lastName}`,
           avatarUrl,
-          managerId: formData.managerId || null,
-          officeId: formData.officeId || null,
+          managerId: formData.managerId,
+          officeId: formData.officeId,
           organizationId: currentOrg?.id,
         },
       });
