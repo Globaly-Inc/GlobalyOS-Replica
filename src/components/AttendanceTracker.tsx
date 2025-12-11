@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, TrendingUp, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
 
@@ -133,17 +133,11 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Today's Check-in */}
       {showCheckIn && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Today's Attendance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {!todayRecord ? (
               <div className="text-center py-4">
                 <p className="text-muted-foreground mb-4">You haven't checked in today</p>
@@ -194,13 +188,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
       {/* Monthly Statistics */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            {format(currentDate, "MMMM yyyy")} Statistics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 rounded-lg bg-primary/5">
@@ -228,13 +216,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
       {/* Attendance History */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Attendance History
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {!monthRecords || monthRecords.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">No attendance records this month</p>
           ) : (
