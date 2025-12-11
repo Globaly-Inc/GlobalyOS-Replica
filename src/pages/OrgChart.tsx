@@ -332,7 +332,7 @@ const OrgChart = () => {
                       {deptEmployees.length}
                     </Badge>
                   </div>
-                  <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
+                  <div className="p-4 space-y-4">
                     {tree.map((root) => (
                       <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
                     ))}
