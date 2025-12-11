@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -235,6 +235,23 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <p>Notifications</p>
               </TooltipContent>
             </Tooltip>
+            {(userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => navigate("/settings")}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Organization Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Button 
               variant="outline" 
               className="flex items-center gap-2 px-2 h-10 hover:bg-secondary"
