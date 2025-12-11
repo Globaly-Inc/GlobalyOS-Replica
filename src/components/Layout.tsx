@@ -136,8 +136,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
           <div className="hidden md:flex md:items-center md:gap-2">
             <Button 
-              variant="ghost" 
-              className="flex items-center gap-2 px-2 hover:bg-secondary"
+              variant="outline" 
+              className="flex items-center gap-2 px-2 py-1 h-auto hover:bg-secondary"
               onClick={handleViewProfile}
               disabled={!userProfile?.employeeId}
             >
