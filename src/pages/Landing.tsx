@@ -299,7 +299,7 @@ Your HR System Isn't.</span>
                     <div className="h-6 w-6 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
                       <X className="h-3 w-3 text-destructive" />
                     </div>
-                    <p className="text-muted-foreground">{problem}</p>
+                    <p className="text-sm text-muted-foreground">{problem}</p>
                   </div>
                 </AnimatedCard>)}
             </div>
