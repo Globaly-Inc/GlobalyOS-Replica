@@ -348,7 +348,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
           <DialogDescription>Add a new member to your team. Fill each section to proceed.</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="flex-1 pr-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
           <Accordion type="multiple" value={openSections} onValueChange={setOpenSections} className="space-y-2">
             {/* Personal Information */}
             <AccordionItem value="personal" data-section="personal" className="border rounded-lg px-4">
