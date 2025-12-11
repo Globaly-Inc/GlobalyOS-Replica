@@ -1,11 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { History } from "lucide-react";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useOrganization } from "@/hooks/useOrganization";
-import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 
 interface LeaveManagementProps {
   employeeId: string;
@@ -22,13 +16,9 @@ interface LeaveTypeBalance {
 }
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
-  const queryClient = useQueryClient();
-  const { isHR, isAdmin } = useUserRole();
-  const { currentOrg } = useOrganization();
   const currentYear = new Date().getFullYear();
-  const canManageLeave = isHR || isAdmin;
 
-  const { data: balances = [], refetch: refetchBalance } = useQuery({
+  const { data: balances = [] } = useQuery({
     queryKey: ["leave-type-balances", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -50,27 +40,8 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  const handleLeaveBalanceUpdate = () => {
-    refetchBalance();
-    queryClient.invalidateQueries({ queryKey: ["leave-type-balances", employeeId] });
-  };
-
   return (
     <div>
-      <div className="flex items-center justify-end gap-2 mb-4">
-        <Link to={`/team/${employeeId}/leave-history`}>
-          <Button size="sm" variant="ghost">
-            <History className="h-4 w-4 mr-1" />
-            Leave History
-          </Button>
-        </Link>
-        {canManageLeave && (
-          <AddLeaveBalanceDialog
-            employeeId={employeeId}
-            onSuccess={handleLeaveBalanceUpdate}
-          />
-        )}
-      </div>
       {balances.length > 0 ? (
         <div className="grid grid-cols-3 gap-4">
           {balances.slice(0, 3).map((item) => (

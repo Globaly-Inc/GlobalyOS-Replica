@@ -17,7 +17,9 @@ import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History } from "lucide-react";
+import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +31,8 @@ const TeamMemberProfile = () => {
   const {
     toast
   } = useToast();
+  const { isHR, isAdmin } = useUserRole();
+  const canManageLeave = isHR || isAdmin;
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -465,6 +469,17 @@ const TeamMemberProfile = () => {
                   <Calendar className="h-5 w-5 text-primary" />
                   Leave Balances
                 </h2>
+                <div className="flex items-center gap-2">
+                  <Link to={`/team/${id}/leave-history`}>
+                    <Button size="sm" variant="ghost">
+                      <History className="h-4 w-4 mr-1" />
+                      Leave History
+                    </Button>
+                  </Link>
+                  {canManageLeave && (
+                    <AddLeaveBalanceDialog employeeId={id!} />
+                  )}
+                </div>
               </div>
               <div className="p-4">
                 <LeaveManagement employeeId={id!} />
