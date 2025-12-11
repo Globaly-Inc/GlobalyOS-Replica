@@ -1,5 +1,6 @@
 import { Update } from "@/types/employee";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { RichTextContent } from "./ui/rich-text-editor";
 import { Trophy, Megaphone } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
@@ -67,7 +68,7 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
         </div>
         
         {/* Content */}
-        <p className="text-sm text-foreground leading-relaxed mb-3">{update.content}</p>
+        <RichTextContent content={update.content} className="text-sm mb-3" />
         
         {/* Tagged members */}
         {update.mentions && update.mentions.length > 0 && (

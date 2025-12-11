@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -310,25 +310,20 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content">
+              <Label>
                 {selectedType === "announcement" ? "Announcement" : "Your Win"} *
               </Label>
-              <Textarea
-                id="content"
+              <RichTextEditor
                 value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, content: value })}
                 placeholder={
                   selectedType === "announcement"
                     ? "Share an important announcement with the team..."
                     : "Share your win or achievement with the team..."
                 }
-                rows={4}
-                required
+                minHeight="100px"
               />
               {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
-              <p className="text-xs text-muted-foreground">
-                {formData.content.length}/1000 characters
-              </p>
             </div>
 
             {/* Image Upload */}
