@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.list-orphaned-users]
 verify_jwt = false
+
+[functions.delete-orphaned-user]
+verify_jwt = false
