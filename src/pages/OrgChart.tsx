@@ -219,19 +219,19 @@ const OrgChart = () => {
         <EmployeeCard employee={employee} departmentColor={departmentColor} />
 
         {hasChildren && (
-          <div className="ml-3 mt-1 pl-5">
+          <div className="ml-3 mt-2 pl-5 space-y-2">
             {employee.children.map((child, index) => {
               const isLastChild = index === employee.children.length - 1;
               return (
                 <div key={child.id} className="relative">
-                  {/* Vertical line segment - only show above horizontal connector */}
+                  {/* Vertical line segment - connects to horizontal */}
                   <div 
                     className="absolute w-0.5"
                     style={{ 
                       backgroundColor: departmentColor.bg,
                       left: '-20px',
-                      top: index === 0 ? '-4px' : '-8px',
-                      height: index === 0 ? '20px' : '24px'
+                      top: index === 0 ? '-8px' : '-12px',
+                      height: index === 0 ? '24px' : '28px'
                     }} 
                   />
                   {/* Continue vertical line below if not last child */}
@@ -242,7 +242,7 @@ const OrgChart = () => {
                         backgroundColor: departmentColor.bg,
                         left: '-20px',
                         top: '16px',
-                        bottom: '-8px'
+                        bottom: '-12px'
                       }} 
                     />
                   )}
@@ -265,13 +265,11 @@ const OrgChart = () => {
                       top: '12px'
                     }} 
                   />
-                  <div className="pb-2">
-                    <EmployeeTree 
-                      employee={child} 
-                      level={level + 1} 
-                      departmentColor={departmentColor}
-                    />
-                  </div>
+                  <EmployeeTree 
+                    employee={child} 
+                    level={level + 1} 
+                    departmentColor={departmentColor}
+                  />
                 </div>
               );
             })}
