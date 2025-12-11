@@ -35,8 +35,10 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
   const [loading, setLoading] = useState(false);
   const [recovering, setRecovering] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OrphanedUser | null>(null);
   const [userToDelete, setUserToDelete] = useState<OrphanedUser | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   
   // Form state for recovery
   const [position, setPosition] = useState("");
@@ -173,6 +175,50 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
     }
   };
 
+  const handleDeleteAll = async () => {
+    setDeletingAll(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return;
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const user of orphanedUsers) {
+        const response = await supabase.functions.invoke('delete-orphaned-user', {
+          headers: {
+            Authorization: `Bearer ${session.session.access_token}`
+          },
+          body: {
+            userId: user.id
+          }
+        });
+
+        if (response.error) {
+          failCount++;
+        } else {
+          successCount++;
+        }
+      }
+
+      if (failCount === 0) {
+        toast.success(`Successfully deleted ${successCount} orphaned user(s)`);
+      } else {
+        toast.warning(`Deleted ${successCount} user(s), ${failCount} failed`);
+      }
+
+      setShowDeleteAllConfirm(false);
+      setSelectedUser(null);
+      resetForm();
+      fetchOrphanedUsers();
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast.error("Failed to delete all users");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const resetForm = () => {
     setPosition("");
     setDepartment("");
@@ -200,10 +246,24 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
               <span className="text-sm text-muted-foreground">
                 {orphanedUsers.length} orphaned user(s) found
               </span>
-              <Button variant="outline" size="sm" onClick={fetchOrphanedUsers} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
+              <div className="flex gap-2">
+                {orphanedUsers.length > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setShowDeleteAllConfirm(true)} 
+                    disabled={loading || deletingAll}
+                  >
+                    {deletingAll && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete All
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={fetchOrphanedUsers} disabled={loading}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -355,6 +415,29 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Orphaned Users</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete all <strong>{orphanedUsers.length}</strong> orphaned users? 
+              This action cannot be undone and will remove all user accounts completely.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAll}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              disabled={deletingAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingAll && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete All Users
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
