@@ -170,6 +170,20 @@ serve(async (req: Request) => {
       console.log('Position save note:', positionError.message);
     }
 
+    // Add organization membership
+    const { error: memberError } = await supabase
+      .from('organization_members')
+      .insert({
+        user_id: userId,
+        organization_id: organizationId,
+        role: 'member',
+      });
+
+    if (memberError) {
+      console.error('Error adding organization membership:', memberError);
+      // Continue anyway - membership can be added later
+    }
+
     // Assign role
     const { error: roleError } = await supabase
       .from('user_roles')
