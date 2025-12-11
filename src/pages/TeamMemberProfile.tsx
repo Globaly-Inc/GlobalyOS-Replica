@@ -15,13 +15,14 @@ import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
-import { EditProfileInfoDialog } from "@/components/dialogs/EditProfileInfoDialog";
+import { EditNameDialog } from "@/components/dialogs/EditNameDialog";
+import { EditEmailDialog } from "@/components/dialogs/EditEmailDialog";
 import { EditEmployeeInfoDialog } from "@/components/dialogs/EditEmployeeInfoDialog";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree } from "lucide-react";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ const TeamMemberProfile = () => {
   const [isManagerOfEmployee, setIsManagerOfEmployee] = useState(false);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
+  const [currentLeave, setCurrentLeave] = useState<{ leave_type: string } | null>(null);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -136,8 +138,24 @@ const TeamMemberProfile = () => {
       checkIsManagerOfEmployee();
       loadUserRole();
       loadEmployeeProjects();
+      loadCurrentLeave();
     }
   }, [id]);
+
+  const loadCurrentLeave = async () => {
+    if (!id) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from("leave_requests")
+      .select("leave_type")
+      .eq("employee_id", id)
+      .eq("status", "approved")
+      .lte("start_date", today)
+      .gte("end_date", today)
+      .maybeSingle();
+    
+    setCurrentLeave(data);
+  };
 
   const loadUserRole = async () => {
     if (!id) return;
@@ -398,18 +416,29 @@ const TeamMemberProfile = () => {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-1.5">
-              {/* Name */}
-              <div className="group flex items-center gap-2">
+              {/* Name with Status Badges */}
+              <div className="group flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
                 {isAdminOrHR && (
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditProfileInfoDialog
+                    <EditNameDialog
                       userId={employee.user_id}
                       currentName={employee.profiles.full_name}
-                      currentEmail={employee.profiles.email}
-                      onSuccess={() => { loadEmployee(); loadUserRole(); }}
+                      onSuccess={loadEmployee}
                     />
                   </span>
+                )}
+                <Badge 
+                  variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'}
+                  className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}
+                >
+                  {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
+                </Badge>
+                {currentLeave && (
+                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
+                    <Palmtree className="h-3 w-3" />
+                    On {currentLeave.leave_type}
+                  </Badge>
                 )}
               </div>
               
@@ -452,6 +481,15 @@ const TeamMemberProfile = () => {
               <div className="group flex items-center gap-2 flex-wrap">
                 <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
+                {isAdminOrHR && (
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditEmailDialog
+                      userId={employee.user_id}
+                      currentEmail={employee.profiles.email}
+                      onSuccess={loadEmployee}
+                    />
+                  </span>
+                )}
                 <span className="text-muted-foreground">·</span>
                 <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
                   {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
