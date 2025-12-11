@@ -752,16 +752,6 @@ const BulkImport = () => {
                   })()}
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-primary"></span>
-                    <span>Required</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-muted-foreground/30"></span>
-                    <span>Optional</span>
-                  </div>
-                </div>
 
                 <div className="h-[400px] border rounded-lg bg-background overflow-auto">
                   <table className="w-full text-xs min-w-max border-collapse">
