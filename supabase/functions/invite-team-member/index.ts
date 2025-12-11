@@ -300,7 +300,7 @@ serve(async (req: Request) => {
     const joinUrl = `${appUrl}/join?email=${encodeURIComponent(normalizedEmail)}`;
 
     // Send invitation email via Resend API
-    const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Team Member';
+    const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'User';
     const emailHtml = `
       <!DOCTYPE html>
       <html>

@@ -588,7 +588,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                   <Select value={formData.role} onValueChange={(v: 'admin' | 'hr' | 'user') => handleChange('role', v)}>
                     <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="user">Team Member</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                       <SelectItem value="hr">HR Manager</SelectItem>
                       <SelectItem value="admin">Administrator</SelectItem>
                     </SelectContent>

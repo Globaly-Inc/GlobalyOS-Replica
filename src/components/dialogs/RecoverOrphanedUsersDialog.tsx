@@ -376,7 +376,7 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">Team Member</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
                         <SelectItem value="hr">HR</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>

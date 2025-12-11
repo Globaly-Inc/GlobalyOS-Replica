@@ -667,7 +667,7 @@ const TeamMemberProfile = () => {
                   )}
                   <span className="text-muted-foreground">·</span>
                   <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
-                    {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
+                    {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'User'}
                   </Badge>
                   {isAdminOrHR && (
                     <span className="opacity-0 group-hover:opacity-100 transition-opacity">
