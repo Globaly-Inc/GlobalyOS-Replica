@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trophy, Heart, MessageSquare, Plus, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -17,12 +18,16 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { Link } from "react-router-dom";
-import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
+import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
+
+type DateFilter = "all" | "today" | "week" | "month";
+
 interface FeedItem {
   id: string;
   type: string;
   content: string;
   created_at: string;
+  image_url: string | null;
   employee: {
     profiles: {
       full_name: string;
@@ -44,6 +49,7 @@ interface KudosItem {
   given_by: {
     profiles: {
       full_name: string;
+      avatar_url: string | null;
     };
   };
 }
@@ -97,6 +103,7 @@ const Home = () => {
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [dailyQuote, setDailyQuote] = useState<{
     quote: string;
     author: string;
@@ -333,6 +340,7 @@ const Home = () => {
         type,
         content,
         created_at,
+        image_url,
         employee:employees!inner(
           profiles!inner(
             full_name,
@@ -359,7 +367,8 @@ const Home = () => {
         ),
         given_by:employees!kudos_given_by_id_fkey(
           profiles!inner(
-            full_name
+            full_name,
+            avatar_url
           )
         )
       `).eq("organization_id", currentOrg.id).order("created_at", {
@@ -369,8 +378,36 @@ const Home = () => {
     if (kudosData) setKudos(kudosData as KudosItem[]);
     setLoading(false);
   };
-  const winsAndAchievements = updates.filter(u => u.type === "win" || u.type === "achievement");
-  const regularUpdates = updates.filter(u => u.type === "update");
+
+  // Filter items by date
+  const filterByDate = <T extends { created_at: string }>(items: T[]): T[] => {
+    if (dateFilter === "all") return items;
+    
+    const now = new Date();
+    let cutoffDate: Date;
+    
+    switch (dateFilter) {
+      case "today":
+        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case "week":
+        cutoffDate = startOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case "month":
+        cutoffDate = startOfMonth(now);
+        break;
+      default:
+        return items;
+    }
+    
+    return items.filter(item => isAfter(new Date(item.created_at), cutoffDate));
+  };
+
+  const filteredUpdates = filterByDate(updates);
+  const filteredKudos = filterByDate(kudos);
+  const winsAndAchievements = filteredUpdates.filter(u => u.type === "win" || u.type === "achievement");
+  const regularUpdates = filteredUpdates.filter(u => u.type === "update");
+  
   const renderFeedContent = (items: (FeedItem | KudosItem)[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
       if ("comment" in item) {
@@ -380,6 +417,7 @@ const Home = () => {
           employeeId: kudosItem.employee.id,
           employeeName: kudosItem.employee.profiles.full_name,
           givenBy: kudosItem.given_by.profiles.full_name,
+          givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
           comment: kudosItem.comment,
           date: kudosItem.created_at,
           avatar: kudosItem.employee.profiles.avatar_url || undefined
@@ -393,7 +431,8 @@ const Home = () => {
           content: updateItem.content,
           date: updateItem.created_at,
           type: mapDbTypeToUiType(updateItem.type),
-          avatar: updateItem.employee.profiles.avatar_url || undefined
+          avatar: updateItem.employee.profiles.avatar_url || undefined,
+          imageUrl: updateItem.image_url || undefined
         }} />;
       }
     })}
@@ -492,37 +531,67 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="all" className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <TabsList className="h-auto p-1.5">
-                  <TabsTrigger value="all" className="px-3 py-2">
-                    <MessageSquare className="h-4 w-4 shrink-0" />
-                    <span>All</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="wins" className="px-3 py-2">
-                    <Trophy className="h-4 w-4 shrink-0" />
-                    <span>Wins</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="kudos" className="px-3 py-2">
-                    <Heart className="h-4 w-4 shrink-0" />
-                    <span>Kudos</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="announcements" className="px-3 py-2">
-                    <Megaphone className="h-4 w-4 shrink-0" />
-                    <span>Announcements</span>
-                  </TabsTrigger>
-                </TabsList>
-                {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Post Update
-                  </Button>}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <TabsList className="h-auto p-1.5 flex-wrap">
+                    <TabsTrigger value="all" className="px-3 py-2 gap-1.5">
+                      <MessageSquare className="h-4 w-4 shrink-0" />
+                      <span>All</span>
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                        {filteredUpdates.length + filteredKudos.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger value="wins" className="px-3 py-2 gap-1.5">
+                      <Trophy className="h-4 w-4 shrink-0" />
+                      <span>Wins</span>
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                        {winsAndAchievements.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger value="kudos" className="px-3 py-2 gap-1.5">
+                      <Heart className="h-4 w-4 shrink-0" />
+                      <span>Kudos</span>
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                        {filteredKudos.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger value="announcements" className="px-3 py-2 gap-1.5">
+                      <Megaphone className="h-4 w-4 shrink-0" />
+                      <span>Announcements</span>
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                        {regularUpdates.length}
+                      </span>
+                    </TabsTrigger>
+                  </TabsList>
+                  {hasEmployeeProfile && <Button onClick={() => setPostDialogOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Post Update
+                    </Button>}
+                </div>
+                
+                {/* Date Filter */}
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
+                    <SelectTrigger className="w-[140px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <TabsContent value="all" className="space-y-4">
                 {loading ? <Card className="p-12 text-center">
                     <p className="text-muted-foreground">Loading feed...</p>
                   </Card> : <>
-                    {renderFeedContent([...updates, ...kudos])}
-                    {updates.length === 0 && kudos.length === 0 && <Card className="p-12 text-center">
+                    {renderFeedContent([...filteredUpdates, ...filteredKudos])}
+                    {filteredUpdates.length === 0 && filteredKudos.length === 0 && <Card className="p-12 text-center">
                         <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
                       </Card>}
                   </>}
@@ -536,7 +605,8 @@ const Home = () => {
                 content: update.content,
                 date: update.created_at,
                 type: update.type as "win" | "achievement",
-                avatar: update.employee.profiles.avatar_url || undefined
+                avatar: update.employee.profiles.avatar_url || undefined,
+                imageUrl: update.image_url || undefined
               }} />)}
                 {winsAndAchievements.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No wins yet!</p>
@@ -544,16 +614,17 @@ const Home = () => {
               </TabsContent>
 
               <TabsContent value="kudos" className="space-y-4">
-                {kudos.map(kudosItem => <KudosCard key={kudosItem.id} kudos={{
+                {filteredKudos.map(kudosItem => <KudosCard key={kudosItem.id} kudos={{
                 id: kudosItem.id,
                 employeeId: kudosItem.employee.id,
                 employeeName: kudosItem.employee.profiles.full_name,
                 givenBy: kudosItem.given_by.profiles.full_name,
+                givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
                 comment: kudosItem.comment,
                 date: kudosItem.created_at,
                 avatar: kudosItem.employee.profiles.avatar_url || undefined
               }} />)}
-                {kudos.length === 0 && <Card className="p-12 text-center">
+                {filteredKudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>
                   </Card>}
               </TabsContent>
@@ -566,7 +637,8 @@ const Home = () => {
                 content: update.content,
                 date: update.created_at,
                 type: "announcement",
-                avatar: update.employee.profiles.avatar_url || undefined
+                avatar: update.employee.profiles.avatar_url || undefined,
+                imageUrl: update.image_url || undefined
               }} />)}
                 {regularUpdates.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No announcements yet!</p>

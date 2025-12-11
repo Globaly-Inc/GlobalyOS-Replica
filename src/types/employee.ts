@@ -35,6 +35,7 @@ export interface Update {
   content: string;
   date: string;
   avatar?: string;
+  imageUrl?: string;
   type: "win" | "announcement" | "achievement";
 }
 
