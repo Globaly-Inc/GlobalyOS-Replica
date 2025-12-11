@@ -313,12 +313,14 @@ const TeamMemberProfile = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
             {/* Personal Details */}
-            <Card className="p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                <User className="h-5 w-5 text-primary" />
-                Personal Details
-              </h2>
-              <div className="space-y-4">
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <User className="h-5 w-5 text-primary" />
+                  Personal Details
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
                 <div className="flex items-start gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
@@ -404,27 +406,32 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-
             {/* Tax & Banking */}
-            {canViewSensitiveData && <Card className="p-6">
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                  Tax & Banking
-                </h2>
-                <div className="space-y-4">
+            {canViewSensitiveData && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    Tax & Banking
+                  </h2>
+                </div>
+                <div className="p-4 space-y-4">
                   <EditableField icon={<FileText className="h-5 w-5" />} label="ID Number" value={employee.id_number} onSave={value => updateEmployeeField("id_number", value)} canEdit={canViewSensitiveData} />
                   <EditableField icon={<FileText className="h-5 w-5" />} label="Tax Number" value={employee.tax_number} onSave={value => updateEmployeeField("tax_number", value)} canEdit={canViewSensitiveData} />
                   <EditableField icon={<Building className="h-5 w-5" />} label="Bank Details" value={employee.bank_details} onSave={value => updateEmployeeField("bank_details", value)} type="textarea" canEdit={canViewSensitiveData} placeholder="Enter bank account details" />
                 </div>
-              </Card>}
+              </Card>
+            )}
 
             {/* Emergency Contact */}
-            <Card className="p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                <AlertCircle className="h-5 w-5 text-primary" />
-                Emergency Contact
-              </h2>
-              <div className="space-y-4">
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <AlertCircle className="h-5 w-5 text-primary" />
+                  Emergency Contact
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
                 <EditableField label="Contact Name" value={employee.emergency_contact_name} onSave={value => updateEmployeeField("emergency_contact_name", value)} canEdit={canViewSensitiveData} />
                 <EditableField label="Contact Phone" value={employee.emergency_contact_phone} onSave={value => updateEmployeeField("emergency_contact_phone", value)} canEdit={canViewSensitiveData} />
                 <EditableField label="Relationship" value={employee.emergency_contact_relationship} onSave={value => updateEmployeeField("emergency_contact_relationship", value)} canEdit={canViewSensitiveData} />
@@ -433,17 +440,23 @@ const TeamMemberProfile = () => {
           </div>
 
           <div className="space-y-6 lg:col-span-2">
-            {employee.superpowers && employee.superpowers.length > 0 && <Card className="p-6">
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                  <Sparkles className="h-5 w-5 text-accent" />
-                  Superpowers
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {employee.superpowers.map((power: string, index: number) => <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
-                      {power}
-                    </Badge>)}
+            {employee.superpowers && employee.superpowers.length > 0 && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                    Superpowers
+                  </h2>
                 </div>
-              </Card>}
+                <div className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {employee.superpowers.map((power: string, index: number) => <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
+                        {power}
+                      </Badge>)}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Leave Management */}
             <Card className="overflow-hidden">
