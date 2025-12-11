@@ -4,7 +4,7 @@ import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 import { Heart, Pencil, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -41,11 +41,11 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   ];
   const recipientText = allRecipients.join(", ");
 
-  // Get all recipient IDs for editing
-  const allRecipientIds = [
+  // Memoize recipient IDs to prevent unnecessary re-renders
+  const allRecipientIds = useMemo(() => [
     kudos.employeeId,
     ...(kudos.otherRecipientIds || [])
-  ];
+  ], [kudos.employeeId, kudos.otherRecipientIds]);
 
   useEffect(() => {
     const fetchCurrentEmployee = async () => {
@@ -182,16 +182,18 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <EditKudosDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        kudosId={kudos.id}
-        batchId={kudos.batchId}
-        initialComment={kudos.comment}
-        initialRecipientIds={allRecipientIds}
-        givenById={kudos.givenById}
-        onSuccess={onDelete}
-      />
+      {showEditDialog && (
+        <EditKudosDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          kudosId={kudos.id}
+          batchId={kudos.batchId}
+          initialComment={kudos.comment}
+          initialRecipientIds={allRecipientIds}
+          givenById={kudos.givenById}
+          onSuccess={onDelete}
+        />
+      )}
     </>
   );
 };
