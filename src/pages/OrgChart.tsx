@@ -215,36 +215,28 @@ const OrgChart = () => {
     const hasChildren = employee.children.length > 0;
 
     return (
-      <div className="relative">
+      <div className={cn("relative", level > 0 && "ml-4")}>
+        {/* Horizontal connector from vertical line to card */}
         {level > 0 && (
-          <>
-            {/* Horizontal connector line */}
-            <div 
-              className="absolute top-3 -left-4 w-4 h-0.5 rounded-full" 
-              style={{ backgroundColor: departmentColor.bg, opacity: 0.6 }} 
-            />
-            {/* Connection dot */}
-            <div 
-              className="absolute top-2 -left-1 w-2 h-2 rounded-full border-2"
-              style={{ borderColor: departmentColor.bg, backgroundColor: 'white' }}
-            />
-          </>
+          <div 
+            className="absolute top-4 -left-4 w-4 h-0.5" 
+            style={{ backgroundColor: departmentColor.bg }} 
+          />
         )}
         
         <EmployeeCard employee={employee} departmentColor={departmentColor} />
 
         {hasChildren && (
-          <div className="relative mt-2 ml-6 pl-5">
-            {/* Vertical line down to children */}
+          <div className="relative mt-2 pl-4">
+            {/* Vertical line connecting children */}
             <div 
-              className="absolute top-0 left-0 w-0.5 rounded-full"
+              className="absolute left-0 top-0 w-0.5"
               style={{ 
-                backgroundColor: departmentColor.bg, 
-                opacity: 0.6,
-                height: 'calc(100% - 12px)'
+                backgroundColor: departmentColor.bg,
+                height: `calc(100% - 20px)`
               }} 
             />
-            <div className="space-y-3">
+            <div className="space-y-2">
               {employee.children.map((child, index) => (
                 <EmployeeTree 
                   key={child.id} 
