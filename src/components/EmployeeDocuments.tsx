@@ -199,37 +199,37 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
   return (
     <div>
       <Tabs value={activeFolder} onValueChange={(v) => setActiveFolder(v as FolderType)}>
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          {FOLDERS.map((folder) => {
-            const Icon = folder.icon;
-            const count = getDocumentsForFolder(folder.id).length;
-            return (
-              <TabsTrigger key={folder.id} value={folder.id} className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
-                <span>{folder.label}</span>
-                {count > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                    {count}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="grid grid-cols-3">
+            {FOLDERS.map((folder) => {
+              const Icon = folder.icon;
+              const count = getDocumentsForFolder(folder.id).length;
+              return (
+                <TabsTrigger key={folder.id} value={folder.id} className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span>{folder.label}</span>
+                  {count > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {count}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          {canUpload(activeFolder) && (
+            <UploadDocumentDialog
+              employeeId={employeeId}
+              folder={activeFolder}
+              onSuccess={loadDocuments}
+            />
+          )}
+        </div>
 
         {FOLDERS.map((folder) => {
           const folderDocs = getDocumentsForFolder(folder.id);
           return (
             <TabsContent key={folder.id} value={folder.id} className="space-y-3">
-              {canUpload(folder.id) && (
-                <div className="flex justify-end">
-                  <UploadDocumentDialog
-                    employeeId={employeeId}
-                    folder={folder.id}
-                    onSuccess={loadDocuments}
-                  />
-                </div>
-              )}
 
               {folderDocs.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">

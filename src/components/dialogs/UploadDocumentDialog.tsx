@@ -20,7 +20,7 @@ interface UploadDocumentDialogProps {
   onSuccess: () => void;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_TYPES = [
   'application/pdf',
   'image/jpeg',
@@ -161,7 +161,7 @@ export const UploadDocumentDialog = ({ employeeId, folder, onSuccess }: UploadDo
           <div>
             <Label>Select File</Label>
             <p className="text-xs text-muted-foreground mb-2">
-              PDF, images, Word, or Excel files up to 10MB
+              PDF, images, Word, or Excel files up to 20MB
             </p>
             <Input
               ref={fileInputRef}
