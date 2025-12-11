@@ -120,6 +120,11 @@ export const EditScheduleDialog = ({
   };
 
   const handleSave = async () => {
+    if (!organizationId || !employeeId) {
+      toast.error("Missing organization or employee information");
+      return;
+    }
+
     // Find the first enabled day to use as the primary schedule
     const enabledDay = DAYS.find(d => weekSchedule[d.key].enabled);
     if (!enabledDay) {
