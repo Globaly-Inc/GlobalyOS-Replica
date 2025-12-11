@@ -216,14 +216,8 @@ const OrgChart = () => {
 
     return (
       <div className="relative">
-        {/* Vertical line from parent */}
         {level > 0 && (
           <>
-            {/* Vertical connector line */}
-            <div 
-              className="absolute -top-2 left-3 w-0.5 h-2 rounded-full" 
-              style={{ backgroundColor: departmentColor.bg, opacity: 0.6 }} 
-            />
             {/* Horizontal connector line */}
             <div 
               className="absolute top-3 -left-4 w-4 h-0.5 rounded-full" 
