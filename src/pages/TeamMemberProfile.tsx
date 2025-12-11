@@ -20,6 +20,7 @@ import { EditEmailDialog } from "@/components/dialogs/EditEmailDialog";
 import { EditEmployeeInfoDialog } from "@/components/dialogs/EditEmployeeInfoDialog";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
+import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree } from "lucide-react";
@@ -410,12 +411,24 @@ const TeamMemberProfile = () => {
 
         <Card className="p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <Avatar className="h-20 w-20 border-4 border-primary/10">
-              <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
-                {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+            <div className="group relative">
+              <Avatar className="h-20 w-20 border-4 border-primary/10">
+                <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
+                  {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              {(isAdminOrHR || isOwnProfile) && (
+                <span className="absolute -bottom-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <EditAvatarDialog
+                    userId={employee.user_id}
+                    currentAvatarUrl={employee.profiles.avatar_url}
+                    userName={employee.profiles.full_name}
+                    onSuccess={loadEmployee}
+                  />
+                </span>
+              )}
+            </div>
             <div className="flex-1 space-y-1.5">
               {/* Name with Status Badges */}
               <div className="group flex items-center gap-2 flex-wrap">
