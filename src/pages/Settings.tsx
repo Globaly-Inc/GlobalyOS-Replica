@@ -163,13 +163,13 @@ const Settings = () => {
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
-          <TabsTrigger value="leave" className="gap-2">
-            <Calendar className="h-4 w-4" />
-            Leave
-          </TabsTrigger>
           <TabsTrigger value="fields" className="gap-2">
             <List className="h-4 w-4" />
             Fields
+          </TabsTrigger>
+          <TabsTrigger value="leave" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Leave Types
           </TabsTrigger>
           <TabsTrigger value="billing" className="gap-2">
             <CreditCard className="h-4 w-4" />
