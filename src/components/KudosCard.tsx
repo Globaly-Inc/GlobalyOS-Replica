@@ -95,8 +95,8 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
 
   return (
     <>
-      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500">
-        <div className="p-4">
+      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-sm overflow-hidden border-l-4 border-l-pink-500 flex flex-col">
+        <div className="p-4 flex-1">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
@@ -147,17 +147,17 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
           </div>
           
           {/* Content */}
-          <div className="mb-3">
+          <div>
             <p className="text-sm font-medium text-foreground mb-1">
               🙌 Kudos to {recipientText}
             </p>
             <RichTextContent content={kudos.comment} className="text-sm" />
           </div>
-          
-          {/* Reactions */}
-          <div className="pt-3 border-t border-border/50">
-            <FeedReactions targetType="kudos" targetId={kudos.id} />
-          </div>
+        </div>
+        
+        {/* Reactions */}
+        <div className="px-4 py-2 border-t border-border/50">
+          <FeedReactions targetType="kudos" targetId={kudos.id} />
         </div>
       </div>
 
