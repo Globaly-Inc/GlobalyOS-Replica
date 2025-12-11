@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Users } from "lucide-react";
+import { Users, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useOrganization } from "@/hooks/useOrganization";
 
 interface Employee {
@@ -161,6 +162,17 @@ const OrgChart = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/team")}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Team
+          </Button>
+        </div>
         <PageHeader 
           title="Organization Chart" 
           subtitle="Company hierarchy and reporting structure"
