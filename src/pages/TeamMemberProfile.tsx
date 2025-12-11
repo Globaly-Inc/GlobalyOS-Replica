@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
+import { UpdateCard } from "@/components/UpdateCard";
+import { Update } from "@/types/employee";
 import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
 import { PositionTimeline } from "@/components/PositionTimeline";
 import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
@@ -24,7 +26,7 @@ import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy } from "lucide-react";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
@@ -61,6 +63,7 @@ const TeamMemberProfile = () => {
   
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
+  const [wins, setWins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [positionHistory, setPositionHistory] = useState<any[]>([]);
   const [manager, setManager] = useState<any>(null);
@@ -138,6 +141,7 @@ const TeamMemberProfile = () => {
     if (id) {
       loadEmployee();
       loadKudos();
+      loadWins();
       loadPositionHistory();
       loadDirectReports();
       checkIsOwnProfile();
@@ -372,6 +376,38 @@ const TeamMemberProfile = () => {
         return { ...k, otherRecipients: [], otherRecipientIds: [] };
       }));
       setKudos(kudosWithOthers);
+    }
+  };
+
+  const loadWins = async () => {
+    const { data } = await supabase.from("updates").select(`
+        id,
+        type,
+        content,
+        created_at,
+        employee_id,
+        employee:employees!inner(
+          id,
+          profiles!inner(
+            full_name,
+            avatar_url
+          )
+        )
+      `)
+      .eq("employee_id", id)
+      .eq("type", "win")
+      .order("created_at", { ascending: false });
+    
+    if (data) {
+      setWins(data.map((w: any) => ({
+        id: w.id,
+        employeeId: w.employee_id,
+        employeeName: w.employee.profiles.full_name,
+        content: w.content,
+        date: w.created_at,
+        avatar: w.employee.profiles.avatar_url,
+        type: w.type as "win"
+      })));
     }
   };
 
@@ -920,37 +956,72 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* Kudos Received */}
+            {/* Recognition & Wins */}
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Heart className="h-5 w-5 text-primary" />
-                  Kudos Received
-                  {kudos.length > 0 && <Badge variant="secondary" className="ml-1">{kudos.length}</Badge>}
+                  Recognition & Wins
+                  {(kudos.length + wins.length) > 0 && <Badge variant="secondary" className="ml-1">{kudos.length + wins.length}</Badge>}
                 </h2>
                 {canGiveKudos && (
                   <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
                 )}
               </div>
-              <div className="p-4">
-                {kudos.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {kudos.map(k => <KudosCard key={k.id} kudos={{
-                      id: k.id,
-                      employeeId: k.employee.id,
-                      employeeName: k.employee.profiles.full_name,
-                      givenBy: k.given_by.profiles.full_name,
-                      givenById: k.given_by.id,
-                      givenByAvatar: k.given_by.profiles.avatar_url,
-                      comment: k.comment,
-                      date: k.created_at,
-                      batchId: k.batch_id || undefined,
-                      otherRecipients: k.otherRecipients,
-                      otherRecipientIds: k.otherRecipientIds
-                    }} onDelete={loadKudos} />)}
+              <div className="p-4 space-y-4">
+                {/* Kudos Section */}
+                {kudos.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Heart className="h-3 w-3" /> Kudos Received ({kudos.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {kudos.map(k => <KudosCard key={k.id} kudos={{
+                        id: k.id,
+                        employeeId: k.employee.id,
+                        employeeName: k.employee.profiles.full_name,
+                        givenBy: k.given_by.profiles.full_name,
+                        givenById: k.given_by.id,
+                        givenByAvatar: k.given_by.profiles.avatar_url,
+                        comment: k.comment,
+                        date: k.created_at,
+                        batchId: k.batch_id || undefined,
+                        otherRecipients: k.otherRecipients,
+                        otherRecipientIds: k.otherRecipientIds
+                      }} onDelete={loadKudos} />)}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>
+                )}
+
+                {/* Wins Section */}
+                {wins.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Trophy className="h-3 w-3" /> Wins Posted ({wins.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {wins.map(w => (
+                        <div key={w.id} className="bg-card border rounded-lg p-3 border-l-4 border-l-amber-500">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={w.avatar} />
+                              <AvatarFallback className="text-[10px]">{w.employeeName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{w.employeeName}</p>
+                              <p className="text-[10px] text-muted-foreground">{new Date(w.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-3" dangerouslySetInnerHTML={{ __html: w.content }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {kudos.length === 0 && wins.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>
                 )}
               </div>
             </Card>
