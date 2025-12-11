@@ -14,9 +14,17 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+// Helper to get plain text length from HTML
+const getTextLength = (html: string): number => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return (doc.body.textContent || "").trim().length;
+};
+
 const kudosSchema = z.object({
   employeeIds: z.array(z.string().uuid()).min(1, "Please select at least one team member"),
-  comment: z.string().trim().min(10, "Comment must be at least 10 characters").max(1000, "Comment must be less than 1000 characters"),
+  comment: z.string()
+    .refine((val) => getTextLength(val) >= 10, { message: "Comment must be at least 10 characters" })
+    .refine((val) => getTextLength(val) <= 5000, { message: "Comment must be less than 5000 characters" }),
 });
 
 interface Employee {
