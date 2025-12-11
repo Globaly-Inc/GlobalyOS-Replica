@@ -296,6 +296,7 @@ const TeamMemberProfile = () => {
         superpowers,
         manager_id,
         office_id,
+        organization_id,
         personal_email,
         street,
         city,
@@ -310,6 +311,7 @@ const TeamMemberProfile = () => {
         emergency_contact_phone,
         emergency_contact_relationship,
         bank_details,
+        position_effective_date,
         profiles!inner(
           full_name,
           email,
