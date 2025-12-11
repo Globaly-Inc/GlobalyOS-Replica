@@ -645,15 +645,16 @@ const TeamMemberProfile = () => {
               </div>
               <div className="p-4">
                 {kudos.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {kudos.map(k => <KudosCard key={k.id} kudos={{
                       id: k.id,
                       employeeId: k.employee.id,
                       employeeName: k.employee.profiles.full_name,
                       givenBy: k.given_by.profiles.full_name,
+                      givenByAvatar: k.given_by.profiles.avatar_url,
                       comment: k.comment,
                       date: k.created_at
-                    }} compact />)}
+                    }} />)}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">No kudos received yet</p>
