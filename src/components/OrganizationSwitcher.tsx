@@ -51,7 +51,13 @@ export const OrganizationSwitcher = () => {
             </Avatar>
             <span className="flex-1 truncate">{org.name}</span>
             {org.id === currentOrg.id && (
-              <Check className="ml-2 h-4 w-4 text-primary" />
+              <Settings 
+                className="ml-2 h-4 w-4 text-muted-foreground hover:text-primary cursor-pointer" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/settings");
+                }}
+              />
             )}
           </DropdownMenuItem>
         ))}
