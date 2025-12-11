@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
+import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
 
@@ -50,6 +51,7 @@ const Team = () => {
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
@@ -167,7 +169,7 @@ const Team = () => {
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>
-              <Button onClick={() => navigate('/team/invite')} className="gap-2">
+              <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
                 Invite Team Member
               </Button>
@@ -258,6 +260,12 @@ const Team = () => {
         open={officesDialogOpen}
         onOpenChange={setOfficesDialogOpen}
         onOfficesChange={loadEmployees}
+      />
+
+      <InviteTeamMemberDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        onSuccess={loadEmployees}
       />
     </Layout>
   );
