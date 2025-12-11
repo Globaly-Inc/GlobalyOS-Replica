@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -137,6 +137,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="hidden md:flex md:items-center md:gap-2">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 h-9"
+              onClick={() => navigate("/?requestLeave=true")}
+            >
+              <CalendarPlus className="h-4 w-4" />
+              <span className="text-sm font-medium">Request Leave</span>
+            </Button>
             <Button 
               variant="outline" 
               className="flex items-center gap-2 px-2 py-1 h-auto hover:bg-secondary"
