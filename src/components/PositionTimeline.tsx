@@ -247,7 +247,7 @@ export const PositionTimeline = ({
                     <p className="text-xs text-muted-foreground">{entry.department}</p>
                     
                     {showSalary && entry.salary && (
-                      <p className="text-xs font-medium mt-1">
+                      <p className="text-xs font-medium mt-1 text-primary">
                         {formatSalary(entry.salary, currentCurrency)}
                       </p>
                     )}
