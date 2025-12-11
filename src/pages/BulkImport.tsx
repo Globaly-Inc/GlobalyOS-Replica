@@ -266,16 +266,27 @@ const SearchableSelectCell = ({
   options,
   onSave,
   placeholder = "Select...",
-  error
+  error,
+  allowCustom = false
 }: { 
   value: string; 
   options: { value: string; label: string }[];
   onSave: (value: string) => void;
   placeholder?: string;
   error?: string;
+  allowCustom?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
   const selectedOption = options.find(opt => opt.value === value);
+
+  const handleCustomSubmit = () => {
+    if (allowCustom && inputValue.trim()) {
+      onSave(inputValue.trim());
+      setInputValue("");
+      setOpen(false);
+    }
+  };
 
   const selectContent = (
     <Popover open={open} onOpenChange={setOpen}>
@@ -289,16 +300,38 @@ const SearchableSelectCell = ({
           )}
         >
           <span className="truncate">
-            {selectedOption ? selectedOption.label : <span className="text-muted-foreground">{placeholder}</span>}
+            {selectedOption ? selectedOption.label : value ? value : <span className="text-muted-foreground">{placeholder}</span>}
           </span>
           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0 z-50" align="start">
+      <PopoverContent className="w-[280px] p-0 z-50 bg-popover" align="start">
         <Command>
-          <CommandInput placeholder="Search..." className="h-8 text-xs" />
+          <CommandInput 
+            placeholder="Search..." 
+            className="h-8 text-xs" 
+            value={inputValue}
+            onValueChange={setInputValue}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && allowCustom && inputValue.trim()) {
+                e.preventDefault();
+                handleCustomSubmit();
+              }
+            }}
+          />
           <CommandList>
-            <CommandEmpty className="py-2 text-xs text-center">No results found.</CommandEmpty>
+            <CommandEmpty className="py-2 text-xs text-center">
+              {allowCustom ? (
+                <button 
+                  className="text-primary hover:underline"
+                  onClick={handleCustomSubmit}
+                >
+                  Add "{inputValue}"
+                </button>
+              ) : (
+                "No results found."
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((opt) => (
                 <CommandItem
@@ -355,6 +388,7 @@ const BulkImport = () => {
   const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
   const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -429,6 +463,7 @@ const BulkImport = () => {
     if (currentOrg) {
       loadOffices();
       loadTeamMembers();
+      loadDepartments();
     }
   }, [currentOrg?.id]);
 
@@ -454,6 +489,18 @@ const BulkImport = () => {
         email: d.profiles.email,
         full_name: d.profiles.full_name
       })));
+    }
+  };
+
+  const loadDepartments = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('employees')
+      .select('department')
+      .eq('organization_id', currentOrg.id);
+    if (data) {
+      const uniqueDepts = [...new Set(data.map((d: { department: string }) => d.department).filter(Boolean))].sort();
+      setDepartments(uniqueDepts);
     }
   };
 
@@ -1037,13 +1084,18 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('department') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <SearchableSelectCell
                                 value={emp.department}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'department'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'department' })}
+                                options={[
+                                  ...departments.map(dept => ({ value: dept, label: dept })),
+                                  ...(emp.department && !departments.includes(emp.department) 
+                                    ? [{ value: emp.department, label: emp.department }] 
+                                    : [])
+                                ]}
                                 onSave={(v) => updateCellValue(i, 'department', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select department..."
                                 error={getFieldError('department')}
+                                allowCustom
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('position') ? 'border-destructive' : 'border-border/50'}`}>
