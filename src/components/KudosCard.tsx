@@ -6,10 +6,13 @@ interface KudosCardProps {
 }
 
 export const KudosCard = ({ kudos }: KudosCardProps) => {
-  const otherCount = kudos.otherRecipients?.length || 0;
-  const recipientText = otherCount > 0 
-    ? `${kudos.employeeName} and ${otherCount} other${otherCount > 1 ? 's' : ''}`
-    : kudos.employeeName;
+  const getFirstName = (fullName: string) => fullName.split(" ")[0];
+  
+  const allRecipients = [
+    getFirstName(kudos.employeeName),
+    ...(kudos.otherRecipients?.map(getFirstName) || [])
+  ];
+  const recipientText = allRecipients.join(", ");
 
   return (
     <div className="rounded-lg border border-border/50 bg-muted/30 p-4 transition-all hover:bg-muted/50">
