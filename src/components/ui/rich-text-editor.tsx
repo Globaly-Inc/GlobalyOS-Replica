@@ -2,6 +2,16 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./button";
 import { Bold, Italic, Underline, List, ListOrdered } from "lucide-react";
 import { cn } from "@/lib/utils";
+import DOMPurify from "dompurify";
+
+// Configure DOMPurify with allowed tags and no attributes
+const sanitizeHtml = (html: string) => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div'],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true
+  });
+};
 
 interface RichTextEditorProps {
   value: string;
@@ -23,13 +33,13 @@ export const RichTextEditor = ({
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
+      editorRef.current.innerHTML = sanitizeHtml(value);
     }
   }, []);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      onChange(sanitizeHtml(editorRef.current.innerHTML));
     }
   }, [onChange]);
 
@@ -156,35 +166,6 @@ export const RichTextContent = ({
   content: string; 
   className?: string;
 }) => {
-  // Sanitize basic HTML - only allow safe tags
-  const sanitizeHtml = (html: string) => {
-    const allowedTags = ["b", "strong", "i", "em", "u", "ul", "ol", "li", "p", "br", "div"];
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    
-    const sanitize = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node.textContent || "";
-      }
-      
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as Element;
-        const tagName = el.tagName.toLowerCase();
-        
-        if (!allowedTags.includes(tagName)) {
-          // For disallowed tags, just return children content
-          return Array.from(el.childNodes).map(sanitize).join("");
-        }
-        
-        const children = Array.from(el.childNodes).map(sanitize).join("");
-        return `<${tagName}>${children}</${tagName}>`;
-      }
-      
-      return "";
-    };
-    
-    return sanitize(doc.body);
-  };
-
   return (
     <div 
       className={cn(
