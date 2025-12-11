@@ -51,6 +51,11 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
+  const [showNewDepartment, setShowNewDepartment] = useState(false);
+  const [showNewPosition, setShowNewPosition] = useState(false);
+  const [newDepartment, setNewDepartment] = useState("");
+  const [newPosition, setNewPosition] = useState("");
   const { currentOrg } = useOrganization();
   const [formData, setFormData] = useState({
     position: "",
@@ -67,20 +72,56 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
 
   useEffect(() => {
     if (open && currentOrg) {
-      loadDepartments();
+      loadData();
     }
   }, [open, currentOrg]);
 
-  const loadDepartments = async () => {
+  const loadData = async () => {
     if (!currentOrg) return;
     const { data } = await supabase
       .from("employees")
-      .select("department")
+      .select("department, position")
       .eq("organization_id", currentOrg.id);
     
     if (data) {
       const uniqueDepts = [...new Set(data.map(e => e.department).filter(Boolean))].sort();
+      const uniquePositions = [...new Set(data.map(e => e.position).filter(Boolean))].sort();
       setDepartments(uniqueDepts);
+      setPositions(uniquePositions);
+    }
+  };
+
+  const handleDepartmentChange = (value: string) => {
+    if (value === "__new__") {
+      setShowNewDepartment(true);
+    } else {
+      setFormData({ ...formData, department: value });
+    }
+  };
+
+  const handlePositionChange = (value: string) => {
+    if (value === "__new__") {
+      setShowNewPosition(true);
+    } else {
+      setFormData({ ...formData, position: value });
+    }
+  };
+
+  const addNewDepartment = () => {
+    if (newDepartment.trim()) {
+      setDepartments(prev => [...new Set([...prev, newDepartment.trim()])].sort());
+      setFormData({ ...formData, department: newDepartment.trim() });
+      setNewDepartment("");
+      setShowNewDepartment(false);
+    }
+  };
+
+  const addNewPosition = () => {
+    if (newPosition.trim()) {
+      setPositions(prev => [...new Set([...prev, newPosition.trim()])].sort());
+      setFormData({ ...formData, position: newPosition.trim() });
+      setNewPosition("");
+      setShowNewPosition(false);
     }
   };
 
@@ -182,32 +223,63 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="position">Position *</Label>
-              <Input
-                id="position"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                placeholder="e.g., Senior Developer"
-              />
+              {showNewPosition ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newPosition}
+                    onChange={(e) => setNewPosition(e.target.value)}
+                    placeholder="Enter new position"
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={addNewPosition}>Add</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewPosition(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <Select value={formData.position} onValueChange={handlePositionChange}>
+                  <SelectTrigger id="position">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new position</span>
+                    </SelectItem>
+                    {positions.map((pos) => (
+                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {errors.position && <p className="text-sm text-destructive mt-1">{errors.position}</p>}
             </div>
 
             <div>
               <Label htmlFor="department">Department *</Label>
-              <Select
-                value={formData.department}
-                onValueChange={(value) => setFormData({ ...formData, department: value })}
-              >
-                <SelectTrigger id="department">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
+              {showNewDepartment ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newDepartment}
+                    onChange={(e) => setNewDepartment(e.target.value)}
+                    placeholder="Enter new department"
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={addNewDepartment}>Add</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewDepartment(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <Select value={formData.department} onValueChange={handleDepartmentChange}>
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new department</span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {errors.department && <p className="text-sm text-destructive mt-1">{errors.department}</p>}
             </div>
           </div>
