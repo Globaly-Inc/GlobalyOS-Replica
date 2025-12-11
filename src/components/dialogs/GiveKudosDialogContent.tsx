@@ -234,9 +234,8 @@ export const GiveKudosDialogContent = ({
                       >
                         <Checkbox
                           checked={formData.employeeIds.includes(employee.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          onCheckedChange={() => !isPreselected && toggleEmployee(employee.id)}
                           disabled={isPreselected}
+                          className="pointer-events-none"
                         />
                         <Avatar className="h-6 w-6">
                           {employee.profiles.avatar_url && <AvatarImage src={employee.profiles.avatar_url} />}
