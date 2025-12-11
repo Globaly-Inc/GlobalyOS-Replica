@@ -588,7 +588,7 @@ const TeamMemberProfile = () => {
             </div>
 
             {/* Right side - AI Summary */}
-            <div className="lg:w-80 lg:border-l lg:pl-4">
+            <div className="lg:w-96 lg:border-l lg:pl-4">
               <ProfileAISummary 
                 employeeId={id!}
                 employee={{
