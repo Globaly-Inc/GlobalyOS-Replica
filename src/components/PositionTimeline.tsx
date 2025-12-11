@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil } from "lucide-react";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -215,9 +215,9 @@ export const PositionTimeline = ({
                               {config.label}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
-                              {format(new Date(entry.effective_date), 'MMM d, yyyy')}
+                              {formatDate(entry.effective_date)}
                               {entry.end_date && !isLast && (
-                                <> - {format(new Date(entry.end_date), 'MMM d, yyyy')}</>
+                                <> - {formatDate(entry.end_date)}</>
                               )}
                             </span>
                           </div>

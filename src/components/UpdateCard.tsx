@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Trophy, Megaphone } from "lucide-react";
+import { formatDateTime } from "@/lib/utils";
 
 interface UpdateCardProps {
   update: Update;
@@ -46,11 +47,7 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
               <div>
                 <p className="font-semibold text-foreground">{update.employeeName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(update.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {formatDateTime(update.date)}
                 </p>
               </div>
               <Badge variant="outline" className={config.className}>

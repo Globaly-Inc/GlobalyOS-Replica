@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, UserPlus, Check, User, MapPin, Briefcase, Shield, Phone, Upload, Camera, ArrowRight, Edit } from "lucide-react";
 import { z } from "zod";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { FormInputField } from "@/components/FormInputField";
 import { useOrganization } from "@/hooks/useOrganization";
 
@@ -454,7 +454,7 @@ const InviteTeamMember = () => {
                   <h3 className="font-semibold text-sm text-muted-foreground mb-3">Employment Details</h3>
                   <div className="grid gap-4 md:grid-cols-2 text-sm">
                     {formData.joinDate && (
-                      <p><span className="text-muted-foreground">Join Date:</span> {new Date(formData.joinDate).toLocaleDateString()}</p>
+                      <p><span className="text-muted-foreground">Join Date:</span> {formatDate(formData.joinDate)}</p>
                     )}
                     {formData.idNumber && (
                       <p><span className="text-muted-foreground">ID Number:</span> {formData.idNumber}</p>

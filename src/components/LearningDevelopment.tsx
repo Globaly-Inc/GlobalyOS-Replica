@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Calendar, Award, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 
 interface LearningDevelopmentProps {
   employeeId: string;
@@ -80,13 +80,13 @@ export const LearningDevelopment = ({ employeeId }: LearningDevelopmentProps) =>
                 {record.completion_date && (
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    <span>Completed: {format(new Date(record.completion_date), "MMM d, yyyy")}</span>
+                    <span>Completed: {formatDate(record.completion_date)}</span>
                   </div>
                 )}
                 {record.expiry_date && (
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    <span>Expires: {format(new Date(record.expiry_date), "MMM d, yyyy")}</span>
+                    <span>Expires: {formatDate(record.expiry_date)}</span>
                   </div>
                 )}
               </div>
