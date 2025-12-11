@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -8,10 +9,17 @@ import { Smile } from "lucide-react";
 
 const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
 
+interface ReactionUser {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
 interface Reaction {
   emoji: string;
   count: number;
   hasReacted: boolean;
+  users: ReactionUser[];
 }
 
 interface FeedReactionsProps {
@@ -59,21 +67,35 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
 
     const { data: reactionsData } = await supabase
       .from("feed_reactions")
-      .select("emoji, employee_id")
+      .select(`
+        emoji, 
+        employee_id,
+        employee:employees!feed_reactions_employee_id_fkey(
+          id,
+          profiles!inner(full_name, avatar_url)
+        )
+      `)
       .eq("target_type", targetType)
       .eq("target_id", targetId)
       .eq("organization_id", currentOrg.id);
 
     if (reactionsData) {
-      const emojiCounts: Record<string, { count: number; hasReacted: boolean }> = {};
+      const emojiCounts: Record<string, { count: number; hasReacted: boolean; users: ReactionUser[] }> = {};
       
-      reactionsData.forEach((r) => {
+      reactionsData.forEach((r: any) => {
         if (!emojiCounts[r.emoji]) {
-          emojiCounts[r.emoji] = { count: 0, hasReacted: false };
+          emojiCounts[r.emoji] = { count: 0, hasReacted: false, users: [] };
         }
         emojiCounts[r.emoji].count++;
         if (employeeData && r.employee_id === employeeData.id) {
           emojiCounts[r.emoji].hasReacted = true;
+        }
+        if (r.employee?.profiles) {
+          emojiCounts[r.emoji].users.push({
+            id: r.employee.id,
+            name: r.employee.profiles.full_name,
+            avatar: r.employee.profiles.avatar_url || undefined,
+          });
         }
       });
 
@@ -124,14 +146,32 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
           onClick={() => toggleReaction(reaction.emoji)}
           disabled={loading || !currentEmployeeId}
           className={cn(
-            "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors",
+            "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors",
             reaction.hasReacted
               ? "bg-primary/10 text-primary border border-primary/30"
               : "bg-muted hover:bg-muted/80 text-muted-foreground border border-transparent"
           )}
         >
           <span>{reaction.emoji}</span>
-          <span>{reaction.count}</span>
+          {reaction.users.length > 0 && (
+            <div className="flex items-center -space-x-1.5">
+              {reaction.users.slice(0, 3).map((user, idx) => (
+                <Avatar 
+                  key={user.id} 
+                  className="h-5 w-5 border-2 border-white dark:border-card"
+                  style={{ zIndex: reaction.users.length - idx }}
+                >
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="text-[8px] bg-muted">
+                    {user.name.split(" ").map(n => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {reaction.users.length > 3 && (
+                <span className="ml-1 text-xs text-muted-foreground">+{reaction.users.length - 3}</span>
+              )}
+            </div>
+          )}
         </button>
       ))}
       
