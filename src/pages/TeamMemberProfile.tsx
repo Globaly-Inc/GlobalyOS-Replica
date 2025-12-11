@@ -73,8 +73,8 @@ const TeamMemberProfile = () => {
   // Can view position timeline - everyone (but salary visibility differs)
   const canViewPositionTimeline = true;
   
-  // Can view salary in position timeline - Admin/HR, own profile, or manager
-  const canViewSalary = isAdminOrHR || isOwnProfile || isManagerOfEmployee;
+  // Can view salary in position timeline - Admin/HR or own profile only
+  const canViewSalary = isAdminOrHR || isOwnProfile;
   
   // Can edit position timeline - Admin/HR only
   const canEditPositionTimeline = isAdminOrHR;
