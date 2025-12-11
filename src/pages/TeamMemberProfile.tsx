@@ -809,6 +809,7 @@ const TeamMemberProfile = () => {
           <div className="space-y-6 lg:col-span-2">
             {/* AI Summary Card */}
             <ProfileAISummary 
+              employeeId={id!}
               employee={{
                 name: employee.profiles.full_name,
                 position: employee.position,
@@ -821,6 +822,7 @@ const TeamMemberProfile = () => {
                 recentKudos: kudos.slice(0, 3).map(k => k.comment),
                 directReportsCount: directReports.length,
                 managerName: manager?.profiles?.full_name,
+                organizationId: employee.organization_id,
               }}
             />
 

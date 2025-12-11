@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,12 +12,37 @@ serve(async (req) => {
   }
 
   try {
-    const { employee } = await req.json();
+    const { employee, employeeId, forceRegenerate } = await req.json();
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    // Check for cached summary if not forcing regeneration
+    if (!forceRegenerate && employeeId) {
+      const { data: cached } = await supabase
+        .from("profile_summaries")
+        .select("summary, updated_at")
+        .eq("employee_id", employeeId)
+        .maybeSingle();
+      
+      if (cached) {
+        console.log("Returning cached summary for employee:", employeeId);
+        return new Response(JSON.stringify({ summary: cached.summary, cached: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    console.log("Generating new AI summary for employee:", employeeId);
 
     const prompt = `Generate a brief, professional 50-word summary about this team member based on their profile information. Focus on their role, department, skills/superpowers, tenure, and any notable achievements or kudos received. Do NOT mention any salary or compensation information. Keep it positive and professional.
 
@@ -71,7 +97,26 @@ Write a friendly, engaging summary in about 50 words.`;
     const data = await response.json();
     const summary = data.choices?.[0]?.message?.content || "Unable to generate summary.";
 
-    return new Response(JSON.stringify({ summary }), {
+    // Cache the summary
+    if (employeeId) {
+      const { error: upsertError } = await supabase
+        .from("profile_summaries")
+        .upsert({
+          employee_id: employeeId,
+          organization_id: employee.organizationId || null,
+          summary: summary,
+        }, {
+          onConflict: "employee_id"
+        });
+      
+      if (upsertError) {
+        console.error("Error caching summary:", upsertError);
+      } else {
+        console.log("Summary cached successfully for employee:", employeeId);
+      }
+    }
+
+    return new Response(JSON.stringify({ summary, cached: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
