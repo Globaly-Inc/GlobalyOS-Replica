@@ -81,7 +81,7 @@ export const AddLearningDialog = ({
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <Plus className="h-4 w-4 mr-1" />
-          Add Learning Records  
+          Add Learning Record  
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
