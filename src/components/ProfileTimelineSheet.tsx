@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Award, TrendingUp, Calendar, Heart, Megaphone, Trophy, GraduationCap, UserCheck } from "lucide-react";
+import { History, Award, TrendingUp, Calendar, Heart, Megaphone, Trophy, GraduationCap, UserCheck, UserPlus, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 
 interface TimelineEvent {
   id: string;
-  type: 'kudos' | 'position' | 'leave' | 'update' | 'learning' | 'achievement';
+  type: 'kudos' | 'position' | 'leave' | 'update' | 'learning' | 'achievement' | 'profile';
   title: string;
   description: string;
   date: string;
@@ -34,6 +34,39 @@ export const ProfileTimelineSheet = ({ employeeId, employeeName }: ProfileTimeli
     const allEvents: TimelineEvent[] = [];
 
     try {
+      // Fetch employee profile data for join date and activation
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("join_date, status, created_at, updated_at")
+        .eq("id", employeeId)
+        .single();
+
+      if (employee) {
+        // Add profile activation event (when status is active, use updated_at as activation time)
+        if (employee.status === 'active') {
+          allEvents.push({
+            id: `profile-activated`,
+            type: 'profile',
+            title: 'Profile Activated',
+            description: `${employeeName} activated their account and joined the team`,
+            date: employee.updated_at,
+            icon: <UserCheck className="h-4 w-4" />,
+            color: 'bg-emerald-500',
+          });
+        }
+
+        // Add join date as the first event
+        allEvents.push({
+          id: `profile-joined`,
+          type: 'profile',
+          title: 'Joined Organization',
+          description: `${employeeName} joined as a team member`,
+          date: employee.join_date,
+          icon: <UserPlus className="h-4 w-4" />,
+          color: 'bg-cyan-500',
+        });
+      }
+
       // Fetch kudos received
       const { data: kudos } = await supabase
         .from("kudos")
