@@ -211,25 +211,54 @@ const OrgChart = () => {
     );
   };
 
-  const EmployeeTree = ({ employee, level = 0, departmentColor }: { employee: TreeNode; level?: number; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
+  const EmployeeTree = ({ employee, level = 0, departmentColor, isLast = false }: { employee: TreeNode; level?: number; departmentColor: typeof DEPARTMENT_COLORS[0]; isLast?: boolean }) => {
     const hasChildren = employee.children.length > 0;
 
     return (
       <div className="relative">
+        {/* Vertical line from parent */}
         {level > 0 && (
-          <div className="absolute -top-3 left-5 w-px h-3" style={{ backgroundColor: departmentColor.border }} />
+          <>
+            {/* Vertical connector line */}
+            <div 
+              className="absolute -top-2 left-3 w-0.5 h-2 rounded-full" 
+              style={{ backgroundColor: departmentColor.bg, opacity: 0.6 }} 
+            />
+            {/* Horizontal connector line */}
+            <div 
+              className="absolute top-3 -left-4 w-4 h-0.5 rounded-full" 
+              style={{ backgroundColor: departmentColor.bg, opacity: 0.6 }} 
+            />
+            {/* Connection dot */}
+            <div 
+              className="absolute top-2 -left-1 w-2 h-2 rounded-full border-2"
+              style={{ borderColor: departmentColor.bg, backgroundColor: 'white' }}
+            />
+          </>
         )}
         
         <EmployeeCard employee={employee} departmentColor={departmentColor} />
 
         {hasChildren && (
-          <div className="relative mt-1 ml-5 pl-3" style={{ borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: departmentColor.border }}>
-            <div className="space-y-2 py-2">
-              {employee.children.map((child) => (
-                <div key={child.id} className="relative">
-                  <div className="absolute -left-3 top-4 w-3 h-px" style={{ backgroundColor: departmentColor.border }} />
-                  <EmployeeTree employee={child} level={level + 1} departmentColor={departmentColor} />
-                </div>
+          <div className="relative mt-2 ml-6 pl-5">
+            {/* Vertical line down to children */}
+            <div 
+              className="absolute top-0 left-0 w-0.5 rounded-full"
+              style={{ 
+                backgroundColor: departmentColor.bg, 
+                opacity: 0.6,
+                height: 'calc(100% - 12px)'
+              }} 
+            />
+            <div className="space-y-3">
+              {employee.children.map((child, index) => (
+                <EmployeeTree 
+                  key={child.id} 
+                  employee={child} 
+                  level={level + 1} 
+                  departmentColor={departmentColor}
+                  isLast={index === employee.children.length - 1}
+                />
               ))}
             </div>
           </div>
@@ -289,9 +318,9 @@ const OrgChart = () => {
                       {deptEmployees.length}
                     </Badge>
                   </div>
-                  <div className="p-3 space-y-2 max-h-[400px] overflow-y-auto">
-                    {tree.map((root) => (
-                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
+                  <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
+                    {tree.map((root, index) => (
+                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} isLast={index === tree.length - 1} />
                     ))}
                   </div>
                 </Card>
