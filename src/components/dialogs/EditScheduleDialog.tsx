@@ -36,6 +36,7 @@ interface EditScheduleDialogProps {
     work_end_time: string;
     late_threshold_minutes: number;
   } | null;
+  onSuccess?: () => void;
 }
 
 const DAYS = [
@@ -67,6 +68,7 @@ export const EditScheduleDialog = ({
   employeeId,
   organizationId,
   currentSchedule,
+  onSuccess,
 }: EditScheduleDialogProps) => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -152,6 +154,7 @@ export const EditScheduleDialog = ({
 
       toast.success("Schedule updated successfully");
       queryClient.invalidateQueries({ queryKey: ["employee-schedule", employeeId] });
+      onSuccess?.();
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving schedule:", error);
