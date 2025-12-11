@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
-import { Trophy, Megaphone, Heart, Image, X } from "lucide-react";
+import { Trophy, Megaphone, Heart, Image, X, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GiveKudosDialogContent } from "./GiveKudosDialogContent";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const updateSchema = z.object({
   content: z.string().trim().min(10, "Content must be at least 10 characters").max(1000, "Content must be less than 1000 characters"),
@@ -22,6 +26,13 @@ interface PostUpdateDialogProps {
   canPostAnnouncement?: boolean;
 }
 
+interface TeamMember {
+  id: string;
+  name: string;
+  avatar?: string;
+  position: string;
+}
+
 type PostType = "win" | "announcement" | "kudos" | null;
 
 export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnouncement = false }: PostUpdateDialogProps) => {
@@ -32,10 +43,56 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [showMemberSelector, setShowMemberSelector] = useState(false);
+  const { currentOrg } = useOrganization();
 
   const [formData, setFormData] = useState({
     content: "",
   });
+
+  // Fetch team members when dialog opens
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!open || !currentOrg) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: employees } = await supabase
+        .from("employees")
+        .select(`
+          id,
+          user_id,
+          profiles!employees_user_id_fkey (full_name, avatar_url)
+        `)
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "active")
+        .neq("user_id", user.id);
+
+      if (employees) {
+        setTeamMembers(
+          employees.map((emp: any) => ({
+            id: emp.id,
+            name: emp.profiles?.full_name || "Unknown",
+            avatar: emp.profiles?.avatar_url,
+            position: "",
+          }))
+        );
+      }
+    };
+
+    fetchTeamMembers();
+  }, [open, currentOrg]);
+
+  const toggleMember = (memberId: string) => {
+    setSelectedMembers(prev =>
+      prev.includes(memberId)
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,13 +188,13 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
       // Map announcement to update type for database compatibility
       const dbType = validated.type === "announcement" ? "update" : validated.type;
 
-      const { error } = await supabase.from("updates").insert({
+      const { data: insertedUpdate, error } = await supabase.from("updates").insert({
         employee_id: employee.id,
         content: validated.content,
         type: dbType,
         organization_id: employee.organization_id,
         image_url: imageUrl,
-      });
+      }).select("id").single();
 
       if (error) {
         toast({
@@ -146,6 +203,16 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
           variant: "destructive",
         });
       } else {
+        // Insert mentions if any selected
+        if (insertedUpdate && selectedMembers.length > 0) {
+          const mentionsToInsert = selectedMembers.map(memberId => ({
+            update_id: insertedUpdate.id,
+            employee_id: memberId,
+            organization_id: employee.organization_id,
+          }));
+          await supabase.from("update_mentions").insert(mentionsToInsert);
+        }
+
         toast({
           title: "Posted! 🎉",
           description: validated.type === "announcement" 
@@ -176,6 +243,8 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     setSelectedType(null);
     setImageFile(null);
     setImagePreview(null);
+    setSelectedMembers([]);
+    setShowMemberSelector(false);
     setErrors({});
   };
 
@@ -299,6 +368,84 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                 onChange={handleImageSelect}
                 className="hidden"
               />
+            </div>
+
+            {/* Tag Team Members (optional) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Tag Team Members (optional)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMemberSelector(!showMemberSelector)}
+                  className="h-8"
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  {selectedMembers.length > 0 ? `${selectedMembers.length} selected` : "Add"}
+                </Button>
+              </div>
+              
+              {/* Selected members display */}
+              {selectedMembers.length > 0 && !showMemberSelector && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedMembers.map(memberId => {
+                    const member = teamMembers.find(m => m.id === memberId);
+                    if (!member) return null;
+                    return (
+                      <div
+                        key={memberId}
+                        className="flex items-center gap-1 bg-muted rounded-full pl-1 pr-2 py-1"
+                      >
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={member.avatar} />
+                          <AvatarFallback className="text-xs">
+                            {member.name.split(" ").map(n => n[0]).join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs">{member.name.split(" ")[0]}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleMember(memberId)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Member selector */}
+              {showMemberSelector && (
+                <ScrollArea className="h-40 border rounded-lg p-2">
+                  <div className="space-y-1">
+                    {teamMembers.map(member => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                        onClick={() => toggleMember(member.id)}
+                      >
+                        <Checkbox
+                          checked={selectedMembers.includes(member.id)}
+                          onCheckedChange={() => toggleMember(member.id)}
+                        />
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={member.avatar} />
+                          <AvatarFallback className="text-xs">
+                            {member.name.split(" ").map(n => n[0]).join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{member.name}</span>
+                      </div>
+                    ))}
+                    {teamMembers.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">

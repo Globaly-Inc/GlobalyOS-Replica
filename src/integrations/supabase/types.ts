@@ -986,6 +986,52 @@ export type Database = {
         }
         Relationships: []
       }
+      update_mentions: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string | null
+          update_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id?: string | null
+          update_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string | null
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_mentions_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       updates: {
         Row: {
           content: string

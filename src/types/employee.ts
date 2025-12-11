@@ -28,6 +28,13 @@ export interface Kudos {
   otherRecipients?: string[];
 }
 
+export interface UpdateMention {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  avatar?: string;
+}
+
 export interface Update {
   id: string;
   employeeId: string;
@@ -37,6 +44,7 @@ export interface Update {
   avatar?: string;
   imageUrl?: string;
   type: "win" | "announcement" | "achievement";
+  mentions?: UpdateMention[];
 }
 
 export interface Achievement {
