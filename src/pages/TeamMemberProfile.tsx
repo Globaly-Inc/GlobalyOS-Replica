@@ -15,15 +15,38 @@ import { AttendanceTracker } from "@/components/AttendanceTracker";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
+import { EditProfileInfoDialog } from "@/components/dialogs/EditProfileInfoDialog";
+import { EditEmployeeInfoDialog } from "@/components/dialogs/EditEmployeeInfoDialog";
+import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
+import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban } from "lucide-react";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { icons } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface EmployeeProject {
+  id: string;
+  project: {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+  };
+}
+
+const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
+  const IconComponent = (icons as any)[name.charAt(0).toUpperCase() + name.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase())] || icons.Folder;
+  return <IconComponent className={className} style={style} />;
+};
 
 const TeamMemberProfile = () => {
   const { id } = useParams();
@@ -39,6 +62,8 @@ const TeamMemberProfile = () => {
   const [officeEmployeeCount, setOfficeEmployeeCount] = useState<number>(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isManagerOfEmployee, setIsManagerOfEmployee] = useState(false);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -109,8 +134,44 @@ const TeamMemberProfile = () => {
       loadDirectReports();
       checkIsOwnProfile();
       checkIsManagerOfEmployee();
+      loadUserRole();
+      loadEmployeeProjects();
     }
   }, [id]);
+
+  const loadUserRole = async () => {
+    if (!id) return;
+    const { data: employeeData } = await supabase
+      .from("employees")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+    
+    if (!employeeData?.user_id) return;
+    
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", employeeData.user_id)
+      .maybeSingle();
+    
+    setUserRole(roleData?.role || null);
+  };
+
+  const loadEmployeeProjects = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("employee_projects")
+      .select(`
+        id,
+        project:projects(id, name, icon, color)
+      `)
+      .eq("employee_id", id);
+    
+    if (data) {
+      setEmployeeProjects(data.filter(ep => ep.project) as EmployeeProject[]);
+    }
+  };
 
   const checkIsOwnProfile = async () => {
     if (!id) return;
@@ -328,19 +389,77 @@ const TeamMemberProfile = () => {
         </Link>
 
         <Card className="p-6">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
             <Avatar className="h-24 w-24 border-4 border-primary/10">
               <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
                 {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
-              <p className="text-lg font-medium text-primary">{employee.position}</p>
-              <Badge className="mt-2" variant="secondary">{employee.department}</Badge>
+            <div className="flex-1 space-y-3">
+              {/* Name and Company Email */}
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold text-foreground">{employee.profiles.full_name}</h1>
+                {isAdminOrHR && (
+                  <EditProfileInfoDialog
+                    userId={employee.user_id}
+                    currentName={employee.profiles.full_name}
+                    currentEmail={employee.profiles.email}
+                    onSuccess={() => { loadEmployee(); loadUserRole(); }}
+                  />
+                )}
+              </div>
               
-              <div className="mt-4 flex flex-wrap items-center gap-6">
+              {/* Position and Department */}
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-medium text-primary">{employee.position}</p>
+                <Badge variant="secondary">{employee.department}</Badge>
+                {isAdminOrHR && (
+                  <EditEmployeeInfoDialog
+                    employeeId={id!}
+                    currentPosition={employee.position}
+                    currentDepartment={employee.department}
+                    onSuccess={loadEmployee}
+                  />
+                )}
+              </div>
+              
+              {/* User Role */}
+              <div className="flex items-center gap-2">
+                <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'}>
+                  {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Team Member'}
+                </Badge>
+                {isAdminOrHR && (
+                  <EditUserRoleDialog
+                    userId={employee.user_id}
+                    currentRole={userRole}
+                    onSuccess={loadUserRole}
+                  />
+                )}
+              </div>
+              
+              {/* Projects */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                {employeeProjects.length > 0 ? (
+                  employeeProjects.map((ep) => (
+                    <Badge key={ep.id} variant="outline" className="flex items-center gap-1.5 pr-2.5">
+                      <DynamicIcon name={ep.project.icon} className="h-3.5 w-3.5" style={{ color: ep.project.color }} />
+                      {ep.project.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">No projects assigned</span>
+                )}
+                {isAdminOrHR && (
+                  <EditProjectsDialog
+                    employeeId={id!}
+                    onSuccess={loadEmployeeProjects}
+                  />
+                )}
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-6">
                 {/* Manager */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Manager:</span>
