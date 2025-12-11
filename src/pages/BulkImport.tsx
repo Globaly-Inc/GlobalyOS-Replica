@@ -722,11 +722,10 @@ const BulkImport = () => {
                   </div>
                 </div>
 
-                <ScrollArea className="h-[400px] border rounded-lg bg-background">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs min-w-max border-collapse">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-muted">
+                <div className="h-[400px] border rounded-lg bg-background overflow-auto">
+                  <table className="w-full text-xs min-w-max border-collapse">
+                    <thead className="sticky top-0 z-20">
+                      <tr className="bg-muted">
                           <th className="w-10 px-2 py-2 font-medium border border-border/50 bg-muted text-center text-muted-foreground">#</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">First Name *</th>
                           <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Last Name *</th>
@@ -933,8 +932,7 @@ const BulkImport = () => {
 
                       </tbody>
                     </table>
-                  </div>
-                </ScrollArea>
+                </div>
 
                 <div className="flex gap-3 justify-end">
                   <Button variant="outline" onClick={resetState}>Cancel</Button>
