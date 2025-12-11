@@ -2,29 +2,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, AlertCircle, Clock, Settings2, ArrowRight, TrendingDown, TrendingUp, Timer } from "lucide-react";
-import { format, startOfWeek, endOfWeek, differenceInMinutes, parseISO } from "date-fns";
+import { AlertCircle, ArrowRight, TrendingDown, TrendingUp, Timer } from "lucide-react";
+import { format, startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { useState } from "react";
-import { EditScheduleDialog } from "./dialogs/EditScheduleDialog";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 
 interface AttendanceTrackerProps {
   employeeId: string;
   showCheckIn?: boolean;
-  organizationId?: string;
 }
 
-export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizationId }: AttendanceTrackerProps) => {
+export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const currentDate = new Date();
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-  const { isAdmin, isHR } = useUserRole();
-  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const canManageSchedule = isAdmin || isHR;
 
   const { data: todayRecord } = useQuery({
     queryKey: ["attendance-today", employeeId],
@@ -201,59 +194,6 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
 
   return (
     <div className="space-y-5">
-      {/* Work Schedule */}
-      <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Clock className="h-4 w-4 text-primary" />
-            </div>
-            <p className="font-semibold">Work Schedule</p>
-          </div>
-          {canManageSchedule && organizationId && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 px-3"
-              onClick={() => setShowScheduleDialog(true)}
-            >
-              <Settings2 className="h-4 w-4 mr-1" />
-              Configure
-            </Button>
-          )}
-        </div>
-        {schedule ? (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-background/60 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Start</p>
-              <p className="font-semibold text-sm">{formatTime(schedule.work_start_time)}</p>
-            </div>
-            <div className="bg-background/60 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">End</p>
-              <p className="font-semibold text-sm">{formatTime(schedule.work_end_time)}</p>
-            </div>
-            <div className="bg-background/60 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Grace</p>
-              <p className="font-semibold text-sm">{schedule.late_threshold_minutes}m</p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-background/60 rounded-lg p-4 text-center">
-            <p className="text-sm text-muted-foreground">No schedule configured</p>
-            {canManageSchedule && organizationId && (
-              <Button 
-                variant="link" 
-                size="sm" 
-                className="mt-1 h-auto p-0"
-                onClick={() => setShowScheduleDialog(true)}
-              >
-                Set up schedule
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Today's Check-in */}
       {showCheckIn && (
         <div className="p-4 rounded-xl bg-muted/50 border">
@@ -366,16 +306,6 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizatio
         <span>View Full Attendance History</span>
         <ArrowRight className="h-4 w-4" />
       </Button>
-
-      {organizationId && (
-        <EditScheduleDialog
-          open={showScheduleDialog}
-          onOpenChange={setShowScheduleDialog}
-          employeeId={employeeId}
-          organizationId={organizationId}
-          currentSchedule={schedule}
-        />
-      )}
     </div>
   );
 };
