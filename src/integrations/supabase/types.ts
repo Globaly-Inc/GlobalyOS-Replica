@@ -241,6 +241,51 @@ export type Database = {
           },
         ]
       }
+      feed_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          employee_id: string
+          id: string
+          organization_id: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          employee_id: string
+          id?: string
+          organization_id?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_reactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kudos: {
         Row: {
           batch_id: string | null
@@ -947,6 +992,7 @@ export type Database = {
           created_at: string
           employee_id: string
           id: string
+          image_url: string | null
           organization_id: string | null
           type: string
         }
@@ -955,6 +1001,7 @@ export type Database = {
           created_at?: string
           employee_id: string
           id?: string
+          image_url?: string | null
           organization_id?: string | null
           type: string
         }
@@ -963,6 +1010,7 @@ export type Database = {
           created_at?: string
           employee_id?: string
           id?: string
+          image_url?: string | null
           organization_id?: string | null
           type?: string
         }
