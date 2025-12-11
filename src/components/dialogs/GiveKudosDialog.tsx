@@ -68,7 +68,8 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
   };
 
   const toggleEmployee = (employeeId: string) => {
-    if (preselectedEmployeeId) return;
+    // Prevent removing the preselected employee
+    if (employeeId === preselectedEmployeeId) return;
     setFormData(prev => ({
       ...prev,
       employeeIds: prev.employeeIds.includes(employeeId)
@@ -78,7 +79,8 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
   };
 
   const removeEmployee = (employeeId: string) => {
-    if (preselectedEmployeeId) return;
+    // Prevent removing the preselected employee
+    if (employeeId === preselectedEmployeeId) return;
     setFormData(prev => ({
       ...prev,
       employeeIds: prev.employeeIds.filter(id => id !== employeeId)
@@ -198,7 +200,6 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
                   role="combobox"
                   aria-expanded={selectOpen}
                   className="w-full justify-between font-normal h-auto min-h-10"
-                  disabled={!!preselectedEmployeeId}
                 >
                   <span className="text-muted-foreground">
                     {formData.employeeIds.length === 0 
@@ -211,19 +212,24 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                 <ScrollArea className="h-[200px]">
                   <div className="p-2 space-y-1">
-                    {employees.map((employee) => (
-                      <div
-                        key={employee.id}
-                        className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                        onClick={() => toggleEmployee(employee.id)}
-                      >
-                        <Checkbox
-                          checked={formData.employeeIds.includes(employee.id)}
-                          onCheckedChange={() => toggleEmployee(employee.id)}
-                        />
-                        <span className="text-sm">{employee.profiles.full_name}</span>
-                      </div>
-                    ))}
+                    {employees.map((employee) => {
+                      const isPreselected = employee.id === preselectedEmployeeId;
+                      return (
+                        <div
+                          key={employee.id}
+                          className={`flex items-center gap-2 p-2 rounded-md hover:bg-muted ${isPreselected ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                          onClick={() => !isPreselected && toggleEmployee(employee.id)}
+                        >
+                          <Checkbox
+                            checked={formData.employeeIds.includes(employee.id)}
+                            onCheckedChange={() => !isPreselected && toggleEmployee(employee.id)}
+                            disabled={isPreselected}
+                          />
+                          <span className="text-sm">{employee.profiles.full_name}</span>
+                          {isPreselected && <span className="text-xs text-muted-foreground ml-auto">(selected)</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </PopoverContent>
@@ -231,17 +237,21 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
             
             {selectedNames.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {selectedNames.map((name, idx) => (
-                  <Badge key={formData.employeeIds[idx]} variant="secondary" className="gap-1">
-                    {name}
-                    {!preselectedEmployeeId && (
-                      <X 
-                        className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                        onClick={() => removeEmployee(formData.employeeIds[idx])}
-                      />
-                    )}
-                  </Badge>
-                ))}
+                {selectedNames.map((name, idx) => {
+                  const employeeId = formData.employeeIds[idx];
+                  const isPreselected = employeeId === preselectedEmployeeId;
+                  return (
+                    <Badge key={employeeId} variant="secondary" className="gap-1">
+                      {name}
+                      {!isPreselected && (
+                        <X 
+                          className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                          onClick={() => removeEmployee(employeeId)}
+                        />
+                      )}
+                    </Badge>
+                  );
+                })}
               </div>
             )}
             {errors.employeeIds && <p className="text-sm text-destructive">{errors.employeeIds}</p>}
