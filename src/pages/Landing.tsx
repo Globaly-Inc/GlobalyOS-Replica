@@ -370,7 +370,7 @@ const Landing = () => {
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-3">
             <Button onClick={() => scrollToSection("pricing")}>
-              Book a Demo
+              Sign In
             </Button>
           </div>
 
@@ -404,7 +404,7 @@ const Landing = () => {
                 className="mt-2"
                 onClick={() => scrollToSection("pricing")}
               >
-                Book a Demo
+                Sign In
               </Button>
             </nav>
           </div>
@@ -462,7 +462,7 @@ const Landing = () => {
                   className="gap-2"
                   onClick={() => scrollToSection("pricing")}
                 >
-                  Book a Demo <ArrowRight className="h-4 w-4" />
+                  Sign In <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button size="lg" variant="outline" asChild>
                   <Link to="/team/sample">
@@ -994,7 +994,7 @@ const Landing = () => {
                     variant={plan.popular ? "default" : "outline"}
                     onClick={() => scrollToSection("pricing")}
                   >
-                    Book a Demo
+                    Sign In
                   </Button>
                 </Card>
               </AnimatedCard>
@@ -1003,7 +1003,7 @@ const Landing = () => {
 
           <AnimatedSection className="text-center mt-12" delay={300}>
             <Button size="lg" className="gap-2">
-              Book a Demo <ArrowRight className="h-4 w-4" />
+              Sign In <ArrowRight className="h-4 w-4" />
             </Button>
           </AnimatedSection>
         </div>
@@ -1081,10 +1081,10 @@ const Landing = () => {
               </button>
               <button
                 onClick={() => scrollToSection("pricing")}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Book a Demo
-              </button>
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign In
+            </button>
               <Link
                 to="/privacy"
                 className="text-muted-foreground hover:text-foreground transition-colors"
