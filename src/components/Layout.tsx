@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
+import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -42,6 +43,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
@@ -142,6 +144,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="hidden md:flex md:items-center md:gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setPostDialogOpen(true)}
+                  disabled={!userProfile?.employeeId}
+                >
+                  <SquarePen className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>New Post</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -264,11 +282,18 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       <main className="container px-4 pt-2 pb-8 md:px-8">{children}</main>
 
       {userProfile?.employeeId && (
-        <AddLeaveRequestDialog
-          employeeId={userProfile.employeeId}
-          open={leaveDialogOpen}
-          onOpenChange={setLeaveDialogOpen}
-        />
+        <>
+          <AddLeaveRequestDialog
+            employeeId={userProfile.employeeId}
+            open={leaveDialogOpen}
+            onOpenChange={setLeaveDialogOpen}
+          />
+          <PostUpdateDialog
+            open={postDialogOpen}
+            onOpenChange={setPostDialogOpen}
+            canPostAnnouncement={userProfile?.role === 'admin' || userProfile?.role === 'hr'}
+          />
+        </>
       )}
     </div>
   );
