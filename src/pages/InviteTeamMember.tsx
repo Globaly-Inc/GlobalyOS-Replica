@@ -46,7 +46,7 @@ const inviteSchema = z.object({
   phone: z.string().trim().min(5, "Please enter a valid phone number").max(20),
   firstName: z.string().trim().min(2, "First name must be at least 2 characters").max(50),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
   street: z.string().trim().min(2, "Street address is required").max(200),
   city: z.string().trim().min(2, "City is required").max(100),
   postcode: z.string().trim().max(20).optional(),
@@ -595,14 +595,18 @@ const InviteTeamMember = () => {
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => handleChange('dateOfBirth', e.target.value)}
-                    className="transition-all duration-200"
+                    onBlur={() => handleBlur('dateOfBirth')}
+                    className={cn("transition-all duration-200", touched.dateOfBirth && errors.dateOfBirth && "border-destructive")}
                   />
+                  {touched.dateOfBirth && errors.dateOfBirth && (
+                    <p className="text-sm text-destructive">{errors.dateOfBirth}</p>
+                  )}
                 </div>
               </div>
               <div className="grid gap-6 sm:grid-cols-3">
