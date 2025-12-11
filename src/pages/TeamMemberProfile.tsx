@@ -20,6 +20,7 @@ import { LeaveManagement } from "@/components/LeaveManagement";
 import { EmployeeDocuments } from "@/components/EmployeeDocuments";
 
 import { AttendanceTracker } from "@/components/AttendanceTracker";
+import { EditScheduleDialog } from "@/components/dialogs/EditScheduleDialog";
 import { EditManagerDialog } from "@/components/dialogs/EditManagerDialog";
 import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
@@ -32,7 +33,7 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2 } from "lucide-react";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
@@ -83,6 +84,7 @@ const TeamMemberProfile = () => {
   const [currentLeave, setCurrentLeave] = useState<{ leave_type: string } | null>(null);
   const [documentSearch, setDocumentSearch] = useState('');
   const [editStatusOpen, setEditStatusOpen] = useState(false);
+  const [editScheduleOpen, setEditScheduleOpen] = useState(false);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -1200,6 +1202,17 @@ const TeamMemberProfile = () => {
                     <Clock className="h-5 w-5 text-primary" />
                     Attendance Tracking
                   </h2>
+                  {isAdminOrHR && employee?.organization_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setEditScheduleOpen(true)}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1" />
+                      Configure Schedule
+                    </Button>
+                  )}
                 </div>
                 <div className="p-4">
                   <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} organizationId={employee?.organization_id} />
@@ -1217,6 +1230,15 @@ const TeamMemberProfile = () => {
           employeeId={id!}
           currentStatus={employee?.status || 'invited'}
           onSuccess={loadEmployee}
+        />
+      )}
+
+      {isAdminOrHR && employee?.organization_id && (
+        <EditScheduleDialog
+          open={editScheduleOpen}
+          onOpenChange={setEditScheduleOpen}
+          employeeId={id!}
+          organizationId={employee.organization_id}
         />
       )}
     </Layout>;
