@@ -32,6 +32,17 @@ interface FeedItem {
       avatar_url: string | null;
     };
   };
+  mentions?: {
+    id: string;
+    employee_id: string;
+    employee: {
+      id: string;
+      profiles: {
+        full_name: string;
+        avatar_url: string | null;
+      };
+    };
+  }[];
 }
 interface KudosItem {
   id: string;
@@ -344,6 +355,17 @@ const Home = () => {
             full_name,
             avatar_url
           )
+        ),
+        mentions:update_mentions(
+          id,
+          employee_id,
+          employee:employees!update_mentions_employee_id_fkey(
+            id,
+            profiles!inner(
+              full_name,
+              avatar_url
+            )
+          )
         )
       `).eq("organization_id", currentOrg.id).order("created_at", {
       ascending: false
@@ -429,7 +451,13 @@ const Home = () => {
           date: updateItem.created_at,
           type: mapDbTypeToUiType(updateItem.type),
           avatar: updateItem.employee.profiles.avatar_url || undefined,
-          imageUrl: updateItem.image_url || undefined
+          imageUrl: updateItem.image_url || undefined,
+          mentions: updateItem.mentions?.map(m => ({
+            id: m.id,
+            employeeId: m.employee_id,
+            employeeName: m.employee?.profiles?.full_name || "Unknown",
+            avatar: m.employee?.profiles?.avatar_url || undefined,
+          }))
         }} />;
       }
     })}

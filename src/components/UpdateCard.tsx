@@ -4,9 +4,10 @@ import { Trophy, Megaphone } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface UpdateCardProps {
-  update: Update & { imageUrl?: string };
+  update: Update;
 }
 
 const typeConfig = {
@@ -67,6 +68,31 @@ export const UpdateCard = ({ update }: UpdateCardProps) => {
         
         {/* Content */}
         <p className="text-sm text-foreground leading-relaxed mb-3">{update.content}</p>
+        
+        {/* Tagged members */}
+        {update.mentions && update.mentions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
+            <span className="text-xs text-muted-foreground">with</span>
+            {update.mentions.map((mention, index) => (
+              <Link
+                key={mention.id}
+                to={`/team/${mention.employeeId}`}
+                className="flex items-center gap-1 hover:underline"
+              >
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={mention.avatar} />
+                  <AvatarFallback className="text-xs">
+                    {mention.employeeName.split(" ").map(n => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs font-medium text-foreground">
+                  {mention.employeeName.split(" ")[0]}
+                  {index < update.mentions!.length - 1 && ","}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
         
         {/* Image if present */}
         {update.imageUrl && (
