@@ -922,12 +922,11 @@ const BulkImport = () => {
                               />
                             </td>
                             <td className={`p-0 border ${getFieldError('manager_email') ? 'border-destructive' : 'border-border/50'}`}>
-                              <EditableCell
+                              <SelectableCell
                                 value={emp.manager_email}
-                                isEditing={editingCell?.rowIndex === i && editingCell?.field === 'manager_email'}
-                                onStartEdit={() => setEditingCell({ rowIndex: i, field: 'manager_email' })}
+                                options={teamMembers.map(m => ({ value: m.email, label: `${m.full_name} (${m.email})` }))}
                                 onSave={(v) => updateCellValue(i, 'manager_email', v)}
-                                onNavigate={navigateCell}
+                                placeholder="Select manager"
                                 error={getFieldError('manager_email')}
                               />
                             </td>
