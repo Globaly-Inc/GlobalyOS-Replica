@@ -321,14 +321,9 @@ export const AddLeaveRequestDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger !== undefined ? (
-        trigger
-      ) : (
+      {trigger && (
         <DialogTrigger asChild>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Request Leave
-          </Button>
+          {trigger}
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[500px]">
