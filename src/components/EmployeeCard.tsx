@@ -9,6 +9,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getCountryFlag } from "@/lib/countryFlags";
+import { formatMonthYear } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -170,10 +171,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
                 <span>
-                  Joined {new Date(employee.joinDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  Joined {formatMonthYear(employee.joinDate)}
                 </span>
               </div>
             </div>

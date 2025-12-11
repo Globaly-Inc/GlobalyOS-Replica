@@ -20,3 +20,7 @@ export function formatDateRange(startDate: string | Date, endDate: string | Date
   const end = format(new Date(endDate), "d MMM yyyy");
   return start === end ? start : `${start} - ${end}`;
 }
+
+export function formatMonthYear(date: string | Date): string {
+  return format(new Date(date), "MMM yyyy");
+}
