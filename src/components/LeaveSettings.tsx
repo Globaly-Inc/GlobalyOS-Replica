@@ -55,7 +55,7 @@ interface Office {
   city: string | null;
 }
 
-export const LeaveSettings = () => {
+export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +273,13 @@ export const LeaveSettings = () => {
   };
 
   if (!isAdmin) {
+    if (embedded) {
+      return (
+        <p className="text-muted-foreground py-4">
+          Only administrators can manage leave settings.
+        </p>
+      );
+    }
     return (
       <Card>
         <CardHeader>
@@ -290,6 +297,267 @@ export const LeaveSettings = () => {
     );
   }
 
+  const dialogContent = (
+    <Dialog open={dialogOpen} onOpenChange={(open) => {
+      setDialogOpen(open);
+      if (!open) resetForm();
+    }}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1">
+          <Plus className="h-4 w-4" />
+          Add Leave Type
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>
+            {editingType ? "Edit Leave Type" : "Add Leave Type"}
+          </DialogTitle>
+          <DialogDescription>
+            Configure the leave type settings and office applicability
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Name *</Label>
+            <Input
+              id="name"
+              placeholder="e.g., Annual Leave, Sick Leave"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="category">Category *</Label>
+              <Select value={formCategory} onValueChange={setFormCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid Leave</SelectItem>
+                  <SelectItem value="unpaid">Unpaid Leave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="defaultDays">Default Days</Label>
+              <Input
+                id="defaultDays"
+                type="number"
+                min="0"
+                step="0.5"
+                value={formDefaultDays}
+                onChange={(e) => setFormDefaultDays(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="minDaysAdvance">Min. Days Advance</Label>
+              <Input
+                id="minDaysAdvance"
+                type="number"
+                min="0"
+                step="1"
+                value={formMinDaysAdvance}
+                onChange={(e) => setFormMinDaysAdvance(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Optional description..."
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Applies to All Offices</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable for all offices or select specific ones
+                </p>
+              </div>
+              <Switch
+                checked={formAppliesToAll}
+                onCheckedChange={setFormAppliesToAll}
+              />
+            </div>
+            {!formAppliesToAll && offices.length > 0 && (
+              <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                <Label className="text-sm">Select Offices</Label>
+                <div className="grid gap-2 max-h-32 overflow-y-auto">
+                  {offices.map((office) => (
+                    <div key={office.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={office.id}
+                        checked={formSelectedOffices.includes(office.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setFormSelectedOffices([...formSelectedOffices, office.id]);
+                          } else {
+                            setFormSelectedOffices(
+                              formSelectedOffices.filter((id) => id !== office.id)
+                            );
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={office.id}
+                        className="text-sm cursor-pointer"
+                      >
+                        {office.name}
+                        {office.city && (
+                          <span className="text-muted-foreground ml-1">
+                            ({office.city})
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!formAppliesToAll && offices.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No offices configured. Add offices first to enable per-office leave types.
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : editingType ? "Update" : "Create"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const tableContent = (
+    <>
+      {loading ? (
+        <p className="text-muted-foreground text-center py-8">Loading...</p>
+      ) : leaveTypes.length === 0 ? (
+        <div className="text-center py-8">
+          <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="text-muted-foreground">No leave types configured yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add leave types to enable leave management
+          </p>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Default Days</TableHead>
+              <TableHead>Min. Advance</TableHead>
+              <TableHead>Applies To</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leaveTypes.map((leaveType) => (
+              <TableRow key={leaveType.id}>
+                <TableCell>
+                  <div>
+                    <span className="font-medium">{leaveType.name}</span>
+                    {leaveType.description && (
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {leaveType.description}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={leaveType.category === "paid" ? "default" : "secondary"}
+                  >
+                    {leaveType.category === "paid" ? "Paid" : "Unpaid"}
+                  </Badge>
+                </TableCell>
+                <TableCell>{leaveType.default_days}</TableCell>
+                <TableCell>{leaveType.min_days_advance} days</TableCell>
+                <TableCell>
+                  {leaveType.applies_to_all_offices ? (
+                    <Badge variant="outline" className="gap-1">
+                      <Building2 className="h-3 w-3" />
+                      All Offices
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      {getOfficeNames(leaveType.office_ids || [])}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={leaveType.is_active ? "default" : "secondary"}
+                    className={leaveType.is_active ? "bg-green-500" : ""}
+                  >
+                    {leaveType.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(leaveType)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleActive(leaveType)}
+                    >
+                      <Switch
+                        checked={leaveType.is_active}
+                        className="scale-75"
+                      />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(leaveType)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Configure leave types available in your organization
+          </p>
+          {dialogContent}
+        </div>
+        {tableContent}
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -303,248 +571,11 @@ export const LeaveSettings = () => {
               Configure leave types available in your organization
             </CardDescription>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1">
-                <Plus className="h-4 w-4" />
-                Add Leave Type
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingType ? "Edit Leave Type" : "Add Leave Type"}
-                </DialogTitle>
-                <DialogDescription>
-                  Configure the leave type settings and office applicability
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Annual Leave, Sick Leave"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category *</Label>
-                    <Select value={formCategory} onValueChange={setFormCategory}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="paid">Paid Leave</SelectItem>
-                        <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="defaultDays">Default Days</Label>
-                    <Input
-                      id="defaultDays"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={formDefaultDays}
-                      onChange={(e) => setFormDefaultDays(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="minDaysAdvance">Min. Days Advance</Label>
-                    <Input
-                      id="minDaysAdvance"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formMinDaysAdvance}
-                      onChange={(e) => setFormMinDaysAdvance(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Optional description..."
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Applies to All Offices</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Enable for all offices or select specific ones
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formAppliesToAll}
-                      onCheckedChange={setFormAppliesToAll}
-                    />
-                  </div>
-                  {!formAppliesToAll && offices.length > 0 && (
-                    <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-                      <Label className="text-sm">Select Offices</Label>
-                      <div className="grid gap-2 max-h-32 overflow-y-auto">
-                        {offices.map((office) => (
-                          <div key={office.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={office.id}
-                              checked={formSelectedOffices.includes(office.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setFormSelectedOffices([...formSelectedOffices, office.id]);
-                                } else {
-                                  setFormSelectedOffices(
-                                    formSelectedOffices.filter((id) => id !== office.id)
-                                  );
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={office.id}
-                              className="text-sm cursor-pointer"
-                            >
-                              {office.name}
-                              {office.city && (
-                                <span className="text-muted-foreground ml-1">
-                                  ({office.city})
-                                </span>
-                              )}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {!formAppliesToAll && offices.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No offices configured. Add offices first to enable per-office leave types.
-                    </p>
-                  )}
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : editingType ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {dialogContent}
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <p className="text-muted-foreground text-center py-8">Loading...</p>
-        ) : leaveTypes.length === 0 ? (
-          <div className="text-center py-8">
-            <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No leave types configured yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Add leave types to enable leave management
-            </p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Default Days</TableHead>
-                <TableHead>Min. Advance</TableHead>
-                <TableHead>Applies To</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaveTypes.map((leaveType) => (
-                <TableRow key={leaveType.id}>
-                  <TableCell>
-                    <div>
-                      <span className="font-medium">{leaveType.name}</span>
-                      {leaveType.description && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                          {leaveType.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={leaveType.category === "paid" ? "default" : "secondary"}
-                    >
-                      {leaveType.category === "paid" ? "Paid" : "Unpaid"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{leaveType.default_days}</TableCell>
-                  <TableCell>{leaveType.min_days_advance} days</TableCell>
-                  <TableCell>
-                    {leaveType.applies_to_all_offices ? (
-                      <Badge variant="outline" className="gap-1">
-                        <Building2 className="h-3 w-3" />
-                        All Offices
-                      </Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        {getOfficeNames(leaveType.office_ids || [])}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={leaveType.is_active ? "default" : "secondary"}
-                      className={leaveType.is_active ? "bg-green-500" : ""}
-                    >
-                      {leaveType.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(leaveType)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleActive(leaveType)}
-                      >
-                        <Switch
-                          checked={leaveType.is_active}
-                          className="scale-75"
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(leaveType)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        {tableContent}
       </CardContent>
     </Card>
   );
