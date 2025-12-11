@@ -155,9 +155,75 @@ const OrgChart = () => {
     return roots;
   };
 
-  const EmployeeCard = ({ employee, departmentColor }: { employee: TreeNode; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
+  const EmployeeCard = ({ employee, departmentColor, size = 'default' }: { employee: TreeNode; departmentColor: typeof DEPARTMENT_COLORS[0]; size?: 'default' | 'large' | 'featured' }) => {
     const isExternal = employee.isExternalManager;
     const empDeptColor = departmentColorMap.get(employee.department || "Unassigned") || DEPARTMENT_COLORS[0];
+    
+    if (size === 'featured') {
+      return (
+        <Card
+          onClick={() => navigate(`/team/${employee.id}`)}
+          className="cursor-pointer transition-all duration-200 hover:shadow-lg h-full"
+          style={{ backgroundColor: empDeptColor.bg }}
+        >
+          <div className="p-4 h-full flex flex-col justify-between">
+            <div>
+              <Avatar className="h-14 w-14 border-2 border-white/30">
+                <AvatarImage src={employee.profiles.avatar_url || undefined} />
+                <AvatarFallback className="bg-white/20 text-white text-lg">
+                  {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-white">
+                {employee.profiles.full_name}
+              </h3>
+              <p className="text-xs text-white/80">{employee.position}</p>
+              {employee.children.length > 0 && (
+                <div className="flex items-center gap-1 text-xs text-white/70 mt-2">
+                  <Users className="h-3 w-3" />
+                  <span>{employee.children.length} reports</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    if (size === 'large') {
+      return (
+        <Card
+          onClick={() => navigate(`/team/${employee.id}`)}
+          className="cursor-pointer transition-all duration-200 hover:shadow-md h-full"
+          style={{ backgroundColor: empDeptColor.light, borderColor: empDeptColor.border }}
+        >
+          <div className="p-3 h-full flex flex-col">
+            <div className="flex items-start gap-3">
+              <Avatar className="h-10 w-10 flex-shrink-0" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: empDeptColor.bg }}>
+                <AvatarImage src={employee.profiles.avatar_url || undefined} />
+                <AvatarFallback style={{ background: empDeptColor.bg }} className="text-white text-sm">
+                  {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-foreground">
+                  {employee.profiles.full_name}
+                </h3>
+                <p className="text-xs text-muted-foreground">{employee.position}</p>
+              </div>
+            </div>
+            {employee.children.length > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-auto pt-2">
+                <Users className="h-3 w-3" />
+                <span>{employee.children.length} direct reports</span>
+              </div>
+            )}
+          </div>
+        </Card>
+      );
+    }
     
     return (
       <Card
@@ -208,6 +274,51 @@ const OrgChart = () => {
           </div>
         </div>
       </Card>
+    );
+  };
+
+  // Bento grid layout for Management department
+  const ManagementBentoGrid = ({ employees, departmentColor }: { employees: TreeNode[]; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
+    // Flatten all employees for bento display
+    const flattenEmployees = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = [];
+      const flatten = (nodeList: TreeNode[]) => {
+        nodeList.forEach(node => {
+          result.push(node);
+          if (node.children.length > 0) {
+            flatten(node.children);
+          }
+        });
+      };
+      flatten(nodes);
+      return result;
+    };
+
+    const allEmployees = flattenEmployees(employees);
+    
+    if (allEmployees.length === 0) return null;
+    
+    // First employee is featured, rest are in grid
+    const [featured, ...others] = allEmployees;
+
+    return (
+      <div className="grid grid-cols-2 gap-2 auto-rows-min">
+        {/* Featured card - spans 1 col, 2 rows */}
+        <div className="row-span-2">
+          <EmployeeCard employee={featured} departmentColor={departmentColor} size="featured" />
+        </div>
+        
+        {/* Other cards in grid */}
+        {others.map((emp, index) => (
+          <div key={emp.id} className={index < 2 ? '' : ''}>
+            <EmployeeCard 
+              employee={emp} 
+              departmentColor={departmentColor} 
+              size={index < 2 ? 'large' : 'default'}
+            />
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -318,6 +429,8 @@ const OrgChart = () => {
             {sortedDepartments.map(([department, deptEmployees]) => {
               const tree = buildDepartmentTree(deptEmployees);
               const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
+              const isManagement = department.toLowerCase() === 'management';
+              
               return (
                 <Card key={department} className="overflow-hidden" style={{ borderColor: deptColor.border }}>
                   <div 
@@ -333,10 +446,16 @@ const OrgChart = () => {
                       {deptEmployees.length}
                     </Badge>
                   </div>
-                  <div className="p-4 space-y-4">
-                    {tree.map((root) => (
-                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
-                    ))}
+                  <div className="p-3">
+                    {isManagement ? (
+                      <ManagementBentoGrid employees={tree} departmentColor={deptColor} />
+                    ) : (
+                      <div className="space-y-4">
+                        {tree.map((root) => (
+                          <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </Card>
               );
