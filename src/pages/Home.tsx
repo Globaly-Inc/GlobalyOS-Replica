@@ -48,6 +48,7 @@ interface KudosItem {
   id: string;
   comment: string;
   created_at: string;
+  batch_id: string | null;
   employee: {
     id: string;
     profiles: {
@@ -56,6 +57,7 @@ interface KudosItem {
     };
   };
   given_by: {
+    id: string;
     profiles: {
       full_name: string;
       avatar_url: string | null;
@@ -378,6 +380,7 @@ const Home = () => {
         id,
         comment,
         created_at,
+        batch_id,
         employee:employees!kudos_employee_id_fkey(
           id,
           profiles!inner(
@@ -386,6 +389,7 @@ const Home = () => {
           )
         ),
         given_by:employees!kudos_given_by_id_fkey(
+          id,
           profiles!inner(
             full_name,
             avatar_url
@@ -427,11 +431,46 @@ const Home = () => {
   const filteredKudos = filterByDate(kudos);
   const winsAndAchievements = filteredUpdates.filter(u => u.type === "win" || u.type === "achievement");
   const regularUpdates = filteredUpdates.filter(u => u.type === "update");
-  const renderFeedContent = (items: (FeedItem | KudosItem)[]) => <>
+
+  // Group kudos by batch_id to show multiple recipients in one card
+  type GroupedKudosItem = KudosItem & { otherRecipients?: { name: string; avatar?: string }[] };
+  
+  const groupedKudos: GroupedKudosItem[] = (() => {
+    const grouped: Map<string, KudosItem[]> = new Map();
+    const standalone: GroupedKudosItem[] = [];
+    
+    filteredKudos.forEach(k => {
+      if (k.batch_id) {
+        const existing = grouped.get(k.batch_id) || [];
+        existing.push(k);
+        grouped.set(k.batch_id, existing);
+      } else {
+        standalone.push({ ...k, otherRecipients: undefined });
+      }
+    });
+    
+    // Convert grouped kudos to single representative items with otherRecipients
+    const result: GroupedKudosItem[] = [];
+    
+    grouped.forEach((items) => {
+      if (items.length > 0) {
+        const first = items[0];
+        const others = items.slice(1).map(k => ({
+          name: k.employee.profiles.full_name,
+          avatar: k.employee.profiles.avatar_url || undefined
+        }));
+        result.push({ ...first, otherRecipients: others });
+      }
+    });
+    
+    return [...result, ...standalone];
+  })();
+
+  const renderFeedContent = (items: (FeedItem | (KudosItem & { otherRecipients?: { name: string; avatar?: string }[] }))[]) => <>
       {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
       if ("comment" in item) {
-        const kudosItem = item as KudosItem;
-        return <KudosCard key={item.id} kudos={{
+        const kudosItem = item as KudosItem & { otherRecipients?: { name: string; avatar?: string }[] };
+        return <KudosCard key={kudosItem.batch_id || item.id} kudos={{
           id: kudosItem.id,
           employeeId: kudosItem.employee.id,
           employeeName: kudosItem.employee.profiles.full_name,
@@ -439,7 +478,8 @@ const Home = () => {
           givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
           comment: kudosItem.comment,
           date: kudosItem.created_at,
-          avatar: kudosItem.employee.profiles.avatar_url || undefined
+          avatar: kudosItem.employee.profiles.avatar_url || undefined,
+          otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
         }} />;
       } else {
         const updateItem = item as FeedItem;
@@ -563,7 +603,7 @@ const Home = () => {
                       <MessageSquare className="h-4 w-4 shrink-0" />
                       <span>All</span>
                       <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {filteredUpdates.length + filteredKudos.length}
+                        {filteredUpdates.length + groupedKudos.length}
                       </span>
                     </TabsTrigger>
                     <TabsTrigger value="wins" className="px-3 py-2 gap-1.5">
@@ -577,7 +617,7 @@ const Home = () => {
                       <Heart className="h-4 w-4 shrink-0" />
                       <span>Kudos</span>
                       <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {filteredKudos.length}
+                        {groupedKudos.length}
                       </span>
                     </TabsTrigger>
                     <TabsTrigger value="announcements" className="px-3 py-2 gap-1.5">
@@ -614,8 +654,8 @@ const Home = () => {
                 {loading ? <Card className="p-12 text-center">
                     <p className="text-muted-foreground">Loading feed...</p>
                   </Card> : <>
-                    {renderFeedContent([...filteredUpdates, ...filteredKudos])}
-                    {filteredUpdates.length === 0 && filteredKudos.length === 0 && <Card className="p-12 text-center">
+                    {renderFeedContent([...filteredUpdates, ...groupedKudos])}
+                    {filteredUpdates.length === 0 && groupedKudos.length === 0 && <Card className="p-12 text-center">
                         <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
                       </Card>}
                   </>}
@@ -638,7 +678,7 @@ const Home = () => {
               </TabsContent>
 
               <TabsContent value="kudos" className="space-y-4">
-                {filteredKudos.map(kudosItem => <KudosCard key={kudosItem.id} kudos={{
+                {groupedKudos.map(kudosItem => <KudosCard key={kudosItem.batch_id || kudosItem.id} kudos={{
                 id: kudosItem.id,
                 employeeId: kudosItem.employee.id,
                 employeeName: kudosItem.employee.profiles.full_name,
@@ -646,9 +686,10 @@ const Home = () => {
                 givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
                 comment: kudosItem.comment,
                 date: kudosItem.created_at,
-                avatar: kudosItem.employee.profiles.avatar_url || undefined
+                avatar: kudosItem.employee.profiles.avatar_url || undefined,
+                otherRecipients: kudosItem.otherRecipients?.map(r => r.name)
               }} />)}
-                {filteredKudos.length === 0 && <Card className="p-12 text-center">
+                {groupedKudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>
                   </Card>}
               </TabsContent>
