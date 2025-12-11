@@ -32,9 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { List, Briefcase, Building, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { List, Briefcase, Building, Plus, Pencil, Trash2, Loader2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
+import { LeaveSettings } from "./LeaveSettings";
 
 interface Position {
   id: string;
@@ -337,6 +338,10 @@ export const FieldsSettings = () => {
                 Positions
                 <Badge variant="secondary" className="ml-1">{positions.length}</Badge>
               </TabsTrigger>
+              <TabsTrigger value="leave-types" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Leave Types
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="departments" className="space-y-4">
@@ -453,6 +458,10 @@ export const FieldsSettings = () => {
                   </TableBody>
                 </Table>
               )}
+            </TabsContent>
+
+            <TabsContent value="leave-types" className="space-y-4">
+              <LeaveSettings embedded />
             </TabsContent>
           </Tabs>
         </CardContent>
