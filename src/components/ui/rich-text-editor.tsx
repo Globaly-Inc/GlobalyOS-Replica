@@ -193,6 +193,7 @@ export const RichTextContent = ({
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
         "[&_li]:ml-0",
+        "[&_p:empty]:hidden [&_p:has(br:only-child)]:h-4 [&_p:has(br:only-child)]:my-0",
         "text-foreground/80",
         className
       )}
