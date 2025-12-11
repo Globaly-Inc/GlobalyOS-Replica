@@ -324,7 +324,7 @@ Deno.serve(async (req) => {
             emergency_contact_phone: emp.emergency_contact_phone || null,
             emergency_contact_relationship: emp.emergency_contact_relationship || null,
             personal_email: emp.personal_email || null,
-            status: 'invited'
+            status: 'active'
           })
           .select('id')
           .single();
