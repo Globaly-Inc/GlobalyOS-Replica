@@ -223,10 +223,19 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
     });
     setCompletedSections(newCompleted);
 
-    // Auto-expand next section
+    // Auto-expand next section with smooth scroll
     for (let i = 0; i < SECTIONS.length - 1; i++) {
       if (isSectionComplete(SECTIONS[i]) && !openSections.includes(SECTIONS[i + 1])) {
-        setOpenSections(prev => [...prev, SECTIONS[i + 1]]);
+        const nextSection = SECTIONS[i + 1];
+        setOpenSections(prev => [...prev, nextSection]);
+        
+        // Scroll to the next section after a short delay to allow accordion animation
+        setTimeout(() => {
+          const sectionElement = document.querySelector(`[data-section="${nextSection}"]`);
+          if (sectionElement) {
+            sectionElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
         break;
       }
     }
@@ -342,7 +351,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         <ScrollArea className="flex-1 pr-4">
           <Accordion type="multiple" value={openSections} onValueChange={setOpenSections} className="space-y-2">
             {/* Personal Information */}
-            <AccordionItem value="personal" className="border rounded-lg px-4">
+            <AccordionItem value="personal" data-section="personal" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('personal', completedSections.has('personal'))}
@@ -383,7 +392,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
             </AccordionItem>
 
             {/* Address */}
-            <AccordionItem value="address" className="border rounded-lg px-4">
+            <AccordionItem value="address" data-section="address" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('address', completedSections.has('address'))}
@@ -411,7 +420,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
             </AccordionItem>
 
             {/* Employment Details */}
-            <AccordionItem value="employment" className="border rounded-lg px-4">
+            <AccordionItem value="employment" data-section="employment" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('employment', completedSections.has('employment'))}
@@ -492,7 +501,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
             </AccordionItem>
 
             {/* Emergency Contact */}
-            <AccordionItem value="emergency" className="border rounded-lg px-4">
+            <AccordionItem value="emergency" data-section="emergency" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('emergency', completedSections.has('emergency'))}
@@ -509,7 +518,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
             </AccordionItem>
 
             {/* System Role */}
-            <AccordionItem value="role" className="border rounded-lg px-4">
+            <AccordionItem value="role" data-section="role" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3">
                   {getSectionIcon('role', completedSections.has('role'))}
