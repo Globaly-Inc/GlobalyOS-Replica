@@ -69,22 +69,25 @@ const CSV_TEMPLATE = `first_name (required),last_name (required),email (required
 John,Doe,john.doe@company.com,john@personal.com,+1234567890,Engineering,Software Engineer,2024-01-15,1990-05-20,Head Office,manager@company.com,123 Main Street,New York,New York,10001,United States,ID123456,TAX789,75000,USD,Jane Doe,+0987654321,Spouse,user
 Sarah,Smith,sarah.smith@company.com,sarah@gmail.com,+1987654321,Marketing,Marketing Manager,2024-02-01,1988-08-15,Head Office,manager@company.com,456 Oak Avenue,Los Angeles,California,90001,United States,ID789012,TAX456,85000,USD,Tom Smith,+1122334455,Spouse,hr`;
 
-// Editable cell component
+// Excel/Google Sheets style editable cell component
 const EditableCell = ({ 
   value, 
   onSave, 
   isEditing, 
   onStartEdit,
+  onNavigate,
   className = ""
 }: { 
   value: string; 
   onSave: (value: string) => void; 
   isEditing: boolean;
   onStartEdit: () => void;
+  onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
   className?: string;
 }) => {
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -103,33 +106,69 @@ const EditableCell = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleSave();
+      onNavigate?.('down');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleSave();
+      onNavigate?.(e.shiftKey ? 'left' : 'right');
     } else if (e.key === 'Escape') {
       setEditValue(value);
       onSave(value);
+    } else if (e.key === 'ArrowUp' && e.altKey) {
+      e.preventDefault();
+      handleSave();
+      onNavigate?.('up');
+    } else if (e.key === 'ArrowDown' && e.altKey) {
+      e.preventDefault();
+      handleSave();
+      onNavigate?.('down');
     }
   };
 
-  if (isEditing) {
-    return (
-      <Input
-        ref={inputRef}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        className="h-6 text-xs px-1 py-0 min-w-[80px]"
-      />
-    );
-  }
+  const handleDoubleClick = () => {
+    if (!isEditing) {
+      onStartEdit();
+    }
+  };
+
+  const handleClick = () => {
+    if (!isEditing) {
+      onStartEdit();
+    }
+  };
 
   return (
-    <span 
-      onClick={onStartEdit}
-      className={`cursor-pointer hover:bg-primary/10 px-1 py-0.5 rounded transition-colors ${className}`}
+    <div 
+      ref={cellRef}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      className={`
+        relative w-full h-full min-h-[28px] flex items-center
+        ${isEditing 
+          ? 'ring-2 ring-primary ring-inset bg-background z-10' 
+          : 'cursor-cell hover:bg-primary/5 border border-transparent hover:border-primary/20'
+        }
+        ${className}
+      `}
     >
-      {value || <span className="text-muted-foreground italic">empty</span>}
-    </span>
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="w-full h-full px-1.5 py-1 text-xs bg-transparent outline-none border-none"
+          style={{ minWidth: '60px' }}
+        />
+      ) : (
+        <span className="px-1.5 py-1 text-xs truncate w-full">
+          {value || <span className="text-muted-foreground/50 italic">-</span>}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -148,13 +187,56 @@ const BulkImport = () => {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
 
+  // Field order for keyboard navigation
+  const fieldOrder = [
+    'first_name', 'last_name', 'email', 'phone', 'department', 'position',
+    'join_date', 'date_of_birth', 'office_name', 'manager_email', 'street',
+    'city', 'state', 'postcode', 'country', 'role'
+  ];
+
+  const navigateCell = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!editingCell) return;
+    
+    const { rowIndex, field } = editingCell;
+    const fieldIndex = fieldOrder.indexOf(field);
+    
+    let newRowIndex = rowIndex;
+    let newFieldIndex = fieldIndex;
+    
+    switch (direction) {
+      case 'up':
+        newRowIndex = Math.max(0, rowIndex - 1);
+        break;
+      case 'down':
+        newRowIndex = Math.min(parsedData.length - 1, rowIndex + 1);
+        break;
+      case 'left':
+        if (fieldIndex > 0) {
+          newFieldIndex = fieldIndex - 1;
+        } else if (rowIndex > 0) {
+          newRowIndex = rowIndex - 1;
+          newFieldIndex = fieldOrder.length - 1;
+        }
+        break;
+      case 'right':
+        if (fieldIndex < fieldOrder.length - 1) {
+          newFieldIndex = fieldIndex + 1;
+        } else if (rowIndex < parsedData.length - 1) {
+          newRowIndex = rowIndex + 1;
+          newFieldIndex = 0;
+        }
+        break;
+    }
+    
+    setEditingCell({ rowIndex: newRowIndex, field: fieldOrder[newFieldIndex] });
+  };
+
   const updateCellValue = (rowIndex: number, field: string, value: string) => {
     setParsedData(prev => {
       const updated = [...prev];
       (updated[rowIndex] as any)[field] = value;
       return updated;
     });
-    setEditingCell(null);
     // Re-validate after update
     const errors = validateData(parsedData.map((emp, i) => 
       i === rowIndex ? { ...emp, [field]: value } : emp
@@ -603,158 +685,174 @@ const BulkImport = () => {
                   </div>
                 </div>
 
-                <ScrollArea className="h-[400px] border rounded-lg">
-                  <div className="p-4 overflow-x-auto">
-                    <table className="w-full text-xs min-w-max">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">First Name *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Last Name *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Email *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Phone *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Department *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Position *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Join Date *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">DOB *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Office *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Manager *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Street *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">City *</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">State *</th>
-                          <th className="text-left p-2">Postcode</th>
-                          <th className="text-left p-2 bg-primary/10 border-l-2 border-l-primary">Country *</th>
-                          <th className="text-left p-2">Role</th>
+                <ScrollArea className="h-[400px] border rounded-lg bg-background">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs min-w-max border-collapse">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-muted">
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">First Name *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Last Name *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Email *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Phone *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Department *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Position *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Join Date *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">DOB *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Office *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Manager *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Street *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">City *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">State *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Postcode</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Country *</th>
+                          <th className="text-left px-2 py-2 font-medium border border-border/50 bg-muted whitespace-nowrap">Role</th>
                         </tr>
                       </thead>
                       <tbody>
                         {parsedData.map((emp, i) => (
-                          <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                          <tr key={i} className="border-b last:border-0">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.first_name}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'first_name'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'first_name' })}
                                 onSave={(v) => updateCellValue(i, 'first_name', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.last_name}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'last_name'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'last_name' })}
                                 onSave={(v) => updateCellValue(i, 'last_name', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.email}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'email'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'email' })}
                                 onSave={(v) => updateCellValue(i, 'email', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.phone}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'phone'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'phone' })}
                                 onSave={(v) => updateCellValue(i, 'phone', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.department}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'department'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'department' })}
                                 onSave={(v) => updateCellValue(i, 'department', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.position}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'position'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'position' })}
                                 onSave={(v) => updateCellValue(i, 'position', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.join_date}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'join_date'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'join_date' })}
                                 onSave={(v) => updateCellValue(i, 'join_date', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.date_of_birth}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'date_of_birth'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'date_of_birth' })}
                                 onSave={(v) => updateCellValue(i, 'date_of_birth', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.office_name}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'office_name'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'office_name' })}
                                 onSave={(v) => updateCellValue(i, 'office_name', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.manager_email}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'manager_email'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'manager_email' })}
                                 onSave={(v) => updateCellValue(i, 'manager_email', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.street || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'street'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'street' })}
                                 onSave={(v) => updateCellValue(i, 'street', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.city || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'city'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'city' })}
                                 onSave={(v) => updateCellValue(i, 'city', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.state || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'state'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'state' })}
                                 onSave={(v) => updateCellValue(i, 'state', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.postcode || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'postcode'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'postcode' })}
                                 onSave={(v) => updateCellValue(i, 'postcode', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5 border-l-2 border-l-primary/30">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.country || ''}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'country'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'country' })}
                                 onSave={(v) => updateCellValue(i, 'country', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
-                            <td className="p-1.5">
+                            <td className="p-0 border border-border/50">
                               <EditableCell
                                 value={emp.role || 'user'}
                                 isEditing={editingCell?.rowIndex === i && editingCell?.field === 'role'}
                                 onStartEdit={() => setEditingCell({ rowIndex: i, field: 'role' })}
                                 onSave={(v) => updateCellValue(i, 'role', v)}
+                                onNavigate={navigateCell}
                               />
                             </td>
                           </tr>
