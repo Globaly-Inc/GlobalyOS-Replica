@@ -4,8 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2, Image, FileSpreadsheet, File } from "lucide-react";
+import { FolderOpen, FileText, Download, Trash2, User, FileCheck, Receipt, Loader2, Image, FileSpreadsheet, File, Eye } from "lucide-react";
 import { UploadDocumentDialog } from "@/components/dialogs/UploadDocumentDialog";
+import { DocumentPreviewDialog } from "@/components/dialogs/DocumentPreviewDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { formatDateTime } from "@/lib/utils";
 import {
@@ -56,6 +57,7 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
 
   const isAdminOrHR = isAdmin || isHR;
 
@@ -192,6 +194,12 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
     return documents.filter(doc => doc.folder === folder);
   };
 
+  const canPreview = (doc: Document) => {
+    const ext = doc.file_name.split('.').pop()?.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext || '') ||
+      doc.file_type?.includes('image') || doc.file_type?.includes('pdf');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -264,6 +272,16 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
                           </div>
                         </div>
                         <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 rounded p-0.5">
+                          {canPreview(doc) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setPreviewDoc(doc)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -315,6 +333,12 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile }: EmployeeDocument
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DocumentPreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+        document={previewDoc}
+      />
     </div>
   );
 };
