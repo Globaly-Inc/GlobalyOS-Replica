@@ -67,7 +67,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     request: OwnPendingRequest | null;
   }>({ open: false, request: null });
   const { currentOrg } = useOrganization();
-  const { isHR } = useUserRole();
+  const { isHR, isAdmin } = useUserRole();
+  const isAdminOrHR = isAdmin || isHR;
 
   useEffect(() => {
     if (currentOrg) {
@@ -143,8 +144,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
     setIsManagerOnLeave(!!managerLeave);
 
-    // If manager is on leave and user is not HR, don't show approval requests
-    if (managerLeave && !isHR) {
+    // If manager is on leave and user is not HR/Admin, don't show approval requests
+    if (managerLeave && !isAdminOrHR) {
       setPendingRequests([]);
       setLoading(false);
       return;
@@ -188,8 +189,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       }
     }
 
-    // If user is HR, also check for requests where manager is on leave (HR backup)
-    if (isHR) {
+    // If user is Admin or HR, also check for requests where manager is on leave (HR/Admin backup)
+    if (isAdminOrHR) {
       const { data: allPending } = await supabase
         .from("leave_requests")
         .select(`
@@ -220,6 +221,10 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           if (existingIds.has(req.id)) continue;
           
           const emp = req.employee as any;
+          
+          // Skip if this is the current user's own request
+          if (emp.id === currentEmployee.id) continue;
+          
           if (emp.manager_id) {
             // Check if their manager is on leave
             const { data: mgrOnLeave } = await supabase
@@ -236,7 +241,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
               requests.push(req as PendingLeaveRequest);
             }
           } else {
-            // No manager assigned - HR should handle
+            // No manager assigned - HR/Admin should handle
             hrBackupRequests.push(req as PendingLeaveRequest);
             requests.push(req as PendingLeaveRequest);
           }
