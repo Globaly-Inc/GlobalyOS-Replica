@@ -804,7 +804,7 @@ const Home = () => {
                     Request
                   </Button>
                 </div>
-                {leaveBalances.length > 0 ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {leaveBalances.length > 0 ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {[...leaveBalances]
                       .sort((a, b) => {
                         // Sort by category: paid first, then unpaid
