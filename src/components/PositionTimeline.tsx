@@ -177,28 +177,28 @@ export const PositionTimeline = ({
 
   return (
     <>
-      <div className="relative pb-2">
+      <div className="relative pb-1">
         {/* Timeline line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+        <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-border" />
 
         {/* Current Position */}
-        <div className="relative pl-12 pb-6 group">
+        <div className="relative pl-10 pb-4 group">
           {/* Timeline dot - highlighted for current */}
-          <div className="absolute left-2 top-1 w-4 h-4 rounded-full bg-primary border-4 border-background ring-2 ring-primary/30" />
+          <div className="absolute left-1.5 top-0.5 w-3 h-3 rounded-full bg-primary border-2 border-background ring-2 ring-primary/30" />
           
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4">
                     Current
                   </Badge>
                 </div>
-                <h4 className="font-semibold text-sm">{currentPosition}</h4>
-                <p className="text-xs text-muted-foreground">{currentDepartment}</p>
+                <h4 className="font-medium text-xs">{currentPosition}</h4>
+                <p className="text-[11px] text-muted-foreground">{currentDepartment}</p>
                 
                 {showSalary && currentSalary && (
-                  <p className="text-xs font-medium mt-1 text-primary">
+                  <p className="text-[11px] font-medium mt-0.5 text-primary">
                     {formatSalary(currentSalary, currentCurrency)}
                   </p>
                 )}
@@ -224,42 +224,42 @@ export const PositionTimeline = ({
           const Icon = config.icon;
 
           return (
-            <div key={entry.id} className="relative pl-12 pb-6 last:pb-0 group">
+            <div key={entry.id} className="relative pl-10 pb-4 last:pb-0 group">
               {/* Timeline dot */}
-              <div className={`absolute left-2 top-1 w-4 h-4 rounded-full ${config.color} border-4 border-background`} />
+              <div className={`absolute left-1.5 top-0.5 w-3 h-3 rounded-full ${config.color} border-2 border-background`} />
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        <Icon className="h-2.5 w-2.5 mr-1" />
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                        <Icon className="h-2 w-2 mr-0.5" />
                         {config.label}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         {formatDate(entry.effective_date)}
                         {entry.end_date && (
                           <> - {formatDate(entry.end_date)}</>
                         )}
                       </span>
                     </div>
-                    <h4 className="font-semibold text-sm">{entry.position}</h4>
-                    <p className="text-xs text-muted-foreground">{entry.department}</p>
+                    <h4 className="font-medium text-xs">{entry.position}</h4>
+                    <p className="text-[11px] text-muted-foreground">{entry.department}</p>
                     
                     {showSalary && entry.salary && (
-                      <p className="text-xs font-medium mt-1 text-primary">
+                      <p className="text-[11px] font-medium mt-0.5 text-primary">
                         {formatSalary(entry.salary, currentCurrency)}
                       </p>
                     )}
                     
                     {entry.manager && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
                         Manager: {entry.manager.profiles.full_name}
                       </p>
                     )}
 
                     {entry.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 italic">
+                      <p className="text-[10px] text-muted-foreground mt-0.5 italic">
                         {entry.notes}
                       </p>
                     )}
