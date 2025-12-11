@@ -243,6 +243,7 @@ export type Database = {
       }
       kudos: {
         Row: {
+          batch_id: string | null
           comment: string
           created_at: string
           employee_id: string
@@ -251,6 +252,7 @@ export type Database = {
           organization_id: string | null
         }
         Insert: {
+          batch_id?: string | null
           comment: string
           created_at?: string
           employee_id: string
@@ -259,6 +261,7 @@ export type Database = {
           organization_id?: string | null
         }
         Update: {
+          batch_id?: string | null
           comment?: string
           created_at?: string
           employee_id?: string

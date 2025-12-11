@@ -6,11 +6,16 @@ interface KudosCardProps {
 }
 
 export const KudosCard = ({ kudos }: KudosCardProps) => {
+  const otherCount = kudos.otherRecipients?.length || 0;
+  const recipientText = otherCount > 0 
+    ? `${kudos.employeeName} and ${otherCount} other${otherCount > 1 ? 's' : ''}`
+    : kudos.employeeName;
+
   return (
     <div className="rounded-lg border border-border/50 bg-muted/30 p-4 transition-all hover:bg-muted/50">
       {/* Title */}
       <p className="text-sm font-medium text-foreground mb-2">
-        🙌 Kudos to {kudos.employeeName}
+        🙌 Kudos to {recipientText}
       </p>
       
       {/* Message */}

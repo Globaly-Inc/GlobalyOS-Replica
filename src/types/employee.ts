@@ -25,6 +25,7 @@ export interface Kudos {
   comment: string;
   date: string;
   avatar?: string;
+  otherRecipients?: string[];
 }
 
 export interface Update {

@@ -127,12 +127,16 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
         return;
       }
 
+      // Generate batch_id if multiple recipients
+      const batchId = validated.employeeIds.length > 1 ? crypto.randomUUID() : null;
+
       // Insert kudos for each selected employee
       const kudosRecords = validated.employeeIds.map(employeeId => ({
         employee_id: employeeId,
         given_by_id: giverEmployee.id,
         comment: validated.comment,
         organization_id: giverEmployee.organization_id,
+        batch_id: batchId,
       }));
 
       const { error } = await supabase.from("kudos").insert(kudosRecords);
