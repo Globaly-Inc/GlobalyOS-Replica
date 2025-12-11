@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { NavLink } from "./NavLink";
 import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings } from "lucide-react";
 import { Button } from "./ui/button";
@@ -13,6 +13,7 @@ import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
 import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -46,6 +47,25 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
+  const { playNotificationSound } = useNotificationSound();
+  const previousCountRef = useRef<number>(0);
+
+  // Send push notification when a new notification is created
+  const sendPushNotification = useCallback(async (notification: any) => {
+    try {
+      await supabase.functions.invoke("send-push-notification", {
+        body: {
+          user_id: user?.id,
+          title: notification.title || "New notification",
+          body: notification.message || "You have a new notification",
+          url: "/notifications",
+          tag: notification.type || "notification",
+        },
+      });
+    } catch (error) {
+      console.error("Error sending push notification:", error);
+    }
+  }, [user?.id]);
 
   // Fetch unread notification count
   useEffect(() => {
@@ -58,7 +78,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         .eq("user_id", user.id)
         .eq("is_read", false);
       
-      setUnreadCount(count || 0);
+      const newCount = count || 0;
+      
+      // Play sound and trigger push if count increased
+      if (newCount > previousCountRef.current && previousCountRef.current !== 0) {
+        playNotificationSound();
+      }
+      
+      previousCountRef.current = newCount;
+      setUnreadCount(newCount);
     };
 
     fetchUnreadCount();
@@ -69,7 +97,38 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          // Play notification sound for new notifications
+          playNotificationSound();
+          
+          // Send push notification
+          sendPushNotification(payload.new);
+          
+          // Update count
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
           schema: "public",
           table: "notifications",
           filter: `user_id=eq.${user?.id}`,
@@ -83,7 +142,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, playNotificationSound, sendPushNotification]);
 
   useEffect(() => {
     const loadUserProfile = async () => {

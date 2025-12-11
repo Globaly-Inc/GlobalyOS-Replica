@@ -14,58 +14,40 @@ interface PushPayload {
   tag?: string;
 }
 
-// Convert base64url to Uint8Array
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Send push notification using Web Push protocol
+// Send push notification using fetch
 async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { title: string; body: string; url?: string; tag?: string },
-  vapidPublicKey: string,
-  vapidPrivateKey: string
-): Promise<boolean> {
+  payload: { title: string; body: string; url?: string; tag?: string }
+): Promise<{ success: boolean; statusCode?: number }> {
   try {
-    // Import web-push compatible library for Deno
-    const webPush = await import("https://esm.sh/web-push@3.6.7");
+    console.log(`Attempting to send push to: ${subscription.endpoint.substring(0, 60)}...`);
     
-    webPush.setVapidDetails(
-      "mailto:hello@globalyhub.com",
-      vapidPublicKey,
-      vapidPrivateKey
-    );
-
-    const pushSubscription = {
-      endpoint: subscription.endpoint,
-      keys: {
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
+    const payloadString = JSON.stringify(payload);
+    
+    // Send push notification - FCM handles the encryption on their end
+    const response = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'TTL': '86400',
       },
-    };
-
-    await webPush.sendNotification(
-      pushSubscription,
-      JSON.stringify(payload)
-    );
-
-    console.log(`Push sent to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
-    return true;
+      body: payloadString,
+    });
+    
+    console.log(`Push response status: ${response.status}`);
+    
+    if (response.ok || response.status === 201) {
+      console.log(`Push sent successfully`);
+      return { success: true, statusCode: response.status };
+    }
+    
+    const responseText = await response.text();
+    console.error(`Push failed with status ${response.status}: ${responseText}`);
+    
+    return { success: false, statusCode: response.status };
   } catch (error: unknown) {
     console.error("Error sending push notification:", error);
-    // If subscription is invalid (410 Gone or 404), we should remove it
-    const err = error as { statusCode?: number };
-    if (err.statusCode === 410 || err.statusCode === 404) {
-      console.log("Subscription expired or invalid, should be removed");
-    }
-    return false;
+    return { success: false };
   }
 }
 
@@ -80,17 +62,6 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-    const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("VAPID keys not configured");
-      return new Response(
-        JSON.stringify({ error: "VAPID keys not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const { user_id, title, body, url, tag }: PushPayload = await req.json();
 
@@ -125,15 +96,15 @@ serve(async (req: Request) => {
     const failedSubscriptionIds: string[] = [];
 
     for (const sub of subscriptions) {
-      const success = await sendPushNotification(
+      const result = await sendPushNotification(
         { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-        payload,
-        vapidPublicKey,
-        vapidPrivateKey
+        payload
       );
-      if (success) {
+      
+      if (result.success) {
         sentCount++;
-      } else {
+      } else if (result.statusCode === 410 || result.statusCode === 404) {
+        // Subscription is invalid, mark for removal
         failedSubscriptionIds.push(sub.id);
       }
     }
@@ -151,10 +122,11 @@ serve(async (req: Request) => {
       JSON.stringify({ success: true, sent: sentCount, total: subscriptions.length }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
-    console.error("Error in send-push-notification:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in send-push-notification:", errorMessage);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
