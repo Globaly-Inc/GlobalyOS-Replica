@@ -323,44 +323,47 @@ const Notifications = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0 mb-4 sm:mb-6">
             <TabsList className="w-max sm:w-auto">
-              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3">
-                All
+              <TabsTrigger value="all" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <Bell className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">All</span>
                 {notifications.length > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {notifications.length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="kudos" className="text-xs sm:text-sm px-2 sm:px-3">
-                Kudos
+              <TabsTrigger value="kudos" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <Heart className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">Kudos</span>
                 {kudosCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {kudosCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="mentions" className="text-xs sm:text-sm px-2 sm:px-3">
+              <TabsTrigger value="mentions" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <AtSign className="h-4 w-4 sm:hidden" />
                 <span className="hidden sm:inline">Mentions</span>
-                <span className="sm:hidden">@</span>
                 {mentionsCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {mentionsCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="reactions" className="text-xs sm:text-sm px-2 sm:px-3">
+              <TabsTrigger value="reactions" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <SmilePlus className="h-4 w-4 sm:hidden" />
                 <span className="hidden sm:inline">Reactions</span>
-                <span className="sm:hidden">😀</span>
                 {reactionsCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {reactionsCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="leave" className="text-xs sm:text-sm px-2 sm:px-3">
-                Leave
+              <TabsTrigger value="leave" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <Calendar className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">Leave</span>
                 {leaveCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {leaveCount}
                   </Badge>
                 )}
