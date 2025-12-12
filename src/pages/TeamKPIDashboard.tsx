@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,8 +29,30 @@ import {
   XCircle,
   BarChart3,
   ChevronRight,
+  LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Tooltip,
+  Legend,
+  Area,
+  AreaChart,
+} from "recharts";
 
 const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 const getCurrentYear = () => new Date().getFullYear();
@@ -82,7 +104,7 @@ const TeamKPIDashboard = () => {
     enabled: !!currentEmployee?.id,
   });
 
-  // Fetch all KPIs for the team
+  // Fetch all KPIs for the team (current quarter)
   const { data: teamKPIs = [], isLoading: loadingKPIs } = useQuery({
     queryKey: ["team-kpis", teamMembers.map(t => t.id), quarter, year],
     queryFn: async () => {
@@ -99,6 +121,108 @@ const TeamKPIDashboard = () => {
     },
     enabled: teamMembers.length > 0,
   });
+
+  // Fetch historical KPIs for trend analysis (last 4 quarters)
+  const { data: historicalKPIs = [] } = useQuery({
+    queryKey: ["team-kpis-historical", teamMembers.map(t => t.id), year],
+    queryFn: async () => {
+      if (teamMembers.length === 0) return [];
+      
+      // Get KPIs from current year and previous year for trend analysis
+      const { data, error } = await supabase
+        .from("kpis")
+        .select("*")
+        .in("employee_id", teamMembers.map(t => t.id))
+        .or(`year.eq.${year},year.eq.${year - 1}`)
+        .order("year", { ascending: true })
+        .order("quarter", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: teamMembers.length > 0,
+  });
+
+  // Process historical data for trend charts
+  const trendData = useMemo(() => {
+    if (historicalKPIs.length === 0) return [];
+    
+    // Group by quarter/year
+    const quarterlyData: Record<string, {
+      period: string;
+      quarter: number;
+      year: number;
+      totalKPIs: number;
+      avgProgress: number;
+      onTrack: number;
+      atRisk: number;
+      behind: number;
+      completed: number;
+    }> = {};
+
+    // Get last 4 quarters including current
+    const quarters: { q: number; y: number }[] = [];
+    let currentQ = quarter;
+    let currentY = year;
+    for (let i = 0; i < 4; i++) {
+      quarters.unshift({ q: currentQ, y: currentY });
+      currentQ--;
+      if (currentQ < 1) {
+        currentQ = 4;
+        currentY--;
+      }
+    }
+
+    quarters.forEach(({ q, y }) => {
+      const key = `Q${q} ${y}`;
+      const kpisInQuarter = historicalKPIs.filter(k => k.quarter === q && k.year === y);
+      
+      const kpisWithTarget = kpisInQuarter.filter(k => k.target_value);
+      const avgProgress = kpisWithTarget.length > 0
+        ? Math.round(
+            kpisWithTarget.reduce((acc, kpi) => {
+              return acc + ((kpi.current_value || 0) / (kpi.target_value || 1)) * 100;
+            }, 0) / kpisWithTarget.length
+          )
+        : 0;
+
+      quarterlyData[key] = {
+        period: key,
+        quarter: q,
+        year: y,
+        totalKPIs: kpisInQuarter.length,
+        avgProgress,
+        onTrack: kpisInQuarter.filter(k => k.status === "on_track").length,
+        atRisk: kpisInQuarter.filter(k => k.status === "at_risk").length,
+        behind: kpisInQuarter.filter(k => k.status === "behind").length,
+        completed: kpisInQuarter.filter(k => k.status === "completed").length,
+      };
+    });
+
+    return quarters.map(({ q, y }) => quarterlyData[`Q${q} ${y}`]);
+  }, [historicalKPIs, quarter, year]);
+
+  const chartConfig = {
+    avgProgress: {
+      label: "Avg Progress",
+      color: "hsl(var(--primary))",
+    },
+    onTrack: {
+      label: "On Track",
+      color: "hsl(142 76% 36%)",
+    },
+    atRisk: {
+      label: "At Risk",
+      color: "hsl(45 93% 47%)",
+    },
+    behind: {
+      label: "Behind",
+      color: "hsl(0 84% 60%)",
+    },
+    completed: {
+      label: "Completed",
+      color: "hsl(217 91% 60%)",
+    },
+  };
 
   // Calculate aggregated stats
   const stats = {
@@ -266,6 +390,95 @@ const TeamKPIDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Trend Charts */}
+            {trendData.length > 0 && (
+              <div className="grid gap-6 md:grid-cols-2 mb-6">
+                {/* Progress Trend Chart */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <LineChart className="h-4 w-4" />
+                      Progress Trend
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="progressGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="period"
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                          className="text-muted-foreground"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                          domain={[0, 100]}
+                          tickFormatter={(v) => `${v}%`}
+                          className="text-muted-foreground"
+                        />
+                        <ChartTooltip
+                          content={<ChartTooltipContent formatter={(value) => `${value}%`} />}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="avgProgress"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2}
+                          fill="url(#progressGradient)"
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Status Distribution Chart */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Status Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <BarChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="period"
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                          className="text-muted-foreground"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                          className="text-muted-foreground"
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="onTrack" stackId="status" fill="hsl(142 76% 36%)" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="completed" stackId="status" fill="hsl(217 91% 60%)" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="atRisk" stackId="status" fill="hsl(45 93% 47%)" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="behind" stackId="status" fill="hsl(0 84% 60%)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Team Progress Overview */}
             <Card className="mb-6">
