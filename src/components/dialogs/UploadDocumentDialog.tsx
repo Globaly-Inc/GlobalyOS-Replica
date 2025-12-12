@@ -243,8 +243,8 @@ export const UploadDocumentDialog = ({ employeeId, folder, onSuccess }: UploadDo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <Upload className="h-4 w-4 mr-2" />
-          Upload
+          <Upload className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Upload</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
