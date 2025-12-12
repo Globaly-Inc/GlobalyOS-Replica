@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AIKPIInsightsProps {
   employeeId: string;
@@ -45,9 +47,27 @@ const getCurrentQuarter = () => {
 };
 
 const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const currentQuarter = getCurrentQuarter();
   const currentYear = new Date().getFullYear();
+  const [editingKpiId, setEditingKpiId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+
+  // Check if the current user owns this employee record
+  const { data: isOwnProfile } = useQuery({
+    queryKey: ["is-own-profile", employeeId, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data } = await supabase
+        .from("employees")
+        .select("user_id")
+        .eq("id", employeeId)
+        .single();
+      return data?.user_id === user.id;
+    },
+    enabled: !!user?.id && !!employeeId,
+  });
 
   // Fetch cached insights
   const { data: cachedInsights, isLoading } = useQuery({
@@ -97,6 +117,44 @@ const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
       toast.error(error.message || "Failed to generate insights");
     },
   });
+
+  const updateProgressMutation = useMutation({
+    mutationFn: async ({ kpiId, newValue }: { kpiId: string; newValue: number }) => {
+      const { error } = await supabase
+        .from("kpis")
+        .update({ current_value: newValue, updated_at: new Date().toISOString() })
+        .eq("id", kpiId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kpis", employeeId] });
+      setEditingKpiId(null);
+      setEditValue("");
+      toast.success("Progress updated");
+    },
+    onError: () => {
+      toast.error("Failed to update progress");
+    },
+  });
+
+  const handleStartEdit = (kpi: { id: string; current_value: number | null }) => {
+    setEditingKpiId(kpi.id);
+    setEditValue(String(kpi.current_value || 0));
+  };
+
+  const handleSaveEdit = (kpiId: string) => {
+    const value = parseFloat(editValue);
+    if (isNaN(value) || value < 0) {
+      toast.error("Please enter a valid positive number");
+      return;
+    }
+    updateProgressMutation.mutate({ kpiId, newValue: value });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingKpiId(null);
+    setEditValue("");
+  };
 
   const insights: Insights | null = cachedInsights?.insights as unknown as Insights | null;
   const generatedAt = cachedInsights?.generated_at;
@@ -251,25 +309,74 @@ const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
         {/* KPIs Summary */}
         {kpis && kpis.length > 0 && (
           <div className="border-t pt-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Current KPIs</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
+              Current KPIs {isOwnProfile && <span className="text-primary">(click to update)</span>}
+            </h4>
             <div className="grid gap-2">
-              {kpis.slice(0, 3).map((kpi) => {
-                const progress = kpi.target_value ? Math.round((kpi.current_value / kpi.target_value) * 100) : 0;
+              {kpis.slice(0, 5).map((kpi) => {
+                const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+                const isEditing = editingKpiId === kpi.id;
+                
                 return (
-                  <div key={kpi.id} className="flex items-center justify-between text-sm">
-                    <span className="truncate">{kpi.title}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full",
-                            progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                          )}
-                          style={{ width: `${Math.min(progress, 100)}%` }}
+                  <div key={kpi.id} className="flex items-center justify-between text-sm gap-2">
+                    <span className="truncate flex-1">{kpi.title}</span>
+                    
+                    {isEditing ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveEdit(kpi.id);
+                            if (e.key === "Escape") handleCancelEdit();
+                          }}
                         />
+                        <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleSaveEdit(kpi.id)}
+                          disabled={updateProgressMutation.isPending}
+                        >
+                          <Check className="h-3 w-3 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={handleCancelEdit}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </Button>
                       </div>
-                      <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
+                            )}
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                        {isOwnProfile && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-50 hover:opacity-100"
+                            onClick={() => handleStartEdit(kpi)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
