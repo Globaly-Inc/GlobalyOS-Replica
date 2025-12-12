@@ -551,7 +551,7 @@ const TeamMemberProfile = () => {
     .join(", ");
 
   return <Layout>
-      <div className="space-y-4 sm:space-y-8">
+      <div className="space-y-4 sm:space-y-8 overflow-hidden">
         <div className="flex items-center justify-between -mb-6">
           <Link to="/team">
             <Button variant="ghost" size="sm">
@@ -574,10 +574,10 @@ const TeamMemberProfile = () => {
           </div>
         </div>
 
-        <Card className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <Card className="p-4 overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-4 min-w-0">
             {/* Left side - Employee Info */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch flex-1">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch flex-1 min-w-0">
               <div className="group relative flex items-center">
                 <Avatar className="h-28 w-28 border-4 border-primary/10">
                   <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
@@ -596,7 +596,7 @@ const TeamMemberProfile = () => {
                   </span>
                 )}
               </div>
-              <div className="flex-1 space-y-1.5 flex flex-col justify-center">
+              <div className="flex-1 space-y-1.5 flex flex-col justify-center min-w-0">
                 {/* Name with Status Badges */}
                 <div className="group flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
@@ -817,8 +817,8 @@ const TeamMemberProfile = () => {
           </div>
         </Card>
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="space-y-4 sm:space-y-6 lg:col-span-1">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0">
             {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
             {canViewLeaveAndAttendance && (
               <Card className="overflow-hidden">
@@ -847,7 +847,7 @@ const TeamMemberProfile = () => {
                   {employeeSchedule ? (
                     <div className="space-y-4">
                       {/* 7-Day Schedule Grid */}
-                      <div className="grid grid-cols-7 gap-1.5">
+                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                         {[
                           { key: 'mon', label: 'Mon', working: true },
                           { key: 'tue', label: 'Tue', working: true },
@@ -1167,7 +1167,7 @@ const TeamMemberProfile = () => {
             )}
           </div>
 
-          <div className="space-y-4 sm:space-y-6 lg:col-span-2">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
             {employee.superpowers && employee.superpowers.length > 0 && (
               <Card className="overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
