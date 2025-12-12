@@ -821,7 +821,7 @@ const TeamMemberProfile = () => {
         </Card>
 
         <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 flex flex-col">
             {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
             {canViewLeaveAndAttendance && (
               <Card className="overflow-hidden">
@@ -952,8 +952,8 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* Personal Details */}
-            <Card className="overflow-hidden">
+            {/* Personal Details - moves to bottom on mobile */}
+            <Card className="overflow-hidden order-10 lg:order-none">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <User className="h-5 w-5 text-primary" />
@@ -1100,9 +1100,9 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-            {/* Tax & Banking - Only Admin/HR and own profile */}
+            {/* Tax & Banking - Only Admin/HR and own profile - moves to bottom on mobile */}
             {canViewTaxBanking && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-11 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <CreditCard className="h-5 w-5 text-primary" />
@@ -1137,9 +1137,9 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* Emergency Contact - Admin/HR, own profile, or manager */}
+            {/* Emergency Contact - Admin/HR, own profile, or manager - moves to bottom on mobile */}
             {canViewEmergencyContact && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-12 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <AlertCircle className="h-5 w-5 text-primary" />
