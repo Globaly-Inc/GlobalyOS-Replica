@@ -834,13 +834,13 @@ const TeamMemberProfile = () => {
                     <Button size="sm" variant="outline" onClick={() => setEditScheduleOpen(true)}>
                       {employeeSchedule ? (
                         <>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit Schedule
+                          <Pencil className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Edit Schedule</span>
                         </>
                       ) : (
                         <>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Schedule
+                          <Plus className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Add Schedule</span>
                         </>
                       )}
                     </Button>
