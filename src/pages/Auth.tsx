@@ -167,24 +167,21 @@ const Auth = () => {
         }
       });
 
-      if (response.error) {
-        toast({
-          title: "Verification failed",
-          description: response.error.message || "Please try again",
-          variant: "destructive",
-        });
-      } else if (response.data?.error) {
+      // Handle error responses - check data.error first since edge function returns errors in body
+      const errorMessage = response.data?.error || response.error?.message;
+      
+      if (errorMessage) {
         // Check if CAPTCHA is now required
-        if (response.data.captchaRequired) {
+        if (response.data?.captchaRequired) {
           setShowCaptcha(true);
           setTurnstileToken(null);
         }
-        if (response.data.failedAttempts !== undefined) {
+        if (response.data?.failedAttempts !== undefined) {
           setFailedAttempts(response.data.failedAttempts);
         }
         toast({
           title: "Verification failed",
-          description: response.data.error,
+          description: errorMessage,
           variant: "destructive",
         });
       } else if (response.data?.session) {
