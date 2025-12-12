@@ -231,8 +231,8 @@ const Notifications = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="flex items-center justify-between mb-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <PageHeader title="Notifications" />
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
@@ -241,6 +241,7 @@ const Notifications = () => {
                 size="sm"
                 onClick={markAllAsRead}
                 disabled={markingAllRead}
+                className="hidden sm:flex"
               >
                 {markingAllRead ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -250,11 +251,34 @@ const Notifications = () => {
                 Mark all as read
               </Button>
             )}
+            {unreadCount > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={markAllAsRead}
+                    disabled={markingAllRead}
+                    className="sm:hidden h-9 w-9"
+                  >
+                    {markingAllRead ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCheck className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Mark all as read</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
+                  className="h-9 w-9"
                   onClick={() => navigate("/notifications/preferences")}
                 >
                   <Settings2 className="h-4 w-4" />
@@ -269,20 +293,20 @@ const Notifications = () => {
 
         {/* Push Notification Settings */}
         {isSupported && (
-          <Card className="mb-6">
-            <CardContent className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
+          <Card className="mb-4 sm:mb-6">
+            <CardContent className="flex items-center justify-between p-3 sm:p-4 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 {isSubscribed ? (
-                  <BellRing className="h-5 w-5 text-primary" />
+                  <BellRing className="h-5 w-5 text-primary flex-shrink-0" />
                 ) : (
-                  <BellOff className="h-5 w-5 text-muted-foreground" />
+                  <BellOff className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 )}
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium text-sm">Push Notifications</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
                     {isSubscribed 
-                      ? "You'll receive browser notifications even when the app is in background" 
-                      : "Enable to receive notifications even when the app is not in focus"}
+                      ? "Receive notifications in background" 
+                      : "Enable for background notifications"}
                   </p>
                 </div>
               </div>
@@ -290,56 +314,61 @@ const Notifications = () => {
                 checked={isSubscribed}
                 onCheckedChange={handlePushToggle}
                 disabled={pushLoading}
+                className="flex-shrink-0"
               />
             </CardContent>
           </Card>
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">
-              All
-              {notifications.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {notifications.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="kudos">
-              Kudos
-              {kudosCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {kudosCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="mentions">
-              Mentions
-              {mentionsCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {mentionsCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="reactions">
-              Reactions
-              {reactionsCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {reactionsCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="leave">
-              Leave
-              {leaveCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {leaveCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0 mb-4 sm:mb-6">
+            <TabsList className="w-max sm:w-auto">
+              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3">
+                All
+                {notifications.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                    {notifications.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="kudos" className="text-xs sm:text-sm px-2 sm:px-3">
+                Kudos
+                {kudosCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                    {kudosCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="mentions" className="text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Mentions</span>
+                <span className="sm:hidden">@</span>
+                {mentionsCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                    {mentionsCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="reactions" className="text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Reactions</span>
+                <span className="sm:hidden">😀</span>
+                {reactionsCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                    {reactionsCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="leave" className="text-xs sm:text-sm px-2 sm:px-3">
+                Leave
+                {leaveCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-xs h-5 min-w-5 px-1.5">
+                    {leaveCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value={activeTab} className="space-y-3">
+          <TabsContent value={activeTab} className="space-y-2 sm:space-y-3">
             {loading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
@@ -364,35 +393,35 @@ const Notifications = () => {
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <CardContent className="flex items-start gap-4 p-4">
+                  <CardContent className="flex items-start gap-3 p-3 sm:p-4">
                     {notification.actor ? (
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
                         <AvatarImage src={notification.actor.avatar_url || undefined} />
-                        <AvatarFallback>
+                        <AvatarFallback className="text-xs sm:text-sm">
                           {getInitials(notification.actor.full_name)}
                         </AvatarFallback>
                       </Avatar>
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                         {getNotificationIcon(notification.type)}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           {getNotificationIcon(notification.type)}
-                          <p className="font-medium text-sm">
+                          <p className="font-medium text-sm truncate">
                             {notification.title}
                           </p>
                           {!notification.is_read && (
-                            <span className="h-2 w-2 rounded-full bg-primary" />
+                            <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDateTime(notification.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                         {notification.message}
                       </p>
                     </div>
