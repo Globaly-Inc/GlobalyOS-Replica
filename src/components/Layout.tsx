@@ -56,6 +56,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const previousCountRef = useRef<number>(0);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>("");
+  const [sessionCount, setSessionCount] = useState<number>(0);
 
   // Send push notification when a new notification is created
   const sendPushNotification = useCallback(async (notification: any) => {
@@ -168,16 +169,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     if (!employee) return;
 
     const today = new Date().toISOString().split('T')[0];
-    // Find active session (checked in but not out)
-    const { data: activeSession } = await supabase
+    
+    // Get all today's sessions to count them
+    const { data: todaySessions } = await supabase
       .from("attendance_records")
       .select("check_in_time, check_out_time")
       .eq("employee_id", employee.id)
       .eq("date", today)
-      .is("check_out_time", null)
-      .order("check_in_time", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("check_in_time", { ascending: true });
+
+    const sessions = todaySessions || [];
+    setSessionCount(sessions.length);
+
+    // Find active session (checked in but not out)
+    const activeSession = sessions.find(s => s.check_in_time && !s.check_out_time);
 
     if (activeSession?.check_in_time) {
       setCheckInTime(new Date(activeSession.check_in_time));
@@ -484,6 +489,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium">
                   <Clock className="h-3 w-3" />
                   <span>{elapsedTime}</span>
+                  {sessionCount > 0 && (
+                    <span className="text-green-600 dark:text-green-500">#{sessionCount}</span>
+                  )}
                 </div>
               )}
               <Button 
