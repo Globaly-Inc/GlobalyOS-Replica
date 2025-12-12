@@ -263,7 +263,7 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile, searchQuery = '' }
                   <p className="text-sm">No documents in {folder.label}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {folderDocs.map((doc) => {
                     const FileIcon = getFileIcon(doc.file_name, doc.file_type);
                     return (
