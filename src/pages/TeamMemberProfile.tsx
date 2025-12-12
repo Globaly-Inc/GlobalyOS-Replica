@@ -952,208 +952,6 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-          </div>
-
-          <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
-            {employee.superpowers && employee.superpowers.length > 0 && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <Sparkles className="h-5 w-5 text-accent" />
-                    Superpowers
-                  </h2>
-                </div>
-                <div className="p-4">
-                  <div className="flex flex-wrap gap-2">
-                    {employee.superpowers.map((power: string, index: number) => <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
-                        {power}
-                      </Badge>)}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Leave Management - Admin/HR, own profile, or manager */}
-            {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    Leave Balances
-                  </h2>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <Link to={`/team/${id}/leave-history`}>
-                      <Button size="sm" variant="ghost">
-                        <History className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Leave History</span>
-                      </Button>
-                    </Link>
-                    {canManageLeave && (
-                      <AddLeaveBalanceDialog employeeId={id!} />
-                    )}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <LeaveManagement employeeId={id!} />
-                </div>
-              </Card>
-            )}
-
-            {/* Attendance Tracking - Admin/HR, own profile, or manager */}
-            {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <Clock className="h-5 w-5 text-primary" />
-                    Attendance Tracking
-                  </h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.location.href = `/team/${id}/attendance`}
-                  >
-                    <History className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">View History</span>
-                  </Button>
-                </div>
-                <div className="p-4">
-                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
-                </div>
-              </Card>
-            )}
-
-            {/* Kudos and Wins */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 bg-card border-b gap-2">
-                <h2 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-foreground min-w-0">
-                  <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                  <span className="hidden sm:inline">Kudos and Wins</span>
-                  <span className="sm:hidden">Recognition</span>
-                  <div className="flex items-center gap-1 ml-1">
-                    <Badge variant="secondary" className="text-xs px-1.5 sm:px-2">
-                      <span className="sm:hidden">{kudos.length + wins.length}</span>
-                      <span className="hidden sm:inline">All {kudos.length + wins.length}</span>
-                    </Badge>
-                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 text-xs px-1.5 sm:px-2">
-                      <Heart className="h-3 w-3 sm:hidden" />
-                      <span className="hidden sm:inline">Kudos</span>
-                      <span className="ml-0.5">{kudos.length}</span>
-                    </Badge>
-                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs px-1.5 sm:px-2">
-                      <Trophy className="h-3 w-3 sm:hidden" />
-                      <span className="hidden sm:inline">Wins</span>
-                      <span className="ml-0.5">{wins.length}</span>
-                    </Badge>
-                  </div>
-                </h2>
-                {canGiveKudos && (
-                  <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
-                )}
-              </div>
-              <div className="p-4">
-                {(kudos.length > 0 || wins.length > 0) ? (
-                  <>
-                    {/* Mobile: Horizontal scroll */}
-                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:hidden snap-x snap-mandatory">
-                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
-                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .map(item => (
-                          <div key={item.type === 'kudos' ? `kudos-${item.data.id}` : `win-${item.data.id}`} className="min-w-[280px] max-w-[300px] shrink-0 snap-start">
-                            {item.type === 'kudos' ? (
-                              <KudosCard kudos={{
-                                id: item.data.id,
-                                employeeId: item.data.employee.id,
-                                employeeName: item.data.employee.profiles.full_name,
-                                givenBy: item.data.given_by.profiles.full_name,
-                                givenById: item.data.given_by.id,
-                                givenByAvatar: item.data.given_by.profiles.avatar_url,
-                                comment: item.data.comment,
-                                date: item.data.created_at,
-                                batchId: item.data.batch_id || undefined,
-                                otherRecipients: item.data.otherRecipients,
-                                otherRecipientIds: item.data.otherRecipientIds
-                              }} onDelete={loadKudos} />
-                            ) : (
-                              <WinCard win={item.data} />
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                    {/* Desktop: Grid layout */}
-                    <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
-                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .map(item => item.type === 'kudos' ? (
-                          <KudosCard key={`kudos-${item.data.id}`} kudos={{
-                            id: item.data.id,
-                            employeeId: item.data.employee.id,
-                            employeeName: item.data.employee.profiles.full_name,
-                            givenBy: item.data.given_by.profiles.full_name,
-                            givenById: item.data.given_by.id,
-                            givenByAvatar: item.data.given_by.profiles.avatar_url,
-                            comment: item.data.comment,
-                            date: item.data.created_at,
-                            batchId: item.data.batch_id || undefined,
-                            otherRecipients: item.data.otherRecipients,
-                            otherRecipientIds: item.data.otherRecipientIds
-                          }} onDelete={loadKudos} />
-                        ) : (
-                          <WinCard key={`win-${item.data.id}`} win={item.data} />
-                        )
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>
-                )}
-              </div>
-            </Card>
-
-
-            {/* Learning & Development */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <GraduationCap className="h-5 w-5 text-primary" />
-                  Learning & Development
-                </h2>
-                {canAddLearning && <AddLearningDialog employeeId={id!} />}
-              </div>
-              <div className="p-4">
-                <LearningDevelopment employeeId={id!} />
-              </div>
-            </Card>
-
-            {/* Documents - Admin/HR, own profile, or manager */}
-            {canViewAllDetails && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                    Documents
-                  </h2>
-                  <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search documents..."
-                      value={documentSearch}
-                      onChange={(e) => setDocumentSearch(e.target.value)}
-                      className="pl-8 h-8 text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <EmployeeDocuments 
-                    employeeId={id!} 
-                    isOwnProfile={isOwnProfile} 
-                    searchQuery={documentSearch}
-                  />
-                </div>
-              </Card>
-            )}
-
             {/* Personal Details */}
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
@@ -1366,6 +1164,207 @@ const TeamMemberProfile = () => {
                     value={employee.emergency_contact_relationship} 
                     onSave={value => updateEmployeeField("emergency_contact_relationship", value)} 
                     canEdit={canEditPersonalDetails} 
+                  />
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
+            {employee.superpowers && employee.superpowers.length > 0 && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                    Superpowers
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {employee.superpowers.map((power: string, index: number) => <Badge key={index} variant="outline" className="bg-accent-light text-accent border-accent/20">
+                        {power}
+                      </Badge>)}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Leave Management - Admin/HR, own profile, or manager */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Leave Balances
+                  </h2>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Link to={`/team/${id}/leave-history`}>
+                      <Button size="sm" variant="ghost">
+                        <History className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Leave History</span>
+                      </Button>
+                    </Link>
+                    {canManageLeave && (
+                      <AddLeaveBalanceDialog employeeId={id!} />
+                    )}
+                  </div>
+                </div>
+                <div className="p-4">
+                  <LeaveManagement employeeId={id!} />
+                </div>
+              </Card>
+            )}
+
+            {/* Attendance Tracking - Admin/HR, own profile, or manager */}
+            {canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Attendance Tracking
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.href = `/team/${id}/attendance`}
+                  >
+                    <History className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">View History</span>
+                  </Button>
+                </div>
+                <div className="p-4">
+                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
+                </div>
+              </Card>
+            )}
+
+            {/* Kudos and Wins */}
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 bg-card border-b gap-2">
+                <h2 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-foreground min-w-0">
+                  <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                  <span className="hidden sm:inline">Kudos and Wins</span>
+                  <span className="sm:hidden">Recognition</span>
+                  <div className="flex items-center gap-1 ml-1">
+                    <Badge variant="secondary" className="text-xs px-1.5 sm:px-2">
+                      <span className="sm:hidden">{kudos.length + wins.length}</span>
+                      <span className="hidden sm:inline">All {kudos.length + wins.length}</span>
+                    </Badge>
+                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 text-xs px-1.5 sm:px-2">
+                      <Heart className="h-3 w-3 sm:hidden" />
+                      <span className="hidden sm:inline">Kudos</span>
+                      <span className="ml-0.5">{kudos.length}</span>
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs px-1.5 sm:px-2">
+                      <Trophy className="h-3 w-3 sm:hidden" />
+                      <span className="hidden sm:inline">Wins</span>
+                      <span className="ml-0.5">{wins.length}</span>
+                    </Badge>
+                  </div>
+                </h2>
+                {canGiveKudos && (
+                  <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />
+                )}
+              </div>
+              <div className="p-4">
+                {(kudos.length > 0 || wins.length > 0) ? (
+                  <>
+                    {/* Mobile: Horizontal scroll */}
+                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:hidden snap-x snap-mandatory">
+                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
+                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(item => (
+                          <div key={item.type === 'kudos' ? `kudos-${item.data.id}` : `win-${item.data.id}`} className="min-w-[280px] max-w-[300px] shrink-0 snap-start">
+                            {item.type === 'kudos' ? (
+                              <KudosCard kudos={{
+                                id: item.data.id,
+                                employeeId: item.data.employee.id,
+                                employeeName: item.data.employee.profiles.full_name,
+                                givenBy: item.data.given_by.profiles.full_name,
+                                givenById: item.data.given_by.id,
+                                givenByAvatar: item.data.given_by.profiles.avatar_url,
+                                comment: item.data.comment,
+                                date: item.data.created_at,
+                                batchId: item.data.batch_id || undefined,
+                                otherRecipients: item.data.otherRecipients,
+                                otherRecipientIds: item.data.otherRecipientIds
+                              }} onDelete={loadKudos} />
+                            ) : (
+                              <WinCard win={item.data} />
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    {/* Desktop: Grid layout */}
+                    <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
+                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(item => item.type === 'kudos' ? (
+                          <KudosCard key={`kudos-${item.data.id}`} kudos={{
+                            id: item.data.id,
+                            employeeId: item.data.employee.id,
+                            employeeName: item.data.employee.profiles.full_name,
+                            givenBy: item.data.given_by.profiles.full_name,
+                            givenById: item.data.given_by.id,
+                            givenByAvatar: item.data.given_by.profiles.avatar_url,
+                            comment: item.data.comment,
+                            date: item.data.created_at,
+                            batchId: item.data.batch_id || undefined,
+                            otherRecipients: item.data.otherRecipients,
+                            otherRecipientIds: item.data.otherRecipientIds
+                          }} onDelete={loadKudos} />
+                        ) : (
+                          <WinCard key={`win-${item.data.id}`} win={item.data} />
+                        )
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>
+                )}
+              </div>
+            </Card>
+
+
+            {/* Learning & Development */}
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                  Learning & Development
+                </h2>
+                {canAddLearning && <AddLearningDialog employeeId={id!} />}
+              </div>
+              <div className="p-4">
+                <LearningDevelopment employeeId={id!} />
+              </div>
+            </Card>
+
+            {/* Documents - Admin/HR, own profile, or manager */}
+            {canViewAllDetails && (
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
+                    <FolderOpen className="h-5 w-5 text-primary" />
+                    Documents
+                  </h2>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search documents..."
+                      value={documentSearch}
+                      onChange={(e) => setDocumentSearch(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="p-4">
+                  <EmployeeDocuments 
+                    employeeId={id!} 
+                    isOwnProfile={isOwnProfile} 
+                    searchQuery={documentSearch}
                   />
                 </div>
               </Card>
