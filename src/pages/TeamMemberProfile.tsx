@@ -821,10 +821,10 @@ const TeamMemberProfile = () => {
         </Card>
 
         <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 contents lg:block">
             {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
             {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-1 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <Clock className="h-5 w-5 text-primary" />
@@ -919,7 +919,7 @@ const TeamMemberProfile = () => {
 
             {/* Position Timeline - visible to all, but salary and edit restricted */}
             {canViewPositionTimeline && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-2 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <TrendingUp className="h-5 w-5 text-primary" />
@@ -953,7 +953,7 @@ const TeamMemberProfile = () => {
             )}
 
             {/* Personal Details */}
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden order-10 lg:order-none">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <User className="h-5 w-5 text-primary" />
@@ -1102,7 +1102,7 @@ const TeamMemberProfile = () => {
 
             {/* Tax & Banking - Only Admin/HR and own profile */}
             {canViewTaxBanking && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-11 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <CreditCard className="h-5 w-5 text-primary" />
@@ -1139,7 +1139,7 @@ const TeamMemberProfile = () => {
 
             {/* Emergency Contact - Admin/HR, own profile, or manager */}
             {canViewEmergencyContact && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-12 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <AlertCircle className="h-5 w-5 text-primary" />
@@ -1170,9 +1170,9 @@ const TeamMemberProfile = () => {
             )}
           </div>
 
-          <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0 contents lg:block">
             {employee.superpowers && employee.superpowers.length > 0 && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-3 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <Sparkles className="h-5 w-5 text-accent" />
@@ -1191,7 +1191,7 @@ const TeamMemberProfile = () => {
 
             {/* Leave Management - Admin/HR, own profile, or manager */}
             {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-4 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <Calendar className="h-5 w-5 text-primary" />
@@ -1217,7 +1217,7 @@ const TeamMemberProfile = () => {
 
             {/* Attendance Tracking - Admin/HR, own profile, or manager */}
             {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-5 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <Clock className="h-5 w-5 text-primary" />
@@ -1239,7 +1239,7 @@ const TeamMemberProfile = () => {
             )}
 
             {/* Kudos and Wins */}
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden order-6 lg:order-none">
               <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 bg-card border-b gap-2">
                 <h2 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-foreground min-w-0">
                   <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
@@ -1329,7 +1329,7 @@ const TeamMemberProfile = () => {
 
 
             {/* Learning & Development */}
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden order-7 lg:order-none">
               <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                 <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <GraduationCap className="h-5 w-5 text-primary" />
@@ -1344,7 +1344,7 @@ const TeamMemberProfile = () => {
 
             {/* Documents - Admin/HR, own profile, or manager */}
             {canViewAllDetails && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden order-8 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
                     <FolderOpen className="h-5 w-5 text-primary" />
