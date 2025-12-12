@@ -723,7 +723,7 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="all" className="space-y-6">
-              <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
+              <div className="flex flex-row items-center justify-between gap-1 sm:gap-4">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <TabsList className="h-auto p-1 sm:p-1.5 flex-wrap">
                     <TabsTrigger value="all" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
@@ -771,8 +771,8 @@ const Home = () => {
                   </Select>
                 </div>
                 
-                {hasEmployeeProfile && <Button className="h-auto py-1.5 sm:py-2 px-2 sm:px-4" onClick={() => setPostDialogOpen(true)}>
-                    <SquarePen className="h-4 w-4 mr-1 sm:mr-2" />
+                {hasEmployeeProfile && <Button className="h-auto py-1.5 sm:py-2 px-3 sm:px-4" onClick={() => setPostDialogOpen(true)}>
+                    <SquarePen className="h-4 w-4 mr-1.5 sm:mr-2" />
                     <span className="sm:hidden">Post</span>
                     <span className="hidden sm:inline">New Post</span>
                   </Button>}
