@@ -155,7 +155,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
                 </div>
               )}
               {(employee.city || employee.country) && (
-                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <div className="hidden sm:flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3" />
                   <span>
                     {employee.city}
@@ -168,7 +168,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <div className="hidden sm:flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
                 <span>
                   Joined {formatMonthYear(employee.joinDate)}
