@@ -726,31 +726,31 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <TabsList className="h-auto p-1.5 flex-wrap">
-                    <TabsTrigger value="all" className="px-3 py-2 gap-1.5">
+                    <TabsTrigger value="all" className="px-2 sm:px-3 py-2 gap-1.5">
                       <MessageSquare className="h-4 w-4 shrink-0" />
-                      <span>All</span>
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="hidden sm:inline">All</span>
+                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {filteredUpdates.length + groupedKudos.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="wins" className="px-3 py-2 gap-1.5">
+                    <TabsTrigger value="wins" className="px-2 sm:px-3 py-2 gap-1.5">
                       <Trophy className="h-4 w-4 shrink-0" />
-                      <span>Wins</span>
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="hidden sm:inline">Wins</span>
+                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {winsAndAchievements.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="kudos" className="px-3 py-2 gap-1.5">
+                    <TabsTrigger value="kudos" className="px-2 sm:px-3 py-2 gap-1.5">
                       <Heart className="h-4 w-4 shrink-0" />
-                      <span>Kudos</span>
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="hidden sm:inline">Kudos</span>
+                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {groupedKudos.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="announcements" className="px-3 py-2 gap-1.5">
+                    <TabsTrigger value="announcements" className="px-2 sm:px-3 py-2 gap-1.5">
                       <Megaphone className="h-4 w-4 shrink-0" />
-                      <span>Announcements</span>
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="hidden sm:inline">Announcements</span>
+                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {regularUpdates.length}
                       </span>
                     </TabsTrigger>
