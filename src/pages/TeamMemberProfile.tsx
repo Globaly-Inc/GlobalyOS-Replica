@@ -1240,14 +1240,26 @@ const TeamMemberProfile = () => {
 
             {/* Kudos and Wins */}
             <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Heart className="h-5 w-5 text-primary" />
-                  Kudos and Wins
-                  <div className="flex items-center gap-1.5 ml-1">
-                    <Badge variant="secondary">All {kudos.length + wins.length}</Badge>
-                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200">Kudos {kudos.length}</Badge>
-                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">Wins {wins.length}</Badge>
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 bg-card border-b gap-2">
+                <h2 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-foreground min-w-0">
+                  <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                  <span className="hidden sm:inline">Kudos and Wins</span>
+                  <span className="sm:hidden">Recognition</span>
+                  <div className="flex items-center gap-1 ml-1">
+                    <Badge variant="secondary" className="text-xs px-1.5 sm:px-2">
+                      <span className="sm:hidden">{kudos.length + wins.length}</span>
+                      <span className="hidden sm:inline">All {kudos.length + wins.length}</span>
+                    </Badge>
+                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 text-xs px-1.5 sm:px-2">
+                      <Heart className="h-3 w-3 sm:hidden" />
+                      <span className="hidden sm:inline">Kudos</span>
+                      <span className="ml-0.5">{kudos.length}</span>
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs px-1.5 sm:px-2">
+                      <Trophy className="h-3 w-3 sm:hidden" />
+                      <span className="hidden sm:inline">Wins</span>
+                      <span className="ml-0.5">{wins.length}</span>
+                    </Badge>
                   </div>
                 </h2>
                 {canGiveKudos && (
