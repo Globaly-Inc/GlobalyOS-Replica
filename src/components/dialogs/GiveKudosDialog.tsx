@@ -186,9 +186,9 @@ export const GiveKudosDialog = ({ onSuccess, preselectedEmployeeId, variant = "d
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={variant} size="sm" className="gap-2">
+        <Button variant={variant} size="sm" className="gap-1 sm:gap-2">
           <Heart className="h-4 w-4" />
-          Give Kudos
+          <span className="hidden sm:inline">Give Kudos</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
