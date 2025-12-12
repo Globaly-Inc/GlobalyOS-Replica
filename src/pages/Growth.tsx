@@ -2,16 +2,29 @@ import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, BookOpen, Target, Award } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, BookOpen, Target, Award, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Growth = () => {
+  const { isAdmin, isHR } = useUserRole();
+  
   return (
     <Layout>
       <div className="space-y-6">
-        <PageHeader 
-          title="Growth & Development" 
-          subtitle="Track your professional journey and achievements"
-        />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <PageHeader 
+            title="Growth & Development" 
+            subtitle="Track your professional journey and achievements"
+          />
+          <Link to="/kpi-dashboard">
+            <Button variant="outline">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              {isAdmin || isHR ? "Team KPI Dashboard" : "Team KPIs"}
+            </Button>
+          </Link>
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="p-6">
