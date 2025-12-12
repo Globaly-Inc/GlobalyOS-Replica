@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface AIKPIInsightsProps {
   employeeId: string;
+  embedded?: boolean;
 }
 
 interface Trend {
@@ -46,7 +47,7 @@ const getCurrentQuarter = () => {
   return Math.floor(month / 3) + 1;
 };
 
-const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
+const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const currentQuarter = getCurrentQuarter();
@@ -193,6 +194,13 @@ const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
   };
 
   if (isLoading) {
+    if (embedded) {
+      return (
+        <div className="p-4">
+          <Skeleton className="h-24 w-full" />
+        </div>
+      );
+    }
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -203,6 +211,177 @@ const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
         </CardContent>
       </Card>
     );
+  }
+
+  const content = (
+    <div className="p-4 space-y-4">
+      {/* KPIs Summary - Show first in embedded mode */}
+      {kpis && kpis.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
+            Current KPIs {isOwnProfile && <span className="text-primary">(click to update)</span>}
+          </h4>
+          <div className="grid gap-2">
+            {kpis.slice(0, 5).map((kpi) => {
+              const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+              const isEditing = editingKpiId === kpi.id;
+              
+              return (
+                <div key={kpi.id} className="flex items-center justify-between text-sm gap-2">
+                  <span className="truncate flex-1">{kpi.title}</span>
+                  
+                  {isEditing ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="w-20 h-7 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveEdit(kpi.id);
+                          if (e.key === "Escape") handleCancelEdit();
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleSaveEdit(kpi.id)}
+                        disabled={updateProgressMutation.isPending}
+                      >
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={handleCancelEdit}
+                      >
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full",
+                            progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
+                          )}
+                          style={{ width: `${Math.min(progress, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                      {isOwnProfile && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-50 hover:opacity-100"
+                          onClick={() => handleStartEdit(kpi)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {(!kpis || kpis.length === 0) && (
+        <div className="text-center py-4 text-muted-foreground">
+          <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No KPIs assigned yet.</p>
+        </div>
+      )}
+
+      {/* AI Insights Section */}
+      {!embedded && (
+        <>
+          {!insights ? (
+            <div className="text-center py-6 text-muted-foreground border-t pt-4">
+              <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No AI insights generated yet.</p>
+              <p className="text-xs">Click "Generate" to get personalized insights.</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              {insights.summary && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm">{insights.summary}</p>
+                </div>
+              )}
+
+              {/* Trends */}
+              {insights.trends?.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Trends</h4>
+                  <div className="space-y-2">
+                    {insights.trends.map((trend, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        {getTrendIcon(trend.type)}
+                        <div>
+                          <span className="font-medium">{trend.metric}:</span>{" "}
+                          <span className="text-muted-foreground">{trend.description}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Focus Areas */}
+              {insights.focus_areas?.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Focus Areas</h4>
+                  <div className="space-y-2">
+                    {insights.focus_areas.map((area, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <Badge className={cn("text-[10px] shrink-0", getPriorityColor(area.priority))}>
+                          {area.priority}
+                        </Badge>
+                        <div className="text-sm">
+                          <span className="font-medium">{area.title}:</span>{" "}
+                          <span className="text-muted-foreground">{area.action}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {insights.recommendations?.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Recommendations</h4>
+                  <div className="space-y-2">
+                    {insights.recommendations.map((rec, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm bg-primary/5 rounded-md p-2">
+                        <span className="text-primary mt-0.5">{getRecommendationIcon(rec.type)}</span>
+                        <div>
+                          <span className="font-medium">{rec.title}</span>
+                          <p className="text-xs text-muted-foreground">{rec.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
   }
 
   return (
@@ -232,158 +411,7 @@ const AIKPIInsights = ({ employeeId }: AIKPIInsightsProps) => {
           </p>
         )}
       </CardHeader>
-      <CardContent className="p-4 space-y-4">
-        {!insights ? (
-          <div className="text-center py-6 text-muted-foreground">
-            <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No AI insights generated yet.</p>
-            <p className="text-xs">Click "Generate" to get personalized insights.</p>
-          </div>
-        ) : (
-          <>
-            {/* Summary */}
-            {insights.summary && (
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-sm">{insights.summary}</p>
-              </div>
-            )}
-
-            {/* Trends */}
-            {insights.trends?.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Trends</h4>
-                <div className="space-y-2">
-                  {insights.trends.map((trend, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm">
-                      {getTrendIcon(trend.type)}
-                      <div>
-                        <span className="font-medium">{trend.metric}:</span>{" "}
-                        <span className="text-muted-foreground">{trend.description}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Focus Areas */}
-            {insights.focus_areas?.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Focus Areas</h4>
-                <div className="space-y-2">
-                  {insights.focus_areas.map((area, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <Badge className={cn("text-[10px] shrink-0", getPriorityColor(area.priority))}>
-                        {area.priority}
-                      </Badge>
-                      <div className="text-sm">
-                        <span className="font-medium">{area.title}:</span>{" "}
-                        <span className="text-muted-foreground">{area.action}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recommendations */}
-            {insights.recommendations?.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Recommendations</h4>
-                <div className="space-y-2">
-                  {insights.recommendations.map((rec, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm bg-primary/5 rounded-md p-2">
-                      <span className="text-primary mt-0.5">{getRecommendationIcon(rec.type)}</span>
-                      <div>
-                        <span className="font-medium">{rec.title}</span>
-                        <p className="text-xs text-muted-foreground">{rec.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* KPIs Summary */}
-        {kpis && kpis.length > 0 && (
-          <div className="border-t pt-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
-              Current KPIs {isOwnProfile && <span className="text-primary">(click to update)</span>}
-            </h4>
-            <div className="grid gap-2">
-              {kpis.slice(0, 5).map((kpi) => {
-                const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
-                const isEditing = editingKpiId === kpi.id;
-                
-                return (
-                  <div key={kpi.id} className="flex items-center justify-between text-sm gap-2">
-                    <span className="truncate flex-1">{kpi.title}</span>
-                    
-                    {isEditing ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="w-20 h-7 text-xs"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveEdit(kpi.id);
-                            if (e.key === "Escape") handleCancelEdit();
-                          }}
-                        />
-                        <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleSaveEdit(kpi.id)}
-                          disabled={updateProgressMutation.isPending}
-                        >
-                          <Check className="h-3 w-3 text-green-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={handleCancelEdit}
-                        >
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full",
-                              progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                            )}
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
-                        {isOwnProfile && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-50 hover:opacity-100"
-                            onClick={() => handleStartEdit(kpi)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </CardContent>
+      {content}
     </Card>
   );
 };
