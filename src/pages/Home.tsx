@@ -772,7 +772,8 @@ const Home = () => {
                 </div>
                 
                 {hasEmployeeProfile && <Button className="h-auto py-1.5 sm:py-2 px-2 sm:px-4" onClick={() => setPostDialogOpen(true)}>
-                    <SquarePen className="h-4 w-4 sm:mr-2" />
+                    <SquarePen className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="sm:hidden">Post</span>
                     <span className="hidden sm:inline">New Post</span>
                   </Button>}
               </div>
