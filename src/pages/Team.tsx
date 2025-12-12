@@ -333,22 +333,22 @@ const Team = () => {
           subtitle={`Meet our amazing team of ${employees.length} members`}
         >
           {isAdmin && (
-            <Button variant="outline" onClick={() => setRecoverDialogOpen(true)} className="gap-2">
+            <Button variant="outline" onClick={() => setRecoverDialogOpen(true)} className="hidden sm:inline-flex gap-2">
               <UserCog className="h-4 w-4" />
               Recover Users
             </Button>
           )}
           {isHR && (
             <>
-              <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="gap-2">
+              <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="hidden sm:inline-flex gap-2">
                 <Settings className="h-4 w-4" />
                 Manage Offices
               </Button>
-              <Button variant="outline" onClick={() => navigate('/team/bulk-import')} className="gap-2">
+              <Button variant="outline" onClick={() => navigate('/team/bulk-import')} className="hidden sm:inline-flex gap-2">
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>
-              <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2">
                 <UserPlus className="h-4 w-4" />
                 Add Team Member
               </Button>
