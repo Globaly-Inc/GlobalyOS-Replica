@@ -1268,30 +1268,59 @@ const TeamMemberProfile = () => {
               </div>
               <div className="p-4">
                 {(kudos.length > 0 || wins.length > 0) ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {/* Combine kudos and wins, sort by date descending */}
-                    {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
-                      ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map(item => item.type === 'kudos' ? (
-                        <KudosCard key={`kudos-${item.data.id}`} kudos={{
-                          id: item.data.id,
-                          employeeId: item.data.employee.id,
-                          employeeName: item.data.employee.profiles.full_name,
-                          givenBy: item.data.given_by.profiles.full_name,
-                          givenById: item.data.given_by.id,
-                          givenByAvatar: item.data.given_by.profiles.avatar_url,
-                          comment: item.data.comment,
-                          date: item.data.created_at,
-                          batchId: item.data.batch_id || undefined,
-                          otherRecipients: item.data.otherRecipients,
-                          otherRecipientIds: item.data.otherRecipientIds
-                        }} onDelete={loadKudos} />
-                      ) : (
-                        <WinCard key={`win-${item.data.id}`} win={item.data} />
-                      )
-                    )}
-                  </div>
+                  <>
+                    {/* Mobile: Horizontal scroll */}
+                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:hidden snap-x snap-mandatory">
+                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
+                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(item => (
+                          <div key={item.type === 'kudos' ? `kudos-${item.data.id}` : `win-${item.data.id}`} className="min-w-[280px] max-w-[300px] shrink-0 snap-start">
+                            {item.type === 'kudos' ? (
+                              <KudosCard kudos={{
+                                id: item.data.id,
+                                employeeId: item.data.employee.id,
+                                employeeName: item.data.employee.profiles.full_name,
+                                givenBy: item.data.given_by.profiles.full_name,
+                                givenById: item.data.given_by.id,
+                                givenByAvatar: item.data.given_by.profiles.avatar_url,
+                                comment: item.data.comment,
+                                date: item.data.created_at,
+                                batchId: item.data.batch_id || undefined,
+                                otherRecipients: item.data.otherRecipients,
+                                otherRecipientIds: item.data.otherRecipientIds
+                              }} onDelete={loadKudos} />
+                            ) : (
+                              <WinCard win={item.data} />
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    {/* Desktop: Grid layout */}
+                    <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[...kudos.map(k => ({ type: 'kudos' as const, date: k.created_at, data: k })),
+                        ...wins.map(w => ({ type: 'win' as const, date: w.date, data: w }))]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(item => item.type === 'kudos' ? (
+                          <KudosCard key={`kudos-${item.data.id}`} kudos={{
+                            id: item.data.id,
+                            employeeId: item.data.employee.id,
+                            employeeName: item.data.employee.profiles.full_name,
+                            givenBy: item.data.given_by.profiles.full_name,
+                            givenById: item.data.given_by.id,
+                            givenByAvatar: item.data.given_by.profiles.avatar_url,
+                            comment: item.data.comment,
+                            date: item.data.created_at,
+                            batchId: item.data.batch_id || undefined,
+                            otherRecipients: item.data.otherRecipients,
+                            otherRecipientIds: item.data.otherRecipientIds
+                          }} onDelete={loadKudos} />
+                        ) : (
+                          <WinCard key={`win-${item.data.id}`} win={item.data} />
+                        )
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>
                 )}
