@@ -53,3 +53,9 @@ verify_jwt = false
 
 [functions.ai-writing-assist]
 verify_jwt = false
+
+[functions.generate-kpi-insights]
+verify_jwt = false
+
+[functions.generate-review-draft]
+verify_jwt = false

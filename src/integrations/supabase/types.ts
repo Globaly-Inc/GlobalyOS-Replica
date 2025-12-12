@@ -558,6 +558,128 @@ export type Database = {
           },
         ]
       }
+      kpi_ai_insights: {
+        Row: {
+          employee_id: string
+          generated_at: string
+          id: string
+          insights: Json
+          organization_id: string
+          quarter: number
+          year: number
+        }
+        Insert: {
+          employee_id: string
+          generated_at?: string
+          id?: string
+          insights: Json
+          organization_id: string
+          quarter: number
+          year: number
+        }
+        Update: {
+          employee_id?: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          organization_id?: string
+          quarter?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_ai_insights_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_ai_insights_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_ai_insights_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpis: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          description: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          quarter: number
+          status: string
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          quarter: number
+          status?: string
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          quarter?: number
+          status?: string
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kudos: {
         Row: {
           batch_id: string | null
@@ -1353,6 +1475,99 @@ export type Database = {
           verified?: boolean
         }
         Relationships: []
+      }
+      performance_reviews: {
+        Row: {
+          ai_draft: Json | null
+          ai_draft_generated_at: string | null
+          created_at: string
+          employee_id: string
+          goals_next_period: string | null
+          id: string
+          needs_improvement: string | null
+          organization_id: string
+          overall_rating: number | null
+          review_period_end: string
+          review_period_start: string
+          reviewer_id: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          what_went_well: string | null
+        }
+        Insert: {
+          ai_draft?: Json | null
+          ai_draft_generated_at?: string | null
+          created_at?: string
+          employee_id: string
+          goals_next_period?: string | null
+          id?: string
+          needs_improvement?: string | null
+          organization_id: string
+          overall_rating?: number | null
+          review_period_end: string
+          review_period_start: string
+          reviewer_id: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          what_went_well?: string | null
+        }
+        Update: {
+          ai_draft?: Json | null
+          ai_draft_generated_at?: string | null
+          created_at?: string
+          employee_id?: string
+          goals_next_period?: string | null
+          id?: string
+          needs_improvement?: string | null
+          organization_id?: string
+          overall_rating?: number | null
+          review_period_end?: string
+          review_period_start?: string
+          reviewer_id?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          what_went_well?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       position_history: {
         Row: {
