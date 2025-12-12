@@ -552,20 +552,23 @@ const TeamMemberProfile = () => {
 
   return <Layout>
       <div className="space-y-4 sm:space-y-8 overflow-hidden">
-        <div className="flex items-center justify-between -mb-6">
+        <div className="flex items-center justify-between">
           <Link to="/team">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Team
+              <span className="hidden sm:inline">Back to Team</span>
+              <span className="sm:hidden">Back</span>
             </Button>
           </Link>
           <div className="flex items-center gap-2">
             {isAdmin && !isOwnProfile && (
-              <DeleteTeamMemberDialog
-                employeeId={id!}
-                employeeName={employee.profiles.full_name}
-                userId={employee.user_id}
-              />
+              <div className="hidden sm:block">
+                <DeleteTeamMemberDialog
+                  employeeId={id!}
+                  employeeName={employee.profiles.full_name}
+                  userId={employee.user_id}
+                />
+              </div>
             )}
             <ProfileTimelineSheet 
               employeeId={id!} 
