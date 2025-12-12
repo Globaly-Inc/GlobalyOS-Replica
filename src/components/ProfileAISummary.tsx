@@ -66,7 +66,7 @@ export const ProfileAISummary = ({ employeeId, employee, compact = false }: Prof
   }, [employeeId]);
 
   return (
-    <div className={`rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white ${compact ? '' : 'overflow-hidden'}`}>
+    <div className={`hidden sm:block rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white ${compact ? '' : 'overflow-hidden'}`}>
       <div className={`flex items-center justify-between ${compact ? 'px-3 py-2' : 'px-5 py-4'} border-b border-white/20`}>
         <h2 className={`flex items-center gap-2 ${compact ? 'text-sm' : 'text-base'} font-semibold`}>
           <Sparkles className={compact ? "h-4 w-4" : "h-5 w-5"} />
