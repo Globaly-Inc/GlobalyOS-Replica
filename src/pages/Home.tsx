@@ -756,9 +756,9 @@ const Home = () => {
                     </TabsTrigger>
                   </TabsList>
                   
-                  {/* Date Filter */}
+                  {/* Date Filter - hidden on mobile */}
                   <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-                    <SelectTrigger className="w-[130px] h-auto py-2 bg-background">
+                    <SelectTrigger className="hidden sm:flex w-[130px] h-auto py-2 bg-background">
                       <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
                       <SelectValue />
                     </SelectTrigger>
