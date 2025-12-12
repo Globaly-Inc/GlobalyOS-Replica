@@ -1197,11 +1197,11 @@ const TeamMemberProfile = () => {
                     <Calendar className="h-5 w-5 text-primary" />
                     Leave Balances
                   </h2>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <Link to={`/team/${id}/leave-history`}>
                       <Button size="sm" variant="ghost">
-                        <History className="h-4 w-4 mr-1" />
-                        Leave History
+                        <History className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Leave History</span>
                       </Button>
                     </Link>
                     {canManageLeave && (
@@ -1228,8 +1228,8 @@ const TeamMemberProfile = () => {
                     size="sm"
                     onClick={() => window.location.href = `/team/${id}/attendance`}
                   >
-                    <History className="h-4 w-4 mr-1" />
-                    View History
+                    <History className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">View History</span>
                   </Button>
                 </div>
                 <div className="p-4">
