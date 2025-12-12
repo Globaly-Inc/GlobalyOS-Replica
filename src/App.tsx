@@ -24,6 +24,7 @@ const AttendanceHistory = lazy(() => import("./pages/AttendanceHistory"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 const Install = lazy(() => import("./pages/Install"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
               <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

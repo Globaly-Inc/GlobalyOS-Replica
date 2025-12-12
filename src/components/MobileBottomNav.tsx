@@ -1,4 +1,4 @@
-import { Home, Users, ScanLine, CalendarPlus, User } from "lucide-react";
+import { Home, Users, ScanLine, CalendarPlus, User, Calendar as CalendarIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -19,7 +19,7 @@ const navItems: NavItem[] = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Users, label: "Team", href: "/team" },
   { icon: ScanLine, label: "Check In", action: "scan" },
-  { icon: CalendarPlus, label: "Leave", action: "leave" },
+  { icon: CalendarIcon, label: "Cal", href: "/calendar" },
   { icon: User, label: "Profile", action: "profile" },
 ];
 
