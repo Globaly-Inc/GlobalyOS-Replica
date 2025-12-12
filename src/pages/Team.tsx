@@ -356,14 +356,14 @@ const Team = () => {
           )}
         </PageHeader>
 
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
           {/* View Toggle */}
-          <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+          <div className="flex items-center border rounded-lg p-1 bg-muted/30 w-full sm:w-auto">
             <Button
               variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('cards')}
-              className="gap-1.5 h-8"
+              className="gap-1.5 h-8 flex-1 sm:flex-none"
             >
               <LayoutGrid className="h-4 w-4" />
               Cards
@@ -372,18 +372,18 @@ const Team = () => {
               variant={viewMode === 'orgchart' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('orgchart')}
-              className="gap-1.5 h-8"
+              className="gap-1.5 h-8 flex-1 sm:flex-none"
             >
               <Building2 className="h-4 w-4" />
               Org Chart
             </Button>
           </div>
 
-          {/* Status Filter - only in cards view */}
+          {/* Status Filter - only in cards view, hidden on mobile */}
           {viewMode === 'cards' && (
             (isAdmin || isHR) ? (
-              <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="w-full sm:w-auto">
-                <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
+              <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="hidden sm:block w-auto">
+                <TabsList className="w-auto inline-flex">
                   <TabsTrigger value="all" className="gap-1.5">
                     All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
                   </TabsTrigger>
@@ -399,8 +399,8 @@ const Team = () => {
                 </TabsList>
               </Tabs>
             ) : (
-              <Tabs value="active" className="w-full sm:w-auto">
-                <TabsList className="sm:w-auto sm:inline-flex">
+              <Tabs value="active" className="hidden sm:block w-auto">
+                <TabsList className="w-auto inline-flex">
                   <TabsTrigger value="active" className="gap-1.5">
                     Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
                   </TabsTrigger>
@@ -409,13 +409,13 @@ const Team = () => {
             )
           )}
 
-          <div className="relative flex-1">
+          <div className="relative flex-1 w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name, position, department, or office..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
         </div>
