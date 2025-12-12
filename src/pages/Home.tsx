@@ -718,6 +718,38 @@ const Home = () => {
             </div>
           </Card>}
 
+        {/* Mobile-only: Pending Leave & On Leave Today at top */}
+        <div className="lg:hidden space-y-4 mb-6">
+          <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+          
+          {/* People on Leave Today - Mobile */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <Palmtree className="h-4 w-4 text-primary" />
+                On Leave Today
+              </h3>
+              {peopleOnLeave.length > 0 && <span className="text-xs text-muted-foreground">{peopleOnLeave.length} people</span>}
+            </div>
+            {peopleOnLeave.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {peopleOnLeave.map(leave => (
+                  <Link key={leave.id} to={`/team/${leave.employee.id}`}>
+                    <Avatar className="h-8 w-8 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
+                      <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No one is on leave today</p>
+            )}
+          </Card>
+        </div>
+
         {/* Two Column Layout */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Feed (2/3) */}
@@ -843,8 +875,8 @@ const Home = () => {
             </Tabs>
           </div>
 
-          {/* Right Column - Leave Sidebar (1/3) */}
-          <div className="space-y-6">
+          {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
+          <div className="hidden lg:block space-y-6">
             {/* QR Code Generator for HR/Admin */}
             {(isHR || isAdmin) && <QRCodeGenerator />}
 
