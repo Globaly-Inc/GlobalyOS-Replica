@@ -3,7 +3,7 @@ import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { KudosCard } from "@/components/KudosCard";
@@ -928,15 +928,6 @@ const TeamMemberProfile = () => {
                     Position Timeline
                   </h2>
                   <div className="flex items-center gap-1 sm:gap-2">
-                    {isAdminOrHR && employee?.organization_id && (
-                      <ManageKPIsDialog employeeId={id!} organizationId={employee.organization_id} />
-                    )}
-                    <Link to={`/team/${id}/reviews`}>
-                      <Button size="sm" variant="outline">
-                        <ClipboardList className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Reviews</span>
-                      </Button>
-                    </Link>
                     {canEditPositionTimeline && (
                       <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
                         loadPositionHistory();
@@ -965,11 +956,44 @@ const TeamMemberProfile = () => {
               </Card>
             )}
 
-            {/* AI KPI Insights */}
+            {/* KPIs Card */}
+            {(isAdminOrHR || isOwnProfile || isManagerOfEmployee) && employee?.organization_id && (
+              <Card className="overflow-hidden order-2 lg:order-none">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Target className="h-5 w-5 text-primary" />
+                    KPIs
+                  </h2>
+                  {isAdminOrHR && (
+                    <ManageKPIsDialog employeeId={id!} organizationId={employee.organization_id} />
+                  )}
+                </div>
+                <div className="p-0">
+                  <AIKPIInsights employeeId={id!} embedded />
+                </div>
+              </Card>
+            )}
+
+            {/* Performance Reviews Card */}
             {(isAdminOrHR || isOwnProfile || isManagerOfEmployee) && (
-              <div className="order-2 lg:order-none">
-                <AIKPIInsights employeeId={id!} />
-              </div>
+              <Card className="overflow-hidden order-2 lg:order-none">
+                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                    Performance Reviews
+                  </h2>
+                  <Link to={`/team/${id}/reviews`}>
+                    <Button size="sm" variant="outline">
+                      View All
+                    </Button>
+                  </Link>
+                </div>
+                <CardContent className="p-4">
+                  <p className="text-sm text-muted-foreground">
+                    View and manage performance reviews for this employee.
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
             {/* Personal Details */}
