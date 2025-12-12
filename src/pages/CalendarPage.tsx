@@ -356,14 +356,14 @@ const CalendarPage = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] overflow-hidden">
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)] overflow-hidden">
         {/* Left Sidebar - Upcoming Events */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] border-b lg:border-b-0 lg:border-r border-border bg-card/50 flex flex-col shrink-0">
-          <div className="p-4 lg:p-6 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground">
+        <div className="w-full lg:w-[280px] xl:w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card/50 flex flex-col shrink-0 order-2 lg:order-1">
+          <div className="p-3 lg:p-4 border-b border-border">
+            <h2 className="text-base lg:text-lg font-semibold text-foreground">
               {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs lg:text-sm text-muted-foreground mt-0.5">
               {selectedDate 
                 ? `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''} on this day`
                 : "Don't miss scheduled events"
@@ -373,7 +373,7 @@ const CalendarPage = () => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="mt-2 -ml-2 text-primary"
+                className="mt-1 -ml-2 text-primary text-xs"
                 onClick={() => setSelectedDate(null)}
               >
                 ← Show all upcoming
@@ -381,12 +381,12 @@ const CalendarPage = () => {
             )}
           </div>
           
-          <ScrollArea className="flex-1 h-[200px] lg:h-auto">
-            <div className="p-4 lg:p-6 space-y-3">
+          <ScrollArea className="flex-1 max-h-[250px] lg:max-h-none">
+            <div className="p-3 lg:p-4 space-y-2">
               {filteredItems.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No events {selectedDate ? "on this day" : "upcoming"}</p>
+                <div className="text-center py-6 text-muted-foreground">
+                  <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">No events {selectedDate ? "on this day" : "upcoming"}</p>
                 </div>
               ) : (
                 filteredItems.map((item) => (
@@ -394,27 +394,27 @@ const CalendarPage = () => {
                     key={item.id}
                     onClick={() => handleDayClick(item.date)}
                     className={cn(
-                      "w-full text-left p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm hover:shadow-md",
+                      "w-full text-left p-3 rounded-lg border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm hover:shadow-md",
                       selectedDate && isSameDay(item.date, selectedDate) && "ring-2 ring-primary"
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={cn("p-2 rounded-lg", getTypeBadgeVariant(item.type))}>
+                    <div className="flex items-start gap-2">
+                      <div className={cn("p-1.5 rounded-md shrink-0", getTypeBadgeVariant(item.type))}>
                         {getTypeIcon(item.type)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-1.5 mb-0.5">
                           <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                            "text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap",
                             getTypeBadgeVariant(item.type)
                           )}>
                             {getTypeLabel(item.type)}
                           </span>
                         </div>
-                        <p className="font-medium text-sm text-foreground truncate">
+                        <p className="font-medium text-xs text-foreground truncate">
                           {item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                           {format(item.date, "d MMM")}
                           {item.endDate && !isSameDay(item.date, item.endDate) && (
                             <> – {format(item.endDate, "d MMM")}</>
@@ -431,24 +431,42 @@ const CalendarPage = () => {
         </div>
 
         {/* Right Side - Calendar */}
-        <div className="flex-1 flex flex-col min-w-0 bg-background">
+        <div className="flex-1 flex flex-col min-w-0 bg-background order-1 lg:order-2">
           {/* Calendar Header */}
-          <div className="p-4 lg:p-6 border-b border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
+          <div className="p-3 lg:p-4 border-b border-border">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 lg:h-5 lg:w-5 text-primary" />
+                  <h1 className="text-base lg:text-xl font-semibold text-foreground">Calendar</h1>
+                </div>
+
+                {/* Month Navigation */}
+                <div className="flex items-center gap-0.5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8" onClick={handlePrevMonth}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs lg:text-sm font-medium min-w-[100px] lg:min-w-[140px] text-center">
+                    {viewMode === "day" 
+                      ? format(currentDate, "d MMM yyyy")
+                      : format(currentDate, "MMM yyyy")
+                    }
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8" onClick={handleNextMonth}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 {/* View Mode Tabs */}
-                <div className="flex bg-muted rounded-lg p-1">
+                <div className="flex bg-muted rounded-lg p-0.5">
                   {(["month", "week", "day"] as ViewMode[]).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setViewMode(mode)}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize",
+                        "px-2 lg:px-3 py-1 lg:py-1.5 text-[10px] lg:text-xs font-medium rounded-md transition-all capitalize",
                         viewMode === mode
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground"
@@ -459,66 +477,54 @@ const CalendarPage = () => {
                   ))}
                 </div>
 
-                {/* Month Navigation */}
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
-                    <ChevronLeft className="h-4 w-4" />
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleToday}>
+                    Today
                   </Button>
-                  <span className="text-sm font-medium min-w-[140px] text-center">
-                    {viewMode === "day" 
-                      ? format(currentDate, "d MMMM yyyy")
-                      : format(currentDate, "MMMM yyyy")
-                    }
-                  </span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+
+                  {canManageEvents && (
+                    <Button size="sm" className="h-7 text-xs" onClick={() => setIsAddEventOpen(true)}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Add Event</span>
+                      <span className="sm:hidden">Add</span>
+                    </Button>
+                  )}
                 </div>
-
-                <Button variant="outline" size="sm" onClick={handleToday}>
-                  Today
-                </Button>
-
-                {canManageEvents && (
-                  <Button size="sm" onClick={() => setIsAddEventOpen(true)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Event
-                  </Button>
-                )}
               </div>
-            </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 mt-4 text-xs">
-              {[
-                { type: "leave" as const, label: "Leave" },
-                { type: "holiday" as const, label: "Holiday" },
-                { type: "event" as const, label: "Event" },
-                { type: "birthday" as const, label: "Birthday" },
-                { type: "anniversary" as const, label: "Anniversary" },
-                { type: "review" as const, label: "Review" },
-              ].map((item) => (
-                <div key={item.type} className="flex items-center gap-1.5">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", getTypeColor(item.type))} />
-                  <span className="text-muted-foreground">{item.label}</span>
-                </div>
-              ))}
+              {/* Legend - Hidden on mobile */}
+              <div className="hidden sm:flex flex-wrap gap-2 lg:gap-3 text-[10px] lg:text-xs">
+                {[
+                  { type: "leave" as const, label: "Leave" },
+                  { type: "holiday" as const, label: "Holiday" },
+                  { type: "event" as const, label: "Event" },
+                  { type: "birthday" as const, label: "Birthday" },
+                  { type: "anniversary" as const, label: "Anniversary" },
+                  { type: "review" as const, label: "Review" },
+                ].map((item) => (
+                  <div key={item.type} className="flex items-center gap-1">
+                    <div className={cn("h-2 w-2 rounded-full", getTypeColor(item.type))} />
+                    <span className="text-muted-foreground">{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Calendar Grid */}
-          <div className="flex-1 p-4 lg:p-6 overflow-auto">
+          <div className="flex-1 p-2 lg:p-4 overflow-auto">
             <div className={cn(
-              "grid gap-px bg-border rounded-xl overflow-hidden",
+              "grid gap-px bg-border rounded-lg overflow-hidden",
               viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
             )}>
               {/* Day headers */}
-              {viewMode !== "day" && ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+              {viewMode !== "day" && ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => (
                 <div
                   key={day}
-                  className="bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground"
+                  className="bg-muted/50 p-1.5 lg:p-2 text-center text-[10px] lg:text-xs font-medium text-muted-foreground"
                 >
-                  {day}
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.charAt(0)}</span>
                 </div>
               ))}
 
@@ -534,59 +540,62 @@ const CalendarPage = () => {
                     key={day.toISOString()}
                     onClick={() => handleDayClick(day)}
                     className={cn(
-                      "bg-card p-2 text-left transition-all duration-200 cursor-pointer group",
-                      viewMode === "month" ? "min-h-[100px]" : "min-h-[200px]",
+                      "bg-card p-1 lg:p-2 text-left transition-all duration-200 cursor-pointer group",
+                      viewMode === "month" ? "min-h-[50px] sm:min-h-[70px] lg:min-h-[90px]" : "min-h-[150px]",
                       !isCurrentMonth && viewMode === "month" && "opacity-40",
                       isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
                       "hover:bg-accent/50"
                     )}
                   >
                     <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-0.5 lg:mb-1">
                         <span
                           className={cn(
-                            "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                            "text-[10px] lg:text-sm font-medium w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full transition-colors",
                             isToday && "bg-primary text-primary-foreground",
                             isSelected && !isToday && "bg-primary/20 text-primary"
                           )}
                         >
                           {format(day, "d")}
                         </span>
-                        {dayItems.length > 3 && viewMode === "month" && (
-                          <span className="text-[10px] text-muted-foreground">
-                            +{dayItems.length - 3} more
+                        {dayItems.length > 2 && viewMode === "month" && (
+                          <span className="text-[8px] lg:text-[10px] text-muted-foreground hidden sm:inline">
+                            +{dayItems.length - 2}
                           </span>
                         )}
                       </div>
 
-                      {/* Events in cell */}
-                      <div className="flex flex-col gap-1 overflow-hidden">
-                        {dayItems.slice(0, viewMode === "month" ? 3 : 10).map((item) => (
+                      {/* Events in cell - show dots on mobile, tags on desktop */}
+                      <div className="hidden sm:flex flex-col gap-0.5 overflow-hidden">
+                        {dayItems.slice(0, viewMode === "month" ? 2 : 8).map((item) => (
                           <div
                             key={item.id}
                             className={cn(
-                              "text-[11px] px-2 py-1 rounded-md truncate font-medium",
+                              "text-[9px] lg:text-[10px] px-1 lg:px-1.5 py-0.5 rounded truncate font-medium",
                               getTypeBadgeVariant(item.type)
                             )}
                             title={item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
                           >
                             {item.employeeName 
-                              ? `${item.title.split(' ')[0]} – ${item.employeeName.split(' ')[0]}`
-                              : item.title
+                              ? `${item.employeeName.split(' ')[0]}`
+                              : item.title.slice(0, 12)
                             }
                           </div>
                         ))}
                       </div>
 
-                      {/* Dots for mobile/overflow */}
-                      {viewMode === "month" && dayItems.length > 0 && dayItems.length <= 3 && (
-                        <div className="flex gap-0.5 mt-auto pt-1 sm:hidden">
+                      {/* Dots for mobile */}
+                      {viewMode === "month" && dayItems.length > 0 && (
+                        <div className="flex gap-0.5 mt-auto pt-0.5 sm:hidden flex-wrap">
                           {dayItems.slice(0, 4).map((item) => (
                             <div
                               key={item.id}
                               className={cn("h-1.5 w-1.5 rounded-full", getTypeColor(item.type))}
                             />
                           ))}
+                          {dayItems.length > 4 && (
+                            <span className="text-[8px] text-muted-foreground">+{dayItems.length - 4}</span>
+                          )}
                         </div>
                       )}
                     </div>
