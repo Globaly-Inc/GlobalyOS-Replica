@@ -586,7 +586,7 @@ const TeamMemberProfile = () => {
                   </AvatarFallback>
                 </Avatar>
                 {(isAdminOrHR || isOwnProfile) && (
-                  <span className="absolute -bottom-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="absolute -bottom-1 -right-1 hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                     <EditAvatarDialog
                       userId={employee.user_id}
                       currentAvatarUrl={employee.profiles.avatar_url}
@@ -601,7 +601,7 @@ const TeamMemberProfile = () => {
                 <div className="group flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
                   {isAdminOrHR && (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditNameDialog
                         userId={employee.user_id}
                         currentName={employee.profiles.full_name}
@@ -619,7 +619,7 @@ const TeamMemberProfile = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 w-6 hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => setEditStatusOpen(true)}
                     >
                       <Pencil className="h-3 w-3" />
@@ -638,7 +638,7 @@ const TeamMemberProfile = () => {
                   <p className="text-base font-medium text-primary">{employee.position}</p>
                   <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
                   {isAdminOrHR && (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditEmployeeInfoDialog
                         employeeId={id!}
                         currentPosition={employee.position}
@@ -659,7 +659,7 @@ const TeamMemberProfile = () => {
                     <span className="text-xs text-muted-foreground italic">No projects</span>
                   )}
                   {isAdminOrHR && (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditProjectsDialog
                         employeeId={id!}
                         onSuccess={loadEmployeeProjects}
@@ -673,7 +673,7 @@ const TeamMemberProfile = () => {
                   <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
                   {isAdminOrHR && (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditEmailDialog
                         userId={employee.user_id}
                         currentEmail={employee.profiles.email}
@@ -686,7 +686,7 @@ const TeamMemberProfile = () => {
                     {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'User'}
                   </Badge>
                   {isAdminOrHR && (
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditUserRoleDialog
                         userId={employee.user_id}
                         currentRole={userRole}
@@ -713,7 +713,7 @@ const TeamMemberProfile = () => {
                           <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
                         </Link>
                         {canEditManager && (
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
                               loadEmployee();
                               loadDirectReports();
@@ -725,7 +725,7 @@ const TeamMemberProfile = () => {
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-muted-foreground italic">Not assigned</span>
                         {canEditManager && (
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
                               loadEmployee();
                               loadDirectReports();
@@ -989,7 +989,7 @@ const TeamMemberProfile = () => {
                       <div className="flex items-center gap-2">
                         <p className="text-sm text-muted-foreground">Full Address</p>
                         {canEditPersonalDetails && (
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditAddressDialog
                               address={{
                                 street: employee.street,
@@ -1075,7 +1075,7 @@ const TeamMemberProfile = () => {
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Office</p>
                       {canEditJoinDateAndOffice && (
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                           <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={loadEmployee} />
                         </span>
                       )}
