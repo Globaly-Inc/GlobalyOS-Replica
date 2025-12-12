@@ -232,17 +232,15 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
   return (
     <div className="space-y-5">
-      {/* Today's Check-in */}
-      {showCheckIn && (
+      {/* Today's Sessions - only show if there are sessions */}
+      {showCheckIn && (todayRecords?.length || 0) > 0 && (
         <div className="p-4 rounded-xl bg-muted/50 border">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold">Today's Sessions</p>
             <div className="flex items-center gap-2">
-              {(todayRecords?.length || 0) > 0 && (
-                <span className="text-xs font-medium text-primary">
-                  Total: {todayRecords?.reduce((sum, r) => sum + (r.work_hours || 0), 0).toFixed(1)}h
-                </span>
-              )}
+              <span className="text-xs font-medium text-primary">
+                Total: {todayRecords?.reduce((sum, r) => sum + (r.work_hours || 0), 0).toFixed(1)}h
+              </span>
               <Badge variant="outline" className="text-xs">
                 {todayRecords?.length || 0}/3
               </Badge>
@@ -251,7 +249,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
           
           {/* Completed sessions */}
           {completedSessions.length > 0 && (
-            <div className="space-y-2 mb-3">
+            <div className="space-y-2">
               {completedSessions.map((session, idx) => (
                 <div key={session.id} className="flex items-center justify-between text-xs p-2 bg-background rounded-lg">
                   <span className="text-muted-foreground">Session {idx + 1}</span>
@@ -265,8 +263,8 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
           )}
           
           {/* Active session */}
-          {activeSession ? (
-            <div className="space-y-3">
+          {activeSession && (
+            <div className={`${completedSessions.length > 0 ? 'mt-3' : ''}`}>
               <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900/50">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
@@ -276,29 +274,6 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
                 </div>
                 {getStatusBadge(activeSession.status)}
               </div>
-              <Button
-                onClick={() => checkOutMutation.mutate()}
-                disabled={checkOutMutation.isPending}
-                className="w-full"
-                size="sm"
-              >
-                Check Out
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-3">
-              {canCheckIn ? (
-                <>
-                  <p className="text-muted-foreground text-sm mb-3">
-                    {completedSessions.length > 0 ? "Start a new session" : "Not checked in yet"}
-                  </p>
-                  <Button onClick={() => checkInMutation.mutate()} disabled={checkInMutation.isPending} size="sm">
-                    Check In
-                  </Button>
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">Daily limit reached (3 sessions)</p>
-              )}
             </div>
           )}
         </div>
