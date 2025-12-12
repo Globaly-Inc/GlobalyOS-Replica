@@ -231,11 +231,11 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile, searchQuery = '' }
               const Icon = folder.icon;
               const count = getDocumentsForFolder(folder.id).length;
               return (
-                <TabsTrigger key={folder.id} value={folder.id} className="flex items-center gap-2">
+                <TabsTrigger key={folder.id} value={folder.id} className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
                   <Icon className="h-4 w-4" />
-                  <span>{folder.label}</span>
+                  <span className="hidden sm:inline">{folder.label}</span>
                   {count > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
                       {count}
                     </Badge>
                   )}
