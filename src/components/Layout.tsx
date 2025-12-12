@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar as CalendarIcon, Target } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -21,6 +21,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 const navigation = [
   { name: "Home", href: "/", icon: Home },
   { name: "Team", href: "/team", icon: Users },
+  { name: "KPIs", href: "/kpi-dashboard", icon: Target },
   { name: "Cal", href: "/calendar", icon: CalendarIcon },
 ];
 
