@@ -87,7 +87,7 @@ export const EditableField = ({
           {canEdit && !isEditing && isHovered && (
             <button
               onClick={() => setIsEditing(true)}
-              className="p-1 rounded hover:bg-muted transition-colors"
+              className="hidden sm:block p-1 rounded hover:bg-muted transition-colors"
             >
               <Pencil className="h-3 w-3 text-muted-foreground" />
             </button>
