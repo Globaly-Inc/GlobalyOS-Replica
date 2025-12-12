@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Users, Mail } from "lucide-react";
+import { Users, Mail, AlertCircle, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import TurnstileWidget from "@/components/TurnstileWidget";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const otpEmailSchema = z.object({
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
@@ -29,6 +30,7 @@ const Auth = () => {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [accountNotFound, setAccountNotFound] = useState(false);
 
   // Fetch Turnstile site key on mount
   useEffect(() => {
@@ -171,19 +173,27 @@ const Auth = () => {
       const errorMessage = response.data?.error || response.error?.message;
       
       if (errorMessage) {
-        // Check if CAPTCHA is now required
-        if (response.data?.captchaRequired) {
-          setShowCaptcha(true);
-          setTurnstileToken(null);
+        // Check if this is an "account not found" error
+        const isAccountNotFound = errorMessage.toLowerCase().includes('no account found') || 
+                                   errorMessage.toLowerCase().includes('user not found');
+        
+        if (isAccountNotFound) {
+          setAccountNotFound(true);
+        } else {
+          // Check if CAPTCHA is now required
+          if (response.data?.captchaRequired) {
+            setShowCaptcha(true);
+            setTurnstileToken(null);
+          }
+          if (response.data?.failedAttempts !== undefined) {
+            setFailedAttempts(response.data.failedAttempts);
+          }
+          toast({
+            title: "Verification failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
         }
-        if (response.data?.failedAttempts !== undefined) {
-          setFailedAttempts(response.data.failedAttempts);
-        }
-        toast({
-          title: "Verification failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
       } else if (response.data?.session) {
         await supabase.auth.setSession({
           access_token: response.data.session.access_token,
@@ -220,7 +230,46 @@ const Auth = () => {
     setFailedAttempts(0);
     setShowCaptcha(false);
     setTurnstileToken(null);
+    setAccountNotFound(false);
   };
+
+  const AccountNotFoundMessage = () => (
+    <div className="space-y-4">
+      <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+        <UserX className="h-5 w-5" />
+        <AlertTitle className="font-semibold">Account Not Found</AlertTitle>
+        <AlertDescription className="mt-2 text-sm">
+          We couldn't find an account associated with <strong>{otpEmail}</strong>
+        </AlertDescription>
+      </Alert>
+      
+      <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <h3 className="font-medium text-foreground">What you can do:</h3>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li className="flex items-start gap-2">
+            <span className="text-primary font-bold">1.</span>
+            <span>Check if you entered the correct email address</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary font-bold">2.</span>
+            <span>Contact your HR administrator or manager to be added to the system</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary font-bold">3.</span>
+            <span>If you received an invitation email, use the link provided in that email</span>
+          </li>
+        </ul>
+      </div>
+      
+      <Button 
+        variant="outline" 
+        className="w-full" 
+        onClick={resetOtpFlow}
+      >
+        Try a different email
+      </Button>
+    </div>
+  );
 
   const handleTurnstileVerify = (token: string) => {
     setTurnstileToken(token);
@@ -280,6 +329,8 @@ const Auth = () => {
               {loading ? "Sending..." : "Send OTP"}
             </Button>
           </form>
+        ) : accountNotFound ? (
+          <AccountNotFoundMessage />
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div className="text-center mb-4">
