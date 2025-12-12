@@ -723,34 +723,34 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="all" className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <TabsList className="h-auto p-1.5 flex-wrap">
-                    <TabsTrigger value="all" className="px-2 sm:px-3 py-2 gap-1.5">
+              <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <TabsList className="h-auto p-1 sm:p-1.5 flex-wrap">
+                    <TabsTrigger value="all" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
                       <MessageSquare className="h-4 w-4 shrink-0" />
                       <span className="hidden sm:inline">All</span>
-                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {filteredUpdates.length + groupedKudos.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="wins" className="px-2 sm:px-3 py-2 gap-1.5">
+                    <TabsTrigger value="wins" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
                       <Trophy className="h-4 w-4 shrink-0" />
                       <span className="hidden sm:inline">Wins</span>
-                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {winsAndAchievements.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="kudos" className="px-2 sm:px-3 py-2 gap-1.5">
+                    <TabsTrigger value="kudos" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
                       <Heart className="h-4 w-4 shrink-0" />
                       <span className="hidden sm:inline">Kudos</span>
-                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {groupedKudos.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="announcements" className="px-2 sm:px-3 py-2 gap-1.5">
+                    <TabsTrigger value="announcements" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
                       <Megaphone className="h-4 w-4 shrink-0" />
                       <span className="hidden sm:inline">Announcements</span>
-                      <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
                         {regularUpdates.length}
                       </span>
                     </TabsTrigger>
@@ -771,9 +771,9 @@ const Home = () => {
                   </Select>
                 </div>
                 
-                {hasEmployeeProfile && <Button className="h-auto py-2" onClick={() => setPostDialogOpen(true)}>
-                    <SquarePen className="mr-2 h-4 w-4" />
-                    New Post
+                {hasEmployeeProfile && <Button className="h-auto py-1.5 sm:py-2 px-2 sm:px-4" onClick={() => setPostDialogOpen(true)}>
+                    <SquarePen className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">New Post</span>
                   </Button>}
               </div>
 
