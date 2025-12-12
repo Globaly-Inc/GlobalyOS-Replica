@@ -133,7 +133,7 @@ export const AddLeaveBalanceDialog = ({
   };
   return <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" className="hidden sm:flex">
           <Plus className="h-4 w-4 mr-1" />
           Adjust Leave Balance  
         </Button>
