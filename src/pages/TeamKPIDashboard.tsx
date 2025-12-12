@@ -30,8 +30,10 @@ import {
   BarChart3,
   ChevronRight,
   LineChart,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
 import {
   ChartContainer,
   ChartTooltip,
@@ -281,6 +283,14 @@ const TeamKPIDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {(isAdmin || isHR) && (
+              <KPITemplatesDialog>
+                <Button variant="outline" size="sm">
+                  <FileText className="h-4 w-4 mr-1" />
+                  Templates
+                </Button>
+              </KPITemplatesDialog>
+            )}
             <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
               <SelectTrigger className="w-24">
                 <SelectValue />
