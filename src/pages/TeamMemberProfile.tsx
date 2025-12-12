@@ -551,7 +551,7 @@ const TeamMemberProfile = () => {
     .join(", ");
 
   return <Layout>
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-8">
         <div className="flex items-center justify-between -mb-6">
           <Link to="/team">
             <Button variant="ghost" size="sm">
@@ -817,8 +817,8 @@ const TeamMemberProfile = () => {
           </div>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-1">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-1">
             {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
             {canViewLeaveAndAttendance && (
               <Card className="overflow-hidden">
@@ -1167,7 +1167,7 @@ const TeamMemberProfile = () => {
             )}
           </div>
 
-          <div className="space-y-6 lg:col-span-2">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2">
             {employee.superpowers && employee.superpowers.length > 0 && (
               <Card className="overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
