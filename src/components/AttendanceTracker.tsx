@@ -281,24 +281,24 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
 
       {/* Weekly Summary */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold text-sm">{isCurrentWeek ? "This Week's Summary" : "Weekly Summary"}</p>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <p className="font-semibold text-sm shrink-0">{isCurrentWeek ? "This Week" : "Weekly Summary"}</p>
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-6 w-6" 
+              className="h-6 w-6 shrink-0" 
               onClick={goToPreviousWeek}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Badge variant="outline" className="text-xs">
-              {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}
-            </Badge>
+            <span className="text-xs text-muted-foreground whitespace-nowrap px-1">
+              {format(weekStart, "MMM d")} - {format(weekEnd, "d")}
+            </span>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-6 w-6" 
+              className="h-6 w-6 shrink-0" 
               onClick={goToNextWeek}
               disabled={isCurrentWeek}
             >
