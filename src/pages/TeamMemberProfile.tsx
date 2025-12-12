@@ -33,8 +33,9 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target } from "lucide-react";
 import AIKPIInsights from "@/components/AIKPIInsights";
+import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
 import { ProfileAISummary } from "@/components/ProfileAISummary";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
@@ -926,12 +927,23 @@ const TeamMemberProfile = () => {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
-                  {canEditPositionTimeline && (
-                    <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
-                      loadPositionHistory();
-                      loadEmployee();
-                    }} />
-                  )}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    {isAdminOrHR && employee?.organization_id && (
+                      <ManageKPIsDialog employeeId={id!} organizationId={employee.organization_id} />
+                    )}
+                    <Link to={`/team/${id}/reviews`}>
+                      <Button size="sm" variant="outline">
+                        <ClipboardList className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Reviews</span>
+                      </Button>
+                    </Link>
+                    {canEditPositionTimeline && (
+                      <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
+                        loadPositionHistory();
+                        loadEmployee();
+                      }} />
+                    )}
+                  </div>
                 </div>
                 <div className="p-4">
                   <PositionTimeline 
@@ -951,6 +963,13 @@ const TeamMemberProfile = () => {
                   />
                 </div>
               </Card>
+            )}
+
+            {/* AI KPI Insights */}
+            {(isAdminOrHR || isOwnProfile || isManagerOfEmployee) && (
+              <div className="order-2 lg:order-none">
+                <AIKPIInsights employeeId={id!} />
+              </div>
             )}
 
             {/* Personal Details */}
