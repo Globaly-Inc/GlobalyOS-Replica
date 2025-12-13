@@ -5,6 +5,8 @@ import ChatRightPanel from "@/components/chat/ChatRightPanel";
 import ChatEmptyState from "@/components/chat/ChatEmptyState";
 import NewChatDialog from "@/components/chat/NewChatDialog";
 import CreateSpaceDialog from "@/components/chat/CreateSpaceDialog";
+import MentionsView from "@/components/chat/MentionsView";
+import StarredView from "@/components/chat/StarredView";
 import type { ActiveChat } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,39 @@ const Chat = () => {
     setActiveChat(chat);
   };
 
+  const renderMainContent = () => {
+    if (!activeChat) {
+      return (
+        <ChatEmptyState 
+          onNewChat={() => setNewChatOpen(true)} 
+          onNewSpace={() => setCreateSpaceOpen(true)}
+        />
+      );
+    }
+
+    if (activeChat.type === 'mentions') {
+      return <MentionsView onNavigateToChat={handleSelectChat} />;
+    }
+
+    if (activeChat.type === 'starred') {
+      return <StarredView onNavigateToChat={handleSelectChat} />;
+    }
+
+    return (
+      <ConversationView
+        activeChat={activeChat}
+        onBack={handleBack}
+        onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+      />
+    );
+  };
+
+  const showRightPanelCondition = activeChat && 
+    activeChat.type !== 'mentions' && 
+    activeChat.type !== 'starred' && 
+    showRightPanel && 
+    !isMobile;
+
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* Left Sidebar - hide on mobile when chat is active */}
@@ -43,27 +78,16 @@ const Chat = () => {
         />
       </div>
 
-      {/* Center - Conversation View */}
+      {/* Center - Main Content View */}
       <div className={cn(
         "flex-1 min-w-0 h-full",
         isMobile && !activeChat && "hidden"
       )}>
-        {activeChat ? (
-          <ConversationView
-            activeChat={activeChat}
-            onBack={handleBack}
-            onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-          />
-        ) : (
-          <ChatEmptyState 
-            onNewChat={() => setNewChatOpen(true)} 
-            onNewSpace={() => setCreateSpaceOpen(true)}
-          />
-        )}
+        {renderMainContent()}
       </div>
 
       {/* Right Panel - Pinned messages/resources */}
-      {activeChat && showRightPanel && !isMobile && (
+      {showRightPanelCondition && (
         <div className="w-80 flex-shrink-0 border-l border-border">
           <ChatRightPanel
             activeChat={activeChat}

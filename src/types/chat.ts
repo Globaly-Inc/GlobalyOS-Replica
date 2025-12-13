@@ -135,7 +135,7 @@ export interface ChatPresence {
   typing_in_space_id: string | null;
 }
 
-export type ChatContextType = 'conversation' | 'space';
+export type ChatContextType = 'conversation' | 'space' | 'mentions' | 'starred';
 
 export interface ActiveChat {
   type: ChatContextType;
