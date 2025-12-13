@@ -3117,6 +3117,10 @@ export type Database = {
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       get_current_employee_id: { Args: never; Returns: string }
+      get_current_employee_id_for_org: {
+        Args: { _org_id: string }
+        Returns: string
+      }
       get_employee_for_viewer: {
         Args: { target_employee_id: string }
         Returns: {
