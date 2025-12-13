@@ -1447,9 +1447,9 @@ myFunction();`;
   };
 
   return (
-    <div className={cn("border rounded-lg bg-background overflow-hidden", className)}>
-      {/* Floating Toolbar */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 p-2 border-b bg-muted/50 backdrop-blur-sm">
+    <div className={cn("border rounded-lg bg-background", className)}>
+      {/* Sticky Toolbar */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 p-2 border-b bg-background/95 backdrop-blur-sm shadow-sm rounded-t-lg">
         {/* Text formatting */}
         <Button
           type="button"
