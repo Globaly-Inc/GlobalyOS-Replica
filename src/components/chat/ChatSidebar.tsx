@@ -330,7 +330,8 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         type: 'conversation', 
                         id: conv.id, 
                         name,
-                        isGroup: conv.is_group 
+                        isGroup: conv.is_group,
+                        iconUrl: conv.is_group ? conv.icon_url : undefined
                       })}
                       className={cn(
                         "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
