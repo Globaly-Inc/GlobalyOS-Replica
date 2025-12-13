@@ -1397,8 +1397,11 @@ export type Database = {
           created_by: string
           id: string
           is_active: boolean
+          latitude: number | null
+          longitude: number | null
           office_id: string
           organization_id: string
+          radius_meters: number | null
         }
         Insert: {
           code: string
@@ -1406,8 +1409,11 @@ export type Database = {
           created_by: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           office_id: string
           organization_id: string
+          radius_meters?: number | null
         }
         Update: {
           code?: string
@@ -1415,8 +1421,11 @@ export type Database = {
           created_by?: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           office_id?: string
           organization_id?: string
+          radius_meters?: number | null
         }
         Relationships: [
           {
@@ -2232,10 +2241,17 @@ export type Database = {
       }
       is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
-      validate_qr_and_record_attendance: {
-        Args: { _action: string; _qr_code: string }
-        Returns: Json
-      }
+      validate_qr_and_record_attendance:
+        | { Args: { _action: string; _qr_code: string }; Returns: Json }
+        | {
+            Args: {
+              _action: string
+              _qr_code: string
+              _user_latitude?: number
+              _user_longitude?: number
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "hr" | "user"

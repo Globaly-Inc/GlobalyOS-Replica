@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Camera, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Camera, Loader2, CheckCircle2, XCircle, MapPin, AlertTriangle } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,8 +20,47 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [loading, setLoading] = useState(true);
   const [sessionCount, setSessionCount] = useState(0);
+  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied" | "unavailable">("pending");
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Request location permission
+  useEffect(() => {
+    if (!open) return;
+
+    const requestLocation = () => {
+      if (!navigator.geolocation) {
+        setLocationStatus("unavailable");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setLocationStatus("granted");
+        },
+        (error) => {
+          console.error("Location error:", error);
+          if (error.code === error.PERMISSION_DENIED) {
+            setLocationStatus("denied");
+          } else {
+            setLocationStatus("unavailable");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    };
+
+    requestLocation();
+  }, [open]);
 
   // Determine current action based on today's attendance
   useEffect(() => {
@@ -73,12 +112,12 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     fetchAttendanceStatus();
   }, [open, user?.id]);
 
-  // Auto-start scanner when dialog opens
+  // Auto-start scanner when dialog opens and location is ready
   useEffect(() => {
-    if (open && !loading && !result) {
+    if (open && !loading && !result && (locationStatus === "granted" || locationStatus === "unavailable")) {
       startScanner();
     }
-  }, [open, loading, currentAction]);
+  }, [open, loading, currentAction, locationStatus]);
 
   useEffect(() => {
     return () => {
@@ -92,6 +131,8 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
       setResult(null);
       setIsScanning(false);
       setLoading(true);
+      setLocationStatus("pending");
+      setUserLocation(null);
     }
   }, [open]);
 
@@ -146,14 +187,24 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   const handleScan = async (qrCode: string) => {
     setProcessing(true);
     try {
+      // Include location in the RPC call
       const { data, error } = await supabase.rpc("validate_qr_and_record_attendance", {
         _qr_code: qrCode,
         _action: currentAction,
+        _user_latitude: userLocation?.latitude ?? null,
+        _user_longitude: userLocation?.longitude ?? null,
       });
 
       if (error) throw error;
 
-      const response = data as { success: boolean; message?: string; error?: string; status?: string };
+      const response = data as { 
+        success: boolean; 
+        message?: string; 
+        error?: string; 
+        status?: string;
+        distance?: number;
+        required_radius?: number;
+      };
       
       if (response.success) {
         setResult({ 
@@ -162,7 +213,14 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         });
         toast.success(response.message || "Success!");
       } else {
-        setResult({ success: false, message: response.error || "Failed to record attendance" });
+        let errorMessage = response.error || "Failed to record attendance";
+        
+        // Add distance info if available
+        if (response.distance && response.required_radius) {
+          errorMessage = `${errorMessage}\n(Distance: ${response.distance}m, Required: within ${response.required_radius}m)`;
+        }
+        
+        setResult({ success: false, message: errorMessage });
         toast.error(response.error || "Failed to record attendance");
       }
     } catch (error: any) {
@@ -178,6 +236,23 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     await stopScanner();
     setIsScanning(false);
     onOpenChange(false);
+  };
+
+  const handleRetryLocation = () => {
+    setLocationStatus("pending");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationStatus("granted");
+      },
+      () => {
+        setLocationStatus("denied");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   return (
@@ -210,8 +285,42 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
             </div>
           )}
 
-          {!loading && isScanning && !result && (
+          {!loading && locationStatus === "pending" && (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+              <MapPin className="h-12 w-12 text-primary animate-pulse" />
+              <p className="text-muted-foreground text-center">Requesting location access...</p>
+              <p className="text-xs text-muted-foreground text-center">
+                Please allow location access when prompted
+              </p>
+            </div>
+          )}
+
+          {!loading && locationStatus === "denied" && (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+              <AlertTriangle className="h-12 w-12 text-amber-500" />
+              <p className="text-center font-medium">Location Access Required</p>
+              <p className="text-xs text-muted-foreground text-center max-w-[280px]">
+                Location access is required to verify you're at the office. Please enable location permissions in your browser settings.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleRetryLocation}>
+                  Try Again
+                </Button>
+                <Button variant="ghost" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!loading && (locationStatus === "granted" || locationStatus === "unavailable") && isScanning && !result && (
             <div className="space-y-4">
+              {locationStatus === "granted" && (
+                <div className="flex items-center justify-center gap-2 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-2 rounded-lg">
+                  <MapPin className="h-4 w-4" />
+                  Location detected
+                </div>
+              )}
               <div 
                 id="qr-reader" 
                 ref={scannerContainerRef}
@@ -240,7 +349,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
               ) : (
                 <XCircle className="h-16 w-16 text-destructive" />
               )}
-              <p className={`text-center font-medium ${result.success ? "text-green-600" : "text-destructive"}`}>
+              <p className={`text-center font-medium whitespace-pre-line ${result.success ? "text-green-600" : "text-destructive"}`}>
                 {result.message}
               </p>
               <Button onClick={() => onOpenChange(false)} className="w-full">
