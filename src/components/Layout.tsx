@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock } from "lucide-react";
+import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, MessageSquare, BookOpen, CheckSquare, Briefcase } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -460,14 +460,28 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </TooltipProvider>
           </div>
 
-          {/* Mobile Header - Minimal */}
+          {/* Mobile Header - Show active menu */}
           <div className="flex flex-1 items-center justify-between md:hidden">
-            <button 
-              onClick={() => navigate("/")}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark"
-            >
-              <Users className="h-4 w-4 text-primary-foreground" />
-            </button>
+            {(() => {
+              const location = useLocation();
+              const menuItems = [
+                { name: "Team", href: "/", icon: Users, match: (p: string) => p === "/" || p.startsWith("/team") || p === "/kpi-dashboard" || p === "/calendar" },
+                { name: "Chat", href: "/chat", icon: MessageSquare, match: (p: string) => p === "/chat" },
+                { name: "Wiki", href: "/wiki", icon: BookOpen, match: (p: string) => p === "/wiki" },
+                { name: "Tasks", href: "/tasks", icon: CheckSquare, match: (p: string) => p === "/tasks" },
+                { name: "CRM", href: "/crm", icon: Briefcase, match: (p: string) => p === "/crm" },
+              ];
+              const activeMenu = menuItems.find(item => item.match(location.pathname)) || menuItems[0];
+              const Icon = activeMenu.icon;
+              return (
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
+                    <Icon className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <span className="text-sm font-semibold">{activeMenu.name}</span>
+                </div>
+              );
+            })()}
             
             <div className="flex items-center gap-2">
               {elapsedTime && (
