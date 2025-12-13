@@ -729,8 +729,8 @@ const CalendarPage = () => {
             )}
 
             {/* Legend */}
-            <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/50">
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <div className="mt-6 px-4 py-3 bg-muted/30 rounded-xl border border-border/50">
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {[
                   { type: "leave" as const, label: "Leave" },
                   { type: "holiday" as const, label: "Holiday" },
