@@ -36,8 +36,8 @@ interface WikiFolderViewProps {
   onRenamePage?: (pageId: string, title: string) => void;
   onDeleteFolder?: (folderId: string) => void;
   onDeletePage?: (pageId: string) => void;
-  isFavorite?: (itemId: string, itemType: "folder" | "page") => boolean;
-  onToggleFavorite?: (itemId: string, itemType: "folder" | "page") => void;
+  isFavorite?: (itemType: "folder" | "page", itemId: string) => boolean;
+  onToggleFavorite?: (itemType: "folder" | "page", itemId: string) => void;
 }
 
 export const WikiFolderView = ({
@@ -120,7 +120,7 @@ export const WikiFolderView = ({
             {childFolders.map((folder) => {
               const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
               const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
-              const isFav = isFavorite?.(folder.id, "folder") ?? false;
+              const isFav = isFavorite?.("folder", folder.id) ?? false;
               
               return (
                 <div
@@ -147,7 +147,7 @@ export const WikiFolderView = ({
                             <Pencil className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onToggleFavorite?.(folder.id, "folder")}>
+                          <DropdownMenuItem onClick={() => onToggleFavorite?.("folder", folder.id)}>
                             <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
                             {isFav ? "Remove from Favorites" : "Add to Favorites"}
                           </DropdownMenuItem>
@@ -212,7 +212,7 @@ export const WikiFolderView = ({
 
             {/* Pages */}
             {childPages.map((page) => {
-              const isFav = isFavorite?.(page.id, "page") ?? false;
+              const isFav = isFavorite?.("page", page.id) ?? false;
               
               return (
                 <div
@@ -239,7 +239,7 @@ export const WikiFolderView = ({
                             <Pencil className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onToggleFavorite?.(page.id, "page")}>
+                          <DropdownMenuItem onClick={() => onToggleFavorite?.("page", page.id)}>
                             <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
                             {isFav ? "Remove from Favorites" : "Add to Favorites"}
                           </DropdownMenuItem>
