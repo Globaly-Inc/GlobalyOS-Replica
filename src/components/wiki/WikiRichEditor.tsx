@@ -923,60 +923,73 @@ export const WikiRichEditor = ({
         const container = range.commonAncestorContainer;
         const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
         
-        // Handle blockquote - insert <br> for new line, exit on double Enter (empty line after <br>)
+        // Handle blockquote - insert <br> for new line, exit on double Enter
         const blockquote = element?.closest('blockquote');
         if (blockquote && !element?.closest('li')) {
-          const currentNode = range.startContainer;
-          const parentElement = currentNode.nodeType === Node.TEXT_NODE ? currentNode.parentElement : currentNode as HTMLElement;
+          e.preventDefault();
           
-          // Check if we're on an empty line (just pressed Enter on a line that only has <br>)
-          // This means the user pressed Enter twice - time to exit
+          // Check if cursor is at an empty line (right after a <br> with nothing after)
+          // This detects double Enter press
           const isAtEmptyLine = (() => {
-            // Check if previous sibling is a <br> and current position is at the start
-            if (currentNode.nodeType === Node.TEXT_NODE) {
-              const text = currentNode.textContent || '';
-              const offset = range.startOffset;
-              // Check if text before cursor is empty and there's a <br> before
-              if (offset === 0 || text.substring(0, offset).trim() === '') {
-                const prevSibling = currentNode.previousSibling;
+            // Get all nodes after cursor position within blockquote
+            const cursorOffset = range.startOffset;
+            const cursorNode = range.startContainer;
+            
+            // If cursor is in the blockquote element directly
+            if (cursorNode === blockquote) {
+              const childNodes = Array.from(blockquote.childNodes);
+              if (cursorOffset > 0) {
+                const nodeBefore = childNodes[cursorOffset - 1];
+                // Check if previous node is BR and we're at/near the end
+                if (nodeBefore?.nodeName === 'BR') {
+                  // Check if there's only whitespace or nothing after
+                  const nodesAfter = childNodes.slice(cursorOffset);
+                  const hasContentAfter = nodesAfter.some(n => 
+                    (n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) ||
+                    (n.nodeType === Node.ELEMENT_NODE && n.nodeName !== 'BR')
+                  );
+                  if (!hasContentAfter) return true;
+                }
+              }
+              return false;
+            }
+            
+            // If cursor is in a text node
+            if (cursorNode.nodeType === Node.TEXT_NODE) {
+              const textBefore = cursorNode.textContent?.substring(0, cursorOffset) || '';
+              const textAfter = cursorNode.textContent?.substring(cursorOffset) || '';
+              
+              // Check if we're at the start of an empty/whitespace-only text node after a BR
+              if (textBefore.trim() === '' && textAfter.trim() === '') {
+                const prevSibling = cursorNode.previousSibling;
                 if (prevSibling?.nodeName === 'BR') {
                   return true;
                 }
               }
-            } else if (currentNode.nodeName === 'BR') {
-              // Cursor is right at a <br>
-              const prevSibling = currentNode.previousSibling;
-              if (prevSibling?.nodeName === 'BR') {
-                return true;
-              }
-            } else if ((currentNode as HTMLElement).innerHTML === '<br>' || 
-                       (currentNode as HTMLElement).textContent?.trim() === '') {
-              return true;
             }
+            
             return false;
           })();
           
           if (isAtEmptyLine) {
-            e.preventDefault();
-            
-            // Create a new paragraph outside the blockquote
+            // Exit blockquote - create new paragraph outside
             const p = document.createElement('p');
             p.innerHTML = '<br>';
             blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
             
-            // Remove the trailing <br> from blockquote
-            const lastChild = blockquote.lastChild;
-            if (lastChild?.nodeName === 'BR') {
-              lastChild.remove();
-            }
-            // Also remove empty text nodes at the end
-            const newLastChild = blockquote.lastChild;
-            if (newLastChild?.nodeType === Node.TEXT_NODE && newLastChild.textContent?.trim() === '') {
-              newLastChild.remove();
+            // Clean up trailing BR and empty text from blockquote
+            while (blockquote.lastChild) {
+              const last = blockquote.lastChild;
+              if (last.nodeName === 'BR' || 
+                  (last.nodeType === Node.TEXT_NODE && last.textContent?.trim() === '')) {
+                last.remove();
+              } else {
+                break;
+              }
             }
             
             // If blockquote is now empty, remove it
-            if (blockquote.textContent?.trim() === '' || blockquote.innerHTML === '' || blockquote.innerHTML === '<br>') {
+            if (!blockquote.textContent?.trim() && !blockquote.querySelector('img, iframe')) {
               blockquote.remove();
             }
             
@@ -986,27 +999,27 @@ export const WikiRichEditor = ({
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
-            
-            triggerUpdate();
-            return;
           } else {
-            // Normal Enter inside blockquote - insert <br> for new line
-            e.preventDefault();
+            // Insert <br> for new line within blockquote
+            range.deleteContents();
             
             const br = document.createElement('br');
-            range.deleteContents();
             range.insertNode(br);
             
-            // Move cursor after the <br>
+            // Add an empty text node after BR so cursor has somewhere to go
+            const textNode = document.createTextNode('');
+            br.parentNode?.insertBefore(textNode, br.nextSibling);
+            
+            // Move cursor after the BR
             const newRange = document.createRange();
-            newRange.setStartAfter(br);
+            newRange.setStart(textNode, 0);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
-            
-            triggerUpdate();
-            return;
           }
+          
+          triggerUpdate();
+          return;
         }
         
         const li = element?.closest('li');
