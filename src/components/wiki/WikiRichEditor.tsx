@@ -1746,6 +1746,7 @@ myFunction();`;
   };
 
   const handleInsertEmbed = () => {
+    restoreSelection();
     if (embedUrl) {
       let embedInner = "";
       
@@ -2066,7 +2067,10 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
-          onClick={() => setEmbedDialogOpen(true)}
+          onClick={() => {
+            saveSelection();
+            setEmbedDialogOpen(true);
+          }}
           title="Embed Video/Content"
         >
           <Upload className="h-4 w-4 mr-1" />
