@@ -43,6 +43,11 @@ const WikiEditPage = lazy(() => import('./pages/WikiEditPage'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const SuperAdminOverview = lazy(() => import('./pages/super-admin/SuperAdminOverview'));
+const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
+const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
+const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
+const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
 
 const queryClient = new QueryClient();
 

@@ -2613,6 +2613,7 @@ export type Database = {
         Returns: boolean
       }
       is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
       validate_qr_and_record_attendance:
         | { Args: { _action: string; _qr_code: string }; Returns: Json }
@@ -2627,7 +2628,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "hr" | "user"
+      app_role: "admin" | "hr" | "user" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2755,7 +2756,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "hr", "user"],
+      app_role: ["admin", "hr", "user", "super_admin"],
     },
   },
 } as const
