@@ -102,6 +102,7 @@ const SuperAdminAnalytics = () => {
   const [datePreset, setDatePreset] = useState<DatePreset>('last30');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
+  const [showCumulative, setShowCumulative] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -563,13 +564,31 @@ const SuperAdminAnalytics = () => {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Users Growth</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Cumulative</span>
+                <Button
+                  variant={showCumulative ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setShowCumulative(!showCumulative)}
+                >
+                  {showCumulative ? "On" : "Off"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={growthData.userGrowth}>
+                  <LineChart data={showCumulative 
+                    ? growthData.userGrowth.reduce((acc, item, index) => {
+                        const prevCount = index > 0 ? acc[index - 1].count : 0;
+                        acc.push({ ...item, count: prevCount + item.count });
+                        return acc;
+                      }, [] as typeof growthData.userGrowth)
+                    : growthData.userGrowth
+                  }>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="label" 
