@@ -64,6 +64,22 @@ const CalendarPage = () => {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
+  // Fetch current user's employee with office
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["current-employee-office", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, office_id")
+        .eq("user_id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Fetch all employees for birthdays and anniversaries
   const { data: employees = [] } = useQuery({
     queryKey: ["calendar-employees", currentOrg?.id],
@@ -119,18 +135,44 @@ const CalendarPage = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // Fetch calendar events (holidays/events)
+  // Fetch calendar events (holidays/events) with office filtering
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery({
-    queryKey: ["calendar-events", currentOrg?.id, format(monthStart, "yyyy-MM")],
+    queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, format(monthStart, "yyyy-MM")],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
-      const { data, error } = await supabase
+      
+      // Fetch all events
+      const { data: events, error } = await supabase
         .from("calendar_events")
-        .select("id, title, start_date, end_date, event_type")
+        .select("id, title, start_date, end_date, event_type, applies_to_all_offices")
         .eq("organization_id", currentOrg.id)
         .or(`start_date.lte.${format(monthEnd, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
       if (error) throw error;
-      return data;
+
+      // If user has no office or is admin/HR, show all events
+      if (!currentEmployee?.office_id || isAdmin || isHR) {
+        return events || [];
+      }
+
+      // Fetch office associations for events that don't apply to all offices
+      const eventsNeedingFilter = events?.filter(e => !e.applies_to_all_offices) || [];
+      if (eventsNeedingFilter.length === 0) {
+        return events || [];
+      }
+
+      const { data: eventOffices, error: officeError } = await supabase
+        .from("calendar_event_offices")
+        .select("calendar_event_id, office_id")
+        .in("calendar_event_id", eventsNeedingFilter.map(e => e.id));
+      
+      if (officeError) throw officeError;
+
+      // Filter events: show if applies_to_all_offices OR user's office is in the list
+      return events?.filter(event => {
+        if (event.applies_to_all_offices) return true;
+        const eventOfficeIds = eventOffices?.filter(eo => eo.calendar_event_id === event.id).map(eo => eo.office_id) || [];
+        return eventOfficeIds.includes(currentEmployee.office_id);
+      }) || [];
     },
     enabled: !!currentOrg?.id,
   });

@@ -130,8 +130,45 @@ export type Database = {
           },
         ]
       }
+      calendar_event_offices: {
+        Row: {
+          calendar_event_id: string
+          created_at: string
+          id: string
+          office_id: string
+        }
+        Insert: {
+          calendar_event_id: string
+          created_at?: string
+          id?: string
+          office_id: string
+        }
+        Update: {
+          calendar_event_id?: string
+          created_at?: string
+          id?: string
+          office_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_offices_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_event_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
+          applies_to_all_offices: boolean
           created_at: string
           created_by: string
           end_date: string
@@ -143,6 +180,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          applies_to_all_offices?: boolean
           created_at?: string
           created_by: string
           end_date: string
@@ -154,6 +192,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          applies_to_all_offices?: boolean
           created_at?: string
           created_by?: string
           end_date?: string
