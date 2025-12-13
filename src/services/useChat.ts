@@ -622,3 +622,158 @@ export const useUnreadCounts = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 };
+
+// Edit message hook
+export const useEditMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ messageId, content }: { messageId: string; content: string }) => {
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq('id', messageId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+
+// Delete message hook
+export const useDeleteMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-pinned-messages'] });
+    },
+  });
+};
+
+// Message reactions hooks
+export const useMessageReactions = (conversationId: string | null, spaceId: string | null) => {
+  return useQuery({
+    queryKey: ['chat-reactions', conversationId, spaceId],
+    queryFn: async () => {
+      if (!conversationId && !spaceId) return {};
+
+      // Get all message IDs for this conversation/space
+      let messagesQuery = supabase
+        .from('chat_messages')
+        .select('id')
+        .order('created_at', { ascending: true });
+
+      if (conversationId) {
+        messagesQuery = messagesQuery.eq('conversation_id', conversationId);
+      } else if (spaceId) {
+        messagesQuery = messagesQuery.eq('space_id', spaceId);
+      }
+
+      const { data: messages } = await messagesQuery;
+      if (!messages?.length) return {};
+
+      const messageIds = messages.map(m => m.id);
+
+      // Use raw query since types may not be regenerated yet
+      const { data: reactions, error } = await (supabase
+        .from('chat_message_reactions' as any)
+        .select(`
+          id,
+          message_id,
+          employee_id,
+          emoji,
+          employees:employee_id (
+            id,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+        .in('message_id', messageIds)) as any;
+
+      if (error) throw error;
+
+      // Group reactions by message_id and emoji
+      const groupedReactions: Record<string, Record<string, { emoji: string; users: { id: string; name: string; avatar?: string }[] }>> = {};
+
+      for (const reaction of reactions || []) {
+        if (!groupedReactions[reaction.message_id]) {
+          groupedReactions[reaction.message_id] = {};
+        }
+        if (!groupedReactions[reaction.message_id][reaction.emoji]) {
+          groupedReactions[reaction.message_id][reaction.emoji] = {
+            emoji: reaction.emoji,
+            users: []
+          };
+        }
+        groupedReactions[reaction.message_id][reaction.emoji].users.push({
+          id: reaction.employee_id,
+          name: reaction.employees?.profiles?.full_name || 'Unknown',
+          avatar: reaction.employees?.profiles?.avatar_url
+        });
+      }
+
+      return groupedReactions;
+    },
+    enabled: !!conversationId || !!spaceId,
+  });
+};
+
+export const useToggleReaction = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Check if reaction exists
+      const { data: existing } = await (supabase
+        .from('chat_message_reactions' as any)
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('employee_id', currentEmployee.id)
+        .eq('emoji', emoji)
+        .single()) as any;
+
+      if (existing) {
+        // Remove reaction
+        const { error } = await (supabase
+          .from('chat_message_reactions' as any)
+          .delete()
+          .eq('id', existing.id)) as any;
+
+        if (error) throw error;
+      } else {
+        // Add reaction
+        const { error } = await (supabase
+          .from('chat_message_reactions' as any)
+          .insert({
+            message_id: messageId,
+            employee_id: currentEmployee.id,
+            organization_id: currentOrg.id,
+            emoji
+          })) as any;
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-reactions'] });
+    },
+  });
+};
