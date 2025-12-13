@@ -730,7 +730,6 @@ const CalendarPage = () => {
 
             {/* Legend */}
             <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/50">
-              <div className="text-xs font-medium text-muted-foreground mb-3">Event Types</div>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 {[
                   { type: "leave" as const, label: "Leave" },
