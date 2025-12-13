@@ -249,18 +249,20 @@ const CalendarPage = () => {
 
   // Fetch calendar events (holidays/events) with office filtering
   // For recurring events, we need to fetch ALL recurring events regardless of date filter
+  // For upcoming section, we fetch a wider date range (current month + next 2 months)
+  const extendedEndDate = addMonths(monthEnd, 2);
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery({
     queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, format(monthStart, "yyyy-MM")],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       
-      // Fetch non-recurring events within date range
+      // Fetch non-recurring events within extended date range (for upcoming section)
       const { data: nonRecurringEvents, error: nonRecurringError } = await supabase
         .from("calendar_events")
         .select("id, title, start_date, end_date, start_time, end_time, event_type, applies_to_all_offices, is_recurring")
         .eq("organization_id", currentOrg.id)
         .eq("is_recurring", false)
-        .or(`start_date.lte.${format(monthEnd, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
+        .or(`start_date.lte.${format(extendedEndDate, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
       if (nonRecurringError) throw nonRecurringError;
 
       // Fetch ALL recurring events (they repeat every year so we need all of them)
@@ -354,26 +356,32 @@ const CalendarPage = () => {
       const eventDuration = originalEndDate.getTime() - originalStartDate.getTime();
       
       if (event.is_recurring) {
-        // For recurring events, generate instances for the current view year
-        const adjustedStartDate = new Date(currentYear, originalStartDate.getMonth(), originalStartDate.getDate());
-        const adjustedEndDate = new Date(adjustedStartDate.getTime() + eventDuration);
-        
-        // Check if this recurring instance falls in the current month view
-        if (adjustedStartDate.getMonth() === currentMonth || adjustedEndDate.getMonth() === currentMonth) {
-          items.push({
-            id: `event-${event.id}-${currentYear}`,
-            title: event.title,
-            date: adjustedStartDate,
-            endDate: adjustedEndDate,
-            startTime: event.start_time,
-            endTime: event.end_time,
-            type: event.event_type === "holiday" ? "holiday" : "event",
-            appliesToAllOffices: event.applies_to_all_offices,
-            officeNames: eventOfficeNames,
-            rawEventId: event.id,
-            officeIds: event.officeIds,
-            isRecurring: true,
-          });
+        // For recurring events, generate instances for the current year
+        // Check next 3 months for upcoming section
+        for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+          const targetMonth = (currentMonth + monthOffset) % 12;
+          const targetYear = currentMonth + monthOffset >= 12 ? currentYear + 1 : currentYear;
+          
+          const adjustedStartDate = new Date(targetYear, originalStartDate.getMonth(), originalStartDate.getDate());
+          const adjustedEndDate = new Date(adjustedStartDate.getTime() + eventDuration);
+          
+          // Check if this recurring instance falls in the target month
+          if (adjustedStartDate.getMonth() === targetMonth) {
+            items.push({
+              id: `event-${event.id}-${targetYear}-${targetMonth}`,
+              title: event.title,
+              date: adjustedStartDate,
+              endDate: adjustedEndDate,
+              startTime: event.start_time,
+              endTime: event.end_time,
+              type: event.event_type === "holiday" ? "holiday" : "event",
+              appliesToAllOffices: event.applies_to_all_offices,
+              officeNames: eventOfficeNames,
+              rawEventId: event.id,
+              officeIds: event.officeIds,
+              isRecurring: true,
+            });
+          }
         }
       } else {
         // Non-recurring event - show as-is
@@ -394,40 +402,48 @@ const CalendarPage = () => {
       }
     });
 
-    // Add birthdays (show for current month, adjust year)
+    // Add birthdays (show for next 3 months for upcoming section)
     employees.forEach((emp) => {
       if (emp.date_of_birth) {
         const dob = parseISO(emp.date_of_birth);
-        const birthdayThisYear = new Date(currentYear, dob.getMonth(), dob.getDate());
-        // Check if birthday is in current month view
-        if (birthdayThisYear.getMonth() === currentMonth) {
-          items.push({
-            id: `birthday-${emp.id}`,
-            title: `${emp.full_name}'s Birthday`,
-            date: birthdayThisYear,
-            type: "birthday",
-            employeeName: emp.full_name,
-          });
+        for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+          const targetMonth = (currentMonth + monthOffset) % 12;
+          const targetYear = currentMonth + monthOffset >= 12 ? currentYear + 1 : currentYear;
+          
+          if (dob.getMonth() === targetMonth) {
+            const birthdayThisYear = new Date(targetYear, dob.getMonth(), dob.getDate());
+            items.push({
+              id: `birthday-${emp.id}-${targetYear}-${targetMonth}`,
+              title: `${emp.full_name}'s Birthday`,
+              date: birthdayThisYear,
+              type: "birthday",
+              employeeName: emp.full_name,
+            });
+          }
         }
       }
     });
 
-    // Add work anniversaries
+    // Add work anniversaries (show for next 3 months for upcoming section)
     employees.forEach((emp) => {
       if (emp.join_date) {
         const joinDate = parseISO(emp.join_date);
-        const anniversaryThisYear = new Date(currentYear, joinDate.getMonth(), joinDate.getDate());
-        // Only show if they've been here at least a year
-        if (anniversaryThisYear.getMonth() === currentMonth && joinDate.getFullYear() < currentYear) {
-          const years = currentYear - joinDate.getFullYear();
-          items.push({
-            id: `anniversary-${emp.id}`,
-            title: emp.full_name,
-            subtitle: `${years} year${years > 1 ? 's' : ''} at company`,
-            date: anniversaryThisYear,
-            type: "anniversary",
-            employeeName: emp.full_name,
-          });
+        for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+          const targetMonth = (currentMonth + monthOffset) % 12;
+          const targetYear = currentMonth + monthOffset >= 12 ? currentYear + 1 : currentYear;
+          
+          if (joinDate.getMonth() === targetMonth && joinDate.getFullYear() < targetYear) {
+            const anniversaryThisYear = new Date(targetYear, joinDate.getMonth(), joinDate.getDate());
+            const years = targetYear - joinDate.getFullYear();
+            items.push({
+              id: `anniversary-${emp.id}-${targetYear}-${targetMonth}`,
+              title: emp.full_name,
+              subtitle: `${years} year${years > 1 ? 's' : ''} at company`,
+              date: anniversaryThisYear,
+              type: "anniversary",
+              employeeName: emp.full_name,
+            });
+          }
         }
       }
     });
