@@ -6,7 +6,7 @@ import {
   List, ListOrdered, Link, Image, FileText, 
   Code, Quote, Minus, Table, Upload, Underline,
   Plus, Trash2, AlignLeft, AlignCenter, AlignRight,
-  Pencil, X, ExternalLink, ChevronDown, Type
+  Pencil, X, ExternalLink, Type
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,12 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -86,13 +80,8 @@ const LANGUAGE_MAP: Record<string, string> = {
   plaintext: "plaintext",
 };
 
-// Text size configurations
-const TEXT_SIZES = [
-  { label: "Small", value: "small", class: "text-xs" },
-  { label: "Normal", value: "normal", class: "text-base" },
-  { label: "Large", value: "large", class: "text-lg" },
-  { label: "X-Large", value: "xlarge", class: "text-xl" },
-];
+// Default text size in px
+const DEFAULT_TEXT_SIZE = 14;
 
 // File type icons mapping
 const getFileIcon = (fileName: string) => {
@@ -170,7 +159,8 @@ export const WikiRichEditor = ({
   const [embedUrl, setEmbedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [activeHeading, setActiveHeading] = useState<string | null>(null);
-  const [activeTextSize, setActiveTextSize] = useState<string>("normal");
+  const [activeTextSize, setActiveTextSize] = useState<number>(DEFAULT_TEXT_SIZE);
+  const [textSizeInput, setTextSizeInput] = useState<string>(String(DEFAULT_TEXT_SIZE));
   
   // Image editing state
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
@@ -256,17 +246,22 @@ export const WikiRichEditor = ({
     else if (h3) setActiveHeading('h3');
     else setActiveHeading(null);
     
-    // Check text size
-    const sizeClasses = ['text-xs', 'text-lg', 'text-xl'];
-    let foundSize = 'normal';
-    sizeClasses.forEach(cls => {
-      if (element?.closest(`.${cls}`) || element?.classList?.contains(cls)) {
-        if (cls === 'text-xs') foundSize = 'small';
-        else if (cls === 'text-lg') foundSize = 'large';
-        else if (cls === 'text-xl') foundSize = 'xlarge';
+    // Check text size from inline style
+    let el = element;
+    let foundSize = DEFAULT_TEXT_SIZE;
+    while (el && el !== editorRef.current) {
+      const fontSize = el.style?.fontSize;
+      if (fontSize) {
+        const match = fontSize.match(/(\d+)/);
+        if (match) {
+          foundSize = parseInt(match[1], 10);
+          break;
+        }
       }
-    });
+      el = el.parentElement;
+    }
     setActiveTextSize(foundSize);
+    setTextSizeInput(String(foundSize));
   }, []);
 
   // Handle mouse move over table to show row/column controls
@@ -570,36 +565,49 @@ export const WikiRichEditor = ({
     editorRef.current?.focus();
   }, [triggerUpdate, restoreSelection]);
 
-  // Apply text size
-  const applyTextSize = useCallback((size: string) => {
+  // Apply text size in pixels
+  const applyTextSize = useCallback((size: number) => {
     restoreSelection();
     const selection = window.getSelection();
     
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
-      
-      // Remove existing size classes from selection
       const contents = range.extractContents();
+      
+      // Remove existing font-size styles from selection
       const walker = document.createTreeWalker(contents, NodeFilter.SHOW_ELEMENT);
       while (walker.nextNode()) {
         const el = walker.currentNode as HTMLElement;
-        el.classList.remove('text-xs', 'text-base', 'text-lg', 'text-xl');
+        el.style.fontSize = '';
       }
       
-      // Wrap in span with size class
+      // Wrap in span with font-size style
       const span = document.createElement('span');
-      const sizeConfig = TEXT_SIZES.find(s => s.value === size);
-      if (sizeConfig && size !== 'normal') {
-        span.className = sizeConfig.class;
-      }
+      span.style.fontSize = `${size}px`;
       span.appendChild(contents);
       range.insertNode(span);
+      
+      // Select the inserted content
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
     }
     
     setActiveTextSize(size);
+    setTextSizeInput(String(size));
     triggerUpdate();
     editorRef.current?.focus();
   }, [triggerUpdate, restoreSelection]);
+
+  // Handle text size input change
+  const handleTextSizeChange = useCallback((value: string) => {
+    setTextSizeInput(value);
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue) && numValue >= 8 && numValue <= 72) {
+      applyTextSize(numValue);
+    }
+  }, [applyTextSize]);
 
   const formatBlock = useCallback((tag: string) => {
     restoreSelection();
@@ -727,30 +735,64 @@ export const WikiRichEditor = ({
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const container = range.commonAncestorContainer;
-        const li = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement)?.closest('li');
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+        const li = element?.closest('li');
         
-        if (li && li.textContent?.trim() === '') {
-          // Empty list item - exit list
-          e.preventDefault();
-          const list = li.closest('ul, ol');
-          if (list) {
-            const p = document.createElement('p');
-            p.innerHTML = '<br>';
-            list.parentNode?.insertBefore(p, list.nextSibling);
-            li.remove();
-            
-            // If list is now empty, remove it
-            if (list.children.length === 0) {
-              list.remove();
+        if (li) {
+          const listItemText = li.textContent?.trim() || '';
+          
+          if (listItemText === '') {
+            // Empty list item - exit list
+            e.preventDefault();
+            const list = li.closest('ul, ol');
+            if (list) {
+              // Check if this is a nested list
+              const parentLi = list.parentElement?.closest('li');
+              
+              if (parentLi) {
+                // Nested list - move to parent level
+                const parentList = parentLi.closest('ul, ol');
+                if (parentList) {
+                  const newLi = document.createElement('li');
+                  newLi.innerHTML = '<br>';
+                  
+                  // Insert after parent li
+                  if (parentLi.nextSibling) {
+                    parentList.insertBefore(newLi, parentLi.nextSibling);
+                  } else {
+                    parentList.appendChild(newLi);
+                  }
+                  
+                  li.remove();
+                  if (list.children.length === 0) {
+                    list.remove();
+                  }
+                  
+                  const newRange = document.createRange();
+                  newRange.setStart(newLi, 0);
+                  newRange.collapse(true);
+                  selection.removeAllRanges();
+                  selection.addRange(newRange);
+                }
+              } else {
+                // Top-level list - exit to paragraph
+                const p = document.createElement('p');
+                p.innerHTML = '<br>';
+                list.parentNode?.insertBefore(p, list.nextSibling);
+                li.remove();
+                
+                if (list.children.length === 0) {
+                  list.remove();
+                }
+                
+                const newRange = document.createRange();
+                newRange.setStart(p, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+              }
+              triggerUpdate();
             }
-            
-            // Move cursor to new paragraph
-            const newRange = document.createRange();
-            newRange.setStart(p, 0);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            triggerUpdate();
           }
         }
       }
@@ -762,16 +804,65 @@ export const WikiRichEditor = ({
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const container = range.commonAncestorContainer;
-        const li = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement)?.closest('li');
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+        const li = element?.closest('li');
         
         if (li) {
           e.preventDefault();
+          const list = li.closest('ul, ol');
+          
           if (e.shiftKey) {
-            // Outdent
-            execCommand('outdent');
+            // Outdent - move to parent list level
+            const parentLi = list?.parentElement?.closest('li');
+            if (parentLi && list) {
+              const parentList = parentLi.closest('ul, ol');
+              if (parentList) {
+                // Move current li to parent list after parent li
+                if (parentLi.nextSibling) {
+                  parentList.insertBefore(li, parentLi.nextSibling);
+                } else {
+                  parentList.appendChild(li);
+                }
+                
+                // Clean up empty lists
+                if (list.children.length === 0) {
+                  list.remove();
+                }
+                
+                // Restore cursor position
+                const newRange = document.createRange();
+                newRange.selectNodeContents(li);
+                newRange.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                
+                triggerUpdate();
+              }
+            }
           } else {
-            // Indent
-            execCommand('indent');
+            // Indent - nest under previous sibling
+            const prevLi = li.previousElementSibling as HTMLLIElement;
+            if (prevLi && list) {
+              const listType = list.tagName.toLowerCase();
+              let nestedList = prevLi.querySelector(`:scope > ${listType}`) as HTMLElement;
+              
+              if (!nestedList) {
+                nestedList = document.createElement(listType);
+                nestedList.className = list.className;
+                prevLi.appendChild(nestedList);
+              }
+              
+              nestedList.appendChild(li);
+              
+              // Restore cursor position
+              const newRange = document.createRange();
+              newRange.selectNodeContents(li);
+              newRange.collapse(false);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              
+              triggerUpdate();
+            }
           }
         }
       }
@@ -1428,36 +1519,20 @@ myFunction();`;
           <Heading3 className="h-4 w-4" />
         </Button>
         
-        {/* Text Size Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 gap-1"
-              onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-              title="Text Size"
-            >
-              <Type className="h-4 w-4" />
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-background border shadow-lg z-50">
-            {TEXT_SIZES.map((size) => (
-              <DropdownMenuItem
-                key={size.value}
-                onClick={() => applyTextSize(size.value)}
-                className={cn(
-                  "cursor-pointer",
-                  activeTextSize === size.value && "bg-muted"
-                )}
-              >
-                <span className={size.class}>{size.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Text Size Input */}
+        <div className="flex items-center gap-1">
+          <Type className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="number"
+            min={8}
+            max={72}
+            value={textSizeInput}
+            onChange={(e) => handleTextSizeChange(e.target.value)}
+            onMouseDown={(e) => { e.stopPropagation(); saveSelection(); }}
+            className="h-7 w-12 text-xs text-center px-1"
+            title="Font size (8-72px)"
+          />
+        </div>
         
         <div className="w-px h-5 bg-border mx-1" />
         
@@ -1704,14 +1779,16 @@ myFunction();`;
           className={cn(
             "wiki-editor outline-none p-6 pl-16",
             "prose prose-sm sm:prose max-w-none",
-            "prose-headings:font-semibold prose-headings:text-foreground",
-            "prose-h1:text-2xl prose-h1:mb-4 prose-h1:mt-6",
-            "prose-h2:text-xl prose-h2:mb-3 prose-h2:mt-5",
-            "prose-h3:text-lg prose-h3:mb-2 prose-h3:mt-4",
+            "prose-headings:font-bold prose-headings:text-foreground",
+            "[&_h1]:text-[20px] [&_h1]:mb-4 [&_h1]:mt-6 [&_h1]:font-bold",
+            "[&_h2]:text-[16px] [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:font-bold",
+            "[&_h3]:text-[14px] [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:font-bold",
             "prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2",
             "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
             "prose-strong:text-foreground prose-strong:font-semibold",
             "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+            "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+            "[&_ul_ul]:list-circle [&_ul_ul_ul]:list-square",
             "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground",
             "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4",
             "prose-code:text-sm prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
