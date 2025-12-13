@@ -231,9 +231,14 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
               className={cn(
                 "relative shrink-0 p-3 min-w-[120px] bg-card border-border/50",
                 "hover:border-border transition-colors group",
-                isUserTimezone && "border-primary/30 bg-primary/5"
+                isUserTimezone && "border-primary/30 bg-primary/5 pt-5"
               )}
             >
+              {isUserTimezone && (
+                <span className="absolute top-1 left-2 text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                  Default
+                </span>
+              )}
               {!isUserTimezone && (
                 <button
                   onClick={() => removeTimezone(tz)}
@@ -246,7 +251,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
               <div className="flex items-center gap-1.5 mb-1">
                 {flag && <span className="text-sm">{flag}</span>}
                 <span className="text-[11px] font-medium text-muted-foreground truncate">
-                  {getDisplayName(tz)}{isUserTimezone && " (You)"}
+                  {getDisplayName(tz)}
                 </span>
               </div>
               
