@@ -17,6 +17,8 @@ import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 
 interface UserProfile {
   fullName: string;
@@ -52,6 +54,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>("");
   const [sessionCount, setSessionCount] = useState<number>(0);
+  
+  // Pull to refresh for mobile
+  const { pullDistance, isRefreshing, isPastThreshold } = usePullToRefresh();
 
   // Send push notification when a new notification is created
   const sendPushNotification = useCallback(async (notification: any) => {
@@ -306,6 +311,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Pull to Refresh Indicator for Mobile */}
+      <PullToRefreshIndicator
+        pullDistance={pullDistance}
+        isRefreshing={isRefreshing}
+        isPastThreshold={isPastThreshold}
+      />
       {/* Desktop Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-area-top">
         <div className="container flex h-16 items-center px-4 md:px-8">
