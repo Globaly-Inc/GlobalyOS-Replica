@@ -1,19 +1,22 @@
 import { Briefcase } from "lucide-react";
+import { Layout } from "@/components/Layout";
 import { ComingSoon } from "@/components/ComingSoon";
 
 const CRM = () => {
   return (
-    <ComingSoon
-      icon={Briefcase}
-      title="CRM"
-      description="Customer relationship management and sales pipeline."
-      features={[
-        "Contact and lead management",
-        "Sales pipeline tracking",
-        "Deal and opportunity management",
-        "Customer interaction history",
-      ]}
-    />
+    <Layout>
+      <ComingSoon
+        icon={Briefcase}
+        title="CRM"
+        description="Customer relationship management and sales pipeline."
+        features={[
+          "Contact and lead management",
+          "Sales pipeline tracking",
+          "Deal and opportunity management",
+          "Customer interaction history",
+        ]}
+      />
+    </Layout>
   );
 };
 
