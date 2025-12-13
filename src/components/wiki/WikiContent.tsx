@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Save, X, Clock, User, History, FileText } from "lucide-react";
+import { Pencil, Save, X, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -60,6 +60,7 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
 
   const handleStartEdit = () => {
@@ -208,17 +209,27 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
             minHeight="400px"
           />
         ) : page.content ? (
-          <div className="flex gap-6">
+          <div className="flex gap-6 relative">
             {/* Main content */}
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 transition-all duration-300 ${showToc ? 'lg:mr-0' : ''}`}>
               <WikiMarkdownRenderer content={page.content} />
             </div>
             {/* Table of Contents - only show on larger screens */}
-            <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
               <div className="sticky top-0">
                 <WikiTableOfContents content={page.content} />
               </div>
             </div>
+            {/* TOC Toggle Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowToc(!showToc)}
+              className="hidden lg:flex fixed right-6 top-40 z-10 h-8 w-8 p-0 bg-background border shadow-sm hover:bg-muted"
+              title={showToc ? "Hide Table of Contents" : "Show Table of Contents"}
+            >
+              {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            </Button>
           </div>
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>
