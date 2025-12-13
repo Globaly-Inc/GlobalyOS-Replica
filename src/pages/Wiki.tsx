@@ -12,6 +12,9 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWikiFavorites } from "@/hooks/useWikiFavorites";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, ChevronDown, FileText, Folder } from "lucide-react";
 
 interface WikiFolder {
   id: string;
@@ -362,6 +365,19 @@ const Wiki = () => {
     onError: () => toast.error("Failed to save page"),
   });
 
+  // Get current folder for creating items in context
+  const getCurrentFolderId = useCallback(() => {
+    if (viewMode === "folder" && selectedFolderId) {
+      return selectedFolderId;
+    }
+    // If viewing a page, get its parent folder
+    if (viewMode === "page" && selectedPageId) {
+      const page = pagesList.find(p => p.id === selectedPageId);
+      return page?.folder_id || null;
+    }
+    return null;
+  }, [viewMode, selectedFolderId, selectedPageId, pagesList]);
+
   return (
     <Layout>
       <div className="h-[calc(100vh-4rem)] flex flex-col">
@@ -373,16 +389,50 @@ const Wiki = () => {
             onSelectPage={handleSelectPage}
           />
           <WikiAskAI organizationId={currentOrg?.id} />
+          
+          <div className="flex-1" />
+          
           {canEdit && (
-            <WikiImportDialog
-              organizationId={currentOrg?.id}
-              employeeId={currentEmployee?.id}
-              existingFolders={folders}
-              onImportComplete={() => {
-                queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
-                queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-              }}
-            />
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => {
+                    const title = prompt("Enter page title:");
+                    if (title?.trim()) {
+                      createPageMutation.mutate({ title: title.trim(), folderId: getCurrentFolderId() });
+                    }
+                  }}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    New Page
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const name = prompt("Enter folder name:");
+                    if (name?.trim()) {
+                      createFolderMutation.mutate({ name: name.trim(), parentId: getCurrentFolderId() });
+                    }
+                  }}>
+                    <Folder className="h-4 w-4 mr-2" />
+                    New Folder
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <WikiImportDialog
+                organizationId={currentOrg?.id}
+                employeeId={currentEmployee?.id}
+                existingFolders={folders}
+                onImportComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+                }}
+              />
+            </>
           )}
         </div>
 
