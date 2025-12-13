@@ -1777,16 +1777,16 @@ myFunction();`;
           onSelect={updateActiveFormatting}
           data-placeholder={placeholder}
           className={cn(
-            "wiki-editor outline-none p-6 pl-16",
+            "wiki-editor outline-none p-6 pl-16 text-[14px]",
             "prose prose-sm sm:prose max-w-none",
             "prose-headings:font-bold prose-headings:text-foreground",
-            "[&_h1]:text-[26px] [&_h1]:mb-4 [&_h1]:mt-6 [&_h1]:font-bold",
-            "[&_h2]:text-[22px] [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:font-bold",
-            "[&_h3]:text-[18px] [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:font-bold",
-            "prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2",
+            "[&_h1]:text-[26px] [&_h1]:mb-4 [&_h1]:mt-6 [&_h1]:font-bold [&_h1]:leading-tight",
+            "[&_h2]:text-[22px] [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:font-bold [&_h2]:leading-tight",
+            "[&_h3]:text-[18px] [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:leading-tight",
+            "prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2 [&_p]:text-[14px]",
             "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
             "prose-strong:text-foreground prose-strong:font-semibold",
-            "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+            "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 [&_li]:text-[14px]",
             "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
             "[&_ul_ul]:list-circle [&_ul_ul_ul]:list-square",
             "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground",
