@@ -312,8 +312,8 @@ export const WikiContent = ({
               <WikiMarkdownRenderer content={page.content} />
             </div>
             {/* Table of Contents with toggle - only show on larger screens */}
-            <div className={`hidden lg:flex flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
-              <div className="sticky top-0 flex">
+            <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
+              <div className="sticky top-6 flex max-h-[calc(100vh-12rem)] overflow-y-auto">
                 {/* TOC Toggle Button */}
                 <Button
                   variant="ghost"
