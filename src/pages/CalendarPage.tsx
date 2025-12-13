@@ -40,7 +40,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { useTimezone, getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
-import { Layout } from "@/components/Layout";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -866,7 +866,7 @@ const CalendarPage = () => {
   );
 
   return (
-    <Layout>
+    <>
       <div className="flex flex-col lg:flex-row min-h-0 lg:h-[calc(100vh-5rem)] overflow-hidden">
         {/* Left Sidebar - Upcoming Events (desktop only) */}
         <div className="hidden lg:flex w-[320px] xl:w-[360px] border-r border-border bg-card/50 flex-col shrink-0">
@@ -1297,7 +1297,7 @@ const CalendarPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </>
   );
 };
 

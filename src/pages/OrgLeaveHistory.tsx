@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Layout } from "@/components/Layout";
+import { OrgLink } from "@/components/OrgLink";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -141,7 +140,7 @@ const OrgLeaveHistory = () => {
   const rejectedCount = requests.filter(r => r.status === "rejected").length;
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -207,7 +206,7 @@ const OrgLeaveHistory = () => {
                     className="border rounded-lg p-4 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <Link 
+                      <OrgLink 
                         to={`/team/${request.employee?.id}`}
                         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                       >
@@ -225,7 +224,7 @@ const OrgLeaveHistory = () => {
                             Requested {formatDateTime(request.created_at)}
                           </p>
                         </div>
-                      </Link>
+                      </OrgLink>
                       <div className="flex items-center gap-2">
                         <Badge variant={getLeaveTypeBadgeVariant(request.leave_type)}>
                           {request.leave_type}
@@ -265,7 +264,7 @@ const OrgLeaveHistory = () => {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </>
   );
 };
 

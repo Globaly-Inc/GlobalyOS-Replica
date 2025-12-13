@@ -1,7 +1,7 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Layout } from "@/components/Layout";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 const AttendanceHistory = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const { isAdmin, isHR } = useUserRole();
   const canEditAttendance = isAdmin || isHR;
   
@@ -173,14 +173,13 @@ const AttendanceHistory = () => {
   });
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-5xl mx-auto px-4 py-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(`/team/${id}`)}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigateOrg(`/team/${id}`)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
             <div className="flex items-center gap-3 flex-1">
               <Avatar className="h-12 w-12">
                 <AvatarImage src={profile?.avatar_url || ""} />
@@ -380,7 +379,7 @@ const AttendanceHistory = () => {
           organizationId={employee.organization_id}
         />
       )}
-    </Layout>
+    </div>
   );
 };
 

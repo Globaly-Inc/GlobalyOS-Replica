@@ -1,4 +1,3 @@
-import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useNotificationPreferences, SOUND_OPTIONS, SoundType } from "@/hooks/useNotificationPreferences";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ArrowLeft, Volume2, VolumeX, Bell, Heart, AtSign, Calendar, Moon, RotateCcw, Play, Check } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { toast } from "sonner";
 
 const SoundSelector = ({ 
@@ -62,7 +61,7 @@ const SoundSelector = ({
 };
 
 const NotificationPreferences = () => {
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const {
     preferences,
     isLoading,
@@ -79,22 +78,19 @@ const NotificationPreferences = () => {
 
   if (isLoading) {
     return (
-      <Layout>
-        <div className="container mx-auto px-4 py-6 max-w-2xl">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-48" />
-            <div className="h-32 bg-muted rounded" />
-          </div>
+      <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="h-32 bg-muted rounded" />
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-6 max-w-2xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/notifications")}>
+    <div className="container mx-auto px-4 py-6 max-w-2xl">
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigateOrg("/notifications")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <PageHeader title="Notification Preferences" />
@@ -290,7 +286,7 @@ const NotificationPreferences = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 

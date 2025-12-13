@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Layout } from "@/components/Layout";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -151,7 +151,7 @@ const Settings = () => {
   const isOwner = orgRole === "owner";
 
   return (
-    <Layout>
+    <>
       <PageHeader
         title="Settings"
         subtitle="Manage your organization settings and preferences"
@@ -337,7 +337,7 @@ const Settings = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </Layout>
+    </>
   );
 };
 

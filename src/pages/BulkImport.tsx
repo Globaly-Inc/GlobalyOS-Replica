@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -480,7 +479,7 @@ const BulkImport = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
 
   // Field order for keyboard navigation
   const fieldOrder = [
@@ -879,7 +878,7 @@ const BulkImport = () => {
   const failCount = importResults.filter(r => !r.success).length;
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         <PageHeader 
           title="Bulk Import Employees" 
@@ -1402,7 +1401,7 @@ const BulkImport = () => {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </>
   );
 };
 

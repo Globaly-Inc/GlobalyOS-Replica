@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Layout } from "@/components/Layout";
+import { OrgLink } from "@/components/OrgLink";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +128,7 @@ const OrgAttendanceHistory = () => {
   });
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -261,7 +260,7 @@ const OrgAttendanceHistory = () => {
                   >
                     <div className="flex items-center gap-4">
                       {getStatusIcon(record.status)}
-                      <Link 
+                      <OrgLink 
                         to={`/team/${employee?.id}`}
                         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                       >
@@ -277,7 +276,7 @@ const OrgAttendanceHistory = () => {
                             {format(parseISO(record.date), "EEE, MMM d, yyyy")}
                           </p>
                         </div>
-                      </Link>
+                      </OrgLink>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right text-sm text-muted-foreground hidden sm:block">
@@ -298,7 +297,7 @@ const OrgAttendanceHistory = () => {
           )}
         </Card>
       </div>
-    </Layout>
+    </>
   );
 };
 
