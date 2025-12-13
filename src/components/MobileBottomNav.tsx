@@ -19,8 +19,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: "Home", href: "/" },
-  { icon: Users, label: "Team", href: "/team" },
+  { icon: Home, label: "Overview", href: "/" },
+  { icon: Users, label: "Directory", href: "/team" },
   { icon: ScanLine, label: "Check In", action: "scan" },
   { icon: MessageSquare, label: "Chat", href: "/chat", adminOnly: true, isStatic: true },
   { icon: User, label: "Profile", action: "profile" },
