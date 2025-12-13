@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from "react";
 import { Pencil, Save, X, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,24 +63,27 @@ interface WikiContentProps {
   canEdit: boolean;
   isLoading: boolean;
   organizationId: string | undefined;
-  onEditingStateChange?: (isEditing: boolean, hasUnsavedChanges: boolean) => void;
   pendingNavigation?: { type: 'page' | 'folder' | 'home'; id?: string } | null;
   onNavigationConfirm?: () => void;
   onNavigationCancel?: () => void;
 }
 
-export const WikiContent = ({ 
+// Expose methods to parent via ref
+export interface WikiContentHandle {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({ 
   page, 
   versions, 
   onSave, 
   canEdit, 
   isLoading, 
   organizationId,
-  onEditingStateChange,
   pendingNavigation,
   onNavigationConfirm,
   onNavigationCancel,
-}: WikiContentProps) => {
+}, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -88,20 +91,33 @@ export const WikiContent = ({
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
   
-  // Ref to store the callback for synchronous access
-  const onEditingStateChangeRef = useRef(onEditingStateChange);
-  onEditingStateChangeRef.current = onEditingStateChange;
+  // Use refs to store current values for synchronous access
+  const isEditingRef = useRef(isEditing);
+  const editTitleRef = useRef(editTitle);
+  const editContentRef = useRef(editContent);
+  const pageRef = useRef(page);
+  
+  // Keep refs in sync with state
+  isEditingRef.current = isEditing;
+  editTitleRef.current = editTitle;
+  editContentRef.current = editContent;
+  pageRef.current = page;
 
-  // Check if there are unsaved changes
+  // Expose hasUnsavedChanges method to parent via ref
+  // This allows parent to check synchronously without timing issues
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => {
+      const currentPage = pageRef.current;
+      if (!isEditingRef.current || !currentPage) return false;
+      return editTitleRef.current !== currentPage.title || 
+             editContentRef.current !== (currentPage.content || "");
+    }
+  }), []);
+
+  // Check if there are unsaved changes (for internal use)
   const hasUnsavedChanges = isEditing && page && (
     editTitle !== page.title || editContent !== (page.content || "")
   );
-
-  // Use useLayoutEffect to notify parent SYNCHRONOUSLY before browser paints
-  // This ensures the parent has the latest state before any click handlers run
-  useLayoutEffect(() => {
-    onEditingStateChangeRef.current?.(isEditing, !!hasUnsavedChanges);
-  }, [isEditing, hasUnsavedChanges]);
 
   // Handle browser beforeunload event
   useEffect(() => {
@@ -127,8 +143,6 @@ export const WikiContent = ({
       setEditTitle(page.title);
       setEditContent(page.content || "");
       setIsEditing(true);
-      // Immediately notify parent - no unsaved changes yet since we just started
-      onEditingStateChangeRef.current?.(true, false);
     }
   };
 
@@ -136,28 +150,15 @@ export const WikiContent = ({
     setIsEditing(false);
     setEditTitle("");
     setEditContent("");
-    // Immediately notify parent - no longer editing
-    onEditingStateChangeRef.current?.(false, false);
   };
 
-  // Wrapper handlers that immediately notify parent of changes
   const handleTitleChange = useCallback((newTitle: string) => {
     setEditTitle(newTitle);
-    // Immediately compute and notify parent of unsaved changes
-    if (page) {
-      const hasChanges = newTitle !== page.title || editContent !== (page.content || "");
-      onEditingStateChangeRef.current?.(true, hasChanges);
-    }
-  }, [page, editContent]);
+  }, []);
 
   const handleContentChange = useCallback((newContent: string) => {
     setEditContent(newContent);
-    // Immediately compute and notify parent of unsaved changes
-    if (page) {
-      const hasChanges = editTitle !== page.title || newContent !== (page.content || "");
-      onEditingStateChangeRef.current?.(true, hasChanges);
-    }
-  }, [page, editTitle]);
+  }, []);
 
   const handleSave = async () => {
     if (page && editTitle.trim()) {
@@ -165,8 +166,6 @@ export const WikiContent = ({
       try {
         await onSave(page.id, editTitle.trim(), editContent);
         setIsEditing(false);
-        // Immediately notify parent - no longer editing
-        onEditingStateChangeRef.current?.(false, false);
       } finally {
         setIsSaving(false);
       }
@@ -179,8 +178,6 @@ export const WikiContent = ({
       try {
         await onSave(page.id, editTitle.trim(), editContent);
         setIsEditing(false);
-        // Immediately notify parent - no longer editing
-        onEditingStateChangeRef.current?.(false, false);
         onNavigationConfirm?.();
       } finally {
         setIsSaving(false);
@@ -192,8 +189,6 @@ export const WikiContent = ({
     setIsEditing(false);
     setEditTitle("");
     setEditContent("");
-    // Immediately notify parent - no longer editing
-    onEditingStateChangeRef.current?.(false, false);
     onNavigationConfirm?.();
   };
 
@@ -392,4 +387,6 @@ export const WikiContent = ({
       </AlertDialog>
     </div>
   );
-};
+});
+
+WikiContent.displayName = "WikiContent";
