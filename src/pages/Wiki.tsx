@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
@@ -76,6 +76,9 @@ const Wiki = () => {
   const [isEditingPage, setIsEditingPage] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
+  
+  // Use ref to track unsaved changes synchronously (to avoid stale closure issues)
+  const hasUnsavedChangesRef = useRef(false);
 
   const canEdit = isAdmin || isHR;
 
@@ -83,38 +86,39 @@ const Wiki = () => {
   const handleEditingStateChange = useCallback((editing: boolean, unsaved: boolean) => {
     setIsEditingPage(editing);
     setHasUnsavedChanges(unsaved);
+    hasUnsavedChangesRef.current = unsaved;
   }, []);
 
-  // Navigation handlers with unsaved changes check
+  // Navigation handlers with unsaved changes check - use ref for immediate value
   const handleSelectPage = useCallback((pageId: string) => {
-    if (hasUnsavedChanges && pageId !== selectedPageId) {
+    if (hasUnsavedChangesRef.current && pageId !== selectedPageId) {
       setPendingNavigation({ type: 'page', id: pageId });
     } else {
       setSelectedPageId(pageId);
       setSelectedFolderId(null);
       setViewMode("page");
     }
-  }, [hasUnsavedChanges, selectedPageId]);
+  }, [selectedPageId]);
 
   const handleSelectFolder = useCallback((folderId: string) => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChangesRef.current) {
       setPendingNavigation({ type: 'folder', id: folderId });
     } else {
       setSelectedFolderId(folderId);
       setSelectedPageId(null);
       setViewMode("folder");
     }
-  }, [hasUnsavedChanges]);
+  }, []);
 
   const handleSelectHome = useCallback(() => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChangesRef.current) {
       setPendingNavigation({ type: 'home' });
     } else {
       setSelectedPageId(null);
       setSelectedFolderId(null);
       setViewMode("home");
     }
-  }, [hasUnsavedChanges]);
+  }, []);
 
   // Handle navigation confirmation
   const handleNavigationConfirm = useCallback(() => {
