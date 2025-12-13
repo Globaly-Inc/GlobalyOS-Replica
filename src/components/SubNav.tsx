@@ -1,9 +1,10 @@
-import { Users, Target, Calendar } from "lucide-react";
+import { Home, Users, Target, Calendar } from "lucide-react";
 import { NavLink } from "./NavLink";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const teamSubNavItems = [
+  { name: "Overview", href: "/", icon: Home },
   { name: "Directory", href: "/team", icon: Users },
   { name: "KPIs", href: "/kpi-dashboard", icon: Target },
   { name: "Team Cal", href: "/calendar", icon: Calendar },
@@ -12,8 +13,9 @@ const teamSubNavItems = [
 export const SubNav = () => {
   const location = useLocation();
   
-  // Show sub-nav only on Team-related pages
+  // Show sub-nav on Team-related pages (including home which is now Overview)
   const isTeamSection = 
+    location.pathname === "/" ||
     location.pathname === "/team" || 
     location.pathname.startsWith("/team/") ||
     location.pathname === "/kpi-dashboard" ||
@@ -27,9 +29,11 @@ export const SubNav = () => {
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
           {teamSubNavItems.map((item) => {
             const isActive = 
-              item.href === "/team" 
-                ? location.pathname === "/team" || (location.pathname.startsWith("/team/") && location.pathname !== "/team/bulk-import")
-                : location.pathname === item.href || location.pathname.startsWith(item.href + "/");
+              item.href === "/" 
+                ? location.pathname === "/"
+                : item.href === "/team" 
+                  ? location.pathname === "/team" || (location.pathname.startsWith("/team/") && location.pathname !== "/team/bulk-import")
+                  : location.pathname === item.href || location.pathname.startsWith(item.href + "/");
             
             return (
               <NavLink

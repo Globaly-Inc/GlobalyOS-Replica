@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from "lucide-react";
+import { Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from "lucide-react";
 import { NavLink } from "./NavLink";
 import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
@@ -8,8 +8,7 @@ interface TopNavProps {
 }
 
 const mainNavItems = [
-  { name: "Home", href: "/", icon: Home, adminOnly: false },
-  { name: "Team", href: "/team", icon: Users, adminOnly: false },
+  { name: "Team", href: "/", icon: Users, adminOnly: false },
   { name: "Chat", href: "/chat", icon: MessageSquare, adminOnly: true, isStatic: true },
   { name: "Wiki", href: "/wiki", icon: BookOpen, adminOnly: true, isStatic: true },
   { name: "Tasks", href: "/tasks", icon: CheckSquare, adminOnly: true, isStatic: true },
