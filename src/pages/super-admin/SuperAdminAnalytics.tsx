@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Popover,
   PopoverContent,
@@ -461,14 +462,22 @@ const SuperAdminAnalytics = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Analytics</h2>
-          <p className="text-muted-foreground">
-            Platform-wide usage statistics and trends
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Analytics</h2>
+            <p className="text-muted-foreground">
+              Platform-wide usage statistics and trends
+            </p>
+          </div>
         </div>
 
-        {/* Summary Cards */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="feature-usage">Feature Usage</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -778,66 +787,69 @@ const SuperAdminAnalytics = () => {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
 
-
-        {/* Feature Usage Cards - Grouped by Module */}
-        {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
-          const moduleLabels = {
-            team: 'Team & Social',
-            hr: 'HR & People',
-            wiki: 'Wiki & Knowledge',
-            organization: 'Organization',
-          };
-          const moduleFeatures = data?.featureUsage.filter(f => f.module === module) || [];
-          
-          if (moduleFeatures.length === 0) return null;
-          
-          return (
-            <div key={module}>
-              <h3 className="text-lg font-semibold text-foreground mb-4">{moduleLabels[module]}</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {moduleFeatures.map((feature) => {
-                  const IconComponent = feature.icon;
-                  const weeklyGrowth = feature.count - feature.lastWeekCount;
-                  const growthPercentage = feature.lastWeekCount > 0 
-                    ? ((weeklyGrowth / feature.lastWeekCount) * 100).toFixed(1)
-                    : feature.count > 0 ? '100' : '0';
-                  const isPositive = weeklyGrowth > 0;
-                  const isNeutral = weeklyGrowth === 0;
-                  
-                  return (
-                    <Card key={feature.name}>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          {feature.name}
-                        </CardTitle>
-                        <IconComponent className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">{feature.count.toLocaleString()}</div>
-                        <div className="flex items-center gap-1 mt-1">
-                          {isNeutral ? (
-                            <Minus className="h-3 w-3 text-muted-foreground" />
-                          ) : isPositive ? (
-                            <TrendingUp className="h-3 w-3 text-green-600" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 text-red-600" />
-                          )}
-                          <span className={`text-xs ${
-                            isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {isNeutral ? 'No change' : `${isPositive ? '+' : ''}${weeklyGrowth} (${growthPercentage}%)`}
-                          </span>
-                          <span className="text-xs text-muted-foreground">this week</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+          <TabsContent value="feature-usage" className="space-y-6">
+            {/* Feature Usage Cards - Grouped by Module */}
+            {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
+              const moduleLabels = {
+                team: 'Team & Social',
+                hr: 'HR & People',
+                wiki: 'Wiki & Knowledge',
+                organization: 'Organization',
+              };
+              const moduleFeatures = data?.featureUsage.filter(f => f.module === module) || [];
+              
+              if (moduleFeatures.length === 0) return null;
+              
+              return (
+                <div key={module}>
+                  <h3 className="text-lg font-semibold text-foreground mb-4">{moduleLabels[module]}</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {moduleFeatures.map((feature) => {
+                      const IconComponent = feature.icon;
+                      const weeklyGrowth = feature.count - feature.lastWeekCount;
+                      const growthPercentage = feature.lastWeekCount > 0 
+                        ? ((weeklyGrowth / feature.lastWeekCount) * 100).toFixed(1)
+                        : feature.count > 0 ? '100' : '0';
+                      const isPositive = weeklyGrowth > 0;
+                      const isNeutral = weeklyGrowth === 0;
+                      
+                      return (
+                        <Card key={feature.name}>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                              {feature.name}
+                            </CardTitle>
+                            <IconComponent className="h-4 w-4 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-2xl font-bold">{feature.count.toLocaleString()}</div>
+                            <div className="flex items-center gap-1 mt-1">
+                              {isNeutral ? (
+                                <Minus className="h-3 w-3 text-muted-foreground" />
+                              ) : isPositive ? (
+                                <TrendingUp className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 text-red-600" />
+                              )}
+                              <span className={`text-xs ${
+                                isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {isNeutral ? 'No change' : `${isPositive ? '+' : ''}${weeklyGrowth} (${growthPercentage}%)`}
+                              </span>
+                              <span className="text-xs text-muted-foreground">this week</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </TabsContent>
+        </Tabs>
       </div>
     </SuperAdminLayout>
   );
