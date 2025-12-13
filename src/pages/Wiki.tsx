@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
 import { WikiContent } from "@/components/wiki/WikiContent";
+import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
 import { WikiAskAI } from "@/components/wiki/WikiAskAI";
 import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
@@ -56,11 +57,15 @@ interface WikiPageVersion {
   };
 }
 
+type ViewMode = "home" | "folder" | "page";
+
 const Wiki = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("home");
 
   const canEdit = isAdmin || isHR;
 
@@ -323,7 +328,23 @@ const Wiki = () => {
               folders={folders}
               pages={pagesList}
               selectedPageId={selectedPageId}
-              onSelectPage={setSelectedPageId}
+              selectedFolderId={selectedFolderId}
+              showingHome={viewMode === "home" || viewMode === "folder"}
+              onSelectPage={(pageId) => {
+                setSelectedPageId(pageId);
+                setSelectedFolderId(null);
+                setViewMode("page");
+              }}
+              onSelectFolder={(folderId) => {
+                setSelectedFolderId(folderId);
+                setSelectedPageId(null);
+                setViewMode("folder");
+              }}
+              onSelectHome={() => {
+                setSelectedPageId(null);
+                setSelectedFolderId(null);
+                setViewMode("home");
+              }}
               onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
               onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
               onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
@@ -336,16 +357,33 @@ const Wiki = () => {
 
           {/* Content */}
           <div className="flex-1 min-w-0 bg-background">
-            <WikiContent
-              page={selectedPage || null}
-              versions={pageVersions}
-              onSave={async (pageId, title, content) => {
-                await savePageMutation.mutateAsync({ pageId, title, content });
-              }}
-              canEdit={canEdit}
-              isLoading={isLoadingPage}
-              organizationId={currentOrg?.id}
-            />
+            {viewMode === "page" ? (
+              <WikiContent
+                page={selectedPage || null}
+                versions={pageVersions}
+                onSave={async (pageId, title, content) => {
+                  await savePageMutation.mutateAsync({ pageId, title, content });
+                }}
+                canEdit={canEdit}
+                isLoading={isLoadingPage}
+                organizationId={currentOrg?.id}
+              />
+            ) : (
+              <WikiFolderView
+                folders={folders}
+                pages={pagesList}
+                currentFolderId={selectedFolderId}
+                onSelectFolder={(folderId) => {
+                  setSelectedFolderId(folderId);
+                  setViewMode("folder");
+                }}
+                onSelectPage={(pageId) => {
+                  setSelectedPageId(pageId);
+                  setSelectedFolderId(null);
+                  setViewMode("page");
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
