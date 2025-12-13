@@ -6,8 +6,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { OrganizationProvider } from "@/hooks/useOrganization";
 import { TimezoneProvider } from "@/hooks/useTimezone";
+import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import Landing from "./pages/Landing";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+
+// Component to handle SW updates
+const ServiceWorkerUpdater = () => {
+  useServiceWorkerUpdate();
+  return null;
+};
 
 // Lazy load pages for code splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -48,6 +55,7 @@ const PageLoader = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <ServiceWorkerUpdater />
       <Toaster />
       <Sonner />
       <BrowserRouter>
