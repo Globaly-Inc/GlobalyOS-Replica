@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +19,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useConversations, useSpaces } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useOrganization } from "@/hooks/useOrganization";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ChatConversation, ChatSpace, ActiveChat } from "@/types/chat";
 
 interface ChatSidebarProps {
@@ -36,6 +39,81 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
+
+  // Realtime subscription for conversations, messages, and spaces
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+
+    const channel = supabase
+      .channel('chat-sidebar-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_conversations',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_participants',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_spaces',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_space_members',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrg?.id, queryClient]);
 
   const getConversationName = (conv: ChatConversation) => {
     if (conv.name) return conv.name;
