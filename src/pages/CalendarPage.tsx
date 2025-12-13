@@ -606,9 +606,9 @@ const CalendarPage = () => {
   return (
     <Layout>
       <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] overflow-hidden">
-        {/* Left Sidebar - Upcoming Events */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] border-b lg:border-b-0 lg:border-r border-border bg-card/50 flex flex-col shrink-0">
-          <div className="p-4 lg:p-6 border-b border-border">
+        {/* Left Sidebar - Upcoming Events (hidden on mobile) */}
+        <div className="hidden lg:flex w-[320px] xl:w-[360px] border-r border-border bg-card/50 flex-col shrink-0">
+          <div className="p-6 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">
               {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
             </h2>
@@ -630,7 +630,7 @@ const CalendarPage = () => {
             )}
           </div>
           
-          <ScrollArea className="flex-1 h-[200px] lg:h-auto">
+          <ScrollArea className="flex-1">
             <div className="p-3 space-y-2">
               {filteredItems.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -780,18 +780,27 @@ const CalendarPage = () => {
         {/* Right Side - Calendar */}
         <div className="flex-1 flex flex-col min-w-0 bg-background">
           {/* Calendar Header */}
-          <div className="p-4 lg:p-6 border-b border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <CalendarIcon className="h-5 w-5 text-primary" />
-                  <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
-                </div>
+          <div className="p-3 lg:p-6 border-b border-border">
+            <div className="flex items-center justify-between gap-2">
+              {/* Month Navigation - always visible */}
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[80px] text-center">
+                  {viewMode === "day" 
+                    ? format(currentDate, "d MMM yy")
+                    : format(currentDate, "MMM yyyy")
+                  }
+                </span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* View Mode Tabs */}
-                <div className="flex bg-muted rounded-lg p-1">
+              <div className="flex items-center gap-1 lg:gap-2">
+                {/* View Mode Tabs - hidden on mobile */}
+                <div className="hidden sm:flex bg-muted rounded-lg p-1">
                   {(["month", "week", "day"] as ViewMode[]).map((mode) => (
                     <button
                       key={mode}
@@ -808,91 +817,73 @@ const CalendarPage = () => {
                   ))}
                 </div>
 
-                {/* Month Navigation */}
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm font-medium text-center">
-                    {viewMode === "day" 
-                      ? format(currentDate, "d MMM yy")
-                      : format(currentDate, "MMM yyyy")
-                    }
-                  </span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <Button variant="outline" size="sm" onClick={handleToday}>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleToday}>
                   Today
                 </Button>
 
                 {canManageEvents && (
-                  <Button size="sm" onClick={() => setIsAddEventOpen(true)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Event
+                  <Button size="sm" className="h-8 text-xs" onClick={() => setIsAddEventOpen(true)}>
+                    <Plus className="h-4 w-4 lg:mr-1" />
+                    <span className="hidden lg:inline">Add Event</span>
                   </Button>
                 )}
               </div>
             </div>
-
           </div>
 
-          {/* Filter Tabs and Timezone */}
-          <div className="px-4 lg:px-6 py-2 bg-muted/30 border-b border-border/50">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1">
-                {[
-                  { type: "leave" as const, label: "Leave" },
-                  { type: "holiday" as const, label: "Holiday" },
-                  { type: "event" as const, label: "Event" },
-                  { type: "birthday" as const, label: "Bday" },
-                  { type: "anniversary" as const, label: "Anniv" },
-                  { type: "review" as const, label: "Review" },
-                ].map((item) => {
-                  const isActive = activeFilters.has(item.type);
-                  const count = typeCounts[item.type];
-                  return (
-                    <button
-                      key={item.type}
-                      onClick={() => toggleFilter(item.type)}
-                      className={cn(
-                        "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-background hover:bg-accent border border-border/50"
-                      )}
-                    >
-                      <div className={cn(
-                        "h-2 w-2 rounded-full shrink-0",
-                        isActive ? "bg-primary-foreground/80" : getTypeColor(item.type)
-                      )} />
-                      <span className="hidden sm:inline">{item.label}</span>
-                      <span className="text-[10px] opacity-80">{count}</span>
-                    </button>
-                  );
-                })}
-                {activeFilters.size > 0 && (
+          {/* Filter Tabs - horizontal scroll on mobile */}
+          <div className="px-3 lg:px-6 py-2 bg-muted/30 border-b border-border/50 overflow-x-auto">
+            <div className="flex items-center gap-1 min-w-max">
+              {[
+                { type: "leave" as const, label: "Leave" },
+                { type: "holiday" as const, label: "Holiday" },
+                { type: "event" as const, label: "Event" },
+                { type: "birthday" as const, label: "Bday" },
+                { type: "anniversary" as const, label: "Anniv" },
+                { type: "review" as const, label: "Review" },
+              ].map((item) => {
+                const isActive = activeFilters.has(item.type);
+                const count = typeCounts[item.type];
+                return (
                   <button
-                    onClick={() => setActiveFilters(new Set())}
-                    className="px-1.5 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    key={item.type}
+                    onClick={() => toggleFilter(item.type)}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-background hover:bg-accent border border-border/50"
+                    )}
                   >
-                    ✕
+                    <div className={cn(
+                      "h-2 w-2 rounded-full shrink-0",
+                      isActive ? "bg-primary-foreground/80" : getTypeColor(item.type)
+                    )} />
+                    <span>{item.label}</span>
+                    <span className="text-[10px] opacity-80">{count}</span>
                   </button>
-                )}
-              </div>
+                );
+              })}
+              {activeFilters.size > 0 && (
+                <button
+                  onClick={() => setActiveFilters(new Set())}
+                  className="px-1.5 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
 
-          {/* World Clock Cards */}
-          <div className="mt-4">
+          {/* World Clock Cards - hidden on mobile */}
+          <div className="hidden lg:block mt-4">
             <WorldClockCards 
               officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
             />
           </div>
+          
           {/* Calendar Grid */}
-          <div className="flex-1 p-4 lg:p-6 overflow-auto">
+          <div className="flex-1 p-2 lg:p-6 overflow-auto">
             {viewMode === "month" && (
               <div className="grid grid-cols-7 rounded-xl overflow-hidden border border-border">
                 {/* Day headers */}
@@ -900,11 +891,12 @@ const CalendarPage = () => {
                   <div
                     key={day}
                     className={cn(
-                      "bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground border-b border-border",
+                      "bg-muted/50 p-1.5 lg:p-3 text-center text-[10px] lg:text-xs font-medium text-muted-foreground border-b border-border",
                       index < 6 && "border-r border-border"
                     )}
                   >
-                    {day}
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{day.charAt(0)}</span>
                   </div>
                 ))}
 
@@ -924,7 +916,7 @@ const CalendarPage = () => {
                       key={day.toISOString()}
                       onClick={() => handleDayClick(day)}
                       className={cn(
-                        "bg-card p-2 text-left transition-all duration-200 cursor-pointer group min-h-[100px]",
+                        "bg-card p-1 lg:p-2 text-left transition-all duration-200 cursor-pointer group min-h-[60px] lg:min-h-[100px]",
                         !isCurrentMonth && "opacity-40",
                         isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
                         "hover:bg-accent/50",
@@ -933,10 +925,10 @@ const CalendarPage = () => {
                       )}
                     >
                       <div className="flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-0.5 lg:mb-2">
                           <span
                             className={cn(
-                              "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                              "text-xs lg:text-sm font-medium w-5 h-5 lg:w-7 lg:h-7 flex items-center justify-center rounded-full transition-colors",
                               isToday && "bg-primary text-primary-foreground",
                               isSelected && !isToday && "bg-primary/20 text-primary"
                             )}
@@ -944,14 +936,14 @@ const CalendarPage = () => {
                             {format(day, "d")}
                           </span>
                           {dayItems.length > 3 && (
-                            <span className="text-[10px] text-muted-foreground">
-                              +{dayItems.length - 3} more
+                            <span className="hidden lg:inline text-[10px] text-muted-foreground">
+                              +{dayItems.length - 3}
                             </span>
                           )}
                         </div>
 
-                        {/* Events in cell */}
-                        <div className="flex flex-col gap-0.5 overflow-hidden">
+                        {/* Events in cell - hidden on mobile, show dots instead */}
+                        <div className="hidden lg:flex flex-col gap-0.5 overflow-hidden">
                           {dayItems.slice(0, 3).map((item) => (
                             <div
                               key={item.id}
@@ -969,15 +961,18 @@ const CalendarPage = () => {
                           ))}
                         </div>
 
-                        {/* Dots for mobile/overflow */}
-                        {dayItems.length > 0 && dayItems.length <= 3 && (
-                          <div className="flex gap-0.5 mt-auto pt-1 sm:hidden">
+                        {/* Dots for mobile */}
+                        {dayItems.length > 0 && (
+                          <div className="flex flex-wrap gap-0.5 mt-auto pt-0.5 lg:hidden">
                             {dayItems.slice(0, 4).map((item) => (
                               <div
                                 key={item.id}
                                 className={cn("h-1.5 w-1.5 rounded-full", getTypeColor(item.type))}
                               />
                             ))}
+                            {dayItems.length > 4 && (
+                              <span className="text-[8px] text-muted-foreground">+{dayItems.length - 4}</span>
+                            )}
                           </div>
                         )}
                       </div>
