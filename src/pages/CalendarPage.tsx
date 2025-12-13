@@ -491,23 +491,6 @@ const CalendarPage = () => {
                 )}
               </div>
             </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 mt-4 text-xs">
-              {[
-                { type: "leave" as const, label: "Leave" },
-                { type: "holiday" as const, label: "Holiday" },
-                { type: "event" as const, label: "Event" },
-                { type: "birthday" as const, label: "Birthday" },
-                { type: "anniversary" as const, label: "Anniversary" },
-                { type: "review" as const, label: "Review" },
-              ].map((item) => (
-                <div key={item.type} className="flex items-center gap-1.5">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", getTypeColor(item.type))} />
-                  <span className="text-muted-foreground">{item.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Calendar Grid */}
@@ -745,7 +728,24 @@ const CalendarPage = () => {
             )}
           </div>
         </div>
-      </div>
+          </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap justify-center gap-3 px-4 lg:px-6 pb-4 text-xs">
+              {[
+                { type: "leave" as const, label: "Leave" },
+                { type: "holiday" as const, label: "Holiday" },
+                { type: "event" as const, label: "Event" },
+                { type: "birthday" as const, label: "Birthday" },
+                { type: "anniversary" as const, label: "Anniversary" },
+                { type: "review" as const, label: "Review" },
+              ].map((item) => (
+                <div key={item.type} className="flex items-center gap-1.5">
+                  <div className={cn("h-2.5 w-2.5 rounded-full", getTypeColor(item.type))} />
+                  <span className="text-muted-foreground">{item.label}</span>
+                </div>
+              ))}
+            </div>
 
       <AddCalendarEventDialog
         open={isAddEventOpen}
