@@ -733,12 +733,14 @@ const CalendarPage = () => {
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {format(item.date, "d MMM")}
-                              {item.endDate && !isSameDay(item.date, item.endDate) && (
-                                <> – {format(item.endDate, "d MMM")}</>
+                              {item.startTime && (
+                                <> · {format(new Date(`2000-01-01T${item.startTime}`), "h:mm a")}</>
                               )}
-                              {/* Show time if available */}
-                              {(item.startTime || item.endTime) && (
-                                <> · {item.startTime?.slice(0, 5) || ""}{item.startTime && item.endTime && " – "}{item.endTime?.slice(0, 5) || ""}</>
+                              {item.endDate && !isSameDay(item.date, item.endDate) && (
+                                <> - {format(item.endDate, "d MMM")}</>
+                              )}
+                              {item.endTime && (
+                                <> · {format(new Date(`2000-01-01T${item.endTime}`), "h:mm a")}</>
                               )}
                               {item.subtitle && <> · {item.subtitle}</>}
                             </p>
