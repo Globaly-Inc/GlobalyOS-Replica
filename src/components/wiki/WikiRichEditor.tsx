@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { 
   Bold, Italic, Heading1, Heading2, Heading3, 
   List, ListOrdered, Link, Image, FileText, 
-  Code, Quote, Minus, Table, Upload, Underline
+  Code, Quote, Minus, Table, Upload, Underline,
+  Plus, Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,9 +33,9 @@ const sanitizeConfig = {
     'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
     'a', 'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-    'div', 'span', 'iframe'
+    'div', 'span', 'iframe', 'colgroup', 'col'
   ],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 'frameborder', 'allowfullscreen'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 'frameborder', 'allowfullscreen', 'style'],
   ALLOW_DATA_ATTR: false,
 };
 
@@ -55,6 +56,8 @@ export const WikiRichEditor = ({
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [embedUrl, setEmbedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<HTMLTableElement | null>(null);
+  const [tablePosition, setTablePosition] = useState({ top: 0, left: 0 });
 
   // Initialize content
   useEffect(() => {
@@ -72,6 +75,78 @@ export const WikiRichEditor = ({
       onChange(html);
     }
   }, [onChange]);
+
+  // Handle table selection
+  const handleEditorClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const table = target.closest('table') as HTMLTableElement;
+    
+    if (table && editorRef.current) {
+      const editorRect = editorRef.current.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      setSelectedTable(table);
+      setTablePosition({
+        top: tableRect.top - editorRect.top,
+        left: tableRect.left - editorRect.left
+      });
+    } else {
+      setSelectedTable(null);
+    }
+  }, []);
+
+  // Table manipulation functions
+  const addTableRow = useCallback(() => {
+    if (!selectedTable) return;
+    const tbody = selectedTable.querySelector('tbody') || selectedTable;
+    const lastRow = tbody.querySelector('tr:last-child');
+    if (lastRow) {
+      const newRow = lastRow.cloneNode(true) as HTMLTableRowElement;
+      Array.from(newRow.cells).forEach((cell) => {
+        cell.textContent = '';
+      });
+      tbody.appendChild(newRow);
+      handleInput();
+    }
+  }, [selectedTable, handleInput]);
+
+  const removeTableRow = useCallback(() => {
+    if (!selectedTable) return;
+    const tbody = selectedTable.querySelector('tbody') || selectedTable;
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length > 1) {
+      rows[rows.length - 1].remove();
+      handleInput();
+    }
+  }, [selectedTable, handleInput]);
+
+  const addTableColumn = useCallback(() => {
+    if (!selectedTable) return;
+    const rows = selectedTable.querySelectorAll('tr');
+    rows.forEach((row) => {
+      const isHeader = row.parentElement?.tagName === 'THEAD';
+      const cell = document.createElement(isHeader ? 'th' : 'td');
+      cell.className = isHeader 
+        ? 'border border-border p-2 bg-muted text-left'
+        : 'border border-border p-2';
+      cell.textContent = isHeader ? `Column ${row.cells.length + 1}` : '';
+      row.appendChild(cell);
+    });
+    handleInput();
+  }, [selectedTable, handleInput]);
+
+  const removeTableColumn = useCallback(() => {
+    if (!selectedTable) return;
+    const rows = selectedTable.querySelectorAll('tr');
+    const firstRow = rows[0];
+    if (firstRow && firstRow.cells.length > 1) {
+      rows.forEach((row) => {
+        if (row.cells.length > 0) {
+          row.deleteCell(row.cells.length - 1);
+        }
+      });
+      handleInput();
+    }
+  }, [selectedTable, handleInput]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -419,37 +494,98 @@ export const WikiRichEditor = ({
         />
       </div>
 
-      {/* WYSIWYG Editor */}
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        data-placeholder={placeholder}
-        className={cn(
-          "wiki-editor outline-none p-6",
-          "prose prose-sm sm:prose max-w-none",
-          "prose-headings:font-semibold prose-headings:text-foreground",
-          "prose-h1:text-2xl prose-h1:mb-4 prose-h1:mt-6",
-          "prose-h2:text-xl prose-h2:mb-3 prose-h2:mt-5",
-          "prose-h3:text-lg prose-h3:mb-2 prose-h3:mt-4",
-          "prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2",
-          "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-          "prose-strong:text-foreground prose-strong:font-semibold",
-          "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
-          "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground",
-          "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4",
-          "prose-code:text-sm prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
-          "prose-img:rounded-lg prose-img:max-w-full",
-          "prose-hr:border-border",
-          "prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted",
-          "prose-td:border prose-td:border-border prose-td:p-2",
-          "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none"
+      {/* Editor Container with Table Controls */}
+      <div className="relative">
+        {/* Table Controls */}
+        {selectedTable && (
+          <div 
+            className="absolute z-20 flex items-center gap-1 p-1 bg-background border rounded-lg shadow-lg"
+            style={{ top: tablePosition.top - 40, left: tablePosition.left }}
+          >
+            <div className="flex items-center gap-0.5 pr-2 border-r">
+              <span className="text-xs text-muted-foreground px-1">Row</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={addTableRow}
+                title="Add Row"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                onClick={removeTableRow}
+                title="Remove Row"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <span className="text-xs text-muted-foreground px-1">Col</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={addTableColumn}
+                title="Add Column"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                onClick={removeTableColumn}
+                title="Remove Column"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         )}
-        style={{ minHeight }}
-      />
+
+        {/* WYSIWYG Editor */}
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onClick={handleEditorClick}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          data-placeholder={placeholder}
+          className={cn(
+            "wiki-editor outline-none p-6",
+            "prose prose-sm sm:prose max-w-none",
+            "prose-headings:font-semibold prose-headings:text-foreground",
+            "prose-h1:text-2xl prose-h1:mb-4 prose-h1:mt-6",
+            "prose-h2:text-xl prose-h2:mb-3 prose-h2:mt-5",
+            "prose-h3:text-lg prose-h3:mb-2 prose-h3:mt-4",
+            "prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2",
+            "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
+            "prose-strong:text-foreground prose-strong:font-semibold",
+            "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+            "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground",
+            "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4",
+            "prose-code:text-sm prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
+            "prose-img:rounded-lg prose-img:max-w-full",
+            "prose-hr:border-border",
+            "prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted",
+            "prose-td:border prose-td:border-border prose-td:p-2",
+            "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none",
+            "[&_table]:relative [&_th]:min-w-[80px] [&_td]:min-w-[80px]",
+            "[&_th]:resize-x [&_th]:overflow-hidden [&_td]:resize-x [&_td]:overflow-hidden"
+          )}
+          style={{ minHeight }}
+        />
+      </div>
 
       {/* Upload indicator */}
       {isUploading && (
