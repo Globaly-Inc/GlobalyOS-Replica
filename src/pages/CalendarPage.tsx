@@ -787,13 +787,6 @@ const CalendarPage = () => {
                   <CalendarIcon className="h-5 w-5 text-primary" />
                   <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
                 </div>
-                
-                {/* Current Time Display */}
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border border-border/50">
-                  <span className="text-xs text-muted-foreground">{formattedDate}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{formattedTime}</span>
-                </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
