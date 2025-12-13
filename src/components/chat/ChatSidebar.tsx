@@ -35,12 +35,81 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [searchQuery, setSearchQuery] = useState("");
   const [dmExpanded, setDmExpanded] = useState(true);
   const [spacesExpanded, setSpacesExpanded] = useState(true);
+  const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
+
+  // Fetch online statuses for all conversation participants
+  useEffect(() => {
+    const fetchOnlineStatuses = async () => {
+      if (!conversations.length || !currentEmployee?.id) return;
+
+      const otherEmployeeIds = conversations
+        .filter(conv => !conv.is_group)
+        .map(conv => {
+          const other = conv.participants?.find(p => p.employee_id !== currentEmployee.id);
+          return other?.employee_id;
+        })
+        .filter(Boolean) as string[];
+
+      if (!otherEmployeeIds.length) return;
+
+      const { data: presences } = await supabase
+        .from('chat_presence')
+        .select('employee_id, is_online')
+        .in('employee_id', otherEmployeeIds);
+
+      if (presences) {
+        const statusMap: Record<string, boolean> = {};
+        presences.forEach(p => {
+          statusMap[p.employee_id] = p.is_online;
+        });
+        setOnlineStatuses(statusMap);
+      }
+    };
+
+    fetchOnlineStatuses();
+  }, [conversations, currentEmployee?.id]);
+
+  // Subscribe to presence changes
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+
+    const channel = supabase
+      .channel('chat-sidebar-presence')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_presence',
+          filter: `organization_id=eq.${currentOrg.id}`
+        },
+        (payload: any) => {
+          if (payload.new?.employee_id) {
+            setOnlineStatuses(prev => ({
+              ...prev,
+              [payload.new.employee_id]: payload.new.is_online
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrg?.id]);
+
+  const getOtherParticipantId = (conv: ChatConversation) => {
+    if (conv.is_group) return null;
+    const other = conv.participants?.find(p => p.employee_id !== currentEmployee?.id);
+    return other?.employee_id || null;
+  };
 
   // Realtime subscription for conversations, messages, and spaces
   useEffect(() => {
@@ -238,12 +307,17 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                           : "hover:bg-muted"
                       )}
                     >
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={avatar || undefined} />
-                        <AvatarFallback className="text-[10px]">
-                          {conv.is_group ? <Users className="h-3 w-3" /> : getInitials(name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={avatar || undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {conv.is_group ? <Users className="h-3 w-3" /> : getInitials(name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {!conv.is_group && onlineStatuses[getOtherParticipantId(conv) || ''] && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+                        )}
+                      </div>
                       <span className="truncate flex-1 text-left">{name}</span>
                       {conv.unread_count && conv.unread_count > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5">
