@@ -30,19 +30,19 @@ export const OTPEmail = ({
 }: OTPEmailProps) => (
   <Html>
     <Head />
-    <Preview>Your TeamHub verification code is {otpCode}</Preview>
+    <Preview>Your GlobalyOS verification code is {otpCode}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
           <div style={logoCircle}>
-            <span style={logoText}>TH</span>
+            <span style={logoText}>GO</span>
           </div>
         </Section>
         
         <Heading style={h1}>Hi {userName}!</Heading>
         
         <Text style={text}>
-          Use the following 6-digit code to sign in to TeamHub:
+          Use the following 6-digit code to sign in to GlobalyOS:
         </Text>
         
         <Section style={codeContainer}>
@@ -64,7 +64,7 @@ export const OTPEmail = ({
             href={`${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${redirectTo}`}
             style={button}
           >
-            Sign in to TeamHub
+            Sign in to GlobalyOS
           </Link>
         </Section>
         
@@ -73,7 +73,7 @@ export const OTPEmail = ({
         </Text>
         
         <Text style={footerBrand}>
-          © {new Date().getFullYear()} TeamHub - HRMS & Social Intranet
+          © {new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
         </Text>
       </Container>
     </Body>

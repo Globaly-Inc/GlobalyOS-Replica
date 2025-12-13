@@ -62,9 +62,9 @@ Deno.serve(async (req) => {
     console.log('Sending email via Resend')
     
     const { data, error } = await resend.emails.send({
-      from: 'TeamHub <onboarding@resend.dev>',
+      from: 'GlobalyOS <onboarding@resend.dev>',
       to: [user.email],
-      subject: `Your TeamHub verification code: ${token}`,
+      subject: `Your GlobalyOS verification code: ${token}`,
       html,
     })
 

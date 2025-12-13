@@ -68,11 +68,11 @@ export default function Install() {
               <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <CardTitle>Already Installed!</CardTitle>
-            <CardDescription>TeamHub is ready to use on your device</CardDescription>
+            <CardDescription>GlobalyOS is ready to use on your device</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => navigate("/")} className="w-full">
-              Open TeamHub
+              Open GlobalyOS
             </Button>
           </CardContent>
         </Card>
@@ -88,9 +88,9 @@ export default function Install() {
           <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center mb-4 shadow-lg">
             <Smartphone className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Install TeamHub</h1>
+          <h1 className="text-2xl font-bold mb-2">Install GlobalyOS</h1>
           <p className="text-muted-foreground">
-            Add TeamHub to your home screen for the best experience
+            Add GlobalyOS to your home screen for the best experience
           </p>
         </div>
 
@@ -172,7 +172,7 @@ export default function Install() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Open this page on your mobile device to install TeamHub
+                Open this page on your mobile device to install GlobalyOS
               </p>
             )}
           </CardContent>

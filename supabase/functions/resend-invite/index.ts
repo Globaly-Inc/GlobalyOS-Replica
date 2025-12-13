@@ -205,14 +205,14 @@ serve(async (req: Request) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔔 Reminder: Join TeamHub!</h1>
+            <h1>🔔 Reminder: Join GlobalyOS!</h1>
           </div>
           <div class="content">
             <p>Hi <strong>${fullName}</strong>,</p>
             <div class="reminder">
-              <p><strong>This is a reminder to complete your TeamHub registration.</strong></p>
+              <p><strong>This is a reminder to complete your GlobalyOS registration.</strong></p>
             </div>
-            <p>You were invited to join TeamHub as a team member. Here are your details:</p>
+            <p>You were invited to join GlobalyOS as a team member. Here are your details:</p>
             <div class="details">
               <p><strong>Position:</strong> ${position}</p>
               <p><strong>Department:</strong> ${department}</p>
@@ -222,7 +222,7 @@ serve(async (req: Request) => {
             <div class="code-box">${inviteCode}</div>
             <p>Click the button below and enter this code to join the team:</p>
             <div class="cta">
-              <a href="${joinUrl}" class="button">Join TeamHub</a>
+              <a href="${joinUrl}" class="button">Join GlobalyOS</a>
             </div>
             <div class="note">
               <strong>Note:</strong> This code is valid for 7 days. Your previous code (if any) has been deactivated.
@@ -243,9 +243,9 @@ serve(async (req: Request) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'TeamHub <hello@globalyhub.com>',
+        from: 'GlobalyOS <hello@globalyhub.com>',
         to: [email],
-        subject: 'Reminder: Your New TeamHub Invitation Code',
+        subject: 'Reminder: Your New GlobalyOS Invitation Code',
         html: emailHtml,
       }),
     });

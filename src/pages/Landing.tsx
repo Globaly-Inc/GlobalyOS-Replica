@@ -61,7 +61,7 @@ const whoItsFor = [{
 const howItWorks = [{
   step: "01",
   title: "Set Up Your Workspace",
-  description: "Create your organisation in TeamHub, define roles, departments and basic settings."
+  description: "Create your organisation in GlobalyOS, define roles, departments and basic settings."
 }, {
   step: "02",
   title: "Import & Build Profiles",
@@ -69,7 +69,7 @@ const howItWorks = [{
 }, {
   step: "03",
   title: "Run Reviews & Plan Growth",
-  description: "Use TeamHub templates to run review cycles, document decisions and update each employee's growth plan."
+  description: "Use GlobalyOS templates to run review cycles, document decisions and update each employee's growth plan."
 }];
 const pricingPlans = [{
   name: "Starter",
@@ -86,11 +86,11 @@ const pricingPlans = [{
   features: ["Everything in Growth", "Advanced analytics", "Custom onboarding flows", "API access", "Dedicated success manager"]
 }];
 const faqs = [{
-  question: "Is TeamHub hard to set up?",
+  question: "Is GlobalyOS hard to set up?",
   answer: "Not at all. Most teams are up and running within a day. You can import existing employee data from spreadsheets, and our onboarding wizard guides you through setting up departments, roles, and review templates."
 }, {
   question: "Can we customise review forms and roles?",
-  answer: "Yes! TeamHub is designed to be flexible. You can create custom review templates, define your own rating scales, add custom fields to employee profiles, and configure role permissions to match your organization's structure."
+  answer: "Yes! GlobalyOS is designed to be flexible. You can create custom review templates, define your own rating scales, add custom fields to employee profiles, and configure role permissions to match your organization's structure."
 }, {
   question: "Is our data secure?",
   answer: "Absolutely. We use enterprise-grade encryption, regular security audits, and comply with data protection standards. Your data is hosted on secure cloud infrastructure with automatic backups and disaster recovery."
@@ -98,8 +98,8 @@ const faqs = [{
   question: "Can we change or cancel our subscription?",
   answer: "Yes, you can upgrade, downgrade, or cancel your subscription at any time. Changes take effect at the start of your next billing cycle. We also offer a 30-day money-back guarantee for new subscriptions."
 }, {
-  question: "Who is TeamHub best for?",
-  answer: "TeamHub is ideal for growing companies (10-500+ employees) who want to move beyond spreadsheets and build a proper HR foundation. It's especially valuable for teams that care about fair, transparent people decisions."
+  question: "Who is GlobalyOS best for?",
+  answer: "GlobalyOS is ideal for growing companies (10-500+ employees) who want to move beyond spreadsheets and build a proper HR foundation. It's especially valuable for teams that care about fair, transparent people decisions."
 }];
 
 // Animated card component with stagger support
@@ -177,7 +177,7 @@ const Landing = () => {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80">
               <Users className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">TeamHub</span>
+            <span className="text-xl font-bold text-foreground">GlobalyOS</span>
           </div>
 
           {/* Desktop Navigation */}
@@ -249,7 +249,7 @@ const Landing = () => {
                 </span>
               </h1>
               <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-                TeamHub is a subscription-based HRMS that turns scattered HR
+                GlobalyOS is a subscription-based HRMS that turns scattered HR
                 files into a clear, dynamic profile for every employee – from
                 hiring and salary changes to performance reviews and growth
                 plans – so you can make fair, confident people decisions.
@@ -281,7 +281,7 @@ const Landing = () => {
             <div className="relative animate-fade-in flex items-center justify-center" style={{
             animationDelay: "200ms"
           }}>
-              <img src={heroIllustration} alt="TeamHub employee management illustration" className="w-full max-w-lg h-auto animate-float" fetchPriority="high" />
+              <img src={heroIllustration} alt="GlobalyOS employee management illustration" className="w-full max-w-lg h-auto animate-float" fetchPriority="high" />
             </div>
           </div>
         </div>
@@ -339,7 +339,7 @@ Your HR System Isn't.</span>
               <CheckCircle2 className="h-4 w-4" /> The Solution
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              TeamHub Creates a Living Timeline{" "}
+              GlobalyOS Creates a Living Timeline{" "}
               <span className="text-muted-foreground">for Every Employee</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
@@ -397,7 +397,7 @@ Your HR System Isn't.</span>
           <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground">
               What You Can Do{" "}
-              <span className="text-muted-foreground">With TeamHub</span>
+              <span className="text-muted-foreground">With GlobalyOS</span>
             </h2>
             <p className="mt-4 text-muted-foreground">
               Powerful features designed for modern people management
@@ -622,7 +622,7 @@ in 3 Steps</span>
                 <Users className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <span className="font-bold text-foreground">TeamHub</span>
+                <span className="font-bold text-foreground">GlobalyOS</span>
                 <p className="text-xs text-muted-foreground">
                   HR timelines for growing teams
                 </p>
@@ -653,7 +653,7 @@ in 3 Steps</span>
 
           <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
             <p>
-              © {new Date().getFullYear()} TeamHub. Built by GlobalyHub. All
+              © {new Date().getFullYear()} GlobalyOS. Built by GlobalyHub. All
               rights reserved.
             </p>
           </div>

@@ -92,7 +92,7 @@ const Join = () => {
         });
         
         toast({
-          title: "Welcome to TeamHub!",
+          title: "Welcome to GlobalyOS!",
           description: "You have successfully joined the team.",
         });
       } else {
@@ -120,7 +120,7 @@ const Join = () => {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark mb-4">
             <Users className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Join TeamHub</h1>
+          <h1 className="text-3xl font-bold text-foreground">Join GlobalyOS</h1>
           <p className="text-muted-foreground mt-2">Enter the code from your invitation email</p>
         </div>
 

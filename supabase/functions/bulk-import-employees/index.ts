@@ -82,14 +82,14 @@ async function sendWelcomeEmail(
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Welcome to TeamHub!</h1>
+          <h1>🎉 Welcome to GlobalyOS!</h1>
         </div>
         <div class="content">
           <p>Hi <strong>${fullName}</strong>,</p>
           <div class="success-badge">
             ✓ Your account has been successfully created
           </div>
-          <p>You've been added to TeamHub. Here are your details:</p>
+          <p>You've been added to GlobalyOS. Here are your details:</p>
           <div class="details">
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Position:</strong> ${position}</p>
@@ -97,9 +97,9 @@ async function sendWelcomeEmail(
             <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
             <p><strong>Role:</strong> ${roleLabel}</p>
           </div>
-          <p>You can now log in to TeamHub using your email address:</p>
+          <p>You can now log in to GlobalyOS using your email address:</p>
           <div class="cta">
-            <a href="${loginUrl}" class="button">Log In to TeamHub</a>
+            <a href="${loginUrl}" class="button">Log In to GlobalyOS</a>
           </div>
           <div class="note">
             <strong>How to log in:</strong> Click the button above and enter your email address. You'll receive a one-time login code to access your account.
@@ -107,7 +107,7 @@ async function sendWelcomeEmail(
         </div>
         <div class="footer">
           <p>If you have any questions, please contact your administrator.</p>
-          <p style="margin-top: 10px; font-size: 12px; color: #94a3b8;">TeamHub - Your team management platform</p>
+          <p style="margin-top: 10px; font-size: 12px; color: #94a3b8;">GlobalyOS - Your team management platform</p>
         </div>
       </div>
     </body>
@@ -122,9 +122,9 @@ async function sendWelcomeEmail(
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'TeamHub <hello@globalyhub.com>',
+        from: 'GlobalyOS <hello@globalyhub.com>',
         to: [email],
-        subject: '🎉 Welcome to TeamHub - Your Account is Ready!',
+        subject: '🎉 Welcome to GlobalyOS - Your Account is Ready!',
         html: emailHtml,
       }),
     });
