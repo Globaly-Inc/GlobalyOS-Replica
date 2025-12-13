@@ -8,11 +8,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, X, Loader2 } from "lucide-react";
-import { useUpdateConversation } from "@/services/useChat";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Camera, X, Loader2, UserPlus, UserMinus, Search } from "lucide-react";
+import { useUpdateConversation, useConversationParticipants } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useEmployees } from "@/services/useEmployees";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EditGroupChatDialogProps {
   open: boolean;
@@ -35,16 +41,42 @@ const EditGroupChatDialog = ({
   const [icon, setIcon] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(currentIconUrl);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [removingMember, setRemovingMember] = useState<string | null>(null);
+  const [addingMember, setAddingMember] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { data: employeesData = [] } = useEmployees();
+  const { data: participants = [] } = useConversationParticipants(conversationId);
   const updateConversation = useUpdateConversation();
+  const queryClient = useQueryClient();
+
+  // Type assertion to handle Supabase type inference issues
+  const employees = (employeesData as unknown) as Array<{
+    id: string;
+    position: string;
+    status: string;
+    profiles: { full_name: string; avatar_url: string | null; email: string } | null;
+  }>;
+
+  const memberIds = participants.map(p => p.employee_id);
+  const nonMembers = employees.filter(
+    emp => !memberIds.includes(emp.id) && emp.status === 'active'
+  );
+
+  const filteredNonMembers = nonMembers.filter(emp => 
+    emp.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.position?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (open) {
       setName(currentName);
       setIconPreview(currentIconUrl);
       setIcon(null);
+      setSearchQuery("");
     }
   }, [open, currentName, currentIconUrl]);
 
@@ -84,6 +116,56 @@ const EditGroupChatDialog = ({
     }
     setIcon(null);
     setIconPreview(null);
+  };
+
+  const handleAddMember = async (employeeId: string) => {
+    if (!currentOrg?.id) return;
+    
+    try {
+      setAddingMember(employeeId);
+      
+      const { error } = await supabase
+        .from('chat_participants')
+        .insert({
+          conversation_id: conversationId,
+          employee_id: employeeId,
+          organization_id: currentOrg.id
+        });
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      toast.success("Member added");
+    } catch (error) {
+      console.error("Error adding member:", error);
+      toast.error("Failed to add member");
+    } finally {
+      setAddingMember(null);
+    }
+  };
+
+  const handleRemoveMember = async (employeeId: string) => {
+    try {
+      setRemovingMember(employeeId);
+      
+      const { error } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      toast.success("Member removed");
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast.error("Failed to remove member");
+    } finally {
+      setRemovingMember(null);
+    }
   };
 
   const handleSave = async () => {
@@ -132,81 +214,196 @@ const EditGroupChatDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit group</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-4 py-4">
-          {/* Group icon picker */}
-          <div className="relative">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleIconSelect}
-            />
-            <div 
-              className="relative h-20 w-20 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors overflow-hidden"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {iconPreview ? (
-                <img 
-                  src={iconPreview} 
-                  alt="Group icon" 
-                  className="h-full w-full object-cover"
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="members">Members ({participants.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="space-y-4 pt-4">
+            <div className="flex flex-col items-center gap-4">
+              {/* Group icon picker */}
+              <div className="relative">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleIconSelect}
                 />
-              ) : (
-                <Avatar className="h-full w-full">
-                  <AvatarFallback className="text-lg bg-primary/10 text-primary">
-                    {getInitials(name || "GC")}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                <Camera className="h-6 w-6 text-white" />
+                <div 
+                  className="relative h-20 w-20 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors overflow-hidden"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {iconPreview ? (
+                    <img 
+                      src={iconPreview} 
+                      alt="Group icon" 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Avatar className="h-full w-full">
+                      <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                        {getInitials(name || "GC")}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <Camera className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                {iconPreview && (
+                  <button
+                    type="button"
+                    className="absolute -top-1 -right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeIcon();
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </div>
+              <p className="text-xs text-muted-foreground">Click to change icon</p>
             </div>
-            {iconPreview && (
-              <button
-                type="button"
-                className="absolute -top-1 -right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeIcon();
-                }}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Group name</label>
+              <Input
+                placeholder="Enter group name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSave}
+                disabled={updateConversation.isPending || isUploading}
               >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">Click to change icon</p>
-        </div>
+                {(updateConversation.isPending || isUploading) ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Save
+              </Button>
+            </div>
+          </TabsContent>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Group name</label>
-          <Input
-            placeholder="Enter group name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
+          <TabsContent value="members" className="space-y-4 pt-4">
+            {/* Current members */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Current members</label>
+              <ScrollArea className="h-40 border rounded-lg">
+                <div className="p-2 space-y-1">
+                  {participants.map((participant) => {
+                    const isCurrentUser = participant.employee_id === currentEmployee?.id;
+                    return (
+                      <div 
+                        key={participant.id}
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={participant.employee?.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(participant.employee?.profiles?.full_name || 'U')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {participant.employee?.profiles?.full_name}
+                            {isCurrentUser && <span className="text-muted-foreground ml-1">(you)</span>}
+                          </p>
+                        </div>
+                        {!isCurrentUser && participants.length > 2 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleRemoveMember(participant.employee_id)}
+                            disabled={removingMember === participant.employee_id}
+                          >
+                            {removingMember === participant.employee_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserMinus className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={updateConversation.isPending || isUploading}
-          >
-            {(updateConversation.isPending || isUploading) ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Save
-          </Button>
-        </div>
+            {/* Add members */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Add members</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search team members..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <ScrollArea className="h-40 border rounded-lg">
+                <div className="p-2 space-y-1">
+                  {filteredNonMembers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      {searchQuery ? "No matches found" : "All team members are in the group"}
+                    </p>
+                  ) : (
+                    filteredNonMembers.map((employee) => (
+                      <div 
+                        key={employee.id}
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(employee.profiles?.full_name || 'U')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {employee.profiles?.full_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {employee.position}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                          onClick={() => handleAddMember(employee.id)}
+                          disabled={addingMember === employee.id}
+                        >
+                          {addingMember === employee.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserPlus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
