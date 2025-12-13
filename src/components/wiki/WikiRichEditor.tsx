@@ -49,6 +49,7 @@ export const WikiRichEditor = ({
 }: WikiRichEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedTableRef = useRef<HTMLTableElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkText, setLinkText] = useState("");
@@ -56,7 +57,7 @@ export const WikiRichEditor = ({
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [embedUrl, setEmbedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<HTMLTableElement | null>(null);
+  const [showTableControls, setShowTableControls] = useState(false);
   const [tablePosition, setTablePosition] = useState({ top: 0, left: 0 });
 
   // Initialize content
@@ -69,7 +70,7 @@ export const WikiRichEditor = ({
     }
   }, [value, isFocused]);
 
-  const handleInput = useCallback(() => {
+  const triggerUpdate = useCallback(() => {
     if (editorRef.current) {
       const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
       onChange(html);
@@ -84,69 +85,104 @@ export const WikiRichEditor = ({
     if (table && editorRef.current) {
       const editorRect = editorRef.current.getBoundingClientRect();
       const tableRect = table.getBoundingClientRect();
-      setSelectedTable(table);
+      selectedTableRef.current = table;
+      setShowTableControls(true);
       setTablePosition({
         top: tableRect.top - editorRect.top,
         left: tableRect.left - editorRect.left
       });
     } else {
-      setSelectedTable(null);
+      selectedTableRef.current = null;
+      setShowTableControls(false);
     }
   }, []);
 
   // Table manipulation functions
-  const addTableRow = useCallback(() => {
-    if (!selectedTable) return;
-    const tbody = selectedTable.querySelector('tbody') || selectedTable;
-    const lastRow = tbody.querySelector('tr:last-child');
+  const addTableRow = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const table = selectedTableRef.current;
+    if (!table) return;
+    
+    // Find the last row in tbody or table itself
+    const tbody = table.querySelector('tbody');
+    const container = tbody || table;
+    const rows = container.querySelectorAll('tr');
+    const lastRow = rows[rows.length - 1];
+    
     if (lastRow) {
-      const newRow = lastRow.cloneNode(true) as HTMLTableRowElement;
-      Array.from(newRow.cells).forEach((cell) => {
-        cell.textContent = '';
-      });
-      tbody.appendChild(newRow);
-      handleInput();
+      const newRow = document.createElement('tr');
+      const cellCount = lastRow.cells.length;
+      for (let i = 0; i < cellCount; i++) {
+        const cell = document.createElement('td');
+        cell.className = 'border border-border p-2';
+        cell.innerHTML = '&nbsp;';
+        newRow.appendChild(cell);
+      }
+      container.appendChild(newRow);
+      triggerUpdate();
     }
-  }, [selectedTable, handleInput]);
+  }, [triggerUpdate]);
 
-  const removeTableRow = useCallback(() => {
-    if (!selectedTable) return;
-    const tbody = selectedTable.querySelector('tbody') || selectedTable;
-    const rows = tbody.querySelectorAll('tr');
+  const removeTableRow = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const table = selectedTableRef.current;
+    if (!table) return;
+    
+    const tbody = table.querySelector('tbody');
+    const container = tbody || table;
+    const rows = container.querySelectorAll('tr');
+    
     if (rows.length > 1) {
       rows[rows.length - 1].remove();
-      handleInput();
+      triggerUpdate();
     }
-  }, [selectedTable, handleInput]);
+  }, [triggerUpdate]);
 
-  const addTableColumn = useCallback(() => {
-    if (!selectedTable) return;
-    const rows = selectedTable.querySelectorAll('tr');
-    rows.forEach((row) => {
-      const isHeader = row.parentElement?.tagName === 'THEAD';
-      const cell = document.createElement(isHeader ? 'th' : 'td');
-      cell.className = isHeader 
+  const addTableColumn = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const table = selectedTableRef.current;
+    if (!table) return;
+    
+    const allRows = table.querySelectorAll('tr');
+    allRows.forEach((row) => {
+      const isHeader = row.parentElement?.tagName === 'THEAD' || row.querySelector('th');
+      const existingCells = row.querySelectorAll('th, td');
+      const isHeaderRow = existingCells[0]?.tagName === 'TH';
+      
+      const cell = document.createElement(isHeaderRow ? 'th' : 'td');
+      cell.className = isHeaderRow 
         ? 'border border-border p-2 bg-muted text-left'
         : 'border border-border p-2';
-      cell.textContent = isHeader ? `Column ${row.cells.length + 1}` : '';
+      cell.innerHTML = isHeaderRow ? `Col ${existingCells.length + 1}` : '&nbsp;';
       row.appendChild(cell);
     });
-    handleInput();
-  }, [selectedTable, handleInput]);
+    triggerUpdate();
+  }, [triggerUpdate]);
 
-  const removeTableColumn = useCallback(() => {
-    if (!selectedTable) return;
-    const rows = selectedTable.querySelectorAll('tr');
-    const firstRow = rows[0];
+  const removeTableColumn = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const table = selectedTableRef.current;
+    if (!table) return;
+    
+    const allRows = table.querySelectorAll('tr');
+    const firstRow = allRows[0];
     if (firstRow && firstRow.cells.length > 1) {
-      rows.forEach((row) => {
+      allRows.forEach((row) => {
         if (row.cells.length > 0) {
           row.deleteCell(row.cells.length - 1);
         }
       });
-      handleInput();
+      triggerUpdate();
     }
-  }, [selectedTable, handleInput]);
+  }, [triggerUpdate]);
+
+  const handleInput = useCallback(() => {
+    triggerUpdate();
+  }, [triggerUpdate]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -496,56 +532,69 @@ export const WikiRichEditor = ({
 
       {/* Editor Container with Table Controls */}
       <div className="relative">
-        {/* Table Controls */}
-        {selectedTable && (
+        {/* Table Controls Floating Toolbar */}
+        {showTableControls && (
           <div 
-            className="absolute z-20 flex items-center gap-1 p-1 bg-background border rounded-lg shadow-lg"
-            style={{ top: tablePosition.top - 40, left: tablePosition.left }}
+            className="absolute z-20 flex items-center gap-2 px-2 py-1.5 bg-popover border rounded-lg shadow-md"
+            style={{ 
+              top: Math.max(8, tablePosition.top - 44), 
+              left: Math.max(8, tablePosition.left) 
+            }}
+            onMouseDown={(e) => e.preventDefault()}
           >
-            <div className="flex items-center gap-0.5 pr-2 border-r">
-              <span className="text-xs text-muted-foreground px-1">Row</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-medium text-muted-foreground mr-1">Row:</span>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-7 px-2 text-xs gap-1"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={addTableRow}
-                title="Add Row"
+                title="Add Row Below"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
+                Add
               </Button>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={removeTableRow}
-                title="Remove Row"
+                title="Remove Last Row"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3" />
+                Remove
               </Button>
             </div>
-            <div className="flex items-center gap-0.5">
-              <span className="text-xs text-muted-foreground px-1">Col</span>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-medium text-muted-foreground mr-1">Column:</span>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-7 px-2 text-xs gap-1"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={addTableColumn}
-                title="Add Column"
+                title="Add Column Right"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
+                Add
               </Button>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={removeTableColumn}
-                title="Remove Column"
+                title="Remove Last Column"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3" />
+                Remove
               </Button>
             </div>
           </div>
