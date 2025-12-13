@@ -284,21 +284,26 @@ const SuperAdminAnalytics = () => {
     }
 
     const orgGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      let intervalStart: Date;
       let intervalEnd: Date;
       switch (viewMode) {
         case 'week':
+          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
           intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
           break;
         case 'month':
+          intervalStart = startOfMonth(intervalDate);
           intervalEnd = endOfMonth(intervalDate);
           break;
         default:
+          intervalStart = startOfDay(intervalDate);
           intervalEnd = endOfDay(intervalDate);
       }
       
+      // Count orgs created WITHIN this interval (incremental, not cumulative)
       const count = data.orgs.filter(org => {
         const createdAt = new Date(org.created_at);
-        return createdAt <= intervalEnd;
+        return createdAt >= intervalStart && createdAt <= intervalEnd;
       }).length;
 
       return {
@@ -308,21 +313,26 @@ const SuperAdminAnalytics = () => {
     });
 
     const userGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      let intervalStart: Date;
       let intervalEnd: Date;
       switch (viewMode) {
         case 'week':
+          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
           intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
           break;
         case 'month':
+          intervalStart = startOfMonth(intervalDate);
           intervalEnd = endOfMonth(intervalDate);
           break;
         default:
+          intervalStart = startOfDay(intervalDate);
           intervalEnd = endOfDay(intervalDate);
       }
       
+      // Count users created WITHIN this interval (incremental, not cumulative)
       const count = data.users.filter(user => {
         const createdAt = new Date(user.created_at);
-        return createdAt <= intervalEnd;
+        return createdAt >= intervalStart && createdAt <= intervalEnd;
       }).length;
 
       return {
