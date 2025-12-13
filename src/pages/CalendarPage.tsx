@@ -32,7 +32,8 @@ import {
   Repeat,
   Globe,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -71,8 +72,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ViewMode = "month" | "week" | "day";
+type DateRangeFilter = "7days" | "14days" | "30days" | "thisMonth" | "all";
 
 interface CalendarItem {
   id: string;
@@ -97,6 +107,8 @@ const CalendarPage = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [activeFilters, setActiveFilters] = useState<Set<CalendarItem["type"]>>(new Set());
   const [showAllMobileEvents, setShowAllMobileEvents] = useState(false);
+  const [eventSearch, setEventSearch] = useState("");
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("7days");
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
@@ -466,9 +478,19 @@ const CalendarPage = () => {
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [leaves, calendarEvents, employees, reviews, currentDate, offices]);
 
-  // Filter items for selected date or upcoming (respecting type filters)
+  // Filter items for selected date or upcoming (respecting type filters, search, and date range)
   const filteredItems = useMemo(() => {
-    const baseItems = activeFilters.size === 0 ? allItems : allItems.filter((item) => activeFilters.has(item.type));
+    let baseItems = activeFilters.size === 0 ? allItems : allItems.filter((item) => activeFilters.has(item.type));
+    
+    // Apply search filter
+    if (eventSearch.trim()) {
+      const searchLower = eventSearch.toLowerCase();
+      baseItems = baseItems.filter((item) => 
+        item.title.toLowerCase().includes(searchLower) ||
+        item.employeeName?.toLowerCase().includes(searchLower) ||
+        item.subtitle?.toLowerCase().includes(searchLower)
+      );
+    }
     
     if (selectedDate) {
       return baseItems.filter((item) => {
@@ -480,14 +502,36 @@ const CalendarPage = () => {
         return isSameDay(item.date, selectedDate);
       });
     }
-    // Show upcoming items (from today onwards)
+    
+    // Apply date range filter for upcoming items
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    let endDate: Date;
+    switch (dateRangeFilter) {
+      case "7days":
+        endDate = addDays(today, 7);
+        break;
+      case "14days":
+        endDate = addDays(today, 14);
+        break;
+      case "30days":
+        endDate = addDays(today, 30);
+        break;
+      case "thisMonth":
+        endDate = endOfMonth(today);
+        break;
+      case "all":
+      default:
+        endDate = addDays(today, 365); // Show up to 1 year
+        break;
+    }
+    
     return baseItems.filter((item) => {
       const itemEnd = item.endDate || item.date;
-      return itemEnd >= today;
-    }).slice(0, 20);
-  }, [allItems, selectedDate, activeFilters]);
+      return itemEnd >= today && item.date <= endDate;
+    });
+  }, [allItems, selectedDate, activeFilters, eventSearch, dateRangeFilter]);
 
   // Get calendar days based on view mode
   const calendarDays = useMemo(() => {
@@ -626,14 +670,30 @@ const CalendarPage = () => {
       "flex flex-col",
       isMobile ? "bg-card border-t border-border" : "flex-1"
     )}>
-      <div className={cn("border-b border-border", isMobile ? "p-3" : "p-6")}>
-        <h2 className={cn("font-semibold text-foreground", isMobile ? "text-base" : "text-lg")}>
-          {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
-        </h2>
+      <div className={cn("border-b border-border", isMobile ? "p-3" : "p-6 pb-4")}>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={cn("font-semibold text-foreground", isMobile ? "text-base" : "text-lg")}>
+            {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
+          </h2>
+          {!selectedDate && (
+            <Select value={dateRangeFilter} onValueChange={(v) => setDateRangeFilter(v as DateRangeFilter)}>
+              <SelectTrigger className={cn("w-auto h-7 text-xs", isMobile ? "text-[10px]" : "")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7days">Next 7 days</SelectItem>
+                <SelectItem value="14days">Next 14 days</SelectItem>
+                <SelectItem value="30days">Next 30 days</SelectItem>
+                <SelectItem value="thisMonth">This month</SelectItem>
+                <SelectItem value="all">All upcoming</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground mt-0.5">
           {selectedDate 
             ? `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`
-            : "Don't miss scheduled events"
+            : `${filteredItems.length} event${filteredItems.length !== 1 ? 's' : ''}`
           }
         </p>
         {selectedDate && (
@@ -646,9 +706,20 @@ const CalendarPage = () => {
             ← Show all upcoming
           </Button>
         )}
+        {!selectedDate && (
+          <div className="relative mt-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search events..."
+              value={eventSearch}
+              onChange={(e) => setEventSearch(e.target.value)}
+              className={cn("pl-8 h-8 text-xs", isMobile ? "text-xs" : "")}
+            />
+          </div>
+        )}
       </div>
       
-      <div className={isMobile ? "" : "flex-1 overflow-auto"}>
+      <ScrollArea className={isMobile ? "max-h-[300px]" : "flex-1"}>
         <div className={cn("space-y-2", isMobile ? "p-2" : "p-3")}>
           {filteredItems.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
@@ -790,7 +861,7 @@ const CalendarPage = () => {
             </button>
           )}
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 
