@@ -938,6 +938,11 @@ const CalendarPage = () => {
             </div>
           </div>
 
+          {/* World Clock Cards */}
+          <WorldClockCards 
+            officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
+          />
+
           {/* Calendar Grid */}
           <div className="flex-1 p-4 lg:p-6 overflow-auto">
             {viewMode === "month" && (
@@ -1182,11 +1187,6 @@ const CalendarPage = () => {
             )}
 
           </div>
-
-          {/* World Clock Cards */}
-          <WorldClockCards 
-            officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
-          />
         </div>
       </div>
 
