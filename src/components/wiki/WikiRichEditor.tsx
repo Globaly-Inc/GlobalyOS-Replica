@@ -923,21 +923,40 @@ export const WikiRichEditor = ({
         const container = range.commonAncestorContainer;
         const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
         
-        // Handle blockquote - exit on double Enter (empty line)
+        // Handle blockquote - insert <br> for new line, exit on double Enter (empty line after <br>)
         const blockquote = element?.closest('blockquote');
         if (blockquote && !element?.closest('li')) {
-          // Check if current line is empty
           const currentNode = range.startContainer;
-          const isEmptyLine = (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent?.trim() === '') ||
-                              (currentNode.nodeType === Node.ELEMENT_NODE && (currentNode as HTMLElement).innerHTML?.trim() === '') ||
-                              (currentNode.nodeType === Node.ELEMENT_NODE && (currentNode as HTMLElement).innerHTML === '<br>');
-          
-          // Check if we're at the end of the blockquote with an empty paragraph/div
           const parentElement = currentNode.nodeType === Node.TEXT_NODE ? currentNode.parentElement : currentNode as HTMLElement;
-          const isEmptyBlock = parentElement?.tagName?.match(/^(P|DIV)$/i) && 
-                               (parentElement.textContent?.trim() === '' || parentElement.innerHTML === '<br>');
           
-          if (isEmptyBlock || isEmptyLine) {
+          // Check if we're on an empty line (just pressed Enter on a line that only has <br>)
+          // This means the user pressed Enter twice - time to exit
+          const isAtEmptyLine = (() => {
+            // Check if previous sibling is a <br> and current position is at the start
+            if (currentNode.nodeType === Node.TEXT_NODE) {
+              const text = currentNode.textContent || '';
+              const offset = range.startOffset;
+              // Check if text before cursor is empty and there's a <br> before
+              if (offset === 0 || text.substring(0, offset).trim() === '') {
+                const prevSibling = currentNode.previousSibling;
+                if (prevSibling?.nodeName === 'BR') {
+                  return true;
+                }
+              }
+            } else if (currentNode.nodeName === 'BR') {
+              // Cursor is right at a <br>
+              const prevSibling = currentNode.previousSibling;
+              if (prevSibling?.nodeName === 'BR') {
+                return true;
+              }
+            } else if ((currentNode as HTMLElement).innerHTML === '<br>' || 
+                       (currentNode as HTMLElement).textContent?.trim() === '') {
+              return true;
+            }
+            return false;
+          })();
+          
+          if (isAtEmptyLine) {
             e.preventDefault();
             
             // Create a new paragraph outside the blockquote
@@ -945,9 +964,15 @@ export const WikiRichEditor = ({
             p.innerHTML = '<br>';
             blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
             
-            // Remove the empty element from blockquote
-            if (parentElement && parentElement !== blockquote) {
-              parentElement.remove();
+            // Remove the trailing <br> from blockquote
+            const lastChild = blockquote.lastChild;
+            if (lastChild?.nodeName === 'BR') {
+              lastChild.remove();
+            }
+            // Also remove empty text nodes at the end
+            const newLastChild = blockquote.lastChild;
+            if (newLastChild?.nodeType === Node.TEXT_NODE && newLastChild.textContent?.trim() === '') {
+              newLastChild.remove();
             }
             
             // If blockquote is now empty, remove it
@@ -958,6 +983,23 @@ export const WikiRichEditor = ({
             // Move cursor to new paragraph
             const newRange = document.createRange();
             newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            triggerUpdate();
+            return;
+          } else {
+            // Normal Enter inside blockquote - insert <br> for new line
+            e.preventDefault();
+            
+            const br = document.createElement('br');
+            range.deleteContents();
+            range.insertNode(br);
+            
+            // Move cursor after the <br>
+            const newRange = document.createRange();
+            newRange.setStartAfter(br);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
