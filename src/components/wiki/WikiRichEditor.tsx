@@ -915,13 +915,58 @@ export const WikiRichEditor = ({
       }
     }
     
-    // Handle Enter in lists
+    // Handle Enter in blockquotes and lists
     if (e.key === 'Enter' && !e.shiftKey) {
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const container = range.commonAncestorContainer;
         const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+        
+        // Handle blockquote - exit on double Enter (empty line)
+        const blockquote = element?.closest('blockquote');
+        if (blockquote && !element?.closest('li')) {
+          // Check if current line is empty
+          const currentNode = range.startContainer;
+          const isEmptyLine = (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent?.trim() === '') ||
+                              (currentNode.nodeType === Node.ELEMENT_NODE && (currentNode as HTMLElement).innerHTML?.trim() === '') ||
+                              (currentNode.nodeType === Node.ELEMENT_NODE && (currentNode as HTMLElement).innerHTML === '<br>');
+          
+          // Check if we're at the end of the blockquote with an empty paragraph/div
+          const parentElement = currentNode.nodeType === Node.TEXT_NODE ? currentNode.parentElement : currentNode as HTMLElement;
+          const isEmptyBlock = parentElement?.tagName?.match(/^(P|DIV)$/i) && 
+                               (parentElement.textContent?.trim() === '' || parentElement.innerHTML === '<br>');
+          
+          if (isEmptyBlock || isEmptyLine) {
+            e.preventDefault();
+            
+            // Create a new paragraph outside the blockquote
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            blockquote.parentNode?.insertBefore(p, blockquote.nextSibling);
+            
+            // Remove the empty element from blockquote
+            if (parentElement && parentElement !== blockquote) {
+              parentElement.remove();
+            }
+            
+            // If blockquote is now empty, remove it
+            if (blockquote.textContent?.trim() === '' || blockquote.innerHTML === '' || blockquote.innerHTML === '<br>') {
+              blockquote.remove();
+            }
+            
+            // Move cursor to new paragraph
+            const newRange = document.createRange();
+            newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            triggerUpdate();
+            return;
+          }
+        }
+        
         const li = element?.closest('li');
         
         if (li) {
