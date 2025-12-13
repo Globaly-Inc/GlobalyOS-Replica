@@ -309,7 +309,7 @@ export const WikiRichEditor = ({
   }, [triggerUpdate]);
 
   const formatBlock = useCallback((tag: string) => {
-    document.execCommand('formatBlock', false, tag);
+    document.execCommand('formatBlock', false, `<${tag}>`);
     editorRef.current?.focus();
     triggerUpdate();
   }, [triggerUpdate]);
