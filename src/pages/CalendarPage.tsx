@@ -29,17 +29,26 @@ import {
   CalendarDays,
   Pencil,
   Trash2,
-  Repeat
+  Repeat,
+  Globe
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
+import { useTimezone, getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AddCalendarEventDialog from "@/components/dialogs/AddCalendarEventDialog";
 import EditCalendarEventDialog from "@/components/dialogs/EditCalendarEventDialog";
 import {
@@ -95,6 +104,7 @@ const CalendarPage = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const { user } = useAuth();
+  const { timezone, setTimezone } = useTimezone();
   const canManageEvents = isAdmin || isHR;
 
   const monthStart = startOfMonth(currentDate);
@@ -971,22 +981,41 @@ const CalendarPage = () => {
               </div>
             )}
 
-            {/* Legend */}
+            {/* Legend and Timezone */}
             <div className="mt-6 px-4 py-3 bg-muted/30 rounded-xl border border-border/50">
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {[
-                  { type: "leave" as const, label: "Leave" },
-                  { type: "holiday" as const, label: "Holiday" },
-                  { type: "event" as const, label: "Event" },
-                  { type: "birthday" as const, label: "Birthday" },
-                  { type: "anniversary" as const, label: "Anniversary" },
-                  { type: "review" as const, label: "Review" },
-                ].map((item) => (
-                  <div key={item.type} className="flex items-center gap-2">
-                    <div className={cn("h-3 w-3 rounded-full shrink-0", getTypeColor(item.type))} />
-                    <span className="text-xs text-foreground/80">{item.label}</span>
-                  </div>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {[
+                    { type: "leave" as const, label: "Leave" },
+                    { type: "holiday" as const, label: "Holiday" },
+                    { type: "event" as const, label: "Event" },
+                    { type: "birthday" as const, label: "Birthday" },
+                    { type: "anniversary" as const, label: "Anniversary" },
+                    { type: "review" as const, label: "Review" },
+                  ].map((item) => (
+                    <div key={item.type} className="flex items-center gap-2">
+                      <div className={cn("h-3 w-3 rounded-full shrink-0", getTypeColor(item.type))} />
+                      <span className="text-xs text-foreground/80">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Timezone Selector */}
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger className="w-[200px] h-8 text-xs">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {getTimezones().map((tz) => (
+                        <SelectItem key={tz} value={tz} className="text-xs">
+                          {formatTimezoneLabel(tz)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>

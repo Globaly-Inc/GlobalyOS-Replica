@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { OrganizationProvider } from "@/hooks/useOrganization";
+import { TimezoneProvider } from "@/hooks/useTimezone";
 import Landing from "./pages/Landing";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -43,33 +44,35 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <OrganizationProvider>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/landing" element={<Landing />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/join" element={<Join />} />
-              <Route path="/install" element={<Install />} />
-              <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-              <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
-              <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
-              <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
-              <Route path="/team/:id/attendance" element={<ProtectedRoute><AttendanceHistory /></ProtectedRoute>} />
-              <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
-              <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-              <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
-              <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-              <Route path="/team/:id/reviews" element={<ProtectedRoute><PerformanceReviews /></ProtectedRoute>} />
-              <Route path="/kpi-dashboard" element={<ProtectedRoute><TeamKPIDashboard /></ProtectedRoute>} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </OrganizationProvider>
+        <TimezoneProvider>
+          <OrganizationProvider>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/landing" element={<Landing />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/join" element={<Join />} />
+                <Route path="/install" element={<Install />} />
+                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
+                <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
+                <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
+                <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
+                <Route path="/team/:id/attendance" element={<ProtectedRoute><AttendanceHistory /></ProtectedRoute>} />
+                <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
+                <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
+                <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                <Route path="/team/:id/reviews" element={<ProtectedRoute><PerformanceReviews /></ProtectedRoute>} />
+                <Route path="/kpi-dashboard" element={<ProtectedRoute><TeamKPIDashboard /></ProtectedRoute>} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </OrganizationProvider>
+        </TimezoneProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
