@@ -211,25 +211,28 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
         ) : page.content ? (
           <div className="flex gap-6 relative">
             {/* Main content */}
-            <div className={`flex-1 min-w-0 transition-all duration-300 ${showToc ? 'lg:mr-0' : ''}`}>
+            <div className={`flex-1 min-w-0 transition-all duration-300`}>
               <WikiMarkdownRenderer content={page.content} />
             </div>
-            {/* Table of Contents - only show on larger screens */}
-            <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
-              <div className="sticky top-0">
-                <WikiTableOfContents content={page.content} />
+            {/* Table of Contents with toggle - only show on larger screens */}
+            <div className={`hidden lg:flex flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
+              <div className="sticky top-0 flex">
+                {/* TOC Toggle Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowToc(!showToc)}
+                  className="h-8 w-8 p-0 flex-shrink-0 hover:bg-muted border-r"
+                  title={showToc ? "Hide Table of Contents" : "Show Table of Contents"}
+                >
+                  {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                </Button>
+                {/* TOC Content */}
+                <div className={`transition-all duration-300 overflow-hidden ${showToc ? 'w-56 opacity-100 ml-2' : 'w-0 opacity-0'}`}>
+                  <WikiTableOfContents content={page.content} />
+                </div>
               </div>
             </div>
-            {/* TOC Toggle Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowToc(!showToc)}
-              className="hidden lg:flex fixed right-6 top-40 z-10 h-8 w-8 p-0 bg-background border shadow-sm hover:bg-muted"
-              title={showToc ? "Hide Table of Contents" : "Show Table of Contents"}
-            >
-              {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-            </Button>
           </div>
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>
