@@ -512,6 +512,62 @@ export type Database = {
           },
         ]
       }
+      chat_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          employee_id: string
+          id: string
+          message_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          employee_id: string
+          id?: string
+          message_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          employee_id?: string
+          id?: string
+          message_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
