@@ -2,6 +2,7 @@ export interface ChatConversation {
   id: string;
   organization_id: string;
   name: string | null;
+  icon_url: string | null;
   is_group: boolean;
   created_by: string;
   created_at: string;
@@ -141,4 +142,6 @@ export interface ActiveChat {
   id: string;
   name: string;
   isGroup?: boolean;
+  iconUrl?: string | null;
+  participantNames?: string[];
 }

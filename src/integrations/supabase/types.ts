@@ -411,6 +411,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          icon_url: string | null
           id: string
           is_group: boolean
           name: string | null
@@ -420,6 +421,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          icon_url?: string | null
           id?: string
           is_group?: boolean
           name?: string | null
@@ -429,6 +431,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          icon_url?: string | null
           id?: string
           is_group?: boolean
           name?: string | null
