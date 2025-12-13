@@ -166,6 +166,7 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
           // Create a pre element for display
           const pre = document.createElement('pre');
           pre.className = 'wiki-code-content-view';
+          pre.setAttribute('data-raw-code', rawCode);
           pre.style.backgroundColor = '#1e1e1e';
           pre.style.padding = '1rem';
           pre.style.margin = '0';
@@ -187,9 +188,11 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         }
       } else if (codeDisplay && grammar) {
         // Already has proper structure, just highlight
+        (codeDisplay as HTMLElement).setAttribute('data-raw-code', rawCode);
         codeDisplay.innerHTML = Prism.highlight(rawCode, grammar, prismLang);
       } else if (codeContentDiv && grammar) {
         // Highlight directly in codeContentDiv
+        codeContentDiv.setAttribute('data-raw-code', rawCode);
         codeContentDiv.innerHTML = Prism.highlight(rawCode, grammar, prismLang);
       }
       
