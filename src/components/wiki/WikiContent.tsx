@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { Pencil, Save, X, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,16 +87,21 @@ export const WikiContent = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
+  
+  // Ref to store the callback for synchronous access
+  const onEditingStateChangeRef = useRef(onEditingStateChange);
+  onEditingStateChangeRef.current = onEditingStateChange;
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = isEditing && page && (
     editTitle !== page.title || editContent !== (page.content || "")
   );
 
-  // Notify parent of editing state changes
-  useEffect(() => {
-    onEditingStateChange?.(isEditing, !!hasUnsavedChanges);
-  }, [isEditing, hasUnsavedChanges, onEditingStateChange]);
+  // Use useLayoutEffect to notify parent SYNCHRONOUSLY before browser paints
+  // This ensures the parent has the latest state before any click handlers run
+  useLayoutEffect(() => {
+    onEditingStateChangeRef.current?.(isEditing, !!hasUnsavedChanges);
+  }, [isEditing, hasUnsavedChanges]);
 
   // Handle browser beforeunload event
   useEffect(() => {
@@ -122,6 +127,8 @@ export const WikiContent = ({
       setEditTitle(page.title);
       setEditContent(page.content || "");
       setIsEditing(true);
+      // Immediately notify parent - no unsaved changes yet since we just started
+      onEditingStateChangeRef.current?.(true, false);
     }
   };
 
@@ -129,7 +136,28 @@ export const WikiContent = ({
     setIsEditing(false);
     setEditTitle("");
     setEditContent("");
+    // Immediately notify parent - no longer editing
+    onEditingStateChangeRef.current?.(false, false);
   };
+
+  // Wrapper handlers that immediately notify parent of changes
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setEditTitle(newTitle);
+    // Immediately compute and notify parent of unsaved changes
+    if (page) {
+      const hasChanges = newTitle !== page.title || editContent !== (page.content || "");
+      onEditingStateChangeRef.current?.(true, hasChanges);
+    }
+  }, [page, editContent]);
+
+  const handleContentChange = useCallback((newContent: string) => {
+    setEditContent(newContent);
+    // Immediately compute and notify parent of unsaved changes
+    if (page) {
+      const hasChanges = editTitle !== page.title || newContent !== (page.content || "");
+      onEditingStateChangeRef.current?.(true, hasChanges);
+    }
+  }, [page, editTitle]);
 
   const handleSave = async () => {
     if (page && editTitle.trim()) {
@@ -137,6 +165,8 @@ export const WikiContent = ({
       try {
         await onSave(page.id, editTitle.trim(), editContent);
         setIsEditing(false);
+        // Immediately notify parent - no longer editing
+        onEditingStateChangeRef.current?.(false, false);
       } finally {
         setIsSaving(false);
       }
@@ -149,6 +179,8 @@ export const WikiContent = ({
       try {
         await onSave(page.id, editTitle.trim(), editContent);
         setIsEditing(false);
+        // Immediately notify parent - no longer editing
+        onEditingStateChangeRef.current?.(false, false);
         onNavigationConfirm?.();
       } finally {
         setIsSaving(false);
@@ -160,6 +192,8 @@ export const WikiContent = ({
     setIsEditing(false);
     setEditTitle("");
     setEditContent("");
+    // Immediately notify parent - no longer editing
+    onEditingStateChangeRef.current?.(false, false);
     onNavigationConfirm?.();
   };
 
@@ -213,7 +247,7 @@ export const WikiContent = ({
             {isEditing ? (
               <Input
                 value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 className="text-2xl font-bold h-auto py-1"
                 placeholder="Page title..."
               />
@@ -300,7 +334,7 @@ export const WikiContent = ({
         {isEditing ? (
           <WikiRichEditor
             value={editContent}
-            onChange={setEditContent}
+            onChange={handleContentChange}
             organizationId={organizationId}
             placeholder="Start writing..."
             minHeight="400px"
