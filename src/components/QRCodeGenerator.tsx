@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { QrCode, RefreshCw, Download, Building2, ExternalLink } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QrCode, RefreshCw, Download, Building2, ExternalLink, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 import { formatDateTime } from "@/lib/utils";
 import QRCode from "qrcode";
+import { QRLocationPicker } from "./QRLocationPicker";
 
 interface Office {
   id: string;
@@ -232,70 +234,108 @@ export const QRCodeGenerator = () => {
                 </div>
 
                 {selectedOffice && (
-                  <>
-                    {isLoadingQR ? (
-                      <div className="flex items-center justify-center h-[250px]">
-                        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : qrCodeDataUrl ? (
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm border">
-                          <img 
-                            src={qrCodeDataUrl} 
-                            alt="Attendance QR Code" 
-                            className="w-[220px] h-[220px]"
-                          />
+                  <Tabs defaultValue="qr" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="qr">
+                        <QrCode className="h-4 w-4 mr-2" />
+                        QR Code
+                      </TabsTrigger>
+                      <TabsTrigger value="location">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Location
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="qr" className="space-y-4 mt-4">
+                      {isLoadingQR ? (
+                        <div className="flex items-center justify-center h-[250px]">
+                          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium">{selectedOfficeName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Generated: {formatDateTime(currentQRCode?.created_at || "")}
+                      ) : qrCodeDataUrl ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="bg-white p-4 rounded-lg shadow-sm border">
+                            <img 
+                              src={qrCodeDataUrl} 
+                              alt="Attendance QR Code" 
+                              className="w-[220px] h-[220px]"
+                            />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium">{selectedOfficeName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Generated: {formatDateTime(currentQRCode?.created_at || "")}
+                            </p>
+                            {currentQRCode?.latitude && currentQRCode?.longitude && (
+                              <p className="text-xs text-green-600 mt-1">
+                                <MapPin className="h-3 w-3 inline mr-1" />
+                                Location enabled ({currentQRCode.radius_meters}m radius)
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[250px] bg-muted/50 rounded-lg">
+                          <QrCode className="h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">No QR code generated yet</p>
+                          <Button
+                            onClick={() => generateMutation.mutate()}
+                            disabled={generateMutation.isPending}
+                            className="mt-4"
+                            size="sm"
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-2 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                            Generate QR Code
+                          </Button>
+                        </div>
+                      )}
+
+                      {qrCodeDataUrl && (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleDownload}
+                            className="flex-1"
+                            size="sm"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download QR Code
+                          </Button>
+                          <Button
+                            onClick={() => generateMutation.mutate()}
+                            disabled={generateMutation.isPending}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                          </Button>
+                        </div>
+                      )}
+
+                      {currentQRCode && (
+                        <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-2 rounded-lg text-center">
+                          Regenerating will expire the current QR code
+                        </p>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="location" className="mt-4">
+                      {currentQRCode ? (
+                        <QRLocationPicker
+                          qrCodeId={currentQRCode.id}
+                          officeId={selectedOffice}
+                          initialLatitude={currentQRCode.latitude}
+                          initialLongitude={currentQRCode.longitude}
+                          initialRadius={currentQRCode.radius_meters}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                          <MapPin className="h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground text-center">
+                            Generate a QR code first to set location
                           </p>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-[250px] bg-muted/50 rounded-lg">
-                        <QrCode className="h-12 w-12 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">No QR code generated yet</p>
-                        <Button
-                          onClick={() => generateMutation.mutate()}
-                          disabled={generateMutation.isPending}
-                          className="mt-4"
-                          size="sm"
-                        >
-                          <RefreshCw className={`h-4 w-4 mr-2 ${generateMutation.isPending ? "animate-spin" : ""}`} />
-                          Generate QR Code
-                        </Button>
-                      </div>
-                    )}
-
-                    {qrCodeDataUrl && (
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={handleDownload}
-                          className="flex-1"
-                          size="sm"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download QR Code
-                        </Button>
-                        <Button
-                          onClick={() => generateMutation.mutate()}
-                          disabled={generateMutation.isPending}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
-                        </Button>
-                      </div>
-                    )}
-
-                    {currentQRCode && (
-                      <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-2 rounded-lg text-center">
-                        Regenerating will expire the current QR code
-                      </p>
-                    )}
-                  </>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 )}
               </div>
             </DialogContent>
