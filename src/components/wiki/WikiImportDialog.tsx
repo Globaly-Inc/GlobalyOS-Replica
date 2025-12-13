@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, FileJson, AlertCircle, CheckCircle2, FileArchive } from "lucide-react";
+import { Upload, FileJson, AlertCircle, CheckCircle2, FileArchive, FileText, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,7 +38,7 @@ export const WikiImportDialog = ({
   const [isImporting, setIsImporting] = useState(false);
   const [previewData, setPreviewData] = useState<ImportedPage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<"json" | "zip" | null>(null);
+  const [fileType, setFileType] = useState<"json" | "zip" | "html" | "md" | null>(null);
   const [attachments, setAttachments] = useState<Map<string, Blob>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,11 +50,14 @@ export const WikiImportDialog = ({
     setPreviewData(null);
     setAttachments(new Map());
 
-    const isJson = file.name.endsWith(".json");
-    const isZip = file.name.endsWith(".zip");
+    const fileName = file.name.toLowerCase();
+    const isJson = fileName.endsWith(".json");
+    const isZip = fileName.endsWith(".zip");
+    const isHtml = fileName.endsWith(".html") || fileName.endsWith(".htm");
+    const isMd = fileName.endsWith(".md") || fileName.endsWith(".markdown");
 
-    if (!isJson && !isZip) {
-      setError("Please select a JSON or ZIP file");
+    if (!isJson && !isZip && !isHtml && !isMd) {
+      setError("Please select a JSON, ZIP, HTML, or Markdown file");
       return;
     }
 
@@ -65,6 +68,12 @@ export const WikiImportDialog = ({
       } else if (isZip) {
         setFileType("zip");
         await parseZipFile(file);
+      } else if (isHtml) {
+        setFileType("html");
+        await parseHtmlFile(file);
+      } else if (isMd) {
+        setFileType("md");
+        await parseMarkdownFile(file);
       }
     } catch (err) {
       console.error("Parse error:", err);
@@ -76,6 +85,73 @@ export const WikiImportDialog = ({
     const text = await file.text();
     const json = JSON.parse(text);
     validateAndSetPages(json);
+  };
+
+  const parseHtmlFile = async (file: File) => {
+    const content = await file.text();
+    const title = extractTitleFromFilename(file.name);
+    setPreviewData([{ title, content }]);
+  };
+
+  const parseMarkdownFile = async (file: File) => {
+    const text = await file.text();
+    const title = extractTitleFromFilename(file.name);
+    const content = convertMarkdownToHtml(text);
+    setPreviewData([{ title, content }]);
+  };
+
+  const extractTitleFromFilename = (filename: string): string => {
+    // Remove extension and convert to readable title
+    return filename
+      .replace(/\.(html?|md|markdown)$/i, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const convertMarkdownToHtml = (markdown: string): string => {
+    // Basic markdown to HTML conversion
+    let html = markdown
+      // Headers
+      .replace(/^######\s+(.*)$/gm, "<h6>$1</h6>")
+      .replace(/^#####\s+(.*)$/gm, "<h5>$1</h5>")
+      .replace(/^####\s+(.*)$/gm, "<h4>$1</h4>")
+      .replace(/^###\s+(.*)$/gm, "<h3>$1</h3>")
+      .replace(/^##\s+(.*)$/gm, "<h2>$1</h2>")
+      .replace(/^#\s+(.*)$/gm, "<h1>$1</h1>")
+      // Bold and italic
+      .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/___(.+?)___/g, "<strong><em>$1</em></strong>")
+      .replace(/__(.+?)__/g, "<strong>$1</strong>")
+      .replace(/_(.+?)_/g, "<em>$1</em>")
+      // Code blocks
+      .replace(/```[\w]*\n([\s\S]*?)```/g, "<pre><code>$1</code></pre>")
+      .replace(/`(.+?)`/g, "<code>$1</code>")
+      // Links and images
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+      // Lists
+      .replace(/^\s*[-*+]\s+(.*)$/gm, "<li>$1</li>")
+      .replace(/^\s*\d+\.\s+(.*)$/gm, "<li>$1</li>")
+      // Blockquotes
+      .replace(/^>\s+(.*)$/gm, "<blockquote>$1</blockquote>")
+      // Horizontal rules
+      .replace(/^[-*_]{3,}$/gm, "<hr />")
+      // Line breaks and paragraphs
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br />");
+
+    // Wrap in paragraph tags
+    html = `<p>${html}</p>`;
+    
+    // Clean up empty paragraphs
+    html = html.replace(/<p>\s*<\/p>/g, "");
+    
+    // Wrap consecutive list items in ul
+    html = html.replace(/(<li>.*?<\/li>)+/gs, (match) => `<ul>${match}</ul>`);
+    
+    return html;
   };
 
   const parseZipFile = async (file: File) => {
@@ -348,7 +424,7 @@ export const WikiImportDialog = ({
             Import Wiki Pages
           </DialogTitle>
           <DialogDescription>
-            Import pages from a JSON or ZIP file. ZIP files can include attachments.
+            Import pages from JSON, ZIP, HTML, or Markdown files.
           </DialogDescription>
         </DialogHeader>
 
@@ -359,19 +435,21 @@ export const WikiImportDialog = ({
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="flex justify-center gap-2 mb-2">
-              <FileJson className="h-10 w-10 text-muted-foreground" />
-              <FileArchive className="h-10 w-10 text-muted-foreground" />
+              <FileJson className="h-8 w-8 text-muted-foreground" />
+              <FileArchive className="h-8 w-8 text-muted-foreground" />
+              <FileCode className="h-8 w-8 text-muted-foreground" />
+              <FileText className="h-8 w-8 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium text-foreground mb-1">
-              Click to select a JSON or ZIP file
+              Click to select a file
             </p>
             <p className="text-xs text-muted-foreground">
-              or drag and drop
+              JSON, ZIP, HTML, or Markdown
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,.zip"
+              accept=".json,.zip,.html,.htm,.md,.markdown"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -414,16 +492,22 @@ export const WikiImportDialog = ({
           {/* Format hints */}
           <div className="text-xs bg-muted/50 border border-border rounded-lg p-3 overflow-hidden">
             <p className="font-medium text-foreground mb-2">Supported formats:</p>
-            <div className="space-y-2 text-muted-foreground">
+            <div className="space-y-1.5 text-muted-foreground">
               <div>
                 <span className="font-medium text-foreground">JSON:</span>
-                <pre className="font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all mt-1">
-{`[{ "title": "Page", "content": "<p>HTML</p>", "folder": "Folder" }]`}
-                </pre>
+                <span className="ml-1">Array of pages with title/content</span>
               </div>
               <div>
                 <span className="font-medium text-foreground">ZIP:</span>
-                <span className="ml-1">Include pages.json + image/document files</span>
+                <span className="ml-1">pages.json + attachments</span>
+              </div>
+              <div>
+                <span className="font-medium text-foreground">HTML:</span>
+                <span className="ml-1">Single page (title from filename)</span>
+              </div>
+              <div>
+                <span className="font-medium text-foreground">Markdown:</span>
+                <span className="ml-1">.md file converted to HTML</span>
               </div>
             </div>
           </div>
