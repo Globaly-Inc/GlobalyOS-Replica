@@ -3,6 +3,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   Search,
   MoreVertical,
@@ -10,6 +17,9 @@ import {
   Video,
   Pin,
   History,
+  Users,
+  Settings,
+  UserPlus,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -21,7 +31,8 @@ import {
   useEditMessage,
   useDeleteMessage,
   useMessageReactions,
-  useToggleReaction
+  useToggleReaction,
+  useSpaceMembers,
 } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
@@ -30,6 +41,9 @@ import DateSeparator from "./DateSeparator";
 import ScrollToBottom from "./ScrollToBottom";
 import MessageSearch from "./MessageSearch";
 import ChatDropZone from "./ChatDropZone";
+import SpaceMembersDialog from "./SpaceMembersDialog";
+import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
+import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -76,6 +90,9 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showAddMembersDialog, setShowAddMembersDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -83,6 +100,11 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
   const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
   const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
+  const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
+  
+  // Check if current user is a space admin
+  const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
+  const isSpaceAdmin = currentMembership?.role === 'admin';
 
   const handleFilesDropped = useCallback((files: File[]) => {
     composerRef.current?.addFiles(files);
@@ -335,7 +357,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
               )}
               {activeChat.type === 'space' && (
                 <p className="text-xs text-muted-foreground">
-                  {messages.length} messages
+                  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
@@ -350,15 +372,49 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
             >
               <Search className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon">
-              <Phone className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Video className="h-4 w-4" />
-            </Button>
+            {activeChat.type === 'conversation' && (
+              <>
+                <Button variant="ghost" size="icon">
+                  <Phone className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Video className="h-4 w-4" />
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" onClick={onToggleRightPanel}>
               <Pin className="h-4 w-4" />
             </Button>
+            
+            {/* Space management menu */}
+            {activeChat.type === 'space' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowMembersDialog(true)}>
+                    <Users className="h-4 w-4 mr-2" />
+                    View members
+                  </DropdownMenuItem>
+                  {isSpaceAdmin && (
+                    <>
+                      <DropdownMenuItem onClick={() => setShowAddMembersDialog(true)}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add members
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Space settings
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -511,6 +567,34 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
           conversationId={conversationId}
           spaceId={spaceId}
         />
+        
+        {/* Space Management Dialogs */}
+        {activeChat.type === 'space' && spaceId && (
+          <>
+            <SpaceMembersDialog
+              open={showMembersDialog}
+              onOpenChange={setShowMembersDialog}
+              spaceId={spaceId}
+              spaceName={activeChat.name}
+              onAddMembers={() => {
+                setShowMembersDialog(false);
+                setShowAddMembersDialog(true);
+              }}
+            />
+            <AddSpaceMembersDialog
+              open={showAddMembersDialog}
+              onOpenChange={setShowAddMembersDialog}
+              spaceId={spaceId}
+              spaceName={activeChat.name}
+            />
+            <SpaceSettingsDialog
+              open={showSettingsDialog}
+              onOpenChange={setShowSettingsDialog}
+              spaceId={spaceId}
+              onDeleted={onBack}
+            />
+          </>
+        )}
       </div>
     </ChatDropZone>
   );

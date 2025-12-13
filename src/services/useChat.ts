@@ -800,3 +800,174 @@ export const useSaveMentions = () => {
     },
   });
 };
+
+// Get single space details
+export const useSpace = (spaceId: string | null) => {
+  return useQuery({
+    queryKey: ['chat-space', spaceId],
+    queryFn: async () => {
+      if (!spaceId) return null;
+
+      const { data, error } = await supabase
+        .from('chat_spaces')
+        .select('*')
+        .eq('id', spaceId)
+        .single();
+
+      if (error) throw error;
+
+      return data as {
+        id: string;
+        name: string;
+        description: string | null;
+        space_type: 'collaboration' | 'announcements';
+        access_type: 'public' | 'private';
+      };
+    },
+    enabled: !!spaceId,
+  });
+};
+
+// Update space settings
+export const useUpdateSpace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      name,
+      description,
+      spaceType,
+    }: {
+      spaceId: string;
+      name: string;
+      description?: string | null;
+      spaceType: 'collaboration' | 'announcements';
+    }) => {
+      const { error } = await supabase
+        .from('chat_spaces')
+        .update({
+          name,
+          description,
+          space_type: spaceType,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', spaceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+    },
+  });
+};
+
+// Delete space
+export const useDeleteSpace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      const { error } = await supabase
+        .from('chat_spaces')
+        .delete()
+        .eq('id', spaceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    },
+  });
+};
+
+// Add members to space
+export const useAddSpaceMembers = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeIds,
+    }: {
+      spaceId: string;
+      employeeIds: string[];
+    }) => {
+      if (!currentOrg?.id) throw new Error('Not authenticated');
+
+      const members = employeeIds.map((empId) => ({
+        space_id: spaceId,
+        employee_id: empId,
+        organization_id: currentOrg.id,
+        role: 'member' as const,
+      }));
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .insert(members);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    },
+  });
+};
+
+// Update space member role
+export const useUpdateSpaceMemberRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeId,
+      role,
+    }: {
+      spaceId: string;
+      employeeId: string;
+      role: 'admin' | 'member';
+    }) => {
+      const { error } = await supabase
+        .from('chat_space_members')
+        .update({ role })
+        .eq('space_id', spaceId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+    },
+  });
+};
+
+// Remove member from space
+export const useRemoveSpaceMember = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeId,
+    }: {
+      spaceId: string;
+      employeeId: string;
+    }) => {
+      const { error } = await supabase
+        .from('chat_space_members')
+        .delete()
+        .eq('space_id', spaceId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    },
+  });
+};
