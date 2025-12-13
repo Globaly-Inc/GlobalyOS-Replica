@@ -99,7 +99,7 @@ const SuperAdminAnalytics = () => {
   
   // Chart filter states
   const [viewMode, setViewMode] = useState<ViewMode>('days');
-  const [datePreset, setDatePreset] = useState<DatePreset>('last30');
+  const [datePreset, setDatePreset] = useState<DatePreset>('last7');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
   const [showCumulative, setShowCumulative] = useState(false);
