@@ -1,0 +1,87 @@
+import { FileIcon, Download, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import type { ChatAttachment } from "@/types/chat";
+
+interface AttachmentRendererProps {
+  attachments: ChatAttachment[];
+  isOwn?: boolean;
+}
+
+const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => {
+  if (!attachments || attachments.length === 0) return null;
+
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage
+      .from('chat-attachments')
+      .getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const isImage = (fileType: string | null) => {
+    return fileType?.startsWith('image/');
+  };
+
+  const handleDownload = async (attachment: ChatAttachment) => {
+    const url = getPublicUrl(attachment.file_path);
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="flex flex-col gap-2 mt-2">
+      {attachments.map((attachment) => {
+        const publicUrl = getPublicUrl(attachment.file_path);
+        
+        if (isImage(attachment.file_type)) {
+          return (
+            <div key={attachment.id} className="relative group">
+              <img
+                src={publicUrl}
+                alt={attachment.file_name}
+                className="max-w-[280px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(publicUrl, '_blank')}
+              />
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleDownload(attachment)}
+                  className="p-1.5 bg-background/80 rounded-full hover:bg-background"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={attachment.id}
+            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
+              isOwn ? 'bg-primary-foreground/10' : 'bg-background'
+            }`}
+            onClick={() => handleDownload(attachment)}
+          >
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-muted">
+              <FileIcon className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{attachment.file_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatFileSize(attachment.file_size)}
+              </p>
+            </div>
+            <Download className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+export default AttachmentRenderer;

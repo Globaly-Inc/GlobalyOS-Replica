@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useMessages, useTogglePinMessage } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
+import AttachmentRenderer from "./AttachmentRenderer";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,19 +44,30 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
 
-  // Subscribe to real-time messages
+  // Subscribe to real-time messages and attachments
   useEffect(() => {
     const channel = supabase
       .channel('chat-messages-realtime')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'chat_messages',
           filter: conversationId 
             ? `conversation_id=eq.${conversationId}`
             : `space_id=eq.${spaceId}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_attachments'
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
@@ -244,7 +256,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                             </span>
                           )}
                           
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-start gap-1">
                             <div
                               className={cn(
                                 "px-3 py-2 rounded-2xl text-sm",
@@ -254,7 +266,15 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                                 message.is_pinned && "ring-2 ring-yellow-400"
                               )}
                             >
-                              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                              {message.content && (
+                                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                              )}
+                              {message.attachments && message.attachments.length > 0 && (
+                                <AttachmentRenderer 
+                                  attachments={message.attachments} 
+                                  isOwn={isOwn}
+                                />
+                              )}
                             </div>
                             
                             <DropdownMenu>

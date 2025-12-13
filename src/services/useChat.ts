@@ -164,6 +164,14 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
               full_name,
               avatar_url
             )
+          ),
+          chat_attachments (
+            id,
+            file_name,
+            file_path,
+            file_type,
+            file_size,
+            created_at
           )
         `)
         .order('created_at', { ascending: true });
@@ -181,7 +189,8 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
 
       return (data || []).map((msg: any) => ({
         ...msg,
-        sender: msg.employees
+        sender: msg.employees,
+        attachments: msg.chat_attachments || []
       })) as ChatMessage[];
     },
     enabled: !!conversationId || !!spaceId,
