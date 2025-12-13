@@ -776,7 +776,7 @@ const CalendarPage = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] overflow-hidden">
+      <div className="flex flex-col lg:flex-row min-h-0 lg:h-[calc(100vh-5rem)] overflow-hidden">
         {/* Left Sidebar - Upcoming Events (desktop only) */}
         <div className="hidden lg:flex w-[320px] xl:w-[360px] border-r border-border bg-card/50 flex-col shrink-0">
           {renderEventsList(false)}
