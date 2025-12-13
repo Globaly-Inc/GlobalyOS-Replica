@@ -356,11 +356,20 @@ export const WikiRichEditor = ({
         element.style.display = 'block';
         element.style.boxSizing = 'border-box';
       } else if (blockTag === 'pre') {
-        element.style.backgroundColor = 'hsl(var(--muted))';
+        element.style.backgroundColor = '#1e1e1e';
+        element.style.color = '#d4d4d4';
         element.style.padding = '1rem';
-        element.style.borderRadius = '0.375rem';
-        element.style.fontFamily = 'monospace';
+        element.style.borderRadius = '0.5rem';
+        element.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace';
+        element.style.fontSize = '0.875rem';
+        element.style.lineHeight = '1.5';
         element.style.overflow = 'auto';
+        element.style.margin = '0.5rem 0';
+        element.style.width = '100%';
+        element.style.display = 'block';
+        element.style.boxSizing = 'border-box';
+        element.style.whiteSpace = 'pre-wrap';
+        element.style.wordBreak = 'break-word';
       }
     };
     
