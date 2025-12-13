@@ -434,27 +434,28 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </TooltipContent>
               </Tooltip>
             )}
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 px-2 h-10 hover:bg-secondary"
-              onClick={handleViewProfile}
-              disabled={!userProfile?.employeeId}
-            >
-              <Avatar className="h-7 w-7 border-2 border-primary/10">
-                <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
-                  {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-start gap-0">
-                <span className="text-sm font-medium text-foreground leading-tight">
-                  {userProfile?.fullName || "Loading..."}
-                </span>
-                <Badge className={`text-[10px] px-1.5 py-0 h-4 font-normal ${roleConfig.className} border-0`}>
-                  {roleConfig.label}
-                </Badge>
-              </div>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10 relative"
+                  onClick={handleViewProfile}
+                  disabled={!userProfile?.employeeId}
+                >
+                  <Avatar className="h-7 w-7 border-2 border-primary/10">
+                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
+                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{userProfile?.fullName || "Profile"}</p>
+              </TooltipContent>
+            </Tooltip>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
