@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Building2, Users, TrendingUp, Activity } from "lucide-react";
+import { 
+  Loader2, 
+  Building2, 
+  Users, 
+  TrendingUp, 
+  Activity,
+  BookOpen,
+  Calendar,
+  Clock,
+  ClipboardCheck,
+  Trophy,
+  Megaphone,
+  Heart,
+  Target,
+  LucideIcon
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -17,16 +32,22 @@ import {
 } from "recharts";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 
+interface FeatureItem {
+  name: string;
+  count: number;
+  icon: LucideIcon;
+}
+
 interface AnalyticsData {
   totalOrgs: number;
   activeOrgs: number;
   totalUsers: number;
   activeUsers: number;
-  featureUsage: { name: string; count: number }[];
+  featureUsage: FeatureItem[];
   orgGrowth: { month: string; count: number }[];
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
 const SuperAdminAnalytics = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -74,9 +95,16 @@ const SuperAdminAnalytics = () => {
         .from('kudos')
         .select('*', { count: 'exact', head: true });
 
-      const { count: postsCount } = await supabase
+      // Separate wins and announcements
+      const { count: winsCount } = await supabase
         .from('updates')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'win');
+
+      const { count: announcementsCount } = await supabase
+        .from('updates')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'announcement');
 
       const { count: kpiCount } = await supabase
         .from('kpis')
@@ -107,13 +135,14 @@ const SuperAdminAnalytics = () => {
         totalUsers: profiles?.length || 0,
         activeUsers: activeEmployees,
         featureUsage: [
-          { name: 'Wiki Pages', count: wikiCount || 0 },
-          { name: 'Calendar Events', count: calendarCount || 0 },
-          { name: 'Leave Requests', count: leaveCount || 0 },
-          { name: 'Attendance Records', count: attendanceCount || 0 },
-          { name: 'Posts (Wins & Announcements)', count: postsCount || 0 },
-          { name: 'Kudos', count: kudosCount || 0 },
-          { name: 'KPIs', count: kpiCount || 0 },
+          { name: 'Wiki Pages', count: wikiCount || 0, icon: BookOpen },
+          { name: 'Calendar Events', count: calendarCount || 0, icon: Calendar },
+          { name: 'Leave Requests', count: leaveCount || 0, icon: Clock },
+          { name: 'Attendance Records', count: attendanceCount || 0, icon: ClipboardCheck },
+          { name: 'Wins', count: winsCount || 0, icon: Trophy },
+          { name: 'Announcements', count: announcementsCount || 0, icon: Megaphone },
+          { name: 'Kudos', count: kudosCount || 0, icon: Heart },
+          { name: 'KPIs', count: kpiCount || 0, icon: Target },
         ],
         orgGrowth,
       });
@@ -298,11 +327,15 @@ const SuperAdminAnalytics = () => {
               {data?.featureUsage.sort((a, b) => b.count - a.count).map((feature, index) => {
                 const maxCount = Math.max(...(data?.featureUsage.map(f => f.count) || [1]));
                 const percentage = maxCount > 0 ? (feature.count / maxCount) * 100 : 0;
+                const IconComponent = feature.icon;
                 
                 return (
                   <div key={feature.name} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{feature.name}</span>
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{feature.name}</span>
+                      </div>
                       <span className="text-sm text-muted-foreground">
                         {feature.count.toLocaleString()}
                       </span>
