@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, Quote, CalendarDays, SquarePen, CalendarPlus } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
@@ -142,9 +142,12 @@ const Home = () => {
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<UpcomingCalendarEvent[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [dailyQuote, setDailyQuote] = useState<{
-    quote: string;
-    author: string;
+  const [weather, setWeather] = useState<{
+    temperature: number;
+    condition: string;
+    location: string;
+    humidity: number;
+    windSpeed: number;
   } | null>(null);
   const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
   const seenItemIdsRef = useRef<Set<string>>(new Set());
@@ -163,7 +166,7 @@ const Home = () => {
       loadLeaveData();
       loadUpcomingEvents();
       loadUpcomingCalendarEvents();
-      loadDailyQuote();
+      loadWeather();
 
       // Set up real-time subscriptions for auto-refresh
       const updatesChannel = supabase.channel('home-updates').on('postgres_changes', {
@@ -199,26 +202,63 @@ const Home = () => {
       };
     }
   }, [currentOrg?.id]);
-  const loadDailyQuote = async () => {
+  const loadWeather = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-quote`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDailyQuote(data);
+      // Get user's location
+      if (!navigator.geolocation) {
+        console.log("Geolocation not supported");
+        return;
       }
+      
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Fetch weather from Open-Meteo (free, no API key needed)
+          const weatherResponse = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`
+          );
+          
+          if (weatherResponse.ok) {
+            const weatherData = await weatherResponse.json();
+            const current = weatherData.current;
+            
+            // Get location name using reverse geocoding
+            const geoResponse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            let locationName = "Your Location";
+            if (geoResponse.ok) {
+              const geoData = await geoResponse.json();
+              locationName = geoData.address?.city || geoData.address?.town || geoData.address?.village || "Your Location";
+            }
+            
+            // Map weather code to condition
+            const getCondition = (code: number): string => {
+              if (code === 0) return "Clear";
+              if (code <= 3) return "Partly Cloudy";
+              if (code <= 49) return "Foggy";
+              if (code <= 69) return "Rainy";
+              if (code <= 79) return "Snowy";
+              if (code <= 99) return "Stormy";
+              return "Cloudy";
+            };
+            
+            setWeather({
+              temperature: Math.round(current.temperature_2m),
+              condition: getCondition(current.weather_code),
+              location: locationName,
+              humidity: current.relative_humidity_2m,
+              windSpeed: Math.round(current.wind_speed_10m)
+            });
+          }
+        },
+        (error) => {
+          console.log("Geolocation error:", error.message);
+        }
+      );
     } catch (error) {
-      console.error("Failed to load quote:", error);
-      // Fallback quote
-      setDailyQuote({
-        quote: "Alone we can do so little; together we can do so much.",
-        author: "Helen Keller"
-      });
+      console.error("Failed to load weather:", error);
     }
   };
   const checkEmployeeProfile = async () => {
@@ -708,17 +748,26 @@ const Home = () => {
                   </div>
                 </div>
                 
-                {/* Right side - Quote */}
-                {dailyQuote && <div className="md:text-right md:max-w-md">
-                    <div className="flex md:justify-end gap-2 items-start">
-                      <Quote className="h-4 w-4 text-white/60 flex-shrink-0 mt-1 hidden md:block" />
-                      <div>
-                        <p className="text-sm text-white/90 italic leading-relaxed">
-                          "{dailyQuote.quote}"
-                        </p>
-                        <p className="text-xs text-white/70 mt-1">
-                          — {dailyQuote.author}
-                        </p>
+                {/* Right side - Weather */}
+                {weather && <div className="md:text-right">
+                    <div className="flex md:justify-end gap-3 items-center">
+                      <div className="flex items-center gap-2">
+                        {weather.condition === "Clear" && <Sun className="h-8 w-8 text-yellow-300" />}
+                        {weather.condition === "Partly Cloudy" && <CloudSun className="h-8 w-8 text-white/90" />}
+                        {weather.condition === "Cloudy" && <Cloud className="h-8 w-8 text-white/80" />}
+                        {weather.condition === "Rainy" && <CloudRain className="h-8 w-8 text-blue-300" />}
+                        {weather.condition === "Snowy" && <CloudSnow className="h-8 w-8 text-white" />}
+                        {weather.condition === "Stormy" && <CloudRain className="h-8 w-8 text-purple-300" />}
+                        {weather.condition === "Foggy" && <Cloud className="h-8 w-8 text-white/60" />}
+                        <span className="text-2xl font-semibold text-white">{weather.temperature}°C</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm text-white/90 font-medium">{weather.condition}</p>
+                        <p className="text-xs text-white/70">{weather.location}</p>
+                        <div className="flex items-center gap-2 text-xs text-white/60 mt-0.5">
+                          <span>💧 {weather.humidity}%</span>
+                          <span className="flex items-center gap-0.5"><Wind className="h-3 w-3" /> {weather.windSpeed} km/h</span>
+                        </div>
                       </div>
                     </div>
                   </div>}
