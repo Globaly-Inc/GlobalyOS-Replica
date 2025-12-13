@@ -515,6 +515,7 @@ const Wiki = () => {
                 onSelectFolder={handleSelectFolder}
                 onSelectPage={handleSelectPage}
                 canEdit={canEdit}
+                organizationId={currentOrg?.id}
                 onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
                 onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
                 onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}

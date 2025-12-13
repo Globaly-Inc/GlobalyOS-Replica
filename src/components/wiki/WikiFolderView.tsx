@@ -501,6 +501,10 @@ export const WikiFolderView = ({
                             <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
                             {isFav ? "Remove from Favorites" : "Add to Favorites"}
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShareDialog({ type: "folder", id: folder.id, name: folder.name })}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setCreateDialog({ type: "page", parentFolderId: folder.id })}>
                             <FilePlus className="h-4 w-4 mr-2" />
@@ -743,6 +747,18 @@ export const WikiFolderView = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      {shareDialog && organizationId && (
+        <WikiShareDialog
+          open={!!shareDialog}
+          onOpenChange={(open) => !open && setShareDialog(null)}
+          itemType={shareDialog.type}
+          itemId={shareDialog.id}
+          itemName={shareDialog.name}
+          organizationId={organizationId}
+        />
+      )}
     </div>
   );
 };
