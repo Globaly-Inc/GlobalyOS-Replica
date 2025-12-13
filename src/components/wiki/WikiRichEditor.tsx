@@ -227,10 +227,73 @@ export const WikiRichEditor = ({
     }
   }, [onChange]);
 
-  // Check current formatting state
+  // Get font size from an element (checks inline style first, then computed style)
+  const getFontSizeFromElement = useCallback((element: HTMLElement | null): number => {
+    if (!element || element === editorRef.current) return DEFAULT_TEXT_SIZE;
+    
+    // Check for headings first - return their fixed sizes
+    const h1 = element.closest('h1');
+    if (h1) return 26;
+    const h2 = element.closest('h2');
+    if (h2) return 22;
+    const h3 = element.closest('h3');
+    if (h3) return 18;
+    
+    // Check inline style on element and ancestors
+    let el: HTMLElement | null = element;
+    while (el && el !== editorRef.current) {
+      const fontSize = el.style?.fontSize;
+      if (fontSize) {
+        const match = fontSize.match(/(\d+)/);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+      }
+      el = el.parentElement;
+    }
+    
+    // Default text size
+    return DEFAULT_TEXT_SIZE;
+  }, []);
+
+  // Get all text nodes within a range
+  const getTextNodesInRange = useCallback((range: Range): Node[] => {
+    const textNodes: Node[] = [];
+    const walker = document.createTreeWalker(
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE 
+        ? range.commonAncestorContainer.parentElement! 
+        : range.commonAncestorContainer,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (range.intersectsNode(node)) {
+        // Check if this text node is actually within the selected range
+        const nodeRange = document.createRange();
+        nodeRange.selectNodeContents(node);
+        if (
+          range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0 &&
+          range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0
+        ) {
+          textNodes.push(node);
+        }
+      }
+    }
+    
+    return textNodes;
+  }, []);
+
+  // Check current formatting state - Google Docs style
   const updateActiveFormatting = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    if (!selection || selection.rangeCount === 0) {
+      setActiveHeading(null);
+      setActiveTextSize(DEFAULT_TEXT_SIZE);
+      setTextSizeInput(String(DEFAULT_TEXT_SIZE));
+      return;
+    }
     
     const range = selection.getRangeAt(0);
     const container = range.commonAncestorContainer;
@@ -246,23 +309,51 @@ export const WikiRichEditor = ({
     else if (h3) setActiveHeading('h3');
     else setActiveHeading(null);
     
-    // Check text size from inline style
-    let el = element;
-    let foundSize = DEFAULT_TEXT_SIZE;
-    while (el && el !== editorRef.current) {
-      const fontSize = el.style?.fontSize;
-      if (fontSize) {
-        const match = fontSize.match(/(\d+)/);
-        if (match) {
-          foundSize = parseInt(match[1], 10);
-          break;
-        }
-      }
-      el = el.parentElement;
+    // For collapsed selection (cursor only), get size at cursor position
+    if (range.collapsed) {
+      const size = getFontSizeFromElement(element);
+      setActiveTextSize(size);
+      setTextSizeInput(String(size));
+      return;
     }
-    setActiveTextSize(foundSize);
-    setTextSizeInput(String(foundSize));
-  }, []);
+    
+    // For actual selection, collect all font sizes in the selection
+    const textNodes = getTextNodesInRange(range);
+    
+    if (textNodes.length === 0) {
+      // No text nodes, use element's size
+      const size = getFontSizeFromElement(element);
+      setActiveTextSize(size);
+      setTextSizeInput(String(size));
+      return;
+    }
+    
+    // Collect unique font sizes
+    const sizes = new Set<number>();
+    textNodes.forEach(node => {
+      const parentElement = node.parentElement;
+      if (parentElement) {
+        const size = getFontSizeFromElement(parentElement);
+        sizes.add(size);
+      }
+    });
+    
+    const sizesArray = Array.from(sizes);
+    
+    if (sizesArray.length === 1) {
+      // Single size - show it
+      setActiveTextSize(sizesArray[0]);
+      setTextSizeInput(String(sizesArray[0]));
+    } else if (sizesArray.length > 1) {
+      // Multiple sizes - show "-" (use -1 as indicator)
+      setActiveTextSize(-1);
+      setTextSizeInput("-");
+    } else {
+      // Fallback
+      setActiveTextSize(DEFAULT_TEXT_SIZE);
+      setTextSizeInput(String(DEFAULT_TEXT_SIZE));
+    }
+  }, [getFontSizeFromElement, getTextNodesInRange]);
 
   // Handle mouse move over table to show row/column controls
   const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
@@ -1523,11 +1614,21 @@ myFunction();`;
         <div className="flex items-center gap-1">
           <Type className="h-4 w-4 text-muted-foreground" />
           <Input
-            type="number"
-            min={8}
-            max={72}
+            type="text"
             value={textSizeInput}
-            onChange={(e) => handleTextSizeChange(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              // Allow only numbers or empty string while typing
+              if (val === '' || val === '-' || /^\d+$/.test(val)) {
+                handleTextSizeChange(val);
+              }
+            }}
+            onBlur={() => {
+              // Reset to default if invalid on blur
+              if (textSizeInput === '' || textSizeInput === '-') {
+                setTextSizeInput(String(activeTextSize === -1 ? DEFAULT_TEXT_SIZE : activeTextSize));
+              }
+            }}
             onMouseDown={(e) => { e.stopPropagation(); saveSelection(); }}
             className="h-7 w-12 text-xs text-center px-1"
             title="Font size (8-72px)"
