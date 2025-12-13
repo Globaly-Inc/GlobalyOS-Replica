@@ -667,8 +667,8 @@ const CalendarPage = () => {
   // Render events list content (reusable for desktop sidebar and mobile bottom)
   const renderEventsList = (isMobile: boolean = false) => (
     <div className={cn(
-      "flex flex-col",
-      isMobile ? "bg-card border-t border-border" : "flex-1"
+      "flex flex-col min-h-0",
+      isMobile ? "bg-card border-t border-border" : "flex-1 overflow-hidden"
     )}>
       <div className={cn("border-b border-border", isMobile ? "p-3" : "p-6 pb-4")}>
         <div className="flex items-center justify-between gap-2">
