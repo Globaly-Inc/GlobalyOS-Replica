@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { Pencil, Save, X, Clock, User, History, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RichTextEditor, RichTextContent } from "@/components/ui/rich-text-editor";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
+import { WikiMarkdownEditor } from "./WikiMarkdownEditor";
+import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
+import { WikiTableOfContents } from "./WikiTableOfContents";
 
 interface WikiPage {
   id: string;
@@ -51,9 +52,10 @@ interface WikiContentProps {
   onSave: (pageId: string, title: string, content: string) => Promise<void>;
   canEdit: boolean;
   isLoading: boolean;
+  organizationId: string | undefined;
 }
 
-export const WikiContent = ({ page, versions, onSave, canEdit, isLoading }: WikiContentProps) => {
+export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organizationId }: WikiContentProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -198,14 +200,26 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading }: Wiki
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {isEditing ? (
-          <RichTextEditor
+          <WikiMarkdownEditor
             value={editContent}
             onChange={setEditContent}
-            placeholder="Start writing your wiki page..."
+            organizationId={organizationId}
+            placeholder="Write your wiki page in markdown..."
             minHeight="400px"
           />
         ) : page.content ? (
-          <RichTextContent content={page.content} className="prose prose-sm max-w-none" />
+          <div className="flex gap-6">
+            {/* Main content */}
+            <div className="flex-1 min-w-0">
+              <WikiMarkdownRenderer content={page.content} />
+            </div>
+            {/* Table of Contents - only show on larger screens */}
+            <div className="hidden lg:block w-64 flex-shrink-0">
+              <div className="sticky top-0">
+                <WikiTableOfContents content={page.content} />
+              </div>
+            </div>
+          </div>
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}

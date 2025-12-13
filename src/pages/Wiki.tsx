@@ -344,6 +344,7 @@ const Wiki = () => {
               }}
               canEdit={canEdit}
               isLoading={isLoadingPage}
+              organizationId={currentOrg?.id}
             />
           </div>
         </div>
