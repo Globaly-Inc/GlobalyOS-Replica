@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.wiki-ask-ai]
 verify_jwt = true
+
+[functions.global-ask-ai]
+verify_jwt = true
+
+[functions.index-ai-content]
+verify_jwt = false

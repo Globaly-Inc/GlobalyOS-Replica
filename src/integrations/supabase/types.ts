@@ -66,6 +66,106 @@ export type Database = {
           },
         ]
       }
+      ai_content_index: {
+        Row: {
+          access_entities: string[] | null
+          access_scope: string | null
+          content: string
+          content_type: string
+          id: string
+          indexed_at: string | null
+          last_updated: string | null
+          metadata: Json | null
+          organization_id: string
+          source_id: string
+          source_table: string
+          title: string | null
+        }
+        Insert: {
+          access_entities?: string[] | null
+          access_scope?: string | null
+          content: string
+          content_type: string
+          id?: string
+          indexed_at?: string | null
+          last_updated?: string | null
+          metadata?: Json | null
+          organization_id: string
+          source_id: string
+          source_table: string
+          title?: string | null
+        }
+        Update: {
+          access_entities?: string[] | null
+          access_scope?: string | null
+          content?: string
+          content_type?: string
+          id?: string
+          indexed_at?: string | null
+          last_updated?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          source_id?: string
+          source_table?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_content_index_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_indexing_status: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_chat_index: string | null
+          last_full_index: string | null
+          last_team_index: string | null
+          last_wiki_index: string | null
+          next_scheduled_index: string | null
+          organization_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_chat_index?: string | null
+          last_full_index?: string | null
+          last_team_index?: string | null
+          last_wiki_index?: string | null
+          next_scheduled_index?: string | null
+          organization_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_chat_index?: string | null
+          last_full_index?: string | null
+          last_team_index?: string | null
+          last_wiki_index?: string | null
+          next_scheduled_index?: string | null
+          organization_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_indexing_status_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_hour_balances: {
         Row: {
           created_at: string
@@ -3680,6 +3780,21 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      get_accessible_ai_content: {
+        Args: {
+          _content_types?: string[]
+          _limit?: number
+          _organization_id: string
+          _user_id: string
+        }
+        Returns: {
+          content: string
+          content_type: string
+          id: string
+          metadata: Json
+          title: string
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_employee_id_for_org: {
         Args: { _org_id: string }

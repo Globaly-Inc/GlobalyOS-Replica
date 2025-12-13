@@ -5,7 +5,7 @@ import { WikiSidebar } from '@/components/wiki/WikiSidebar';
 import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
 import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
-import { WikiAskAI } from "@/components/wiki/WikiAskAI";
+
 import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { WikiUploadDialog } from "@/components/wiki/WikiUploadDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -405,7 +405,6 @@ const Wiki = () => {
             pages={pagesList}
             onSelectPage={handleSelectPage}
           />
-          <WikiAskAI organizationId={currentOrg?.id} />
           
           <div className="flex-1" />
           
