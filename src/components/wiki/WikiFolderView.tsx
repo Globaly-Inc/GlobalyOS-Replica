@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { WikiShareDialog } from "./WikiShareDialog";
 
 interface WikiFolder {
   id: string;
@@ -45,6 +46,8 @@ interface WikiFolder {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  access_scope?: string;
+  permission_level?: string;
 }
 
 interface WikiPage {
@@ -54,6 +57,12 @@ interface WikiPage {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  is_file?: boolean;
+  file_type?: 'image' | 'pdf' | 'document';
+  file_url?: string;
+  thumbnail_url?: string;
+  access_scope?: string;
+  permission_level?: string;
 }
 
 type SortOption = "name" | "created" | "modified";
@@ -66,6 +75,7 @@ interface WikiFolderViewProps {
   onSelectFolder: (folderId: string | null) => void;
   onSelectPage: (pageId: string) => void;
   canEdit?: boolean;
+  organizationId?: string;
   onCreateFolder?: (name: string, parentId: string | null) => void;
   onCreatePage?: (title: string, folderId: string | null) => void;
   onRenameFolder?: (folderId: string, name: string) => void;
@@ -85,6 +95,7 @@ export const WikiFolderView = ({
   onSelectFolder,
   onSelectPage,
   canEdit = false,
+  organizationId,
   onCreateFolder,
   onCreatePage,
   onRenameFolder,
@@ -108,6 +119,9 @@ export const WikiFolderView = ({
   const [createDialog, setCreateDialog] = useState<{ type: "folder" | "page"; parentFolderId: string } | null>(null);
   const [createDialogName, setCreateDialogName] = useState("");
   const createDialogInputRef = useRef<HTMLInputElement>(null);
+  
+  // Share dialog state
+  const [shareDialog, setShareDialog] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
 
   // Focus input when creating item
   useEffect(() => {
@@ -549,24 +563,56 @@ export const WikiFolderView = ({
             {childPages.map((page) => {
               const isFav = isFavorite?.("page", page.id) ?? false;
               const isEditing = editingItem?.type === "page" && editingItem.id === page.id;
+              const isImageFile = page.is_file && page.file_type === 'image' && page.thumbnail_url;
+              const isPdfFile = page.is_file && page.file_type === 'pdf';
+              const isDocFile = page.is_file && page.file_type === 'document';
               
               return (
                 <div
                   key={page.id}
                   className={cn(
-                    "group relative flex flex-col items-center p-4 rounded-xl border bg-card transition-all cursor-pointer",
+                    "group relative flex flex-col rounded-xl border bg-card transition-all cursor-pointer overflow-hidden",
+                    isImageFile ? "h-32" : "items-center p-4",
                     isEditing 
                       ? "border-2 border-primary shadow-md" 
                       : "hover:bg-muted/50 hover:border-primary/30 hover:shadow-md"
                   )}
                   onClick={() => !isEditing && onSelectPage(page.id)}
                 >
+                  {/* Image file preview background */}
+                  {isImageFile && (
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${page.thumbnail_url})` }}
+                    />
+                  )}
+                  
+                  {/* PDF/Document icon overlay for file types */}
+                  {(isPdfFile || isDocFile) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      {isPdfFile ? (
+                        <FileText className="h-16 w-16 text-red-500" />
+                      ) : (
+                        <File className="h-16 w-16 text-blue-500" />
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Gradient overlay with filename for files */}
+                  {page.is_file && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-white/90 via-white/60 to-transparent flex items-end p-3 z-10">
+                      <span className="text-sm font-medium text-foreground line-clamp-2 drop-shadow-sm">
+                        {page.title}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Three-dot menu */}
                   {canEdit && !isEditing && (
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 bg-background/80 hover:bg-background">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -578,6 +624,10 @@ export const WikiFolderView = ({
                           <DropdownMenuItem onClick={() => onToggleFavorite?.("page", page.id)}>
                             <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
                             {isFav ? "Remove from Favorites" : "Add to Favorites"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShareDialog({ type: "page", id: page.id, name: page.title })}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -594,31 +644,36 @@ export const WikiFolderView = ({
                   
                   {/* Favorite indicator */}
                   {isFav && !isEditing && (
-                    <div className="absolute top-2 left-2">
+                    <div className="absolute top-2 left-2 z-20">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     </div>
                   )}
                   
-                  <div className="relative mb-3">
-                    <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
-                  </div>
-                  {isEditing ? (
-                    <Input
-                      ref={editInputRef}
-                      value={editingItem.name}
-                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                      onKeyDown={handleEditKeyDown}
-                      onBlur={handleEditConfirm}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm font-medium text-center h-8 px-2"
-                      placeholder="Page title"
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                      {page.title}
-                    </span>
+                  {/* Regular page (non-file) content */}
+                  {!page.is_file && (
+                    <>
+                      <div className="relative mb-3">
+                        <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
+                      </div>
+                      {isEditing ? (
+                        <Input
+                          ref={editInputRef}
+                          value={editingItem.name}
+                          onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                          onKeyDown={handleEditKeyDown}
+                          onBlur={handleEditConfirm}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-sm font-medium text-center h-8 px-2"
+                          placeholder="Page title"
+                        />
+                      ) : (
+                        <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
+                          {page.title}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground mt-1">Page</span>
+                    </>
                   )}
-                  <span className="text-xs text-muted-foreground mt-1">Page</span>
                 </div>
               );
             })}

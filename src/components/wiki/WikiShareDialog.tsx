@@ -1,0 +1,615 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Building2, 
+  Users, 
+  Briefcase, 
+  FolderKanban, 
+  Globe, 
+  Eye, 
+  Pencil,
+  Copy,
+  Check,
+  Loader2,
+  X
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useOrganization } from "@/hooks/useOrganization";
+
+export type WikiAccessScope = 'company' | 'offices' | 'departments' | 'projects' | 'members' | 'public';
+export type WikiPermissionLevel = 'view' | 'edit';
+
+interface WikiShareDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  itemType: "folder" | "page";
+  itemId: string;
+  itemName: string;
+  organizationId: string;
+  currentFolderId?: string | null;
+}
+
+interface Office {
+  id: string;
+  name: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+}
+
+interface Employee {
+  id: string;
+  user_id: string;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
+export const WikiShareDialog = ({
+  open,
+  onOpenChange,
+  itemType,
+  itemId,
+  itemName,
+  organizationId,
+  currentFolderId,
+}: WikiShareDialogProps) => {
+  const { currentOrg } = useOrganization();
+  const [accessScope, setAccessScope] = useState<WikiAccessScope>('company');
+  const [permissionLevel, setPermissionLevel] = useState<WikiPermissionLevel>('view');
+  const [inheritFromFolder, setInheritFromFolder] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  // Selection states
+  const [selectedOffices, setSelectedOffices] = useState<string[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+
+  // Available options
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  // Load available options and current permissions
+  useEffect(() => {
+    if (open && organizationId) {
+      loadOptions();
+      loadCurrentPermissions();
+    }
+  }, [open, organizationId, itemId, itemType]);
+
+  const loadOptions = async () => {
+    try {
+      // Load offices
+      const { data: officesData } = await supabase
+        .from('offices')
+        .select('id, name')
+        .eq('organization_id', organizationId)
+        .order('name');
+      setOffices(officesData || []);
+
+      // Load departments from employees
+      const { data: employeesData } = await supabase
+        .from('employees')
+        .select('department')
+        .eq('organization_id', organizationId);
+      const uniqueDepts = [...new Set(employeesData?.map(e => e.department).filter(Boolean) || [])];
+      setDepartments(uniqueDepts.sort());
+
+      // Load projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('id, name')
+        .eq('organization_id', organizationId)
+        .order('name');
+      setProjects(projectsData || []);
+
+      // Load employees for member selection
+      const { data: empsData } = await supabase
+        .from('employees')
+        .select('id, user_id, profiles(full_name, avatar_url)')
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .order('profiles(full_name)');
+      setEmployees(empsData as Employee[] || []);
+    } catch (error) {
+      console.error('Error loading options:', error);
+    }
+  };
+
+  const loadCurrentPermissions = async () => {
+    setIsLoading(true);
+    try {
+      const table = itemType === 'folder' ? 'wiki_folders' : 'wiki_pages';
+      const { data: itemData, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', itemId)
+        .single();
+
+      if (!error && itemData) {
+        const data = itemData as Record<string, unknown>;
+        setAccessScope((data.access_scope as WikiAccessScope) || 'company');
+        setPermissionLevel((data.permission_level as WikiPermissionLevel) || 'view');
+        if (itemType === 'page' && 'inherit_from_folder' in data) {
+          setInheritFromFolder(data.inherit_from_folder as boolean ?? true);
+        }
+      }
+
+      // Load junction table data based on scope
+      await loadJunctionData();
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadJunctionData = async () => {
+    try {
+      if (itemType === 'folder') {
+        // Load folder office selections
+        const { data: officeData } = await supabase
+          .from('wiki_folder_offices')
+          .select('office_id')
+          .eq('folder_id', itemId);
+        setSelectedOffices(officeData?.map(o => o.office_id) || []);
+
+        // Load folder department selections
+        const { data: deptData } = await supabase
+          .from('wiki_folder_departments')
+          .select('department')
+          .eq('folder_id', itemId);
+        setSelectedDepartments(deptData?.map(d => d.department) || []);
+
+        // Load folder project selections
+        const { data: projData } = await supabase
+          .from('wiki_folder_projects')
+          .select('project_id')
+          .eq('folder_id', itemId);
+        setSelectedProjects(projData?.map(p => p.project_id) || []);
+
+        // Load folder member selections
+        const { data: memberData } = await supabase
+          .from('wiki_folder_members')
+          .select('employee_id')
+          .eq('folder_id', itemId);
+        setSelectedMembers(memberData?.map(m => m.employee_id) || []);
+      } else {
+        // Load page office selections
+        const { data: officeData } = await supabase
+          .from('wiki_page_offices')
+          .select('office_id')
+          .eq('page_id', itemId);
+        setSelectedOffices(officeData?.map(o => o.office_id) || []);
+
+        // Load page department selections
+        const { data: deptData } = await supabase
+          .from('wiki_page_departments')
+          .select('department')
+          .eq('page_id', itemId);
+        setSelectedDepartments(deptData?.map(d => d.department) || []);
+
+        // Load page project selections
+        const { data: projData } = await supabase
+          .from('wiki_page_projects')
+          .select('project_id')
+          .eq('page_id', itemId);
+        setSelectedProjects(projData?.map(p => p.project_id) || []);
+
+        // Load page member selections
+        const { data: memberData } = await supabase
+          .from('wiki_page_members')
+          .select('employee_id')
+          .eq('page_id', itemId);
+        setSelectedMembers(memberData?.map(m => m.employee_id) || []);
+      }
+    } catch (error) {
+      console.error('Error loading junction data:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Update main table
+      if (itemType === 'folder') {
+        await supabase
+          .from('wiki_folders')
+          .update({
+            access_scope: accessScope,
+            permission_level: permissionLevel,
+          })
+          .eq('id', itemId);
+
+        // Clear existing junction data
+        await Promise.all([
+          supabase.from('wiki_folder_offices').delete().eq('folder_id', itemId),
+          supabase.from('wiki_folder_departments').delete().eq('folder_id', itemId),
+          supabase.from('wiki_folder_projects').delete().eq('folder_id', itemId),
+          supabase.from('wiki_folder_members').delete().eq('folder_id', itemId),
+        ]);
+
+        // Insert new junction data based on scope
+        if (accessScope === 'offices' && selectedOffices.length > 0) {
+          await supabase.from('wiki_folder_offices').insert(
+            selectedOffices.map(officeId => ({
+              folder_id: itemId,
+              office_id: officeId,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'departments' && selectedDepartments.length > 0) {
+          await supabase.from('wiki_folder_departments').insert(
+            selectedDepartments.map(dept => ({
+              folder_id: itemId,
+              department: dept,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'projects' && selectedProjects.length > 0) {
+          await supabase.from('wiki_folder_projects').insert(
+            selectedProjects.map(projectId => ({
+              folder_id: itemId,
+              project_id: projectId,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'members' && selectedMembers.length > 0) {
+          await supabase.from('wiki_folder_members').insert(
+            selectedMembers.map(employeeId => ({
+              folder_id: itemId,
+              employee_id: employeeId,
+              permission: permissionLevel,
+              organization_id: organizationId,
+            }))
+          );
+        }
+      } else {
+        // Page updates
+        await supabase
+          .from('wiki_pages')
+          .update({
+            access_scope: accessScope,
+            permission_level: permissionLevel,
+            inherit_from_folder: inheritFromFolder,
+          })
+          .eq('id', itemId);
+
+        // Clear existing junction data
+        await Promise.all([
+          supabase.from('wiki_page_offices').delete().eq('page_id', itemId),
+          supabase.from('wiki_page_departments').delete().eq('page_id', itemId),
+          supabase.from('wiki_page_projects').delete().eq('page_id', itemId),
+          supabase.from('wiki_page_members').delete().eq('page_id', itemId),
+        ]);
+
+        // Insert new junction data based on scope
+        if (accessScope === 'offices' && selectedOffices.length > 0) {
+          await supabase.from('wiki_page_offices').insert(
+            selectedOffices.map(officeId => ({
+              page_id: itemId,
+              office_id: officeId,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'departments' && selectedDepartments.length > 0) {
+          await supabase.from('wiki_page_departments').insert(
+            selectedDepartments.map(dept => ({
+              page_id: itemId,
+              department: dept,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'projects' && selectedProjects.length > 0) {
+          await supabase.from('wiki_page_projects').insert(
+            selectedProjects.map(projectId => ({
+              page_id: itemId,
+              project_id: projectId,
+              organization_id: organizationId,
+            }))
+          );
+        }
+
+        if (accessScope === 'members' && selectedMembers.length > 0) {
+          await supabase.from('wiki_page_members').insert(
+            selectedMembers.map(employeeId => ({
+              page_id: itemId,
+              employee_id: employeeId,
+              permission: permissionLevel,
+              organization_id: organizationId,
+            }))
+          );
+        }
+      }
+
+      toast.success('Sharing settings updated');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      toast.error('Failed to update sharing settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/org/${currentOrg?.slug}/wiki/${itemType}/${itemId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success('Link copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const toggleSelection = (
+    id: string,
+    selected: string[],
+    setSelected: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    setSelected(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const scopeOptions = [
+    { value: 'company' as const, label: 'Company-wide', description: 'Everyone in the organization', icon: Building2 },
+    { value: 'offices' as const, label: 'Offices', description: 'Restrict to specific offices', icon: Building2 },
+    { value: 'departments' as const, label: 'Departments', description: 'Restrict to specific departments', icon: Users },
+    { value: 'projects' as const, label: 'Projects', description: 'Restrict to project members', icon: FolderKanban },
+    { value: 'members' as const, label: 'Specific Members', description: 'Share with specific people', icon: Briefcase },
+    { value: 'public' as const, label: 'Public', description: 'Anyone with the link', icon: Globe },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Share "{itemName}"</DialogTitle>
+          <DialogDescription>
+            Control who can access this {itemType}
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-6 py-4">
+              {/* Permission Level */}
+              <div className="space-y-3">
+                <Label>Permission Level</Label>
+                <div className="flex gap-3">
+                  <Button
+                    variant={permissionLevel === 'view' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPermissionLevel('view')}
+                    className="flex-1"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Only
+                  </Button>
+                  <Button
+                    variant={permissionLevel === 'edit' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPermissionLevel('edit')}
+                    className="flex-1"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Can Edit
+                  </Button>
+                </div>
+              </div>
+
+              {/* Access Scope */}
+              <div className="space-y-3">
+                <Label>Who can access?</Label>
+                <RadioGroup value={accessScope} onValueChange={(v) => setAccessScope(v as WikiAccessScope)}>
+                  <div className="space-y-2">
+                    {scopeOptions.map((option) => {
+                      const Icon = option.icon;
+                      return (
+                        <div key={option.value} className="space-y-2">
+                          <label
+                            className={cn(
+                              "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                              accessScope === option.value
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
+                            <RadioGroupItem value={option.value} className="mt-0.5" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{option.label}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{option.description}</p>
+                            </div>
+                          </label>
+
+                          {/* Selection lists for each scope */}
+                          {accessScope === option.value && option.value === 'offices' && (
+                            <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                              {offices.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No offices configured</p>
+                              ) : (
+                                offices.map((office) => (
+                                  <label key={office.id} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox
+                                      checked={selectedOffices.includes(office.id)}
+                                      onCheckedChange={() => toggleSelection(office.id, selectedOffices, setSelectedOffices)}
+                                    />
+                                    <span className="text-sm">{office.name}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {accessScope === option.value && option.value === 'departments' && (
+                            <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                              {departments.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No departments found</p>
+                              ) : (
+                                departments.map((dept) => (
+                                  <label key={dept} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox
+                                      checked={selectedDepartments.includes(dept)}
+                                      onCheckedChange={() => toggleSelection(dept, selectedDepartments, setSelectedDepartments)}
+                                    />
+                                    <span className="text-sm">{dept}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {accessScope === option.value && option.value === 'projects' && (
+                            <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                              {projects.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No projects configured</p>
+                              ) : (
+                                projects.map((project) => (
+                                  <label key={project.id} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox
+                                      checked={selectedProjects.includes(project.id)}
+                                      onCheckedChange={() => toggleSelection(project.id, selectedProjects, setSelectedProjects)}
+                                    />
+                                    <span className="text-sm">{project.name}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {accessScope === option.value && option.value === 'members' && (
+                            <div className="ml-8 p-3 bg-muted/50 rounded-lg">
+                              {/* Selected members badges */}
+                              {selectedMembers.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mb-3">
+                                  {selectedMembers.map((empId) => {
+                                    const emp = employees.find(e => e.id === empId);
+                                    if (!emp) return null;
+                                    return (
+                                      <Badge key={empId} variant="secondary" className="gap-1">
+                                        {emp.profiles?.full_name}
+                                        <button onClick={() => toggleSelection(empId, selectedMembers, setSelectedMembers)}>
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </Badge>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              <ScrollArea className="h-40">
+                                <div className="space-y-1">
+                                  {employees
+                                    .filter(e => !selectedMembers.includes(e.id))
+                                    .map((emp) => (
+                                      <button
+                                        key={emp.id}
+                                        onClick={() => toggleSelection(emp.id, selectedMembers, setSelectedMembers)}
+                                        className="w-full flex items-center gap-2 p-2 rounded hover:bg-muted text-left"
+                                      >
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                                          <AvatarFallback className="text-xs">
+                                            {emp.profiles?.full_name?.charAt(0) || '?'}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm">{emp.profiles?.full_name}</span>
+                                      </button>
+                                    ))}
+                                </div>
+                              </ScrollArea>
+                            </div>
+                          )}
+
+                          {accessScope === option.value && option.value === 'public' && (
+                            <div className="ml-8">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopyLink}
+                                className="gap-2"
+                              >
+                                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                {copied ? 'Copied!' : 'Copy Link'}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Inherit from folder option (pages only) */}
+              {itemType === 'page' && currentFolderId && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={inheritFromFolder}
+                    onCheckedChange={(checked) => setInheritFromFolder(checked as boolean)}
+                  />
+                  <span className="text-sm">Inherit permissions from parent folder</span>
+                </label>
+              )}
+            </div>
+          </ScrollArea>
+        )}
+
+        <DialogFooter className="border-t pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving || isLoading}>
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

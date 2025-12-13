@@ -137,6 +137,12 @@ export const WikiUploadDialog = ({
     return <File className="h-5 w-5 text-muted-foreground" />;
   };
 
+  const getFileTypeCategory = (mimeType: string): 'image' | 'pdf' | 'document' => {
+    if (mimeType.startsWith("image/")) return 'image';
+    if (mimeType === "application/pdf") return 'pdf';
+    return 'document';
+  };
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0 || !organizationId || !employeeId) return;
 
@@ -168,13 +174,22 @@ export const WikiUploadDialog = ({
         progressMap[file.name] = 70;
         setUploadProgress({ ...progressMap });
 
-        // Create a wiki page for the uploaded file
+        // Get public URL for the file
+        const { data: urlData } = supabase.storage.from("wiki-attachments").getPublicUrl(filePath);
+        const publicUrl = urlData.publicUrl;
+        const fileTypeCategory = getFileTypeCategory(file.type);
+
+        // Create a wiki page for the uploaded file with file metadata
         const { error: pageError } = await supabase.from("wiki_pages").insert({
           title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for title
           content: createFilePageContent(file.name, filePath, file.type, file.size),
           folder_id: currentFolderId,
           organization_id: organizationId,
           created_by: employeeId,
+          is_file: true,
+          file_type: fileTypeCategory,
+          file_url: publicUrl,
+          thumbnail_url: fileTypeCategory === 'image' ? publicUrl : null,
         });
 
         if (pageError) {
