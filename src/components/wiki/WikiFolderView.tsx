@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -414,7 +414,16 @@ export const WikiFolderView = ({
             {/* Creating new item card - always at top front */}
             {creatingItem && (
               <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
-                <div className="relative mb-3">
+                {/* Cancel button */}
+                <button
+                  onClick={handleCreateCancel}
+                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+                
+                <div className="relative mb-3 mt-2">
                   {creatingItem.type === "folder" ? (
                     <Folder className="h-12 w-12 text-primary fill-primary/10" />
                   ) : (
@@ -426,10 +435,19 @@ export const WikiFolderView = ({
                   value={creatingName}
                   onChange={(e) => setCreatingName(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  onBlur={handleCreateConfirm}
                   className="text-sm font-medium text-center h-8 px-2"
                   placeholder={creatingItem.type === "folder" ? "Folder name" : "Page title"}
                 />
+                {/* Save button */}
+                <Button
+                  size="sm"
+                  className="mt-3 h-7 px-3"
+                  onClick={handleCreateConfirm}
+                  disabled={!creatingName.trim()}
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Save
+                </Button>
               </div>
             )}
 
