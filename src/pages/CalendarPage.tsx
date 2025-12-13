@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   format, 
@@ -106,6 +106,46 @@ const CalendarPage = () => {
   const { user } = useAuth();
   const { timezone, setTimezone } = useTimezone();
   const canManageEvents = isAdmin || isHR;
+
+  // Real-time clock state
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update clock every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format time in selected timezone
+  const formattedTime = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      }).format(currentTime);
+    } catch {
+      return format(currentTime, 'hh:mm:ss a');
+    }
+  }, [currentTime, timezone]);
+
+  const formattedDate = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(currentTime);
+    } catch {
+      return format(currentTime, 'EEE, d MMM yyyy');
+    }
+  }, [currentTime, timezone]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -692,9 +732,19 @@ const CalendarPage = () => {
           {/* Calendar Header */}
           <div className="p-4 lg:p-6 border-b border-border">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                  <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
+                </div>
+                
+                {/* Current Time Display */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border border-border/50">
+                  <div className="text-right">
+                    <p className="text-sm font-medium tabular-nums">{formattedTime}</p>
+                    <p className="text-xs text-muted-foreground">{formattedDate}</p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
