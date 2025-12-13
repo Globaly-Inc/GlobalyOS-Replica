@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Plus, MoreHorizontal, Pencil, Trash2, BookOpen, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,7 +20,11 @@ interface WikiSidebarProps {
   folders: WikiFolder[];
   pages: WikiPage[];
   selectedPageId: string | null;
+  selectedFolderId: string | null;
+  showingHome: boolean;
   onSelectPage: (pageId: string) => void;
+  onSelectFolder: (folderId: string | null) => void;
+  onSelectHome: () => void;
   onCreateFolder: (name: string, parentId: string | null) => void;
   onCreatePage: (title: string, folderId: string | null) => void;
   onRenameFolder: (folderId: string, name: string) => void;
@@ -209,7 +213,11 @@ export const WikiSidebar = ({
   folders,
   pages,
   selectedPageId,
+  selectedFolderId,
+  showingHome,
   onSelectPage,
+  onSelectFolder,
+  onSelectHome,
   onCreateFolder,
   onCreatePage,
   onRenameFolder,
@@ -252,7 +260,16 @@ export const WikiSidebar = ({
   };
   return <div className="h-full flex flex-col bg-card border-r">
       <div className="p-3 border-b flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Wiki Home</h3>
+        <button 
+          onClick={onSelectHome}
+          className={cn(
+            "flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors",
+            showingHome && !selectedFolderId && "text-primary"
+          )}
+        >
+          <BookOpen className="h-4 w-4" />
+          Wiki Home
+        </button>
         {canEdit && <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7">
