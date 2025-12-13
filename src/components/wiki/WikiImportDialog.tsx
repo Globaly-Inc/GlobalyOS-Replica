@@ -131,18 +131,55 @@ export const WikiImportDialog = ({
 
 
   const validateAndSetPages = (json: any) => {
-    let pages: ImportedPage[] = [];
+    let rawPages: any[] = [];
+    
+    // Support multiple JSON formats
     if (Array.isArray(json)) {
-      pages = json;
+      // Direct array of pages
+      rawPages = json;
     } else if (json.pages && Array.isArray(json.pages)) {
-      pages = json.pages;
-    } else {
-      throw new Error("Invalid format");
+      // Object with pages array
+      rawPages = json.pages;
+    } else if (json.data && Array.isArray(json.data)) {
+      // Object with data array
+      rawPages = json.data;
+    } else if (json.items && Array.isArray(json.items)) {
+      // Object with items array
+      rawPages = json.items;
+    } else if (typeof json === "object" && json !== null) {
+      // Single page object - wrap in array
+      if (json.title || json.name) {
+        rawPages = [json];
+      } else {
+        // Try to extract from nested structure
+        const keys = Object.keys(json);
+        if (keys.length > 0 && typeof json[keys[0]] === "object") {
+          // Try to flatten nested objects into pages
+          rawPages = keys.map((key) => ({
+            title: json[key].title || json[key].name || key,
+            content: json[key].content || json[key].body || json[key].html || "",
+            folder: json[key].folder || json[key].category || undefined,
+          }));
+        }
+      }
     }
 
-    const validPages = pages.filter((p) => p && typeof p.title === "string" && p.title.trim());
+    if (rawPages.length === 0) {
+      throw new Error(
+        "Invalid format. Expected JSON with an array of pages. Each page needs a 'title' field. Example: [{ \"title\": \"My Page\", \"content\": \"<p>Content</p>\" }]"
+      );
+    }
+
+    // Map various field names to our structure
+    const normalizedPages: ImportedPage[] = rawPages.map((p: any) => ({
+      title: p.title || p.name || p.Name || "Untitled",
+      content: p.content || p.body || p.Body || p.html || p.HTML || "",
+      folder: p.folder || p.Folder || p.category || p.Category || undefined,
+    }));
+
+    const validPages = normalizedPages.filter((p) => p.title && p.title.trim());
     if (validPages.length === 0) {
-      throw new Error("No valid pages found. Each page must have a 'title' field.");
+      throw new Error("No valid pages found. Each page must have a 'title' or 'name' field.");
     }
 
     setPreviewData(validPages);
