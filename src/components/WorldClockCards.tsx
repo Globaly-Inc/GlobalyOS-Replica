@@ -71,6 +71,7 @@ const countryToTimezone: Record<string, string> = {
 
 // Map timezone to country for flag display
 const timezoneToCountry: Record<string, string> = {
+  "Asia/Katmandu": "Nepal", // Legacy spelling alias
   "Australia/Sydney": "Australia",
   "Australia/Melbourne": "Australia",
   "Australia/Perth": "Australia",
@@ -246,7 +247,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
               <div className="flex items-center gap-1.5 mb-1">
                 {flag && <span className="text-sm">{flag}</span>}
                 <span className="text-[11px] font-medium text-muted-foreground truncate">
-                  {getDisplayName(tz)}{isUserTimezone && " (You)"}
+                  {getDisplayName(tz)}
                 </span>
               </div>
               
