@@ -50,6 +50,7 @@ export const WikiRichEditor = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedTableRef = useRef<HTMLTableElement | null>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkText, setLinkText] = useState("");
@@ -71,6 +72,26 @@ export const WikiRichEditor = ({
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const resizeTableRef = useRef<HTMLTableElement | null>(null);
+
+  // Save current selection
+  const saveSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  // Restore saved selection
+  const restoreSelection = useCallback(() => {
+    if (savedSelectionRef.current && editorRef.current) {
+      editorRef.current.focus();
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(savedSelectionRef.current);
+      }
+    }
+  }, []);
 
   // Initialize content
   useEffect(() => {
@@ -303,16 +324,67 @@ export const WikiRichEditor = ({
   }, [triggerUpdate]);
 
   const execCommand = useCallback((command: string, value?: string) => {
+    restoreSelection();
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
     triggerUpdate();
-  }, [triggerUpdate]);
+  }, [triggerUpdate, restoreSelection]);
 
   const formatBlock = useCallback((tag: string) => {
-    document.execCommand('formatBlock', false, `<${tag}>`);
+    restoreSelection();
+    const selection = window.getSelection();
+    
+    // If no selection or selection is collapsed, insert a new block element
+    if (!selection || selection.rangeCount === 0 || (selection.isCollapsed && editorRef.current)) {
+      // Check if we're inside the editor
+      const range = selection?.getRangeAt(0);
+      const isInsideEditor = range && editorRef.current?.contains(range.commonAncestorContainer);
+      
+      if (!isInsideEditor && editorRef.current) {
+        // Focus and move cursor to end if not inside editor
+        editorRef.current.focus();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRef.current);
+        newRange.collapse(false);
+        selection?.removeAllRanges();
+        selection?.addRange(newRange);
+      }
+      
+      // Create the block element with placeholder text
+      const element = document.createElement(tag);
+      element.innerHTML = '<br>';
+      
+      if (tag === 'blockquote') {
+        element.style.borderLeft = '4px solid hsl(var(--border))';
+        element.style.paddingLeft = '1rem';
+        element.style.marginLeft = '0';
+        element.style.fontStyle = 'italic';
+        element.style.color = 'hsl(var(--muted-foreground))';
+      } else if (tag === 'pre') {
+        element.style.backgroundColor = 'hsl(var(--muted))';
+        element.style.padding = '1rem';
+        element.style.borderRadius = '0.375rem';
+        element.style.fontFamily = 'monospace';
+        element.style.overflow = 'auto';
+      }
+      
+      const currentRange = selection?.getRangeAt(0);
+      if (currentRange) {
+        currentRange.insertNode(element);
+        // Move cursor inside the new element
+        const newRange = document.createRange();
+        newRange.setStart(element, 0);
+        newRange.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(newRange);
+      }
+    } else {
+      // Use execCommand for existing selection
+      document.execCommand('formatBlock', false, `<${tag}>`);
+    }
+    
     editorRef.current?.focus();
     triggerUpdate();
-  }, [triggerUpdate]);
+  }, [triggerUpdate, restoreSelection]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -555,6 +627,10 @@ export const WikiRichEditor = ({
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
           onClick={() => formatBlock('blockquote')}
           title="Quote"
         >
@@ -565,6 +641,10 @@ export const WikiRichEditor = ({
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
           onClick={() => formatBlock('pre')}
           title="Code Block"
         >
