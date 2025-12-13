@@ -3158,6 +3158,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_conversation_participant: {
+        Args: { _conversation_id: string; _employee_id: string }
+        Returns: boolean
+      }
       is_manager_of_employee: {
         Args: { _employee_id: string }
         Returns: boolean
@@ -3171,6 +3175,14 @@ export type Database = {
         Returns: boolean
       }
       is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
+      is_space_admin: {
+        Args: { _employee_id: string; _space_id: string }
+        Returns: boolean
+      }
+      is_space_member: {
+        Args: { _employee_id: string; _space_id: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
       validate_qr_and_record_attendance:
