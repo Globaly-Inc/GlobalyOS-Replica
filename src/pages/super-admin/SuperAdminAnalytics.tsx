@@ -42,6 +42,7 @@ import {
   MapPin,
   History,
   Bell,
+  SmilePlus,
 } from "lucide-react";
 import {
   BarChart,
@@ -229,6 +230,7 @@ const SuperAdminAnalytics = () => {
         officesCount, officesLastWeek,
         documentsCount, documentsLastWeek,
         notificationsCount, notificationsLastWeek,
+        reactionsCount, reactionsLastWeek,
       ] = await Promise.all([
         // Wiki module
         getCount('wiki_pages'), getLastWeekCount('wiki_pages'),
@@ -251,6 +253,7 @@ const SuperAdminAnalytics = () => {
         getCount('offices'), getLastWeekCount('offices'),
         getCount('employee_documents'), getLastWeekCount('employee_documents'),
         getCount('notifications'), getLastWeekCount('notifications'),
+        getCount('feed_reactions'), getLastWeekCount('feed_reactions'),
       ]);
 
       const activeOrgs = orgs?.filter(o => o.plan !== 'inactive').length || 0;
@@ -283,6 +286,7 @@ const SuperAdminAnalytics = () => {
           { name: 'Offices', count: officesCount, lastWeekCount: officesLastWeek, icon: MapPin, module: 'organization' },
           { name: 'Documents', count: documentsCount, lastWeekCount: documentsLastWeek, icon: FileText, module: 'organization' },
           { name: 'Notifications', count: notificationsCount, lastWeekCount: notificationsLastWeek, icon: Bell, module: 'organization' },
+          { name: 'Reactions', count: reactionsCount, lastWeekCount: reactionsLastWeek, icon: SmilePlus, module: 'team' },
         ],
         orgs: orgs?.map(o => ({ id: o.id, created_at: o.created_at })) || [],
         users: profiles?.map(p => ({ id: p.id, created_at: p.created_at })) || [],
