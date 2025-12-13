@@ -907,7 +907,7 @@ export const WikiRichEditor = ({
         const container = range.commonAncestorContainer;
         const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
         
-        // Check if cursor is adjacent to an embed wrapper
+        // Check if cursor is inside or adjacent to an embed wrapper
         const embedWrapper = element?.closest('.wiki-embed-wrapper');
         if (embedWrapper) {
           e.preventDefault();
@@ -916,42 +916,47 @@ export const WikiRichEditor = ({
           return;
         }
         
-        // Check if selection is at the boundary of an embed
-        if (range.collapsed) {
-          let checkNode: Node | null = null;
+        // Check if we're about to delete into an embed
+        if (range.collapsed && editorRef.current) {
+          const editorChildren = Array.from(editorRef.current.childNodes);
           
-          if (e.key === 'Backspace') {
-            // Check previous sibling
-            if (range.startOffset === 0 && container.previousSibling) {
-              checkNode = container.previousSibling;
-            } else if (container.nodeType === Node.ELEMENT_NODE) {
-              const el = container as HTMLElement;
-              if (range.startOffset > 0) {
-                checkNode = el.childNodes[range.startOffset - 1];
-              }
-            }
-          } else {
-            // Delete key - check next sibling
-            if (container.nodeType === Node.TEXT_NODE && range.startOffset === (container.textContent?.length || 0) && container.nextSibling) {
-              checkNode = container.nextSibling;
-            } else if (container.nodeType === Node.ELEMENT_NODE) {
-              const el = container as HTMLElement;
-              if (range.startOffset < el.childNodes.length) {
-                checkNode = el.childNodes[range.startOffset];
-              }
-            }
+          // Find the current position in the editor
+          let currentNode: Node | null = container;
+          while (currentNode && currentNode !== editorRef.current && currentNode.parentNode !== editorRef.current) {
+            currentNode = currentNode.parentNode;
           }
           
-          if (checkNode) {
-            const embedToDelete = (checkNode as HTMLElement).classList?.contains('wiki-embed-wrapper') 
-              ? checkNode as HTMLElement 
-              : (checkNode as HTMLElement).querySelector?.('.wiki-embed-wrapper');
-            if (embedToDelete || (checkNode.nodeType === Node.ELEMENT_NODE && (checkNode as HTMLElement).closest?.('.wiki-embed-wrapper'))) {
-              e.preventDefault();
-              const wrapper = embedToDelete || (checkNode as HTMLElement).closest('.wiki-embed-wrapper');
-              wrapper?.remove();
-              triggerUpdate();
-              return;
+          if (currentNode && currentNode !== editorRef.current) {
+            const nodeIndex = editorChildren.indexOf(currentNode as ChildNode);
+            
+            if (e.key === 'Backspace' && nodeIndex > 0) {
+              // Check if previous sibling is an embed
+              const prevNode = editorChildren[nodeIndex - 1] as HTMLElement;
+              if (prevNode?.classList?.contains('wiki-embed-wrapper')) {
+                // Check if cursor is at the start of current element
+                const isAtStart = range.startOffset === 0 || 
+                  (container.nodeType === Node.TEXT_NODE && range.startOffset === 0);
+                if (isAtStart) {
+                  e.preventDefault();
+                  prevNode.remove();
+                  triggerUpdate();
+                  return;
+                }
+              }
+            } else if (e.key === 'Delete' && nodeIndex < editorChildren.length - 1) {
+              // Check if next sibling is an embed
+              const nextNode = editorChildren[nodeIndex + 1] as HTMLElement;
+              if (nextNode?.classList?.contains('wiki-embed-wrapper')) {
+                // Check if cursor is at the end of current element
+                const textLen = container.textContent?.length || 0;
+                const isAtEnd = range.startOffset === textLen;
+                if (isAtEnd) {
+                  e.preventDefault();
+                  nextNode.remove();
+                  triggerUpdate();
+                  return;
+                }
+              }
             }
           }
         }
