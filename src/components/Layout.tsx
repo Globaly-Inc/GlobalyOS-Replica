@@ -1,8 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { NavLink } from "./NavLink";
-import { Users, Home, Menu, LogOut, User, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar as CalendarIcon, Target } from "lucide-react";
+import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock } from "lucide-react";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -17,13 +15,8 @@ import { QRScannerDialog } from "./dialogs/QRScannerDialog";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { MobileBottomNav } from "./MobileBottomNav";
-
-const navigation = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "Team", href: "/team", icon: Users },
-  { name: "KPIs", href: "/kpi-dashboard", icon: Target },
-  { name: "Cal", href: "/calendar", icon: CalendarIcon },
-];
+import { TopNav } from "./TopNav";
+import { SubNav } from "./SubNav";
 
 interface UserProfile {
   fullName: string;
@@ -331,19 +324,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           
-          <nav className="hidden md:flex md:flex-1 md:items-center md:space-x-1">
-            {navigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                activeClassName="bg-secondary text-foreground"
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="hidden md:flex md:flex-1 md:items-center">
+            <TopNav isAdmin={userProfile?.role === 'admin'} />
+          </div>
 
           <div className="hidden md:flex md:items-center md:gap-2">
             {elapsedTime && (
@@ -513,6 +496,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
       </header>
+
+      {/* Sub Navigation for Team section */}
+      <SubNav />
 
       <main className="container px-4 pt-2 pb-24 md:pb-8 md:px-8 overflow-x-hidden">{children}</main>
 
