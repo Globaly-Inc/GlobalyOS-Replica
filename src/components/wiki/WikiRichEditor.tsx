@@ -604,6 +604,93 @@ export const WikiRichEditor = ({
     setHoveredColIndex(null);
   }, [triggerUpdate]);
 
+  // URL regex pattern for auto-linking
+  const urlPattern = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,!?;:'")\]]/g;
+
+  // Auto-convert URLs to links
+  const autoLinkUrls = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    if (!range.collapsed) return;
+    
+    // Get the current text node
+    let node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return;
+    
+    // Skip if already inside a link
+    const parentElement = node.parentElement;
+    if (parentElement?.closest('a')) return;
+    
+    // Skip if inside code block
+    if (parentElement?.closest('.wiki-code-block, pre, code')) return;
+    
+    const text = node.textContent || '';
+    const cursorPos = range.startOffset;
+    
+    // Find all URLs in the text
+    let match;
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,!?;:'")\]]/g;
+    const matches: { start: number; end: number; url: string }[] = [];
+    
+    while ((match = urlRegex.exec(text)) !== null) {
+      matches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        url: match[0]
+      });
+    }
+    
+    // Process matches in reverse order to maintain positions
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const { start, end, url } = matches[i];
+      
+      // Only auto-link if cursor is right after the URL (user just finished typing it)
+      // or if cursor is past this URL (it was typed earlier)
+      if (cursorPos >= end) {
+        // Create the link
+        const fullUrl = url.startsWith('www.') ? `https://${url}` : url;
+        
+        const beforeText = text.substring(0, start);
+        const afterText = text.substring(end);
+        
+        // Create text nodes and link
+        const beforeNode = document.createTextNode(beforeText);
+        const afterNode = document.createTextNode(afterText);
+        
+        const link = document.createElement('a');
+        link.href = fullUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = url;
+        link.className = 'text-primary underline';
+        
+        // Replace the text node
+        const parent = node.parentNode;
+        if (parent) {
+          parent.insertBefore(beforeNode, node);
+          parent.insertBefore(link, node);
+          parent.insertBefore(afterNode, node);
+          parent.removeChild(node);
+          
+          // Restore cursor position in the afterNode
+          const newCursorPos = cursorPos - end;
+          if (newCursorPos >= 0 && afterNode.textContent) {
+            const newRange = document.createRange();
+            newRange.setStart(afterNode, Math.min(newCursorPos, afterNode.textContent.length));
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+          
+          triggerUpdate();
+          return; // Only process one URL at a time
+        }
+      }
+    }
+  }, [triggerUpdate]);
+
   const handleInput = useCallback(() => {
     triggerUpdate();
     updateActiveFormatting();
@@ -791,6 +878,14 @@ export const WikiRichEditor = ({
 
   // Handle keyboard shortcuts and list behavior
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Auto-link URLs when user presses Space or Enter
+    if (e.key === ' ' || e.key === 'Enter') {
+      // Use setTimeout to let the character be inserted first
+      setTimeout(() => {
+        autoLinkUrls();
+      }, 0);
+    }
+    
     // Keyboard shortcuts
     if (e.ctrlKey || e.metaKey) {
       switch (e.key.toLowerCase()) {
@@ -958,7 +1053,7 @@ export const WikiRichEditor = ({
         }
       }
     }
-  }, [execCommand, triggerUpdate, saveSelection]);
+  }, [execCommand, triggerUpdate, saveSelection, autoLinkUrls]);
 
   const isCommandActive = (command: string) => {
     try {
