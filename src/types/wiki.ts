@@ -2,6 +2,9 @@
  * Wiki knowledge base type definitions
  */
 
+export type WikiAccessScope = 'company' | 'offices' | 'departments' | 'projects' | 'members' | 'public';
+export type WikiPermissionLevel = 'view' | 'edit';
+
 export interface WikiFolder {
   id: string;
   organization_id: string;
@@ -11,6 +14,8 @@ export interface WikiFolder {
   created_by: string;
   created_at: string;
   updated_at: string;
+  access_scope?: WikiAccessScope;
+  permission_level?: WikiPermissionLevel;
 }
 
 export interface WikiPage {
@@ -24,6 +29,15 @@ export interface WikiPage {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  // File metadata
+  is_file?: boolean;
+  file_type?: 'image' | 'pdf' | 'document';
+  file_url?: string;
+  thumbnail_url?: string;
+  // Permissions
+  access_scope?: WikiAccessScope;
+  permission_level?: WikiPermissionLevel;
+  inherit_from_folder?: boolean;
 }
 
 export interface WikiPageWithRelations extends WikiPage {

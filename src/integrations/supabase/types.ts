@@ -2978,34 +2978,227 @@ export type Database = {
           },
         ]
       }
+      wiki_folder_departments: {
+        Row: {
+          created_at: string | null
+          department: string
+          folder_id: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          folder_id: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          folder_id?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_folder_departments_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_folder_members: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          folder_id: string
+          id: string
+          organization_id: string
+          permission: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          folder_id: string
+          id?: string
+          organization_id: string
+          permission?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          folder_id?: string
+          id?: string
+          organization_id?: string
+          permission?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_folder_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_members_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_folder_offices: {
+        Row: {
+          created_at: string | null
+          folder_id: string
+          id: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          folder_id: string
+          id?: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          folder_id?: string
+          id?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_folder_offices_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_folder_projects: {
+        Row: {
+          created_at: string | null
+          folder_id: string
+          id: string
+          organization_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          folder_id: string
+          id?: string
+          organization_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          folder_id?: string
+          id?: string
+          organization_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_folder_projects_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wiki_folders: {
         Row: {
+          access_scope: string | null
           created_at: string
           created_by: string
           id: string
           name: string
           organization_id: string
           parent_id: string | null
+          permission_level: string | null
           sort_order: number
           updated_at: string
         }
         Insert: {
+          access_scope?: string | null
           created_at?: string
           created_by: string
           id?: string
           name: string
           organization_id: string
           parent_id?: string | null
+          permission_level?: string | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
+          access_scope?: string | null
           created_at?: string
           created_by?: string
           id?: string
           name?: string
           organization_id?: string
           parent_id?: string | null
+          permission_level?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -3036,6 +3229,193 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "wiki_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_page_departments: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          organization_id: string
+          page_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          organization_id: string
+          page_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          organization_id?: string
+          page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_page_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_departments_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_page_members: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          page_id: string
+          permission: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          page_id: string
+          permission?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          page_id?: string
+          permission?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_page_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_members_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_page_offices: {
+        Row: {
+          created_at: string | null
+          id: string
+          office_id: string
+          organization_id: string
+          page_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          office_id: string
+          organization_id: string
+          page_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          office_id?: string
+          organization_id?: string
+          page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_page_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_offices_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wiki_page_projects: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          page_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          page_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          page_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_page_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_projects_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -3101,37 +3481,58 @@ export type Database = {
       }
       wiki_pages: {
         Row: {
+          access_scope: string | null
           content: string | null
           created_at: string
           created_by: string
+          file_type: string | null
+          file_url: string | null
           folder_id: string | null
           id: string
+          inherit_from_folder: boolean | null
+          is_file: boolean | null
           organization_id: string
+          permission_level: string | null
           sort_order: number
+          thumbnail_url: string | null
           title: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          access_scope?: string | null
           content?: string | null
           created_at?: string
           created_by: string
+          file_type?: string | null
+          file_url?: string | null
           folder_id?: string | null
           id?: string
+          inherit_from_folder?: boolean | null
+          is_file?: boolean | null
           organization_id: string
+          permission_level?: string | null
           sort_order?: number
+          thumbnail_url?: string | null
           title: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          access_scope?: string | null
           content?: string | null
           created_at?: string
           created_by?: string
+          file_type?: string | null
+          file_url?: string | null
           folder_id?: string | null
           id?: string
+          inherit_from_folder?: boolean | null
+          is_file?: boolean | null
           organization_id?: string
+          permission_level?: string | null
           sort_order?: number
+          thumbnail_url?: string | null
           title?: string
           updated_at?: string
           updated_by?: string | null
