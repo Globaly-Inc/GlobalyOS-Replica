@@ -1,12 +1,13 @@
-import { Home, Users, ScanLine, User, Calendar } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useOrganization } from "@/hooks/useOrganization";
-import { QRScannerDialog } from "./dialogs/QRScannerDialog";
-import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
+import { Home, Users, ScanLine, User, Calendar } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+import { QRScannerDialog } from './dialogs/QRScannerDialog';
+import { AddLeaveRequestDialog } from './dialogs/AddLeaveRequestDialog';
 
 interface NavItem {
   icon: React.ElementType;
@@ -16,16 +17,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: "Overview", href: "/" },
-  { icon: Users, label: "Directory", href: "/team" },
-  { icon: ScanLine, label: "Check In", action: "scan" },
-  { icon: Calendar, label: "Cal", href: "/calendar" },
-  { icon: User, label: "Profile", action: "profile" },
+  { icon: Home, label: 'Overview', href: '/' },
+  { icon: Users, label: 'Directory', href: '/team' },
+  { icon: ScanLine, label: 'Check In', action: 'scan' },
+  { icon: Calendar, label: 'Cal', href: '/calendar' },
+  { icon: User, label: 'Profile', action: 'profile' },
 ];
 
 export const MobileBottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { orgId } = useParams<{ orgId: string }>();
+  const { navigateOrg, buildOrgPath } = useOrgNavigation();
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
@@ -37,10 +40,10 @@ export const MobileBottomNav = () => {
     const loadEmployee = async () => {
       if (!user?.id || !currentOrg?.id) return;
       const { data } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("organization_id", currentOrg.id)
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('organization_id', currentOrg.id)
         .maybeSingle();
       setEmployeeId(data?.id || null);
     };
@@ -53,12 +56,12 @@ export const MobileBottomNav = () => {
       if (!employeeId) return;
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase
-        .from("attendance_records")
-        .select("check_in_time")
-        .eq("employee_id", employeeId)
-        .eq("date", today)
-        .is("check_out_time", null)
-        .order("check_in_time", { ascending: false })
+        .from('attendance_records')
+        .select('check_in_time')
+        .eq('employee_id', employeeId)
+        .eq('date', today)
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false })
         .limit(1)
         .maybeSingle();
       setCheckInTime(data?.check_in_time ? new Date(data.check_in_time) : null);
@@ -68,24 +71,27 @@ export const MobileBottomNav = () => {
 
   const handleNavClick = (item: NavItem) => {
     if (item.href) {
-      navigate(item.href);
-    } else if (item.action === "scan") {
+      navigateOrg(item.href);
+    } else if (item.action === 'scan') {
       setQrScannerOpen(true);
-    } else if (item.action === "leave") {
+    } else if (item.action === 'leave') {
       setLeaveDialogOpen(true);
-    } else if (item.action === "profile" && employeeId) {
-      navigate(`/team/${employeeId}`);
+    } else if (item.action === 'profile' && employeeId) {
+      navigateOrg(`/team/${employeeId}`);
     }
   };
 
+  const basePath = orgId ? `/org/${orgId}` : '';
+
   const isActive = (item: NavItem) => {
     if (item.href) {
-      if (item.href === "/") {
-        return location.pathname === "/";
+      const fullPath = item.href === '/' ? basePath : `${basePath}${item.href}`;
+      if (item.href === '/') {
+        return location.pathname === basePath || location.pathname === `${basePath}/`;
       }
-      return location.pathname.startsWith(item.href);
+      return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
     }
-    if (item.action === "profile") {
+    if (item.action === 'profile') {
       return location.pathname.includes(`/team/${employeeId}`);
     }
     return false;
@@ -97,37 +103,37 @@ export const MobileBottomNav = () => {
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const active = isActive(item);
-            const isScan = item.action === "scan";
+            const isScan = item.action === 'scan';
             
             return (
               <button
                 key={item.label}
                 onClick={() => handleNavClick(item)}
-                disabled={item.action === "leave" && !employeeId}
+                disabled={item.action === 'leave' && !employeeId}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative",
-                  active && "text-primary",
-                  !active && "text-muted-foreground",
-                  isScan && "relative"
+                  'flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative',
+                  active && 'text-primary',
+                  !active && 'text-muted-foreground',
+                  isScan && 'relative'
                 )}
               >
                 {isScan ? (
                   <div className={cn(
-                    "flex items-center justify-center w-12 h-12 -mt-6 rounded-full shadow-lg transition-all",
+                    'flex items-center justify-center w-12 h-12 -mt-6 rounded-full shadow-lg transition-all',
                     checkInTime 
-                      ? "bg-green-500 text-white animate-pulse" 
-                      : "bg-primary text-primary-foreground"
+                      ? 'bg-green-500 text-white animate-pulse' 
+                      : 'bg-primary text-primary-foreground'
                   )}>
                     <item.icon className="h-6 w-6" />
                   </div>
                 ) : (
-                  <item.icon className={cn("h-5 w-5", active && "scale-110")} />
+                  <item.icon className={cn('h-5 w-5', active && 'scale-110')} />
                 )}
                 <span className={cn(
-                  "text-[10px] font-medium",
-                  isScan && "mt-1"
+                  'text-[10px] font-medium',
+                  isScan && 'mt-1'
                 )}>
-                  {isScan && checkInTime ? "Check Out" : item.label}
+                  {isScan && checkInTime ? 'Check Out' : item.label}
                 </span>
                 {active && !isScan && (
                   <div className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />

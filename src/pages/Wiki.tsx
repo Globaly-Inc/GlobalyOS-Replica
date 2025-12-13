@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
-import { WikiSidebar } from "@/components/wiki/WikiSidebar";
+import { WikiSidebar } from '@/components/wiki/WikiSidebar';
 import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
 import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
@@ -396,7 +395,7 @@ const Wiki = () => {
   }, [viewMode, selectedFolderId, selectedPageId, pagesList]);
 
   return (
-    <Layout>
+    <>
       <div className="h-[calc(100vh-4rem)] flex flex-col">
         {/* Header */}
         <div className="bg-card border-b px-4 py-3 flex items-center gap-4">
@@ -522,7 +521,7 @@ const Wiki = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, MessageSquare, BookOpen, CheckSquare, Briefcase } from "lucide-react";
-import { Button } from "./ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Badge } from "./ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-react';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -42,6 +43,8 @@ const getRoleConfig = (role?: string | null) => {
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { orgId } = useParams<{ orgId: string }>();
+  const { navigateOrg } = useOrgNavigation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
@@ -289,12 +292,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate('/auth');
   };
 
   const handleViewProfile = () => {
     if (userProfile?.employeeId) {
-      navigate(`/team/${userProfile.employeeId}`);
+      navigateOrg(`/team/${userProfile.employeeId}`);
     }
   };
 
@@ -400,7 +403,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   variant="outline" 
                   size="icon"
                   className="h-10 w-10 relative"
-                  onClick={() => navigate("/notifications")}
+                  onClick={() => navigateOrg('/notifications')}
                 >
                   <Bell className="h-4 w-4" />
                   {unreadCount > 0 && (
@@ -421,7 +424,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     variant="outline" 
                     size="icon"
                     className="h-10 w-10"
-                    onClick={() => navigate("/settings")}
+                    onClick={() => navigateOrg('/settings')}
                   >
                     <Settings className="h-4 w-4" />
                   </Button>

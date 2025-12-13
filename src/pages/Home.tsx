@@ -1,5 +1,4 @@
-import { Layout } from "@/components/Layout";
-import { UpdateCard } from "@/components/UpdateCard";
+import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from "@/components/KudosCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -717,7 +716,7 @@ const Home = () => {
       }
     })}
     </>;
-  return <Layout>
+  return <>
       <div className="space-y-6">
         <AdminSetup />
         
@@ -1204,6 +1203,6 @@ const Home = () => {
       <PostUpdateDialog open={postDialogOpen} onOpenChange={setPostDialogOpen} onSuccess={loadFeed} canPostAnnouncement={isAdmin || isHR} />
 
       {currentEmployeeId && <AddLeaveRequestDialog employeeId={currentEmployeeId} open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSuccess={loadLeaveData} trigger={null} />}
-    </Layout>;
+    </>;
 };
 export default Home;

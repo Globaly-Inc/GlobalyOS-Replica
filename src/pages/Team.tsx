@@ -1,5 +1,4 @@
-import { Layout } from "@/components/Layout";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader } from '@/components/PageHeader';
 import { EmployeeCard } from "@/components/EmployeeCard";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -326,7 +325,7 @@ const Team = () => {
   };
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         <PageHeader 
           title="Team Directory" 
@@ -555,7 +554,7 @@ const Team = () => {
         open={recoverDialogOpen}
         onOpenChange={setRecoverDialogOpen}
       />
-    </Layout>
+    </>
   );
 };
 
