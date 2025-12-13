@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
 export const MobileBottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgCode } = useParams<{ orgCode: string }>();
   const { navigateOrg, buildOrgPath } = useOrgNavigation();
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
@@ -81,7 +81,7 @@ export const MobileBottomNav = () => {
     }
   };
 
-  const basePath = orgId ? `/org/${orgId}` : '';
+  const basePath = orgCode ? `/org/${orgCode}` : '';
 
   const isActive = (item: NavItem) => {
     if (item.href) {

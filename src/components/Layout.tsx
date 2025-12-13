@@ -43,7 +43,7 @@ const getRoleConfig = (role?: string | null) => {
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgCode } = useParams<{ orgCode: string }>();
   const { navigateOrg } = useOrgNavigation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);

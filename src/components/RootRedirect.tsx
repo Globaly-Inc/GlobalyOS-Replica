@@ -1,6 +1,6 @@
 /**
  * Root path redirect component
- * Redirects authenticated users to their org-scoped home page
+ * Redirects authenticated users to their org-scoped home page using orgCode (slug)
  */
 
 import { useEffect, useState } from 'react';
@@ -41,9 +41,9 @@ const RootRedirect = () => {
     );
   }
 
-  // Has org - redirect to org-scoped home
+  // Has org - redirect to org-scoped home using slug (orgCode)
   if (currentOrg) {
-    return <Navigate to={`/org/${currentOrg.id}`} replace />;
+    return <Navigate to={`/org/${currentOrg.slug}`} replace />;
   }
 
   // No org - go to signup to create one

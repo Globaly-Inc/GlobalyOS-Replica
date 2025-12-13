@@ -17,10 +17,10 @@ export const OrganizationSwitcher = () => {
 
   if (!currentOrg) return null;
 
-  const handleSwitchOrg = (orgId: string) => {
+  const handleSwitchOrg = (orgId: string, orgSlug: string) => {
     switchOrganization(orgId);
-    // Navigate to the new org's home page
-    navigate(`/org/${orgId}`);
+    // Navigate to the new org's home page using slug (orgCode)
+    navigate(`/org/${orgSlug}`);
   };
 
   return (
@@ -46,7 +46,7 @@ export const OrganizationSwitcher = () => {
         {organizations.map((org) => (
           <DropdownMenuItem
             key={org.id}
-            onClick={() => handleSwitchOrg(org.id)}
+            onClick={() => handleSwitchOrg(org.id, org.slug)}
             className="cursor-pointer group"
           >
             <Avatar className="h-5 w-5 rounded mr-2">

@@ -14,9 +14,9 @@ const teamSubNavItems = [
 
 export const SubNav = () => {
   const location = useLocation();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgCode } = useParams<{ orgCode: string }>();
   
-  const basePath = orgId ? `/org/${orgId}` : '';
+  const basePath = orgCode ? `/org/${orgCode}` : '';
   
   // Show sub-nav on Team-related pages (including home which is now Overview)
   const isTeamSection = 

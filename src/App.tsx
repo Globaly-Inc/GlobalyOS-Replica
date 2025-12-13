@@ -76,8 +76,8 @@ const App = () => (
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
                 
-                {/* Organization-scoped routes */}
-                <Route path="/org/:orgId">
+                {/* Organization-scoped routes - uses orgCode (slug) not orgId */}
+                <Route path="/org/:orgCode">
                   {/* Team section */}
                   <Route index element={<OrgProtectedRoute><Home /></OrgProtectedRoute>} />
                   <Route path="team" element={<OrgProtectedRoute><Team /></OrgProtectedRoute>} />

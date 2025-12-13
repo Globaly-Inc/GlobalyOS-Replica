@@ -1,6 +1,6 @@
 /**
  * Organization-scoped Link component
- * Automatically prepends organization ID to link paths
+ * Automatically prepends organization code (slug) to link paths
  */
 
 import { forwardRef } from 'react';
@@ -8,7 +8,7 @@ import { Link, LinkProps } from 'react-router-dom';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 
 export interface OrgLinkProps extends Omit<LinkProps, 'to'> {
-  /** Path relative to organization (e.g., '/team' becomes '/org/:orgId/team') */
+  /** Path relative to organization (e.g., '/team' becomes '/org/:orgCode/team') */
   to: string;
   /** If true, don't prepend org prefix */
   absolute?: boolean;
