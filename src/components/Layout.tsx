@@ -57,6 +57,52 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>("");
   const [sessionCount, setSessionCount] = useState<number>(0);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Track online presence
+  useEffect(() => {
+    if (!userProfile?.employeeId || !currentOrg?.id) return;
+
+    const updatePresence = async (online: boolean) => {
+      await supabase
+        .from('chat_presence')
+        .upsert({
+          employee_id: userProfile.employeeId,
+          organization_id: currentOrg.id,
+          is_online: online,
+          last_seen_at: new Date().toISOString()
+        }, { onConflict: 'employee_id' });
+    };
+
+    // Set online when component mounts
+    updatePresence(true);
+    setIsOnline(true);
+
+    // Update presence every 30 seconds
+    const interval = setInterval(() => updatePresence(true), 30000);
+
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      const online = document.visibilityState === 'visible';
+      setIsOnline(online);
+      updatePresence(online);
+    };
+
+    // Handle before unload
+    const handleBeforeUnload = () => {
+      updatePresence(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      updatePresence(false);
+    };
+  }, [userProfile?.employeeId, currentOrg?.id]);
   
   // Pull to refresh for mobile
   const { pullDistance, isRefreshing, isPastThreshold } = usePullToRefresh();
@@ -449,7 +495,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                  {isOnline && (
+                    <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
