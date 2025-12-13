@@ -207,43 +207,6 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
 
   return (
     <div className="px-4 lg:px-6 pb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Globe className="h-3.5 w-3.5" />
-          <span>World Clock</span>
-        </div>
-        {timezones.length < MAX_CLOCKS && (
-          <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="end">
-              <Command>
-                <CommandInput placeholder="Search timezone..." className="h-9" />
-                <CommandList>
-                  <CommandEmpty>No timezone found.</CommandEmpty>
-                  <CommandGroup className="max-h-[200px] overflow-auto">
-                    {availableTimezones.map((tz) => (
-                      <CommandItem
-                        key={tz}
-                        value={formatTimezoneLabel(tz)}
-                        onSelect={() => addTimezone(tz)}
-                        className="text-xs"
-                      >
-                        <span className="mr-2">{getFlag(tz)}</span>
-                        {formatTimezoneLabel(tz)}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
-
       <div className="flex gap-2 overflow-x-auto pb-1">
         {timezones.map((tz) => {
           const { time, date, seconds } = getTimeInZone(tz);
@@ -288,6 +251,37 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
             <Clock className="h-3.5 w-3.5" />
             <span>Add timezones to track</span>
           </div>
+        )}
+
+        {timezones.length < MAX_CLOCKS && (
+          <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <PopoverTrigger asChild>
+              <Card className="shrink-0 p-3 min-w-[80px] bg-card border-border/50 border-dashed flex items-center justify-center cursor-pointer hover:border-border hover:bg-accent/50 transition-colors">
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </Card>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search timezone..." className="h-9" />
+                <CommandList>
+                  <CommandEmpty>No timezone found.</CommandEmpty>
+                  <CommandGroup className="max-h-[200px] overflow-auto">
+                    {availableTimezones.map((tz) => (
+                      <CommandItem
+                        key={tz}
+                        value={formatTimezoneLabel(tz)}
+                        onSelect={() => addTimezone(tz)}
+                        className="text-xs"
+                      >
+                        <span className="mr-2">{getFlag(tz)}</span>
+                        {formatTimezoneLabel(tz)}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>
