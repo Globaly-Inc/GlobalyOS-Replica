@@ -800,23 +800,30 @@ const CalendarPage = () => {
           {/* Calendar Grid */}
           <div className="flex-1 p-4 lg:p-6 overflow-auto">
             {viewMode === "month" && (
-              <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
+              <div className="grid grid-cols-7 rounded-xl overflow-hidden border border-border">
                 {/* Day headers */}
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => (
                   <div
                     key={day}
-                    className="bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground"
+                    className={cn(
+                      "bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground border-b border-border",
+                      index < 6 && "border-r border-border"
+                    )}
                   >
                     {day}
                   </div>
                 ))}
 
                 {/* Calendar days */}
-                {calendarDays.map((day) => {
+                {calendarDays.map((day, index) => {
                   const dayItems = getDayItems(day);
                   const isToday = isSameDay(day, new Date());
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const isCurrentMonth = isSameMonth(day, currentDate);
+                  const colIndex = index % 7;
+                  const rowIndex = Math.floor(index / 7);
+                  const totalRows = Math.ceil(calendarDays.length / 7);
+                  const isLastRow = rowIndex === totalRows - 1;
 
                   return (
                     <button
@@ -826,7 +833,9 @@ const CalendarPage = () => {
                         "bg-card p-2 text-left transition-all duration-200 cursor-pointer group min-h-[100px]",
                         !isCurrentMonth && "opacity-40",
                         isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
-                        "hover:bg-accent/50"
+                        "hover:bg-accent/50",
+                        colIndex < 6 && "border-r border-border",
+                        !isLastRow && "border-b border-border"
                       )}
                     >
                       <div className="flex flex-col h-full">
