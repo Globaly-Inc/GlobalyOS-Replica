@@ -2,7 +2,7 @@ import { Update } from "@/types/employee";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { RichTextContent } from "./ui/rich-text-editor";
 import { Trophy, Megaphone, Pencil, Trash2 } from "lucide-react";
-import { formatDateTime } from "@/lib/utils";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { FeedReactions } from "./FeedReactions";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -54,6 +54,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
   const Icon = config.icon;
   const { toast } = useToast();
   const { isAdmin, isHR } = useUserRole();
+  const { formatDateTime } = useFormattedDate();
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -130,7 +131,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
               <div>
                 <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDateTime(update.date)}
+                  {formatDateTime(update.date, true)}
                 </p>
               </div>
             </Link>

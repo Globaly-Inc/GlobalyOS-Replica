@@ -15,8 +15,8 @@ import {
 export const useFormattedDate = () => {
   const { timezone } = useTimezone();
 
-  const formatDateTime = useCallback((date: string | Date): string => {
-    return formatDateTimeUtil(date, timezone);
+  const formatDateTime = useCallback((date: string | Date, showTimezone?: boolean): string => {
+    return formatDateTimeUtil(date, timezone, showTimezone);
   }, [timezone]);
 
   const formatDate = useCallback((date: string | Date): string => {

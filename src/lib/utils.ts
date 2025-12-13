@@ -9,9 +9,14 @@ export function cn(...inputs: ClassValue[]) {
 
 // Date formatting utilities for consistent date display across the system
 // All functions accept an optional timezone parameter for timezone-aware formatting
-export function formatDateTime(date: string | Date, timezone?: string): string {
+export function formatDateTime(date: string | Date, timezone?: string, showTimezone?: boolean): string {
   if (timezone) {
-    return formatInTimeZone(new Date(date), timezone, "d MMM yyyy - h:mm a");
+    const formatted = formatInTimeZone(new Date(date), timezone, "d MMM yyyy - h:mm a");
+    if (showTimezone) {
+      const tzAbbr = formatInTimeZone(new Date(date), timezone, "zzz");
+      return `${formatted} ${tzAbbr}`;
+    }
+    return formatted;
   }
   return format(new Date(date), "d MMM yyyy - h:mm a");
 }
