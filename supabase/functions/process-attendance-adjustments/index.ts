@@ -26,6 +26,7 @@ interface Organization {
   id: string;
   workday_hours: number;
   max_day_in_lieu_days: number | null;
+  auto_attendance_adjustments_enabled: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -47,10 +48,11 @@ Deno.serve(async (req) => {
     
     console.log(`Processing attendance adjustments for date: ${targetDate}`);
 
-    // Get all organizations with their settings
+    // Get all organizations with their settings (only those with feature enabled)
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
-      .select('id, workday_hours, max_day_in_lieu_days');
+      .select('id, workday_hours, max_day_in_lieu_days, auto_attendance_adjustments_enabled')
+      .eq('auto_attendance_adjustments_enabled', true);
 
     if (orgError) {
       console.error('Error fetching organizations:', orgError);

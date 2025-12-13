@@ -16,6 +16,7 @@ export const AttendanceSettings = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   
+  const [featureEnabled, setFeatureEnabled] = useState(false);
   const [workdayHours, setWorkdayHours] = useState("8");
   const [maxDilDays, setMaxDilDays] = useState("");
   const [hasDilCap, setHasDilCap] = useState(false);
@@ -32,11 +33,12 @@ export const AttendanceSettings = () => {
 
     const { data, error } = await supabase
       .from("organizations")
-      .select("workday_hours, max_day_in_lieu_days")
+      .select("workday_hours, max_day_in_lieu_days, auto_attendance_adjustments_enabled")
       .eq("id", currentOrg.id)
       .single();
 
     if (!error && data) {
+      setFeatureEnabled(data.auto_attendance_adjustments_enabled || false);
       setWorkdayHours(String(data.workday_hours || 8));
       setHasDilCap(data.max_day_in_lieu_days !== null);
       setMaxDilDays(data.max_day_in_lieu_days !== null ? String(data.max_day_in_lieu_days) : "");
@@ -57,9 +59,14 @@ export const AttendanceSettings = () => {
     setSaving(true);
 
     try {
-      const updateData: { workday_hours: number; max_day_in_lieu_days: number | null } = {
+      const updateData: { 
+        workday_hours: number; 
+        max_day_in_lieu_days: number | null;
+        auto_attendance_adjustments_enabled: boolean;
+      } = {
         workday_hours: hours,
-        max_day_in_lieu_days: null
+        max_day_in_lieu_days: null,
+        auto_attendance_adjustments_enabled: featureEnabled
       };
 
       if (hasDilCap) {
@@ -136,66 +143,84 @@ export const AttendanceSettings = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="workdayHours">Workday Hours</Label>
-            <Input
-              id="workdayHours"
-              type="number"
-              min="1"
-              max="24"
-              step="0.5"
-              value={workdayHours}
-              onChange={(e) => setWorkdayHours(e.target.value)}
-              placeholder="8"
-            />
-            <p className="text-xs text-muted-foreground">
-              Hours that equal 1 full day for overtime/undertime conversion
+        {/* Master Toggle */}
+        <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-base font-medium">Enable Automatic Adjustments</Label>
+            <p className="text-sm text-muted-foreground">
+              Automatically convert overtime to Day In Lieu and deduct leave for undertime
             </p>
           </div>
+          <Switch
+            checked={featureEnabled}
+            onCheckedChange={setFeatureEnabled}
+          />
         </div>
 
-        <div className="space-y-4 pt-4 border-t">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Cap Day In Lieu Accumulation</Label>
-              <p className="text-xs text-muted-foreground">
-                Set a maximum number of Day In Lieu days an employee can accumulate
-              </p>
+        {featureEnabled && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="workdayHours">Workday Hours</Label>
+                <Input
+                  id="workdayHours"
+                  type="number"
+                  min="1"
+                  max="24"
+                  step="0.5"
+                  value={workdayHours}
+                  onChange={(e) => setWorkdayHours(e.target.value)}
+                  placeholder="8"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Hours that equal 1 full day for overtime/undertime conversion
+                </p>
+              </div>
             </div>
-            <Switch
-              checked={hasDilCap}
-              onCheckedChange={setHasDilCap}
-            />
-          </div>
-          
-          {hasDilCap && (
-            <div className="space-y-2">
-              <Label htmlFor="maxDilDays">Maximum Day In Lieu Days</Label>
-              <Input
-                id="maxDilDays"
-                type="number"
-                min="0"
-                step="0.5"
-                value={maxDilDays}
-                onChange={(e) => setMaxDilDays(e.target.value)}
-                placeholder="e.g., 10"
-              />
-              <p className="text-xs text-muted-foreground">
-                Once reached, additional overtime will not add more DIL days
-              </p>
-            </div>
-          )}
-        </div>
 
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-          <h4 className="font-medium text-sm">How it works</h4>
-          <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-            <li><strong>Early check-in / late check-out:</strong> Extra hours accumulate. When they reach {workdayHours || 8} hours, +1 "Day In Lieu" is automatically added.</li>
-            <li><strong>Late check-in / early check-out:</strong> Deficit hours accumulate. When they reach {workdayHours || 8} hours, 1 day is deducted from Day In Lieu first, then Annual Leave.</li>
-            <li>Adjustments are processed automatically at end of each day.</li>
-          </ul>
-        </div>
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Cap Day In Lieu Accumulation</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Set a maximum number of Day In Lieu days an employee can accumulate
+                  </p>
+                </div>
+                <Switch
+                  checked={hasDilCap}
+                  onCheckedChange={setHasDilCap}
+                />
+              </div>
+              
+              {hasDilCap && (
+                <div className="space-y-2">
+                  <Label htmlFor="maxDilDays">Maximum Day In Lieu Days</Label>
+                  <Input
+                    id="maxDilDays"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={maxDilDays}
+                    onChange={(e) => setMaxDilDays(e.target.value)}
+                    placeholder="e.g., 10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Once reached, additional overtime will not add more DIL days
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+              <h4 className="font-medium text-sm">How it works</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <li><strong>Early check-in / late check-out:</strong> Extra hours accumulate. When they reach {workdayHours || 8} hours, +1 &quot;Day In Lieu&quot; is automatically added.</li>
+                <li><strong>Late check-in / early check-out:</strong> Deficit hours accumulate. When they reach {workdayHours || 8} hours, 1 day is deducted from Day In Lieu first, then Annual Leave.</li>
+                <li>Adjustments are processed automatically at end of each day.</li>
+              </ul>
+            </div>
+          </>
+        )}
 
         <div className="pt-4">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
