@@ -510,8 +510,15 @@ export const WikiRichEditor = ({
 
   // Insert a styled code block with header and language dropdown
   const handleInsertCodeBlock = useCallback(() => {
+    // Focus editor first to ensure we can insert
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    
+    // Try to restore saved selection
     restoreSelection();
-    const selection = window.getSelection();
+    
+    let selection = window.getSelection();
     
     // Check if cursor is already inside a code block
     if (selection && selection.rangeCount > 0) {
@@ -543,18 +550,6 @@ export const WikiRichEditor = ({
 }
 
 myFunction();`;
-
-    // Helper to apply syntax highlighting
-    const applyHighlighting = (codeEl: HTMLElement, language: string) => {
-      const code = codeEl.getAttribute('data-raw-code') || codeEl.textContent || '';
-      const prismLang = LANGUAGE_MAP[language.toLowerCase()] || 'plaintext';
-      const grammar = Prism.languages[prismLang];
-      if (grammar) {
-        codeEl.innerHTML = Prism.highlight(code, grammar, prismLang);
-      } else {
-        codeEl.textContent = code;
-      }
-    };
     
     // Create the code block container
     const codeBlockWrapper = document.createElement('div');
@@ -737,20 +732,20 @@ myFunction();`;
       codeDisplay.innerHTML = Prism.highlight(codeInput.value, initialGrammar, initialLang);
     }
     
-    // Insert at cursor position or end of editor
-    const currentSelection = window.getSelection();
+    // Insert the code block into the editor
+    // Re-get selection after focus
+    selection = window.getSelection();
     let insertRange: Range | null = null;
     
-    if (currentSelection && currentSelection.rangeCount > 0) {
-      const range = currentSelection.getRangeAt(0);
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
       if (editorRef.current?.contains(range.commonAncestorContainer)) {
         insertRange = range;
       }
     }
     
-    // If no valid selection in editor, create one at the end
+    // If no valid selection in editor, append to end
     if (!insertRange && editorRef.current) {
-      editorRef.current.focus();
       insertRange = document.createRange();
       insertRange.selectNodeContents(editorRef.current);
       insertRange.collapse(false);
@@ -765,7 +760,18 @@ myFunction();`;
       codeBlockWrapper.parentNode?.insertBefore(spacer, codeBlockWrapper.nextSibling);
       
       // Focus on code input
-      codeInput.focus();
+      setTimeout(() => {
+        codeInput.focus();
+      }, 0);
+    } else if (editorRef.current) {
+      // Fallback: directly append to editor
+      editorRef.current.appendChild(codeBlockWrapper);
+      const spacer = document.createElement('p');
+      spacer.innerHTML = '<br>';
+      editorRef.current.appendChild(spacer);
+      setTimeout(() => {
+        codeInput.focus();
+      }, 0);
     }
     
     triggerUpdate();
