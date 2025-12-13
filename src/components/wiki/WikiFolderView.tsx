@@ -318,7 +318,7 @@ export const WikiFolderView = ({
 
   // Get breadcrumb path
   const getBreadcrumbs = () => {
-    const crumbs: { id: string | null; name: string }[] = [{ id: null, name: "Wiki Home" }];
+    const crumbs: { id: string | null; name: string }[] = [{ id: null, name: "Home" }];
     if (currentFolderId) {
       let current = folders.find((f) => f.id === currentFolderId);
       const path: WikiFolder[] = [];
