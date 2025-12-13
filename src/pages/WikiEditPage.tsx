@@ -24,7 +24,7 @@ const WikiEditPage = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
-  const { isAdmin, isHR } = useUserRole();
+  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
   const queryClient = useQueryClient();
   
   const [editTitle, setEditTitle] = useState("");
@@ -190,15 +190,15 @@ const WikiEditPage = () => {
     setEditContent(value);
   }, []);
 
-  // Redirect if user can't edit
+  // Redirect if user can't edit (only after role has loaded)
   useEffect(() => {
-    if (!isLoading && !canEdit) {
+    if (!isLoading && !roleLoading && !canEdit) {
       toast.error("You don't have permission to edit this page");
       navigate("/wiki");
     }
-  }, [isLoading, canEdit, navigate]);
+  }, [isLoading, roleLoading, canEdit, navigate]);
 
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
