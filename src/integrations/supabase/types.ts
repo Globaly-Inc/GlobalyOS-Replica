@@ -66,6 +66,129 @@ export type Database = {
           },
         ]
       }
+      attendance_hour_balances: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          overtime_minutes: number
+          undertime_minutes: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          overtime_minutes?: number
+          undertime_minutes?: number
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          overtime_minutes?: number
+          undertime_minutes?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_hour_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_hour_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_hour_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_leave_adjustments: {
+        Row: {
+          adjustment_type: string
+          attendance_date: string
+          created_at: string
+          days_adjusted: number
+          employee_id: string
+          id: string
+          leave_type_id: string
+          minutes_converted: number
+          notes: string | null
+          organization_id: string
+        }
+        Insert: {
+          adjustment_type: string
+          attendance_date: string
+          created_at?: string
+          days_adjusted: number
+          employee_id: string
+          id?: string
+          leave_type_id: string
+          minutes_converted: number
+          notes?: string | null
+          organization_id: string
+        }
+        Update: {
+          adjustment_type?: string
+          attendance_date?: string
+          created_at?: string
+          days_adjusted?: number
+          employee_id?: string
+          id?: string
+          leave_type_id?: string
+          minutes_converted?: number
+          notes?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_leave_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_leave_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_leave_adjustments_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_leave_adjustments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           check_in_time: string | null
@@ -1252,6 +1375,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_system: boolean
           min_days_advance: number
           name: string
           organization_id: string
@@ -1265,6 +1389,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_system?: boolean
           min_days_advance?: number
           name: string
           organization_id: string
@@ -1278,6 +1403,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_system?: boolean
           min_days_advance?: number
           name?: string
           organization_id?: string
@@ -1536,28 +1662,34 @@ export type Database = {
           created_at: string
           id: string
           logo_url: string | null
+          max_day_in_lieu_days: number | null
           name: string
           plan: string
           slug: string
           updated_at: string
+          workday_hours: number
         }
         Insert: {
           created_at?: string
           id?: string
           logo_url?: string | null
+          max_day_in_lieu_days?: number | null
           name: string
           plan?: string
           slug: string
           updated_at?: string
+          workday_hours?: number
         }
         Update: {
           created_at?: string
           id?: string
           logo_url?: string | null
+          max_day_in_lieu_days?: number | null
           name?: string
           plan?: string
           slug?: string
           updated_at?: string
+          workday_hours?: number
         }
         Relationships: []
       }

@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.get-google-maps-key]
 verify_jwt = false
+
+[functions.process-attendance-adjustments]
+verify_jwt = false

@@ -46,6 +46,7 @@ interface LeaveType {
   min_days_advance: number;
   applies_to_all_offices: boolean;
   is_active: boolean;
+  is_system: boolean;
   office_ids?: string[];
 }
 
@@ -250,6 +251,11 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   };
 
   const handleDelete = async (leaveType: LeaveType) => {
+    if (leaveType.is_system) {
+      toast.error("System leave types cannot be deleted");
+      return;
+    }
+    
     if (!confirm(`Are you sure you want to delete "${leaveType.name}"?`)) return;
 
     const { error } = await supabase
@@ -513,6 +519,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                       variant="ghost"
                       size="icon"
                       onClick={() => openEditDialog(leaveType)}
+                      disabled={leaveType.is_system}
+                      title={leaveType.is_system ? "System leave types cannot be edited" : "Edit"}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -520,10 +528,13 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleToggleActive(leaveType)}
+                      disabled={leaveType.is_system}
+                      title={leaveType.is_system ? "System leave types cannot be deactivated" : "Toggle active"}
                     >
                       <Switch
                         checked={leaveType.is_active}
                         className="scale-75"
+                        disabled={leaveType.is_system}
                       />
                     </Button>
                     <Button
@@ -531,6 +542,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                       size="icon"
                       onClick={() => handleDelete(leaveType)}
                       className="text-destructive hover:text-destructive"
+                      disabled={leaveType.is_system}
+                      title={leaveType.is_system ? "System leave types cannot be deleted" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
