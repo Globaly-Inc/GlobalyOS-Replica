@@ -3,12 +3,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   ArrowLeft,
   Search,
   MoreVertical,
@@ -19,10 +13,22 @@ import {
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useMessages, useTogglePinMessage, useTypingUsers, useMarkAsRead } from "@/services/useChat";
+import { 
+  useMessages, 
+  useTogglePinMessage, 
+  useTypingUsers, 
+  useMarkAsRead,
+  useEditMessage,
+  useDeleteMessage,
+  useMessageReactions,
+  useToggleReaction
+} from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
 import AttachmentRenderer from "./AttachmentRenderer";
+import MessageActions from "./MessageActions";
+import MessageReactions from "./MessageReactions";
+import EditMessageInput from "./EditMessageInput";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,14 +51,19 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const togglePin = useTogglePinMessage();
+  const editMessage = useEditMessage();
+  const deleteMessage = useDeleteMessage();
+  const toggleReaction = useToggleReaction();
   const markAsRead = useMarkAsRead();
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
   
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
   const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
+  const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
 
   // Mark as read when viewing conversation
   useEffect(() => {
@@ -169,7 +180,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
     };
   }, [otherParticipant?.id]);
 
-  // Subscribe to real-time messages and attachments
+  // Subscribe to real-time messages, attachments, and reactions
   useEffect(() => {
     const channel = supabase
       .channel('chat-messages-realtime')
@@ -196,6 +207,17 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_message_reactions'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-reactions', conversationId, spaceId] });
         }
       )
       .subscribe();
@@ -365,6 +387,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                   {dateMessages.map((message) => {
                     const isOwn = message.sender_id === currentEmployee?.id;
                     const senderName = message.sender?.profiles?.full_name || "Unknown";
+                    const isEditing = editingMessageId === message.id;
+                    const messageReactions = reactions[message.id] || {};
                     
                     return (
                       <div
@@ -390,50 +414,71 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                             </span>
                           )}
                           
-                          <div className="flex items-start gap-1">
-                            <div
-                              className={cn(
-                                "px-3 py-2 rounded-2xl text-sm",
-                                isOwn
-                                  ? "bg-primary text-primary-foreground rounded-br-md"
-                                  : "bg-muted rounded-bl-md",
-                                message.is_pinned && "ring-2 ring-yellow-400"
-                              )}
-                            >
-                              {message.content && (
-                                <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                              )}
-                              {message.attachments && message.attachments.length > 0 && (
-                                <AttachmentRenderer 
-                                  attachments={message.attachments} 
-                                  isOwn={isOwn}
-                                />
-                              )}
-                            </div>
-                            
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                          {isEditing ? (
+                            <EditMessageInput
+                              initialContent={message.content}
+                              onSave={(content) => {
+                                editMessage.mutate({ messageId: message.id, content });
+                                setEditingMessageId(null);
+                              }}
+                              onCancel={() => setEditingMessageId(null)}
+                              isLoading={editMessage.isPending}
+                            />
+                          ) : (
+                            <>
+                              <div className="flex items-start gap-1">
+                                <div
+                                  className={cn(
+                                    "px-3 py-2 rounded-2xl text-sm",
+                                    isOwn
+                                      ? "bg-primary text-primary-foreground rounded-br-md"
+                                      : "bg-muted rounded-bl-md",
+                                    message.is_pinned && "ring-2 ring-yellow-400"
+                                  )}
                                 >
-                                  <MoreVertical className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align={isOwn ? "end" : "start"}>
-                                <DropdownMenuItem 
-                                  onClick={() => togglePin.mutate({ 
+                                  {message.content && (
+                                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                  )}
+                                  {message.attachments && message.attachments.length > 0 && (
+                                    <AttachmentRenderer 
+                                      attachments={message.attachments} 
+                                      isOwn={isOwn}
+                                    />
+                                  )}
+                                  {message.updated_at !== message.created_at && (
+                                    <span className="text-[10px] opacity-70 ml-1">(edited)</span>
+                                  )}
+                                </div>
+                                
+                                <MessageActions
+                                  messageId={message.id}
+                                  isPinned={message.is_pinned}
+                                  isOwn={isOwn}
+                                  onPin={() => togglePin.mutate({ 
                                     messageId: message.id, 
                                     isPinned: message.is_pinned 
                                   })}
-                                >
-                                  <Pin className="h-4 w-4 mr-2" />
-                                  {message.is_pinned ? "Unpin" : "Pin"} message
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                                  onEdit={() => setEditingMessageId(message.id)}
+                                  onDelete={() => deleteMessage.mutate(message.id)}
+                                  onReact={(emoji) => toggleReaction.mutate({ 
+                                    messageId: message.id, 
+                                    emoji 
+                                  })}
+                                />
+                              </div>
+                              
+                              {/* Message reactions */}
+                              <MessageReactions
+                                reactions={messageReactions}
+                                currentEmployeeId={currentEmployee?.id || ''}
+                                onToggleReaction={(emoji) => toggleReaction.mutate({ 
+                                  messageId: message.id, 
+                                  emoji 
+                                })}
+                                isOwn={isOwn}
+                              />
+                            </>
+                          )}
                           
                           <span className="text-[10px] text-muted-foreground mt-1">
                             {formatMessageTime(message.created_at)}
