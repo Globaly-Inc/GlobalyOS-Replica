@@ -139,8 +139,7 @@ const MentionAutocomplete = ({
   return (
     <div
       ref={containerRef}
-      className="absolute z-50 bg-popover border border-border rounded-lg shadow-lg min-w-[200px] max-w-[300px] max-h-[240px] overflow-y-auto"
-      style={position ? { bottom: '100%', left: 0, marginBottom: '4px' } : undefined}
+      className="absolute bottom-full left-0 mb-2 z-50 bg-popover border border-border rounded-lg shadow-lg w-[280px] max-h-[280px] overflow-y-auto"
     >
       {isLoading ? (
         <div className="p-3 text-sm text-muted-foreground text-center">
