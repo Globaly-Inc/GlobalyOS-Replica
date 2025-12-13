@@ -884,7 +884,7 @@ const BulkImport = () => {
           title="Bulk Import Employees" 
           subtitle="Upload a CSV file to import multiple employees at once"
         >
-          <Button variant="outline" onClick={() => navigate('/team')} className="gap-2">
+          <Button variant="outline" onClick={() => navigateOrg('/team')} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Team
           </Button>
@@ -1394,7 +1394,7 @@ const BulkImport = () => {
 
                 <div className="flex gap-3 justify-end">
                   <Button variant="outline" onClick={resetState}>Import More</Button>
-                  <Button onClick={() => navigate('/team')}>Done</Button>
+                  <Button onClick={() => navigateOrg('/team')}>Done</Button>
                 </div>
               </div>
             )}

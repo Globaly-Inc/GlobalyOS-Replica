@@ -316,109 +316,108 @@ const OrgChart = () => {
         onClick={() => navigateOrg("/team")}
         className="gap-2"
       >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Team
-        </Button>
+        <ArrowLeft className="h-4 w-4" />
+        Back to Team
+      </Button>
+      
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader 
+          title="Organization Chart" 
+          subtitle="Company hierarchy by department"
+        />
         
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <PageHeader 
-            title="Organization Chart" 
-            subtitle="Company hierarchy by department"
+        <div className="relative w-full sm:w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search employee, department, position..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
           />
-          
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search employee, department, position..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
+      </div>
 
-        {loading ? (
-          <Card className="p-12 text-center rounded-2xl">
-            <p className="text-muted-foreground">Loading organization chart...</p>
-          </Card>
-        ) : filteredEmployees.length === 0 ? (
-          <Card className="p-12 text-center rounded-2xl">
-            <p className="text-muted-foreground">
-              {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
-            </p>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
-            {sortedDepartments.map(([department, deptEmployees], index) => {
-              const tree = buildDepartmentTree(deptEmployees);
-              const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
-              const gridSpan = getGridSpan(deptEmployees.length, index);
-              
-              return (
-                <Card 
-                  key={department} 
-                  className={cn(
-                    "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
-                    gridSpan
-                  )}
+      {loading ? (
+        <Card className="p-12 text-center rounded-2xl">
+          <p className="text-muted-foreground">Loading organization chart...</p>
+        </Card>
+      ) : filteredEmployees.length === 0 ? (
+        <Card className="p-12 text-center rounded-2xl">
+          <p className="text-muted-foreground">
+            {searchQuery ? `No results found for "${searchQuery}"` : "No employees found."}
+          </p>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+          {sortedDepartments.map(([department, deptEmployees], index) => {
+            const tree = buildDepartmentTree(deptEmployees);
+            const deptColor = departmentColorMap.get(department) || DEPARTMENT_COLORS[0];
+            const gridSpan = getGridSpan(deptEmployees.length, index);
+            
+            return (
+              <Card 
+                key={department} 
+                className={cn(
+                  "overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300",
+                  gridSpan
+                )}
+                style={{ 
+                  borderColor: deptColor.border,
+                  background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
+                }}
+              >
+                {/* Bento-style header with gradient accent */}
+                <div 
+                  className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
                   style={{ 
-                    borderColor: deptColor.border,
-                    background: `linear-gradient(135deg, ${deptColor.light} 0%, hsl(0, 0%, 100%) 100%)`
+                    backgroundColor: deptColor.light, 
+                    borderBottomColor: deptColor.border 
                   }}
                 >
-                  {/* Bento-style header with gradient accent */}
+                  {/* Decorative gradient circle */}
                   <div 
-                    className="px-4 py-3 border-b flex items-center gap-3 relative overflow-hidden"
-                    style={{ 
-                      backgroundColor: deptColor.light, 
-                      borderBottomColor: deptColor.border 
-                    }}
+                    className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
+                    style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
+                  />
+                  <div 
+                    className="p-2 rounded-xl"
+                    style={{ backgroundColor: deptColor.bg }}
                   >
-                    {/* Decorative gradient circle */}
-                    <div 
-                      className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-30"
-                      style={{ background: `radial-gradient(circle, ${deptColor.bg} 0%, transparent 70%)` }}
-                    />
-                    <div 
-                      className="p-2 rounded-xl"
-                      style={{ backgroundColor: deptColor.bg }}
-                    >
-                      <Building2 className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
-                      <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
-                    </div>
-                    <Badge 
-                      className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
-                      style={{ backgroundColor: deptColor.bg }}
-                    >
-                      {deptEmployees.length}
-                    </Badge>
+                    <Building2 className="h-4 w-4 text-white" />
                   </div>
-                  
-                  {/* Content area */}
-                  <div className="p-4 space-y-4">
-                    {tree.map((root) => (
-                      <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
-                    ))}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm" style={{ color: deptColor.bg }}>{department}</h3>
+                    <p className="text-[10px] text-muted-foreground">{deptEmployees.length} team members</p>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  <Badge 
+                    className="text-xs px-2.5 py-1 text-white rounded-full font-medium"
+                    style={{ backgroundColor: deptColor.bg }}
+                  >
+                    {deptEmployees.length}
+                  </Badge>
+                </div>
+                
+                {/* Content area */}
+                <div className="p-4 space-y-4">
+                  {tree.map((root) => (
+                    <EmployeeTree key={root.id} employee={root} departmentColor={deptColor} />
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

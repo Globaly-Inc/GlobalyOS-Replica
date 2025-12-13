@@ -91,199 +91,198 @@ const NotificationPreferences = () => {
     <div className="container mx-auto px-4 py-6 max-w-2xl">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigateOrg("/notifications")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <PageHeader title="Notification Preferences" />
-        </div>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <PageHeader title="Notification Preferences" />
+      </div>
 
-        <div className="space-y-6">
-          {/* Sound Settings */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                {preferences.soundEnabled ? (
-                  <Volume2 className="h-5 w-5 text-primary" />
-                ) : (
-                  <VolumeX className="h-5 w-5 text-muted-foreground" />
-                )}
-                <div>
-                  <CardTitle className="text-base">Notification Sound</CardTitle>
-                  <CardDescription>
-                    Play a sound when new notifications arrive
-                  </CardDescription>
+      <div className="space-y-6">
+        {/* Sound Settings */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              {preferences.soundEnabled ? (
+                <Volume2 className="h-5 w-5 text-primary" />
+              ) : (
+                <VolumeX className="h-5 w-5 text-muted-foreground" />
+              )}
+              <div>
+                <CardTitle className="text-base">Notification Sound</CardTitle>
+                <CardDescription>
+                  Play a sound when new notifications arrive
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sound-toggle" className="text-sm">
+                Enable notification sound
+              </Label>
+              <Switch
+                id="sound-toggle"
+                checked={preferences.soundEnabled}
+                onCheckedChange={(checked) => updatePreference("soundEnabled", checked)}
+              />
+            </div>
+            
+            {preferences.soundEnabled && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Choose Sound</Label>
+                  <SoundSelector
+                    selectedSound={preferences.soundType}
+                    onSelectSound={(sound) => updatePreference("soundType", sound)}
+                  />
                 </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notification Types */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-base">Notification Types</CardTitle>
+                <CardDescription>
+                  Choose which types of notifications you want to receive
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="sound-toggle" className="text-sm">
-                  Enable notification sound
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Heart className="h-4 w-4 text-pink-500" />
+                <Label htmlFor="kudos-toggle" className="text-sm font-normal">
+                  Kudos & Recognition
                 </Label>
-                <Switch
-                  id="sound-toggle"
-                  checked={preferences.soundEnabled}
-                  onCheckedChange={(checked) => updatePreference("soundEnabled", checked)}
-                />
               </div>
-              
-              {preferences.soundEnabled && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Choose Sound</Label>
-                    <SoundSelector
-                      selectedSound={preferences.soundType}
-                      onSelectSound={(sound) => updatePreference("soundType", sound)}
+              <Switch
+                id="kudos-toggle"
+                checked={preferences.notificationTypes.kudos}
+                onCheckedChange={(checked) => updateNotificationType("kudos", checked)}
+              />
+            </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AtSign className="h-4 w-4 text-blue-500" />
+                <Label htmlFor="mentions-toggle" className="text-sm font-normal">
+                  Mentions in Posts
+                </Label>
+              </div>
+              <Switch
+                id="mentions-toggle"
+                checked={preferences.notificationTypes.mentions}
+                onCheckedChange={(checked) => updateNotificationType("mentions", checked)}
+              />
+            </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-green-500" />
+                <Label htmlFor="leave-toggle" className="text-sm font-normal">
+                  Leave Requests & Approvals
+                </Label>
+              </div>
+              <Switch
+                id="leave-toggle"
+                checked={preferences.notificationTypes.leave}
+                onCheckedChange={(checked) => updateNotificationType("leave", checked)}
+              />
+            </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="general-toggle" className="text-sm font-normal">
+                  General Notifications
+                </Label>
+              </div>
+              <Switch
+                id="general-toggle"
+                checked={preferences.notificationTypes.general}
+                onCheckedChange={(checked) => updateNotificationType("general", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quiet Hours */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <Moon className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-base">Quiet Hours</CardTitle>
+                <CardDescription>
+                  Mute notification sounds during specific hours
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="quiet-toggle" className="text-sm">
+                Enable quiet hours
+              </Label>
+              <Switch
+                id="quiet-toggle"
+                checked={preferences.quietHours.enabled}
+                onCheckedChange={(checked) => updateQuietHours({ enabled: checked })}
+              />
+            </div>
+            
+            {preferences.quietHours.enabled && (
+              <>
+                <Separator />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-time" className="text-sm">Start Time</Label>
+                    <Input
+                      id="start-time"
+                      type="time"
+                      value={preferences.quietHours.startTime}
+                      onChange={(e) => updateQuietHours({ startTime: e.target.value })}
+                      className="w-full"
                     />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Notification Types */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <Bell className="h-5 w-5 text-primary" />
-                <div>
-                  <CardTitle className="text-base">Notification Types</CardTitle>
-                  <CardDescription>
-                    Choose which types of notifications you want to receive
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Heart className="h-4 w-4 text-pink-500" />
-                  <Label htmlFor="kudos-toggle" className="text-sm font-normal">
-                    Kudos & Recognition
-                  </Label>
-                </div>
-                <Switch
-                  id="kudos-toggle"
-                  checked={preferences.notificationTypes.kudos}
-                  onCheckedChange={(checked) => updateNotificationType("kudos", checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <AtSign className="h-4 w-4 text-blue-500" />
-                  <Label htmlFor="mentions-toggle" className="text-sm font-normal">
-                    Mentions in Posts
-                  </Label>
-                </div>
-                <Switch
-                  id="mentions-toggle"
-                  checked={preferences.notificationTypes.mentions}
-                  onCheckedChange={(checked) => updateNotificationType("mentions", checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-green-500" />
-                  <Label htmlFor="leave-toggle" className="text-sm font-normal">
-                    Leave Requests & Approvals
-                  </Label>
-                </div>
-                <Switch
-                  id="leave-toggle"
-                  checked={preferences.notificationTypes.leave}
-                  onCheckedChange={(checked) => updateNotificationType("leave", checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="general-toggle" className="text-sm font-normal">
-                    General Notifications
-                  </Label>
-                </div>
-                <Switch
-                  id="general-toggle"
-                  checked={preferences.notificationTypes.general}
-                  onCheckedChange={(checked) => updateNotificationType("general", checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quiet Hours */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <Moon className="h-5 w-5 text-primary" />
-                <div>
-                  <CardTitle className="text-base">Quiet Hours</CardTitle>
-                  <CardDescription>
-                    Mute notification sounds during specific hours
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="quiet-toggle" className="text-sm">
-                  Enable quiet hours
-                </Label>
-                <Switch
-                  id="quiet-toggle"
-                  checked={preferences.quietHours.enabled}
-                  onCheckedChange={(checked) => updateQuietHours({ enabled: checked })}
-                />
-              </div>
-              
-              {preferences.quietHours.enabled && (
-                <>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="start-time" className="text-sm">Start Time</Label>
-                      <Input
-                        id="start-time"
-                        type="time"
-                        value={preferences.quietHours.startTime}
-                        onChange={(e) => updateQuietHours({ startTime: e.target.value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="end-time" className="text-sm">End Time</Label>
-                      <Input
-                        id="end-time"
-                        type="time"
-                        value={preferences.quietHours.endTime}
-                        onChange={(e) => updateQuietHours({ endTime: e.target.value })}
-                        className="w-full"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-time" className="text-sm">End Time</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      value={preferences.quietHours.endTime}
+                      onChange={(e) => updateQuietHours({ endTime: e.target.value })}
+                      className="w-full"
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Sounds will be muted from {preferences.quietHours.startTime} to {preferences.quietHours.endTime}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sounds will be muted from {preferences.quietHours.startTime} to {preferences.quietHours.endTime}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Reset Button */}
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={handleReset} className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Reset to Defaults
-            </Button>
-          </div>
+        {/* Reset Button */}
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={handleReset} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Reset to Defaults
+          </Button>
         </div>
       </div>
     </div>
