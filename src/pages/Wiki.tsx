@@ -485,6 +485,9 @@ const Wiki = () => {
                 currentFolderId={selectedFolderId}
                 onSelectFolder={handleSelectFolder}
                 onSelectPage={handleSelectPage}
+                onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
+                onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
+                canEdit={canEdit}
               />
             )}
           </div>
