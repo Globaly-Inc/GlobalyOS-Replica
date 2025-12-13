@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { Plus, X, Clock, Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, X, Pencil } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { getCountryFlag } from "@/lib/countryFlags";
 import { getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
+import { useTimezone } from "@/hooks/useTimezone";
 import {
   Popover,
   PopoverContent,
@@ -120,36 +120,35 @@ const timezoneToCountry: Record<string, string> = {
 };
 
 export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) => {
-  // Get user's current timezone
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Get system timezone from context (editable)
+  const { timezone: systemTimezone, setTimezone: setSystemTimezone } = useTimezone();
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const userTimezone = systemTimezone || browserTimezone;
   
   const [timezones, setTimezones] = useState<string[]>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        // Ensure user's timezone is always first
-        if (!parsed.includes(userTimezone)) {
-          return [userTimezone, ...parsed].slice(0, MAX_CLOCKS);
-        }
-        // Move user timezone to front if it exists
-        const filtered = parsed.filter((tz: string) => tz !== userTimezone);
-        return [userTimezone, ...filtered].slice(0, MAX_CLOCKS);
+        // Filter out the user timezone from stored (it will be added dynamically)
+        const filtered = parsed.filter((tz: string) => tz !== userTimezone && tz !== browserTimezone);
+        return filtered.slice(0, MAX_CLOCKS - 1);
       } catch {
-        return [userTimezone];
+        return [];
       }
     }
-    // Default to user timezone + office timezones
+    // Default to office timezones
     const officeTimezones = officeCountries
       .map(country => countryToTimezone[country])
       .filter(Boolean)
       .filter(tz => tz !== userTimezone)
       .slice(0, MAX_CLOCKS - 1);
-    return [userTimezone, ...new Set(officeTimezones)];
+    return [...new Set(officeTimezones)];
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditTimezoneOpen, setIsEditTimezoneOpen] = useState(false);
 
   // Update time every second
   useEffect(() => {
@@ -212,37 +211,96 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
     return country ? getCountryFlag(country) : "";
   };
 
-  const availableTimezones = getTimezones().filter(tz => !timezones.includes(tz));
+  const availableTimezones = getTimezones().filter(tz => tz !== userTimezone && !timezones.includes(tz));
+  
+  // Combine user timezone with other timezones for display
+  const allTimezones = [userTimezone, ...timezones.filter(tz => tz !== userTimezone)];
 
-  if (timezones.length === 0 && officeCountries.length === 0) {
+  if (allTimezones.length === 0 && officeCountries.length === 0) {
     return null;
   }
 
   return (
     <div className="px-4 lg:px-6 pb-4">
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {timezones.map((tz, index) => {
+        {allTimezones.map((tz, index) => {
           const { time, period, date, seconds } = getTimeInZone(tz);
           const flag = getFlag(tz);
           const isUserTimezone = index === 0;
           
-          return (
+          return isUserTimezone ? (
+            <Popover key={tz} open={isEditTimezoneOpen} onOpenChange={setIsEditTimezoneOpen}>
+              <PopoverTrigger asChild>
+                <Card
+                  className={cn(
+                    "relative shrink-0 p-3 min-w-[120px] bg-card border-border/50",
+                    "hover:border-border transition-colors group cursor-pointer",
+                    "border-primary/30 bg-primary/5"
+                  )}
+                >
+                  <button
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-primary/10"
+                  >
+                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                  
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {flag && <span className="text-sm">{flag}</span>}
+                    <span className="text-[11px] font-medium text-muted-foreground truncate">
+                      {getDisplayName(tz)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-lg font-semibold tabular-nums">{time}</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{seconds}</span>
+                    <span className="text-[10px] text-muted-foreground ml-0.5">{period}</span>
+                  </div>
+                  
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {date}
+                  </div>
+                </Card>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search timezone..." className="h-9" />
+                  <CommandList>
+                    <CommandEmpty>No timezone found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-auto">
+                      {getTimezones().map((tzOption) => (
+                        <CommandItem
+                          key={tzOption}
+                          value={formatTimezoneLabel(tzOption)}
+                          onSelect={() => {
+                            setSystemTimezone(tzOption);
+                            setIsEditTimezoneOpen(false);
+                          }}
+                          className="text-xs"
+                        >
+                          <span className="mr-2">{getFlag(tzOption)}</span>
+                          {formatTimezoneLabel(tzOption)}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          ) : (
             <Card
               key={tz}
               className={cn(
                 "relative shrink-0 p-3 min-w-[120px] bg-card border-border/50",
-                "hover:border-border transition-colors group",
-                isUserTimezone && "border-primary/30 bg-primary/5"
+                "hover:border-border transition-colors group"
               )}
             >
-              {!isUserTimezone && (
-                <button
-                  onClick={() => removeTimezone(tz)}
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                </button>
-              )}
+              <button
+                onClick={() => removeTimezone(tz)}
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
+              >
+                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
               
               <div className="flex items-center gap-1.5 mb-1">
                 {flag && <span className="text-sm">{flag}</span>}
@@ -264,14 +322,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
           );
         })}
         
-        {timezones.length === 0 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-            <Clock className="h-3.5 w-3.5" />
-            <span>Add timezones to track</span>
-          </div>
-        )}
-
-        {timezones.length < MAX_CLOCKS && (
+        {allTimezones.length < MAX_CLOCKS && (
           <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
             <PopoverTrigger asChild>
               <Card className="shrink-0 p-3 min-w-[80px] bg-card border-border/50 border-dashed flex items-center justify-center cursor-pointer hover:border-border hover:bg-accent/50 transition-colors">

@@ -882,52 +882,6 @@ const CalendarPage = () => {
                   </button>
                 )}
               </div>
-              
-              {/* Timezone Selector */}
-              <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={timezoneOpen}
-                    className="h-7 px-2 justify-between text-[11px] shrink-0"
-                  >
-                    <span className="truncate max-w-[120px]">
-                      {timezone ? timezone.split('/').pop()?.replace(/_/g, ' ') : "Timezone"}
-                    </span>
-                    <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="end">
-                  <Command>
-                    <CommandInput placeholder="Search timezone..." className="h-9" />
-                    <CommandList>
-                      <CommandEmpty>No timezone found.</CommandEmpty>
-                      <CommandGroup className="max-h-[250px] overflow-auto">
-                        {getTimezones().map((tz) => (
-                          <CommandItem
-                            key={tz}
-                            value={formatTimezoneLabel(tz)}
-                            onSelect={() => {
-                              setTimezone(tz);
-                              setTimezoneOpen(false);
-                            }}
-                            className="text-xs"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                timezone === tz ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {formatTimezoneLabel(tz)}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
             </div>
           </div>
 
