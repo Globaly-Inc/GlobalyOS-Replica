@@ -1,6 +1,7 @@
 /**
  * Organization-scoped protected route component
  * Validates both authentication and organization access
+ * Resolves orgCode (slug) to orgId server-side for security
  */
 
 import { useEffect, useState } from 'react';
@@ -22,7 +23,7 @@ export const OrgProtectedRoute = ({
 }: OrgProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgCode } = useParams<{ orgCode: string }>();
   const location = useLocation();
   const { currentOrg, organizations, loading: orgLoading, switchOrganization } = useOrganization();
 
@@ -44,16 +45,16 @@ export const OrgProtectedRoute = ({
     return () => subscription.unsubscribe();
   }, []);
 
-  // Handle organization switching when URL org differs from current
+  // Handle organization switching when URL orgCode differs from current org's slug
   useEffect(() => {
-    if (!orgLoading && orgId && currentOrg && orgId !== currentOrg.id) {
-      // Check if user has access to the requested org
-      const hasAccess = organizations.some(org => org.id === orgId);
-      if (hasAccess) {
-        switchOrganization(orgId);
+    if (!orgLoading && orgCode && currentOrg && orgCode !== currentOrg.slug) {
+      // Find the org by slug and switch to it
+      const targetOrg = organizations.find(org => org.slug === orgCode);
+      if (targetOrg) {
+        switchOrganization(targetOrg.id);
       }
     }
-  }, [orgId, currentOrg, organizations, orgLoading, switchOrganization]);
+  }, [orgCode, currentOrg, organizations, orgLoading, switchOrganization]);
 
   if (loading || orgLoading) {
     return (
@@ -76,8 +77,8 @@ export const OrgProtectedRoute = ({
     return <Navigate to="/signup" replace />;
   }
 
-  // If orgId in URL doesn't match any user's orgs, show access denied or redirect
-  if (orgId && !organizations.some(org => org.id === orgId)) {
+  // If orgCode in URL doesn't match any user's orgs (by slug), show access denied
+  if (orgCode && !organizations.some(org => org.slug === orgCode)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center max-w-md p-6">
@@ -86,7 +87,7 @@ export const OrgProtectedRoute = ({
             You don&apos;t have access to this organization.
           </p>
           <a 
-            href={`/org/${currentOrg?.id || organizations[0]?.id}`}
+            href={`/org/${currentOrg?.slug || organizations[0]?.slug}`}
             className="text-primary hover:underline"
           >
             Go to your organization
@@ -96,9 +97,9 @@ export const OrgProtectedRoute = ({
     );
   }
 
-  // No org in URL but we have a current org - redirect to include org in URL
-  if (!orgId && currentOrg) {
-    const targetPath = `/org/${currentOrg.id}${location.pathname}`;
+  // No org in URL but we have a current org - redirect to include orgCode in URL
+  if (!orgCode && currentOrg) {
+    const targetPath = `/org/${currentOrg.slug}${location.pathname}`;
     return <Navigate to={targetPath} replace />;
   }
 

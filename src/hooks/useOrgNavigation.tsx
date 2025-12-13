@@ -1,6 +1,7 @@
 /**
  * Hook for organization-scoped navigation
  * Provides utilities to navigate within the current organization context
+ * Uses orgCode (slug) instead of orgId in URLs for security-by-obfuscation
  */
 
 import { useCallback, useMemo } from 'react';
@@ -8,7 +9,9 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useOrganization } from './useOrganization';
 
 export interface OrgNavigationResult {
-  /** Current organization ID from URL params */
+  /** Current organization code from URL params */
+  orgCode: string | undefined;
+  /** Current organization ID (resolved from code) */
   orgId: string | undefined;
   /** Navigate to an org-scoped path */
   navigateOrg: (path: string, options?: { replace?: boolean }) => void;
@@ -32,28 +35,32 @@ const PUBLIC_ROUTES = [
 export const useOrgNavigation = (): OrgNavigationResult => {
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ orgId?: string }>();
+  const params = useParams<{ orgCode?: string }>();
   const { currentOrg } = useOrganization();
 
   const isOrgRoute = useMemo(() => {
     return !PUBLIC_ROUTES.some(route => location.pathname.startsWith(route));
   }, [location.pathname]);
 
-  const orgId = params.orgId || currentOrg?.id;
+  // Get orgCode from URL params or current org's slug
+  const orgCode = params.orgCode || currentOrg?.slug;
+  
+  // Get orgId from current org (resolved server-side)
+  const orgId = currentOrg?.id;
 
   const buildOrgPath = useCallback((path: string): string => {
-    if (!orgId) {
-      console.warn('No organization ID available for org-scoped navigation');
+    if (!orgCode) {
+      console.warn('No organization code available for org-scoped navigation');
       return path;
     }
     // Ensure path starts with /
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     // Don't double-prefix if already org-scoped
-    if (normalizedPath.startsWith(`/org/${orgId}`)) {
+    if (normalizedPath.startsWith(`/org/${orgCode}`)) {
       return normalizedPath;
     }
-    return `/org/${orgId}${normalizedPath}`;
-  }, [orgId]);
+    return `/org/${orgCode}${normalizedPath}`;
+  }, [orgCode]);
 
   const navigateOrg = useCallback((path: string, options?: { replace?: boolean }) => {
     const orgPath = buildOrgPath(path);
@@ -61,6 +68,7 @@ export const useOrgNavigation = (): OrgNavigationResult => {
   }, [navigate, buildOrgPath]);
 
   return {
+    orgCode,
     orgId,
     navigateOrg,
     buildOrgPath,
@@ -69,10 +77,10 @@ export const useOrgNavigation = (): OrgNavigationResult => {
 };
 
 /**
- * Helper to extract organization ID from a path
+ * Helper to extract organization code from a path
  */
-export const extractOrgIdFromPath = (path: string): string | null => {
-  const match = path.match(/^\/org\/([a-f0-9-]+)/i);
+export const extractOrgCodeFromPath = (path: string): string | null => {
+  const match = path.match(/^\/org\/([a-zA-Z0-9_-]+)/i);
   return match ? match[1] : null;
 };
 
@@ -80,5 +88,5 @@ export const extractOrgIdFromPath = (path: string): string | null => {
  * Helper to strip org prefix from a path
  */
 export const stripOrgPrefix = (path: string): string => {
-  return path.replace(/^\/org\/[a-f0-9-]+/i, '') || '/';
+  return path.replace(/^\/org\/[a-zA-Z0-9_-]+/i, '') || '/';
 };

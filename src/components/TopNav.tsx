@@ -18,10 +18,10 @@ const mainNavItems = [
 export const TopNav = ({ isAdmin }: TopNavProps) => {
   const visibleItems = mainNavItems.filter(item => !item.adminOnly || isAdmin);
   const location = useLocation();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgCode } = useParams<{ orgCode: string }>();
 
   const isActive = (href: string) => {
-    const basePath = orgId ? `/org/${orgId}` : '';
+    const basePath = orgCode ? `/org/${orgCode}` : '';
     const fullPath = href === '/' ? basePath || '/' : `${basePath}${href}`;
     
     if (href === '/') {
