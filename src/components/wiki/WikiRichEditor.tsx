@@ -487,6 +487,19 @@ export const WikiRichEditor = ({
     const img = target.closest('img') as HTMLImageElement;
     const link = target.closest('a') as HTMLAnchorElement;
     
+    // Handle embed delete button click
+    const embedDeleteBtn = target.closest('.wiki-embed-delete') as HTMLButtonElement;
+    if (embedDeleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const embedWrapper = embedDeleteBtn.closest('.wiki-embed-wrapper');
+      if (embedWrapper) {
+        embedWrapper.remove();
+        triggerUpdate();
+      }
+      return;
+    }
+    
     if (table) {
       selectedTableRef.current = table;
     }
@@ -511,7 +524,7 @@ export const WikiRichEditor = ({
     }
     
     updateActiveFormatting();
-  }, [updateActiveFormatting]);
+  }, [updateActiveFormatting, triggerUpdate]);
 
   // Table manipulation functions
   const addRowAt = useCallback((e: React.MouseEvent, afterIndex: number) => {
@@ -884,6 +897,65 @@ export const WikiRichEditor = ({
       setTimeout(() => {
         autoLinkUrls();
       }, 0);
+    }
+    
+    // Handle Backspace/Delete for embed content
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+        
+        // Check if cursor is adjacent to an embed wrapper
+        const embedWrapper = element?.closest('.wiki-embed-wrapper');
+        if (embedWrapper) {
+          e.preventDefault();
+          embedWrapper.remove();
+          triggerUpdate();
+          return;
+        }
+        
+        // Check if selection is at the boundary of an embed
+        if (range.collapsed) {
+          let checkNode: Node | null = null;
+          
+          if (e.key === 'Backspace') {
+            // Check previous sibling
+            if (range.startOffset === 0 && container.previousSibling) {
+              checkNode = container.previousSibling;
+            } else if (container.nodeType === Node.ELEMENT_NODE) {
+              const el = container as HTMLElement;
+              if (range.startOffset > 0) {
+                checkNode = el.childNodes[range.startOffset - 1];
+              }
+            }
+          } else {
+            // Delete key - check next sibling
+            if (container.nodeType === Node.TEXT_NODE && range.startOffset === (container.textContent?.length || 0) && container.nextSibling) {
+              checkNode = container.nextSibling;
+            } else if (container.nodeType === Node.ELEMENT_NODE) {
+              const el = container as HTMLElement;
+              if (range.startOffset < el.childNodes.length) {
+                checkNode = el.childNodes[range.startOffset];
+              }
+            }
+          }
+          
+          if (checkNode) {
+            const embedToDelete = (checkNode as HTMLElement).classList?.contains('wiki-embed-wrapper') 
+              ? checkNode as HTMLElement 
+              : (checkNode as HTMLElement).querySelector?.('.wiki-embed-wrapper');
+            if (embedToDelete || (checkNode.nodeType === Node.ELEMENT_NODE && (checkNode as HTMLElement).closest?.('.wiki-embed-wrapper'))) {
+              e.preventDefault();
+              const wrapper = embedToDelete || (checkNode as HTMLElement).closest('.wiki-embed-wrapper');
+              wrapper?.remove();
+              triggerUpdate();
+              return;
+            }
+          }
+        }
+      }
     }
     
     // Keyboard shortcuts
@@ -1646,74 +1718,78 @@ myFunction();`;
 
   const handleInsertEmbed = () => {
     if (embedUrl) {
-      let embedCode = "";
+      let embedInner = "";
       
       if (embedUrl.includes("youtube.com") || embedUrl.includes("youtu.be")) {
         const videoId = embedUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
         if (videoId) {
-          embedCode = `
-            <div class="wiki-embed my-4" contenteditable="false">
-              <div class="relative w-full" style="padding-bottom: 56.25%;">
-                <iframe 
-                  src="https://www.youtube.com/embed/${videoId}" 
-                  frameborder="0" 
-                  allowfullscreen 
-                  class="absolute top-0 left-0 w-full h-full rounded-lg"
-                ></iframe>
-              </div>
+          embedInner = `
+            <div class="relative w-full" style="padding-bottom: 56.25%;">
+              <iframe 
+                src="https://www.youtube.com/embed/${videoId}" 
+                frameborder="0" 
+                allowfullscreen 
+                class="absolute top-0 left-0 w-full h-full rounded-lg"
+              ></iframe>
             </div>
           `;
         }
       } else if (embedUrl.includes("vimeo.com")) {
         const videoId = embedUrl.match(/vimeo\.com\/(\d+)/)?.[1];
         if (videoId) {
-          embedCode = `
-            <div class="wiki-embed my-4" contenteditable="false">
-              <div class="relative w-full" style="padding-bottom: 56.25%;">
-                <iframe 
-                  src="https://player.vimeo.com/video/${videoId}" 
-                  frameborder="0" 
-                  allowfullscreen 
-                  class="absolute top-0 left-0 w-full h-full rounded-lg"
-                ></iframe>
-              </div>
+          embedInner = `
+            <div class="relative w-full" style="padding-bottom: 56.25%;">
+              <iframe 
+                src="https://player.vimeo.com/video/${videoId}" 
+                frameborder="0" 
+                allowfullscreen 
+                class="absolute top-0 left-0 w-full h-full rounded-lg"
+              ></iframe>
             </div>
           `;
         }
       } else if (embedUrl.includes("loom.com")) {
         const videoId = embedUrl.match(/loom\.com\/share\/([^?]+)/)?.[1];
         if (videoId) {
-          embedCode = `
-            <div class="wiki-embed my-4" contenteditable="false">
-              <div class="relative w-full" style="padding-bottom: 56.25%;">
-                <iframe 
-                  src="https://www.loom.com/embed/${videoId}" 
-                  frameborder="0" 
-                  allowfullscreen 
-                  class="absolute top-0 left-0 w-full h-full rounded-lg"
-                ></iframe>
-              </div>
+          embedInner = `
+            <div class="relative w-full" style="padding-bottom: 56.25%;">
+              <iframe 
+                src="https://www.loom.com/embed/${videoId}" 
+                frameborder="0" 
+                allowfullscreen 
+                class="absolute top-0 left-0 w-full h-full rounded-lg"
+              ></iframe>
             </div>
           `;
         }
       } else {
         // Generic link preview card
-        embedCode = `
-          <div class="wiki-link-preview my-4 p-4 border border-border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors" contenteditable="false">
-            <a href="${embedUrl}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 text-foreground no-underline">
-              <div class="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-sm truncate">${embedUrl}</div>
-                <div class="text-xs text-muted-foreground">Click to open link</div>
-              </div>
-            </a>
-          </div>
+        embedInner = `
+          <a href="${embedUrl}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 text-foreground no-underline p-4 border border-border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+            <div class="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate">${embedUrl}</div>
+              <div class="text-xs text-muted-foreground">Click to open link</div>
+            </div>
+          </a>
         `;
       }
 
-      if (embedCode) {
+      if (embedInner) {
+        const embedCode = `
+          <div class="wiki-embed-wrapper my-4 relative group" contenteditable="false">
+            <button 
+              type="button" 
+              class="wiki-embed-delete absolute -top-2 -right-2 z-10 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/90"
+              title="Delete embed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+            ${embedInner}
+          </div>
+        `;
         execCommand('insertHTML', embedCode);
       }
     }
@@ -2409,6 +2485,16 @@ myFunction();`;
         }
         .wiki-image-wrapper img:hover {
           box-shadow: 0 0 0 2px hsl(var(--primary));
+        }
+        .wiki-embed-wrapper {
+          position: relative;
+        }
+        .wiki-embed-wrapper:hover .wiki-embed-delete {
+          opacity: 1 !important;
+        }
+        .wiki-embed-delete {
+          opacity: 0;
+          transition: opacity 0.2s ease;
         }
       `}</style>
     </div>
