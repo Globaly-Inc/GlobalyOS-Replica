@@ -32,7 +32,16 @@ import {
   Target,
   Minus,
   LucideIcon,
-  CalendarIcon
+  CalendarIcon,
+  FolderOpen,
+  GraduationCap,
+  FileCheck,
+  FileText,
+  Award,
+  Briefcase,
+  MapPin,
+  History,
+  Bell,
 } from "lucide-react";
 import {
   BarChart,
@@ -57,6 +66,7 @@ interface FeatureItem {
   count: number;
   lastWeekCount: number;
   icon: LucideIcon;
+  module: 'team' | 'hr' | 'wiki' | 'organization';
 }
 
 interface GrowthDataPoint {
@@ -118,83 +128,71 @@ const SuperAdminAnalytics = () => {
         .from('employees')
         .select('id, status');
 
-      // Feature usage counts - current totals
-      const { count: wikiCount } = await supabase
-        .from('wiki_pages')
-        .select('*', { count: 'exact', head: true });
+      // Helper function to get counts - using any to bypass strict table typing
+      const getCount = async (table: string, filter?: { column: string; value: string }) => {
+        let query = (supabase.from(table as any) as any).select('*', { count: 'exact', head: true });
+        if (filter) {
+          query = query.eq(filter.column, filter.value);
+        }
+        const { count } = await query;
+        return count || 0;
+      };
 
-      const { count: calendarCount } = await supabase
-        .from('calendar_events')
-        .select('*', { count: 'exact', head: true });
+      const getLastWeekCount = async (table: string, filter?: { column: string; value: string }) => {
+        let query = (supabase.from(table as any) as any).select('*', { count: 'exact', head: true }).lt('created_at', oneWeekAgoISO);
+        if (filter) {
+          query = query.eq(filter.column, filter.value);
+        }
+        const { count } = await query;
+        return count || 0;
+      };
 
-      const { count: leaveCount } = await supabase
-        .from('leave_requests')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: attendanceCount } = await supabase
-        .from('attendance_records')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: kudosCount } = await supabase
-        .from('kudos')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: winsCount } = await supabase
-        .from('updates')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'win');
-
-      const { count: announcementsCount } = await supabase
-        .from('updates')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'announcement');
-
-      const { count: kpiCount } = await supabase
-        .from('kpis')
-        .select('*', { count: 'exact', head: true });
-
-      // Last week counts (records created before one week ago)
-      const { count: wikiCountLastWeek } = await supabase
-        .from('wiki_pages')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: calendarCountLastWeek } = await supabase
-        .from('calendar_events')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: leaveCountLastWeek } = await supabase
-        .from('leave_requests')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: attendanceCountLastWeek } = await supabase
-        .from('attendance_records')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: kudosCountLastWeek } = await supabase
-        .from('kudos')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: winsCountLastWeek } = await supabase
-        .from('updates')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'win')
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: announcementsCountLastWeek } = await supabase
-        .from('updates')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'announcement')
-        .lt('created_at', oneWeekAgoISO);
-
-      const { count: kpiCountLastWeek } = await supabase
-        .from('kpis')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', oneWeekAgoISO);
+      // Fetch all feature counts in parallel
+      const [
+        // Wiki module
+        wikiPagesCount, wikiPagesLastWeek,
+        wikiFoldersCount, wikiFoldersLastWeek,
+        // Team/Social module
+        winsCount, winsLastWeek,
+        announcementsCount, announcementsLastWeek,
+        kudosCount, kudosLastWeek,
+        // HR module
+        leaveCount, leaveLastWeek,
+        attendanceCount, attendanceLastWeek,
+        learningCount, learningLastWeek,
+        reviewsCount, reviewsLastWeek,
+        positionHistoryCount, positionHistoryLastWeek,
+        // Organization module
+        calendarCount, calendarLastWeek,
+        kpiCount, kpiLastWeek,
+        achievementsCount, achievementsLastWeek,
+        projectsCount, projectsLastWeek,
+        officesCount, officesLastWeek,
+        documentsCount, documentsLastWeek,
+        notificationsCount, notificationsLastWeek,
+      ] = await Promise.all([
+        // Wiki module
+        getCount('wiki_pages'), getLastWeekCount('wiki_pages'),
+        getCount('wiki_folders'), getLastWeekCount('wiki_folders'),
+        // Team/Social module
+        getCount('updates', { column: 'type', value: 'win' }), getLastWeekCount('updates', { column: 'type', value: 'win' }),
+        getCount('updates', { column: 'type', value: 'announcement' }), getLastWeekCount('updates', { column: 'type', value: 'announcement' }),
+        getCount('kudos'), getLastWeekCount('kudos'),
+        // HR module
+        getCount('leave_requests'), getLastWeekCount('leave_requests'),
+        getCount('attendance_records'), getLastWeekCount('attendance_records'),
+        getCount('learning_development'), getLastWeekCount('learning_development'),
+        getCount('performance_reviews'), getLastWeekCount('performance_reviews'),
+        getCount('position_history'), getLastWeekCount('position_history'),
+        // Organization module
+        getCount('calendar_events'), getLastWeekCount('calendar_events'),
+        getCount('kpis'), getLastWeekCount('kpis'),
+        getCount('achievements'), getLastWeekCount('achievements'),
+        getCount('projects'), getLastWeekCount('projects'),
+        getCount('offices'), getLastWeekCount('offices'),
+        getCount('employee_documents'), getLastWeekCount('employee_documents'),
+        getCount('notifications'), getLastWeekCount('notifications'),
+      ]);
 
       const activeOrgs = orgs?.filter(o => o.plan !== 'inactive').length || 0;
       const activeEmployees = employees?.filter(e => e.status === 'active').length || 0;
@@ -205,14 +203,27 @@ const SuperAdminAnalytics = () => {
         totalUsers: profiles?.length || 0,
         activeUsers: activeEmployees,
         featureUsage: [
-          { name: 'Wiki Pages', count: wikiCount || 0, lastWeekCount: wikiCountLastWeek || 0, icon: BookOpen },
-          { name: 'Calendar Events', count: calendarCount || 0, lastWeekCount: calendarCountLastWeek || 0, icon: CalendarDays },
-          { name: 'Leave Requests', count: leaveCount || 0, lastWeekCount: leaveCountLastWeek || 0, icon: Clock },
-          { name: 'Attendance', count: attendanceCount || 0, lastWeekCount: attendanceCountLastWeek || 0, icon: ClipboardCheck },
-          { name: 'Wins', count: winsCount || 0, lastWeekCount: winsCountLastWeek || 0, icon: Trophy },
-          { name: 'Announcements', count: announcementsCount || 0, lastWeekCount: announcementsCountLastWeek || 0, icon: Megaphone },
-          { name: 'Kudos', count: kudosCount || 0, lastWeekCount: kudosCountLastWeek || 0, icon: Heart },
-          { name: 'KPIs', count: kpiCount || 0, lastWeekCount: kpiCountLastWeek || 0, icon: Target },
+          // Wiki module
+          { name: 'Wiki Pages', count: wikiPagesCount, lastWeekCount: wikiPagesLastWeek, icon: BookOpen, module: 'wiki' },
+          { name: 'Wiki Folders', count: wikiFoldersCount, lastWeekCount: wikiFoldersLastWeek, icon: FolderOpen, module: 'wiki' },
+          // Team/Social module
+          { name: 'Wins', count: winsCount, lastWeekCount: winsLastWeek, icon: Trophy, module: 'team' },
+          { name: 'Announcements', count: announcementsCount, lastWeekCount: announcementsLastWeek, icon: Megaphone, module: 'team' },
+          { name: 'Kudos', count: kudosCount, lastWeekCount: kudosLastWeek, icon: Heart, module: 'team' },
+          // HR module
+          { name: 'Leave Requests', count: leaveCount, lastWeekCount: leaveLastWeek, icon: Clock, module: 'hr' },
+          { name: 'Attendance', count: attendanceCount, lastWeekCount: attendanceLastWeek, icon: ClipboardCheck, module: 'hr' },
+          { name: 'Learning & Dev', count: learningCount, lastWeekCount: learningLastWeek, icon: GraduationCap, module: 'hr' },
+          { name: 'Reviews', count: reviewsCount, lastWeekCount: reviewsLastWeek, icon: FileCheck, module: 'hr' },
+          { name: 'Position Changes', count: positionHistoryCount, lastWeekCount: positionHistoryLastWeek, icon: History, module: 'hr' },
+          // Organization module
+          { name: 'Calendar Events', count: calendarCount, lastWeekCount: calendarLastWeek, icon: CalendarDays, module: 'organization' },
+          { name: 'KPIs', count: kpiCount, lastWeekCount: kpiLastWeek, icon: Target, module: 'organization' },
+          { name: 'Achievements', count: achievementsCount, lastWeekCount: achievementsLastWeek, icon: Award, module: 'organization' },
+          { name: 'Projects', count: projectsCount, lastWeekCount: projectsLastWeek, icon: Briefcase, module: 'organization' },
+          { name: 'Offices', count: officesCount, lastWeekCount: officesLastWeek, icon: MapPin, module: 'organization' },
+          { name: 'Documents', count: documentsCount, lastWeekCount: documentsLastWeek, icon: FileText, module: 'organization' },
+          { name: 'Notifications', count: notificationsCount, lastWeekCount: notificationsLastWeek, icon: Bell, module: 'organization' },
         ],
         orgs: orgs?.map(o => ({ id: o.id, created_at: o.created_at })) || [],
         users: profiles?.map(p => ({ id: p.id, created_at: p.created_at })) || [],
@@ -593,50 +604,64 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Feature Usage Cards */}
-        <div>
-          <h3 className="text-lg font-semibold text-foreground mb-4">Feature Usage</h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {data?.featureUsage.map((feature) => {
-              const IconComponent = feature.icon;
-              const weeklyGrowth = feature.count - feature.lastWeekCount;
-              const growthPercentage = feature.lastWeekCount > 0 
-                ? ((weeklyGrowth / feature.lastWeekCount) * 100).toFixed(1)
-                : feature.count > 0 ? '100' : '0';
-              const isPositive = weeklyGrowth > 0;
-              const isNeutral = weeklyGrowth === 0;
-              
-              return (
-                <Card key={feature.name}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      {feature.name}
-                    </CardTitle>
-                    <IconComponent className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{feature.count.toLocaleString()}</div>
-                    <div className="flex items-center gap-1 mt-1">
-                      {isNeutral ? (
-                        <Minus className="h-3 w-3 text-muted-foreground" />
-                      ) : isPositive ? (
-                        <TrendingUp className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 text-red-600" />
-                      )}
-                      <span className={`text-xs ${
-                        isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {isNeutral ? 'No change' : `${isPositive ? '+' : ''}${weeklyGrowth} (${growthPercentage}%)`}
-                      </span>
-                      <span className="text-xs text-muted-foreground">this week</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
+        {/* Feature Usage Cards - Grouped by Module */}
+        {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
+          const moduleLabels = {
+            team: 'Team & Social',
+            hr: 'HR & People',
+            wiki: 'Wiki & Knowledge',
+            organization: 'Organization',
+          };
+          const moduleFeatures = data?.featureUsage.filter(f => f.module === module) || [];
+          
+          if (moduleFeatures.length === 0) return null;
+          
+          return (
+            <div key={module}>
+              <h3 className="text-lg font-semibold text-foreground mb-4">{moduleLabels[module]}</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {moduleFeatures.map((feature) => {
+                  const IconComponent = feature.icon;
+                  const weeklyGrowth = feature.count - feature.lastWeekCount;
+                  const growthPercentage = feature.lastWeekCount > 0 
+                    ? ((weeklyGrowth / feature.lastWeekCount) * 100).toFixed(1)
+                    : feature.count > 0 ? '100' : '0';
+                  const isPositive = weeklyGrowth > 0;
+                  const isNeutral = weeklyGrowth === 0;
+                  
+                  return (
+                    <Card key={feature.name}>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          {feature.name}
+                        </CardTitle>
+                        <IconComponent className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{feature.count.toLocaleString()}</div>
+                        <div className="flex items-center gap-1 mt-1">
+                          {isNeutral ? (
+                            <Minus className="h-3 w-3 text-muted-foreground" />
+                          ) : isPositive ? (
+                            <TrendingUp className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3 text-red-600" />
+                          )}
+                          <span className={`text-xs ${
+                            isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {isNeutral ? 'No change' : `${isPositive ? '+' : ''}${weeklyGrowth} (${growthPercentage}%)`}
+                          </span>
+                          <span className="text-xs text-muted-foreground">this week</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </SuperAdminLayout>
   );
