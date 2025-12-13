@@ -228,20 +228,15 @@ const Wiki = () => {
     },
   });
 
-  // Track recently viewed pages and folders
+  // Track recently viewed pages
   useEffect(() => {
     if (viewMode === "page" && selectedPageId) {
       const page = pagesList.find(p => p.id === selectedPageId);
       if (page) {
         addRecentItem(selectedPageId, "page", page.title);
       }
-    } else if (viewMode === "folder" && selectedFolderId) {
-      const folder = folders.find(f => f.id === selectedFolderId);
-      if (folder) {
-        addRecentItem(selectedFolderId, "folder", folder.name);
-      }
     }
-  }, [selectedPageId, selectedFolderId, viewMode, pagesList, folders, addRecentItem]);
+  }, [selectedPageId, viewMode, pagesList, addRecentItem]);
 
   // Create folder mutation
   const createFolderMutation = useMutation({

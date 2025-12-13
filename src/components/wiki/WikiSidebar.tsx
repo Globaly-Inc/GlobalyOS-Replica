@@ -147,24 +147,13 @@ export const WikiSidebar = ({
                 key={`${item.type}-${item.id}`}
                 className={cn(
                   "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer",
-                  (item.type === "folder" && selectedFolderId === item.id) || 
-                  (item.type === "page" && selectedPageId === item.id)
+                  selectedPageId === item.id
                     ? "bg-primary/10 text-primary" 
                     : "hover:bg-muted/50"
                 )}
-                onClick={() => {
-                  if (item.type === "folder") {
-                    onSelectFolder(item.id);
-                  } else {
-                    onSelectPage(item.id);
-                  }
-                }}
+                onClick={() => onSelectPage(item.id)}
               >
-                {item.type === "folder" ? (
-                  <Folder className="h-4 w-4 text-primary" />
-                ) : (
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                )}
+                <FileText className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm truncate flex-1">{item.name}</span>
               </div>
             ))}
