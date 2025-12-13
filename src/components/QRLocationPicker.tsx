@@ -295,9 +295,9 @@ export const QRLocationPicker = ({
         <Slider
           value={[radius]}
           onValueChange={(value) => setRadius(value[0])}
-          min={25}
+          min={5}
           max={500}
-          step={25}
+          step={5}
           className="w-full"
         />
         <p className="text-xs text-muted-foreground">
