@@ -238,13 +238,17 @@ export const useSendMessage = () => {
     mutationFn: async ({ 
       content, 
       conversationId, 
-      spaceId 
+      spaceId,
+      attachments = []
     }: { 
       content: string; 
       conversationId?: string; 
       spaceId?: string;
+      attachments?: { fileName: string; filePath: string; fileSize: number; fileType: string }[];
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      const contentType = attachments.length > 0 ? 'file' : 'text';
 
       const { data, error } = await supabase
         .from('chat_messages')
@@ -254,12 +258,31 @@ export const useSendMessage = () => {
           space_id: spaceId || null,
           sender_id: currentEmployee.id,
           content,
-          content_type: 'text'
+          content_type: contentType
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Insert attachments if any
+      if (attachments.length > 0) {
+        const { error: attachError } = await supabase
+          .from('chat_attachments')
+          .insert(
+            attachments.map(att => ({
+              message_id: data.id,
+              organization_id: currentOrg.id,
+              file_name: att.fileName,
+              file_path: att.filePath,
+              file_size: att.fileSize,
+              file_type: att.fileType
+            }))
+          );
+
+        if (attachError) throw attachError;
+      }
+
       return data;
     },
     onSuccess: (_, variables) => {
