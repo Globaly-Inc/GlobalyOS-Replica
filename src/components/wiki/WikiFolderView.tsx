@@ -1,5 +1,13 @@
-import { Folder, FileText, ChevronRight } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface WikiFolder {
   id: string;
@@ -21,6 +29,15 @@ interface WikiFolderViewProps {
   currentFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
   onSelectPage: (pageId: string) => void;
+  canEdit?: boolean;
+  onCreateFolder?: (name: string, parentId: string | null) => void;
+  onCreatePage?: (title: string, folderId: string | null) => void;
+  onRenameFolder?: (folderId: string, name: string) => void;
+  onRenamePage?: (pageId: string, title: string) => void;
+  onDeleteFolder?: (folderId: string) => void;
+  onDeletePage?: (pageId: string) => void;
+  isFavorite?: (itemId: string, itemType: "folder" | "page") => boolean;
+  onToggleFavorite?: (itemId: string, itemType: "folder" | "page") => void;
 }
 
 export const WikiFolderView = ({
@@ -29,6 +46,15 @@ export const WikiFolderView = ({
   currentFolderId,
   onSelectFolder,
   onSelectPage,
+  canEdit = false,
+  onCreateFolder,
+  onCreatePage,
+  onRenameFolder,
+  onRenamePage,
+  onDeleteFolder,
+  onDeletePage,
+  isFavorite,
+  onToggleFavorite,
 }: WikiFolderViewProps) => {
   // Get child folders and pages for current view
   const childFolders = folders
@@ -94,13 +120,80 @@ export const WikiFolderView = ({
             {childFolders.map((folder) => {
               const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
               const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
+              const isFav = isFavorite?.(folder.id, "folder") ?? false;
               
               return (
-                <button
+                <div
                   key={folder.id}
+                  className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
                   onClick={() => onSelectFolder(folder.id)}
-                  className="group flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md"
                 >
+                  {/* Three-dot menu */}
+                  {canEdit && (
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => {
+                            const name = prompt("Rename folder:", folder.name);
+                            if (name?.trim() && name !== folder.name) {
+                              onRenameFolder?.(folder.id, name.trim());
+                            }
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onToggleFavorite?.(folder.id, "folder")}>
+                            <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
+                            {isFav ? "Remove from Favorites" : "Add to Favorites"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => {
+                            const title = prompt("Enter page title:");
+                            if (title?.trim()) {
+                              onCreatePage?.(title.trim(), folder.id);
+                            }
+                          }}>
+                            <FilePlus className="h-4 w-4 mr-2" />
+                            New Page
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const name = prompt("Enter folder name:");
+                            if (name?.trim()) {
+                              onCreateFolder?.(name.trim(), folder.id);
+                            }
+                          }}>
+                            <FolderPlus className="h-4 w-4 mr-2" />
+                            New Subfolder
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm("Delete this folder and all its contents?")) {
+                                onDeleteFolder?.(folder.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                  
+                  {/* Favorite indicator */}
+                  {isFav && (
+                    <div className="absolute top-2 left-2">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    </div>
+                  )}
+                  
                   <div className="relative mb-3">
                     <Folder className="h-12 w-12 text-primary fill-primary/10 group-hover:scale-105 transition-transform" />
                   </div>
@@ -113,26 +206,77 @@ export const WikiFolderView = ({
                     {folderPageCount > 0 && `${folderPageCount} page${folderPageCount > 1 ? "s" : ""}`}
                     {subfolderCount === 0 && folderPageCount === 0 && "Empty"}
                   </span>
-                </button>
+                </div>
               );
             })}
 
             {/* Pages */}
-            {childPages.map((page) => (
-              <button
-                key={page.id}
-                onClick={() => onSelectPage(page.id)}
-                className="group flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md"
-              >
-                <div className="relative mb-3">
-                  <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
+            {childPages.map((page) => {
+              const isFav = isFavorite?.(page.id, "page") ?? false;
+              
+              return (
+                <div
+                  key={page.id}
+                  className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
+                  onClick={() => onSelectPage(page.id)}
+                >
+                  {/* Three-dot menu */}
+                  {canEdit && (
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => {
+                            const title = prompt("Rename page:", page.title);
+                            if (title?.trim() && title !== page.title) {
+                              onRenamePage?.(page.id, title.trim());
+                            }
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onToggleFavorite?.(page.id, "page")}>
+                            <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
+                            {isFav ? "Remove from Favorites" : "Add to Favorites"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm("Delete this page?")) {
+                                onDeletePage?.(page.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                  
+                  {/* Favorite indicator */}
+                  {isFav && (
+                    <div className="absolute top-2 left-2">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    </div>
+                  )}
+                  
+                  <div className="relative mb-3">
+                    <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
+                  </div>
+                  <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
+                    {page.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground mt-1">Page</span>
                 </div>
-                <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                  {page.title}
-                </span>
-                <span className="text-xs text-muted-foreground mt-1">Page</span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
