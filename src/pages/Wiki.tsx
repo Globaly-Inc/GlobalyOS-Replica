@@ -460,12 +460,7 @@ const Wiki = () => {
               onSelectPage={handleSelectPage}
               onSelectFolder={handleSelectFolder}
               onSelectHome={handleSelectHome}
-              onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
-              onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
-              onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
-              onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
-              onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
-              onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
+              onStartCreating={(type) => setCreatingItem({ type })}
               canEdit={canEdit}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}

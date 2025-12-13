@@ -1,21 +1,22 @@
-import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Plus, MoreHorizontal, Pencil, Trash2, BookOpen, Star } from "lucide-react";
+import { Folder, FileText, Plus, BookOpen, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
 interface WikiFolder {
   id: string;
   name: string;
   parent_id: string | null;
   sort_order: number;
 }
+
 interface WikiPage {
   id: string;
   folder_id: string | null;
   title: string;
   sort_order: number;
 }
+
 interface WikiSidebarProps {
   folders: WikiFolder[];
   pages: WikiPage[];
@@ -25,209 +26,12 @@ interface WikiSidebarProps {
   onSelectPage: (pageId: string) => void;
   onSelectFolder: (folderId: string | null) => void;
   onSelectHome: () => void;
-  onCreateFolder: (name: string, parentId: string | null) => void;
-  onCreatePage: (title: string, folderId: string | null) => void;
-  onRenameFolder: (folderId: string, name: string) => void;
-  onRenamePage: (pageId: string, title: string) => void;
-  onDeleteFolder: (folderId: string) => void;
-  onDeletePage: (pageId: string) => void;
+  onStartCreating: (type: "folder" | "page") => void;
   canEdit: boolean;
   isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
 }
-interface TreeItemProps {
-  folder: WikiFolder;
-  folders: WikiFolder[];
-  pages: WikiPage[];
-  selectedPageId: string | null;
-  expandedFolders: Set<string>;
-  onToggleFolder: (folderId: string) => void;
-  onSelectPage: (pageId: string) => void;
-  onCreateFolder: (name: string, parentId: string | null) => void;
-  onCreatePage: (title: string, folderId: string | null) => void;
-  onRenameFolder: (folderId: string, name: string) => void;
-  onRenamePage: (pageId: string, title: string) => void;
-  onDeleteFolder: (folderId: string) => void;
-  onDeletePage: (pageId: string) => void;
-  canEdit: boolean;
-  level: number;
-  isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
-  onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
-}
-const TreeItem = ({
-  folder,
-  folders,
-  pages,
-  selectedPageId,
-  expandedFolders,
-  onToggleFolder,
-  onSelectPage,
-  onCreateFolder,
-  onCreatePage,
-  onRenameFolder,
-  onRenamePage,
-  onDeleteFolder,
-  onDeletePage,
-  canEdit,
-  level,
-  isFavorite,
-  onToggleFavorite
-}: TreeItemProps) => {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(folder.name);
-  const [isCreatingPage, setIsCreatingPage] = useState(false);
-  const [newPageTitle, setNewPageTitle] = useState("");
-  const [isCreatingSubfolder, setIsCreatingSubfolder] = useState(false);
-  const [newSubfolderName, setNewSubfolderName] = useState("");
-  const isExpanded = expandedFolders.has(folder.id);
-  const childFolders = folders.filter(f => f.parent_id === folder.id).sort((a, b) => a.sort_order - b.sort_order);
-  const childPages = pages.filter(p => p.folder_id === folder.id).sort((a, b) => a.sort_order - b.sort_order);
-  const handleRename = () => {
-    if (renameValue.trim()) {
-      onRenameFolder(folder.id, renameValue.trim());
-      setIsRenaming(false);
-    }
-  };
-  const handleCreatePage = () => {
-    if (newPageTitle.trim()) {
-      onCreatePage(newPageTitle.trim(), folder.id);
-      setNewPageTitle("");
-      setIsCreatingPage(false);
-    }
-  };
-  const handleCreateSubfolder = () => {
-    if (newSubfolderName.trim()) {
-      onCreateFolder(newSubfolderName.trim(), folder.id);
-      setNewSubfolderName("");
-      setIsCreatingSubfolder(false);
-    }
-  };
-  return <div>
-      <div className={cn("group flex items-center gap-1 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer", level > 0 && "ml-4")} onClick={() => onToggleFolder(folder.id)}>
-        <button className="p-0.5 hover:bg-muted rounded">
-          {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-        </button>
-        {isExpanded ? <FolderOpen className="h-4 w-4 text-primary" /> : <Folder className="h-4 w-4 text-primary" />}
-        {isRenaming ? <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} onBlur={handleRename} onKeyDown={e => {
-        if (e.key === "Enter") handleRename();
-        if (e.key === "Escape") setIsRenaming(false);
-      }} className="h-6 text-sm py-0 px-1" autoFocus onClick={e => e.stopPropagation()} /> : <span className="text-sm font-medium truncate flex-1">{folder.name}</span>}
-        {canEdit && !isRenaming && <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleFavorite("folder", folder.id); }}>
-                <Star className={cn("h-4 w-4 mr-2", isFavorite("folder", folder.id) && "fill-yellow-400 text-yellow-400")} />
-                {isFavorite("folder", folder.id) ? "Remove from Favorites" : "Add to Favorites"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsCreatingPage(true)}>
-                <FileText className="h-4 w-4 mr-2" />
-                New Page
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsCreatingSubfolder(true)}>
-                <Folder className="h-4 w-4 mr-2" />
-                New Subfolder
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDeleteFolder(folder.id)} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>}
-      </div>
 
-      {isExpanded && <div className="ml-4">
-          {isCreatingSubfolder && <div className="flex items-center gap-1 py-1 px-2 ml-4">
-              <Folder className="h-4 w-4 text-muted-foreground" />
-              <Input value={newSubfolderName} onChange={e => setNewSubfolderName(e.target.value)} onBlur={() => {
-          if (!newSubfolderName.trim()) setIsCreatingSubfolder(false);
-        }} onKeyDown={e => {
-          if (e.key === "Enter") handleCreateSubfolder();
-          if (e.key === "Escape") setIsCreatingSubfolder(false);
-        }} placeholder="Folder name..." className="h-6 text-sm py-0 px-1" autoFocus />
-            </div>}
-
-          {childFolders.map(childFolder => <TreeItem key={childFolder.id} folder={childFolder} folders={folders} pages={pages} selectedPageId={selectedPageId} expandedFolders={expandedFolders} onToggleFolder={onToggleFolder} onSelectPage={onSelectPage} onCreateFolder={onCreateFolder} onCreatePage={onCreatePage} onRenameFolder={onRenameFolder} onRenamePage={onRenamePage} onDeleteFolder={onDeleteFolder} onDeletePage={onDeletePage} canEdit={canEdit} level={level + 1} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />)}
-
-          {isCreatingPage && <div className="flex items-center gap-1 py-1 px-2 ml-4">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <Input value={newPageTitle} onChange={e => setNewPageTitle(e.target.value)} onBlur={() => {
-          if (!newPageTitle.trim()) setIsCreatingPage(false);
-        }} onKeyDown={e => {
-          if (e.key === "Enter") handleCreatePage();
-          if (e.key === "Escape") setIsCreatingPage(false);
-        }} placeholder="Page title..." className="h-6 text-sm py-0 px-1" autoFocus />
-            </div>}
-
-          {childPages.map(page => <PageItem key={page.id} page={page} isSelected={selectedPageId === page.id} onSelect={() => onSelectPage(page.id)} onRename={onRenamePage} onDelete={onDeletePage} canEdit={canEdit} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />)}
-        </div>}
-    </div>;
-};
-interface PageItemProps {
-  page: WikiPage;
-  isSelected: boolean;
-  onSelect: () => void;
-  onRename: (pageId: string, title: string) => void;
-  onDelete: (pageId: string) => void;
-  canEdit: boolean;
-  isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
-  onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
-}
-const PageItem = ({
-  page,
-  isSelected,
-  onSelect,
-  onRename,
-  onDelete,
-  canEdit,
-  isFavorite,
-  onToggleFavorite
-}: PageItemProps) => {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(page.title);
-  const handleRename = () => {
-    if (renameValue.trim()) {
-      onRename(page.id, renameValue.trim());
-      setIsRenaming(false);
-    }
-  };
-  return <div className={cn("group flex items-center gap-2 py-1.5 px-2 ml-4 rounded-md cursor-pointer", isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/50")} onClick={onSelect}>
-      <FileText className="h-4 w-4 text-muted-foreground" />
-      {isFavorite("page", page.id) && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />}
-      {isRenaming ? <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} onBlur={handleRename} onKeyDown={e => {
-      if (e.key === "Enter") handleRename();
-      if (e.key === "Escape") setIsRenaming(false);
-    }} className="h-6 text-sm py-0 px-1" autoFocus onClick={e => e.stopPropagation()} /> : <span className="text-sm truncate flex-1">{page.title}</span>}
-      {canEdit && !isRenaming && <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleFavorite("page", page.id); }}>
-              <Star className={cn("h-4 w-4 mr-2", isFavorite("page", page.id) && "fill-yellow-400 text-yellow-400")} />
-              {isFavorite("page", page.id) ? "Remove from Favorites" : "Add to Favorites"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(page.id)} className="text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>}
-    </div>;
-};
 export const WikiSidebar = ({
   folders,
   pages,
@@ -237,152 +41,99 @@ export const WikiSidebar = ({
   onSelectPage,
   onSelectFolder,
   onSelectHome,
-  onCreateFolder,
-  onCreatePage,
-  onRenameFolder,
-  onRenamePage,
-  onDeleteFolder,
-  onDeletePage,
+  onStartCreating,
   canEdit,
   isFavorite,
   onToggleFavorite
 }: WikiSidebarProps) => {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [isCreatingRootPage, setIsCreatingRootPage] = useState(false);
-  const [newRootPageTitle, setNewRootPageTitle] = useState("");
-  const rootFolders = folders.filter(f => !f.parent_id).sort((a, b) => a.sort_order - b.sort_order);
-  const rootPages = pages.filter(p => !p.folder_id).sort((a, b) => a.sort_order - b.sort_order);
-  const handleToggleFolder = (folderId: string) => {
-    setExpandedFolders(prev => {
-      const next = new Set(prev);
-      if (next.has(folderId)) {
-        next.delete(folderId);
-      } else {
-        next.add(folderId);
-      }
-      return next;
-    });
-  };
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      onCreateFolder(newFolderName.trim(), null);
-      setNewFolderName("");
-      setIsCreatingFolder(false);
-    }
-  };
-  const handleCreateRootPage = () => {
-    if (newRootPageTitle.trim()) {
-      onCreatePage(newRootPageTitle.trim(), null);
-      setNewRootPageTitle("");
-      setIsCreatingRootPage(false);
-    }
-  };
-  return <div className="h-full flex flex-col bg-card border-r">
+  const favoriteFolders = folders.filter(f => isFavorite("folder", f.id));
+  const favoritePages = pages.filter(p => isFavorite("page", p.id));
+  const hasFavorites = favoriteFolders.length > 0 || favoritePages.length > 0;
+
+  return (
+    <div className="h-full flex flex-col bg-card border-r">
+      {/* Header */}
       <div className="p-3 border-b flex items-center justify-between">
         <button 
           onClick={onSelectHome}
           className={cn(
             "flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors",
-            showingHome && !selectedFolderId && "text-primary"
+            showingHome && !selectedFolderId && !selectedPageId && "text-primary"
           )}
         >
           <BookOpen className="h-4 w-4" />
           Wiki Home
         </button>
-        {canEdit && <DropdownMenu>
+        {canEdit && (
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Plus className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsCreatingFolder(true)}>
+              <DropdownMenuItem onClick={() => onStartCreating("folder")}>
                 <Folder className="h-4 w-4 mr-2" />
                 New Folder
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsCreatingRootPage(true)}>
+              <DropdownMenuItem onClick={() => onStartCreating("page")}>
                 <FileText className="h-4 w-4 mr-2" />
                 New Page
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>}
+          </DropdownMenu>
+        )}
       </div>
 
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-2">
-        {isCreatingFolder && <div className="flex items-center gap-1 py-1 px-2 mb-1">
-            <Folder className="h-4 w-4 text-primary" />
-            <Input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} onBlur={() => {
-          if (!newFolderName.trim()) setIsCreatingFolder(false);
-        }} onKeyDown={e => {
-          if (e.key === "Enter") handleCreateFolder();
-          if (e.key === "Escape") setIsCreatingFolder(false);
-        }} placeholder="Folder name..." className="h-6 text-sm py-0 px-1" autoFocus />
-          </div>}
-
         {/* Favorites Section */}
-        {(() => {
-          const favoriteFolders = folders.filter(f => isFavorite("folder", f.id));
-          const favoritePages = pages.filter(p => isFavorite("page", p.id));
-          if (favoriteFolders.length === 0 && favoritePages.length === 0) return null;
-          return (
-            <div className="mb-3 pb-2 border-b">
-              <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                Favorites
-              </div>
-              {favoriteFolders.map(folder => (
-                <div
-                  key={folder.id}
-                  className="group flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                  onClick={() => {
-                    if (!expandedFolders.has(folder.id)) {
-                      handleToggleFolder(folder.id);
-                    }
-                  }}
-                >
-                  <Folder className="h-4 w-4 text-primary" />
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">{folder.name}</span>
-                </div>
-              ))}
-              {favoritePages.map(page => (
-                <div
-                  key={page.id}
-                  className={cn(
-                    "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer",
-                    selectedPageId === page.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50"
-                  )}
-                  onClick={() => onSelectPage(page.id)}
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">{page.title}</span>
-                </div>
-              ))}
+        {hasFavorites && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+              Favorites
             </div>
-          );
-        })()}
+            {favoriteFolders.map(folder => (
+              <div
+                key={folder.id}
+                className={cn(
+                  "group flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer",
+                  selectedFolderId === folder.id && "bg-primary/10 text-primary"
+                )}
+                onClick={() => onSelectFolder(folder.id)}
+              >
+                <Folder className="h-4 w-4 text-primary" />
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                <span className="text-sm truncate flex-1">{folder.name}</span>
+              </div>
+            ))}
+            {favoritePages.map(page => (
+              <div
+                key={page.id}
+                className={cn(
+                  "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer",
+                  selectedPageId === page.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50"
+                )}
+                onClick={() => onSelectPage(page.id)}
+              >
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                <span className="text-sm truncate flex-1">{page.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {rootFolders.map(folder => <TreeItem key={folder.id} folder={folder} folders={folders} pages={pages} selectedPageId={selectedPageId} expandedFolders={expandedFolders} onToggleFolder={handleToggleFolder} onSelectPage={onSelectPage} onCreateFolder={onCreateFolder} onCreatePage={onCreatePage} onRenameFolder={onRenameFolder} onRenamePage={onRenamePage} onDeleteFolder={onDeleteFolder} onDeletePage={onDeletePage} canEdit={canEdit} level={0} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />)}
-
-        {isCreatingRootPage && <div className="flex items-center gap-1 py-1 px-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <Input value={newRootPageTitle} onChange={e => setNewRootPageTitle(e.target.value)} onBlur={() => {
-          if (!newRootPageTitle.trim()) setIsCreatingRootPage(false);
-        }} onKeyDown={e => {
-          if (e.key === "Enter") handleCreateRootPage();
-          if (e.key === "Escape") setIsCreatingRootPage(false);
-        }} placeholder="Page title..." className="h-6 text-sm py-0 px-1" autoFocus />
-          </div>}
-
-        {rootPages.map(page => <PageItem key={page.id} page={page} isSelected={selectedPageId === page.id} onSelect={() => onSelectPage(page.id)} onRename={onRenamePage} onDelete={onDeletePage} canEdit={canEdit} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />)}
-
-        {folders.length === 0 && pages.length === 0 && !isCreatingFolder && !isCreatingRootPage && <div className="text-center py-8 text-muted-foreground text-sm">
-            <p>No wiki content yet.</p>
-            {canEdit && <p className="mt-1">Click + to create a folder or page.</p>}
-          </div>}
+        {/* Empty state when no favorites */}
+        {!hasFavorites && (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            <Star className="h-8 w-8 mx-auto mb-2 opacity-20" />
+            <p>No favorites yet</p>
+            <p className="text-xs mt-1">Star folders or pages to access them quickly</p>
+          </div>
+        )}
       </div>
-    </div>;
+    </div>
+  );
 };
