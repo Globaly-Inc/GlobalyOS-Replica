@@ -657,6 +657,7 @@ myFunction();`;
     codeInput.style.position = 'relative';
     codeInput.style.width = '100%';
     codeInput.style.minHeight = '120px';
+    codeInput.style.height = 'auto';
     codeInput.style.padding = '1rem';
     codeInput.style.margin = '0';
     codeInput.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
@@ -670,9 +671,41 @@ myFunction();`;
     codeInput.style.resize = 'vertical';
     codeInput.style.whiteSpace = 'pre';
     codeInput.style.overflow = 'auto';
+    codeInput.style.boxSizing = 'border-box';
     codeInput.spellcheck = false;
     codeInput.value = selectedText || defaultCode;
     codeInput.setAttribute('data-raw-code', selectedText || defaultCode);
+    
+    // Track if user has manually resized
+    let userResized = false;
+    let lastHeight = 0;
+    
+    // Auto-resize function
+    const autoResize = () => {
+      if (userResized) {
+        // If user manually resized, just sync display height
+        editorContainer.style.height = codeInput.style.height;
+        return;
+      }
+      // Reset height to auto to get scrollHeight
+      codeInput.style.height = 'auto';
+      const scrollHeight = codeInput.scrollHeight;
+      const newHeight = Math.max(120, scrollHeight);
+      codeInput.style.height = newHeight + 'px';
+      editorContainer.style.height = newHeight + 'px';
+    };
+    
+    // Detect manual resize via mouse
+    codeInput.addEventListener('mousedown', () => {
+      lastHeight = codeInput.offsetHeight;
+    });
+    
+    codeInput.addEventListener('mouseup', () => {
+      if (codeInput.offsetHeight !== lastHeight && lastHeight !== 0) {
+        userResized = true;
+        editorContainer.style.height = codeInput.offsetHeight + 'px';
+      }
+    });
     
     // Sync scroll between textarea and display
     codeInput.onscroll = () => {
@@ -692,6 +725,7 @@ myFunction();`;
       } else {
         codeDisplay.textContent = code;
       }
+      autoResize();
       triggerUpdate();
     };
     
@@ -761,9 +795,15 @@ myFunction();`;
       spacer.innerHTML = '<br>';
       codeBlockWrapper.parentNode?.insertBefore(spacer, codeBlockWrapper.nextSibling);
       
-      // Focus on code input
+      // Focus on code input and set initial height
       setTimeout(() => {
         codeInput.focus();
+        // Set initial height based on content
+        codeInput.style.height = 'auto';
+        const scrollHeight = codeInput.scrollHeight;
+        const newHeight = Math.max(120, scrollHeight);
+        codeInput.style.height = newHeight + 'px';
+        editorContainer.style.height = newHeight + 'px';
       }, 0);
     } else if (editorRef.current) {
       // Fallback: directly append to editor
@@ -773,6 +813,12 @@ myFunction();`;
       editorRef.current.appendChild(spacer);
       setTimeout(() => {
         codeInput.focus();
+        // Set initial height based on content
+        codeInput.style.height = 'auto';
+        const scrollHeight = codeInput.scrollHeight;
+        const newHeight = Math.max(120, scrollHeight);
+        codeInput.style.height = newHeight + 'px';
+        editorContainer.style.height = newHeight + 'px';
       }, 0);
     }
     
