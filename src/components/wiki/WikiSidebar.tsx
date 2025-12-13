@@ -135,6 +135,11 @@ export const WikiSidebar = ({
           </div>
         )}
 
+        {/* Separator between Favorites and Recently Viewed */}
+        {hasFavorites && hasRecentItems && (
+          <div className="border-t border-border my-2" />
+        )}
+
         {/* Recently Viewed Section */}
         {hasRecentItems && (
           <div className="mb-3">
