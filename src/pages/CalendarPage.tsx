@@ -382,7 +382,7 @@ const CalendarPage = () => {
           </div>
           
           <ScrollArea className="flex-1 h-[200px] lg:h-auto">
-            <div className="p-4 lg:p-6 space-y-3">
+            <div className="p-3 space-y-2">
               {filteredItems.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-40" />
