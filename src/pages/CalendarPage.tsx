@@ -512,92 +512,237 @@ const CalendarPage = () => {
 
           {/* Calendar Grid */}
           <div className="flex-1 p-4 lg:p-6 overflow-auto">
-            <div className={cn(
-              "grid gap-px bg-border rounded-xl overflow-hidden",
-              viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
-            )}>
-              {/* Day headers */}
-              {viewMode !== "day" && ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <div
-                  key={day}
-                  className="bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground"
-                >
-                  {day}
-                </div>
-              ))}
-
-              {/* Calendar days */}
-              {calendarDays.map((day) => {
-                const dayItems = getDayItems(day);
-                const isToday = isSameDay(day, new Date());
-                const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const isCurrentMonth = isSameMonth(day, currentDate);
-
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => handleDayClick(day)}
-                    className={cn(
-                      "bg-card p-2 text-left transition-all duration-200 cursor-pointer group",
-                      viewMode === "month" ? "min-h-[100px]" : "min-h-[200px]",
-                      !isCurrentMonth && viewMode === "month" && "opacity-40",
-                      isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
-                      "hover:bg-accent/50"
-                    )}
+            {viewMode === "month" && (
+              <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
+                {/* Day headers */}
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                  <div
+                    key={day}
+                    className="bg-muted/50 p-3 text-center text-xs font-medium text-muted-foreground"
                   >
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-2">
-                        <span
+                    {day}
+                  </div>
+                ))}
+
+                {/* Calendar days */}
+                {calendarDays.map((day) => {
+                  const dayItems = getDayItems(day);
+                  const isToday = isSameDay(day, new Date());
+                  const isSelected = selectedDate && isSameDay(day, selectedDate);
+                  const isCurrentMonth = isSameMonth(day, currentDate);
+
+                  return (
+                    <button
+                      key={day.toISOString()}
+                      onClick={() => handleDayClick(day)}
+                      className={cn(
+                        "bg-card p-2 text-left transition-all duration-200 cursor-pointer group min-h-[100px]",
+                        !isCurrentMonth && "opacity-40",
+                        isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
+                        "hover:bg-accent/50"
+                      )}
+                    >
+                      <div className="flex flex-col h-full">
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className={cn(
+                              "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                              isToday && "bg-primary text-primary-foreground",
+                              isSelected && !isToday && "bg-primary/20 text-primary"
+                            )}
+                          >
+                            {format(day, "d")}
+                          </span>
+                          {dayItems.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{dayItems.length - 3} more
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Events in cell */}
+                        <div className="flex flex-col gap-1 overflow-hidden">
+                          {dayItems.slice(0, 3).map((item) => (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                "text-[11px] px-2 py-1 rounded-md truncate font-medium",
+                                getTypeBadgeVariant(item.type)
+                              )}
+                              title={item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
+                            >
+                              {item.employeeName 
+                                ? `${item.title.split(' ')[0]} – ${item.employeeName.split(' ')[0]}`
+                                : item.title
+                              }
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Dots for mobile/overflow */}
+                        {dayItems.length > 0 && dayItems.length <= 3 && (
+                          <div className="flex gap-0.5 mt-auto pt-1 sm:hidden">
+                            {dayItems.slice(0, 4).map((item) => (
+                              <div
+                                key={item.id}
+                                className={cn("h-1.5 w-1.5 rounded-full", getTypeColor(item.type))}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {viewMode === "week" && (
+              <div className="bg-border rounded-xl overflow-hidden">
+                {/* Week header */}
+                <div className="grid grid-cols-8 gap-px">
+                  <div className="bg-muted/50 p-3" /> {/* Empty corner */}
+                  {calendarDays.map((day) => {
+                    const isToday = isSameDay(day, new Date());
+                    const isSelected = selectedDate && isSameDay(day, selectedDate);
+                    return (
+                      <button
+                        key={day.toISOString()}
+                        onClick={() => handleDayClick(day)}
+                        className={cn(
+                          "bg-muted/50 p-3 text-center transition-colors hover:bg-accent/50",
+                          isSelected && "bg-primary/10"
+                        )}
+                      >
+                        <div className="text-xs font-medium text-muted-foreground">
+                          {format(day, "EEE")}
+                        </div>
+                        <div
                           className={cn(
-                            "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                            "text-lg font-semibold mt-1 w-8 h-8 mx-auto flex items-center justify-center rounded-full",
                             isToday && "bg-primary text-primary-foreground",
                             isSelected && !isToday && "bg-primary/20 text-primary"
                           )}
                         >
                           {format(day, "d")}
-                        </span>
-                        {dayItems.length > 3 && viewMode === "month" && (
-                          <span className="text-[10px] text-muted-foreground">
-                            +{dayItems.length - 3} more
-                          </span>
-                        )}
-                      </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      {/* Events in cell */}
-                      <div className="flex flex-col gap-1 overflow-hidden">
-                        {dayItems.slice(0, viewMode === "month" ? 3 : 10).map((item) => (
-                          <div
-                            key={item.id}
-                            className={cn(
-                              "text-[11px] px-2 py-1 rounded-md truncate font-medium",
-                              getTypeBadgeVariant(item.type)
-                            )}
-                            title={item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
-                          >
-                            {item.employeeName 
-                              ? `${item.title.split(' ')[0]} – ${item.employeeName.split(' ')[0]}`
-                              : item.title
-                            }
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Dots for mobile/overflow */}
-                      {viewMode === "month" && dayItems.length > 0 && dayItems.length <= 3 && (
-                        <div className="flex gap-0.5 mt-auto pt-1 sm:hidden">
-                          {dayItems.slice(0, 4).map((item) => (
+                {/* All-day events row */}
+                <div className="grid grid-cols-8 gap-px border-t border-border">
+                  <div className="bg-card p-2 text-xs text-muted-foreground">All day</div>
+                  {calendarDays.map((day) => {
+                    const dayItems = getDayItems(day);
+                    return (
+                      <div key={day.toISOString()} className="bg-card p-2 min-h-[60px]">
+                        <div className="flex flex-col gap-1">
+                          {dayItems.slice(0, 3).map((item) => (
                             <div
                               key={item.id}
-                              className={cn("h-1.5 w-1.5 rounded-full", getTypeColor(item.type))}
-                            />
+                              className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded truncate font-medium",
+                                getTypeBadgeVariant(item.type)
+                              )}
+                              title={item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
+                            >
+                              {item.title.split(' ')[0]}
+                            </div>
                           ))}
+                          {dayItems.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{dayItems.length - 3} more
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Time slots */}
+                <div className="max-h-[400px] overflow-auto">
+                  {Array.from({ length: 12 }, (_, i) => i + 8).map((hour) => (
+                    <div key={hour} className="grid grid-cols-8 gap-px border-t border-border/50">
+                      <div className="bg-card p-2 text-xs text-muted-foreground text-right pr-3">
+                        {hour.toString().padStart(2, "0")}:00
+                      </div>
+                      {calendarDays.map((day) => (
+                        <div
+                          key={`${day.toISOString()}-${hour}`}
+                          className="bg-card min-h-[40px] hover:bg-accent/30 transition-colors cursor-pointer"
+                          onClick={() => handleDayClick(day)}
+                        />
+                      ))}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {viewMode === "day" && (
+              <div className="bg-border rounded-xl overflow-hidden">
+                {/* Day header */}
+                <div className="bg-muted/50 p-4 text-center">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {format(currentDate, "EEEE")}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-3xl font-bold mt-1 w-14 h-14 mx-auto flex items-center justify-center rounded-full",
+                      isSameDay(currentDate, new Date()) && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    {format(currentDate, "d")}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {format(currentDate, "MMMM yyyy")}
+                  </div>
+                </div>
+
+                {/* Day events summary */}
+                {getDayItems(currentDate).length > 0 && (
+                  <div className="bg-card p-4 border-t border-border">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">Events</div>
+                    <div className="flex flex-col gap-2">
+                      {getDayItems(currentDate).map((item) => (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "p-3 rounded-lg flex items-center gap-3",
+                            getTypeBadgeVariant(item.type)
+                          )}
+                        >
+                          <div className="shrink-0">{getTypeIcon(item.type)}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
+                            </p>
+                            {item.subtitle && (
+                              <p className="text-xs opacity-75">{item.subtitle}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time slots */}
+                <div className="max-h-[400px] overflow-auto">
+                  {Array.from({ length: 16 }, (_, i) => i + 6).map((hour) => (
+                    <div key={hour} className="flex border-t border-border/50">
+                      <div className="bg-card p-3 w-20 text-xs text-muted-foreground text-right shrink-0">
+                        {hour.toString().padStart(2, "0")}:00
+                      </div>
+                      <div className="bg-card flex-1 min-h-[50px] hover:bg-accent/30 transition-colors cursor-pointer" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
