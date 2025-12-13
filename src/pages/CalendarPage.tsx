@@ -609,7 +609,7 @@ const CalendarPage = () => {
       "flex flex-col",
       isMobile ? "bg-card border-t border-border" : "flex-1"
     )}>
-      <div className={cn("border-b border-border", isMobile ? "p-3 pt-4" : "p-6")}>
+      <div className={cn("border-b border-border", isMobile ? "p-3" : "p-6")}>
         <h2 className={cn("font-semibold text-foreground", isMobile ? "text-base" : "text-lg")}>
           {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
         </h2>
