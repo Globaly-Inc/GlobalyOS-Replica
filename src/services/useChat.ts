@@ -23,6 +23,7 @@ export const useConversations = () => {
             id,
             organization_id,
             name,
+            icon_url,
             is_group,
             created_by,
             created_at,
