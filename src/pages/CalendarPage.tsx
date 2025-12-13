@@ -58,6 +58,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import AddCalendarEventDialog from "@/components/dialogs/AddCalendarEventDialog";
+import { WorldClockCards } from "@/components/WorldClockCards";
 import EditCalendarEventDialog from "@/components/dialogs/EditCalendarEventDialog";
 import {
   AlertDialog,
@@ -238,7 +239,7 @@ const CalendarPage = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("offices")
-        .select("id, name")
+        .select("id, name, country")
         .eq("organization_id", currentOrg.id);
       if (error) throw error;
       return data;
@@ -1179,6 +1180,11 @@ const CalendarPage = () => {
             )}
 
           </div>
+
+          {/* World Clock Cards */}
+          <WorldClockCards 
+            officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
+          />
         </div>
       </div>
 
