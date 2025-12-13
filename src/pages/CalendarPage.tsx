@@ -26,7 +26,9 @@ import {
   Cake, 
   Briefcase,
   ClipboardList,
-  CalendarDays
+  CalendarDays,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -38,6 +40,18 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import AddCalendarEventDialog from "@/components/dialogs/AddCalendarEventDialog";
+import EditCalendarEventDialog from "@/components/dialogs/EditCalendarEventDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -51,6 +65,8 @@ interface CalendarItem {
   employeeName?: string;
   appliesToAllOffices?: boolean;
   officeNames?: string[];
+  rawEventId?: string; // Original event ID for edit/delete
+  officeIds?: string[];
 }
 
 const CalendarPage = () => {
@@ -58,6 +74,17 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isEditEventOpen, setIsEditEventOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<{
+    id: string;
+    title: string;
+    start_date: string;
+    end_date: string;
+    event_type: string;
+    applies_to_all_offices: boolean;
+    officeIds?: string[];
+  } | null>(null);
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const { user } = useAuth();
@@ -250,6 +277,8 @@ const CalendarPage = () => {
         type: event.event_type === "holiday" ? "holiday" : "event",
         appliesToAllOffices: event.applies_to_all_offices,
         officeNames: eventOfficeNames,
+        rawEventId: event.id,
+        officeIds: event.officeIds,
       });
     });
 
@@ -460,62 +489,122 @@ const CalendarPage = () => {
                   <p className="text-sm">No events {selectedDate ? "on this day" : "upcoming"}</p>
                 </div>
               ) : (
-                filteredItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleDayClick(item.date)}
-                    className={cn(
-                      "w-full text-left p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm hover:shadow-md",
-                      selectedDate && isSameDay(item.date, selectedDate) && "ring-2 ring-primary"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={cn("p-2 rounded-lg", getTypeBadgeVariant(item.type))}>
-                        {getTypeIcon(item.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
-                            getTypeBadgeVariant(item.type)
-                          )}>
-                            {getTypeLabel(item.type)}
-                          </span>
+                filteredItems.map((item) => {
+                  const isManageableEvent = canManageEvents && (item.type === "holiday" || item.type === "event");
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "w-full text-left p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm hover:shadow-md group relative",
+                        selectedDate && isSameDay(item.date, selectedDate) && "ring-2 ring-primary"
+                      )}
+                    >
+                      {/* Edit/Delete buttons for HR/Admin on events/holidays */}
+                      {isManageableEvent && (
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
+                              if (eventData) {
+                                setSelectedEvent({
+                                  id: eventData.id,
+                                  title: eventData.title,
+                                  start_date: eventData.start_date,
+                                  end_date: eventData.end_date,
+                                  event_type: eventData.event_type,
+                                  applies_to_all_offices: eventData.applies_to_all_offices,
+                                  officeIds: eventData.officeIds,
+                                });
+                                setIsEditEventOpen(true);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
+                              if (eventData) {
+                                setSelectedEvent({
+                                  id: eventData.id,
+                                  title: eventData.title,
+                                  start_date: eventData.start_date,
+                                  end_date: eventData.end_date,
+                                  event_type: eventData.event_type,
+                                  applies_to_all_offices: eventData.applies_to_all_offices,
+                                  officeIds: eventData.officeIds,
+                                });
+                                setIsDeleteDialogOpen(true);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <p className="font-medium text-sm text-foreground">
-                          {item.type === "anniversary" || item.type === "birthday" 
-                            ? item.title 
-                            : item.employeeName 
-                              ? `${item.title} – ${item.employeeName}` 
-                              : item.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(item.date, "d MMM")}
-                          {item.endDate && !isSameDay(item.date, item.endDate) && (
-                            <> – {format(item.endDate, "d MMM")}</>
-                          )}
-                          {item.subtitle && <> · {item.subtitle}</>}
-                        </p>
-                        {/* Office badges for events/holidays */}
-                        {(item.type === "holiday" || item.type === "event") && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {item.appliesToAllOffices ? (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                All offices
-                              </Badge>
-                            ) : item.officeNames && item.officeNames.length > 0 ? (
-                              item.officeNames.map((name, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                  {name}
-                                </Badge>
-                              ))
-                            ) : null}
+                      )}
+                      
+                      <button
+                        className="w-full text-left"
+                        onClick={() => handleDayClick(item.date)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={cn("p-2 rounded-lg", getTypeBadgeVariant(item.type))}>
+                            {getTypeIcon(item.type)}
                           </div>
-                        )}
-                      </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={cn(
+                                "text-xs font-medium px-2 py-0.5 rounded-full",
+                                getTypeBadgeVariant(item.type)
+                              )}>
+                                {getTypeLabel(item.type)}
+                              </span>
+                            </div>
+                            <p className="font-medium text-sm text-foreground">
+                              {item.type === "anniversary" || item.type === "birthday" 
+                                ? item.title 
+                                : item.employeeName 
+                                  ? `${item.title} – ${item.employeeName}` 
+                                  : item.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(item.date, "d MMM")}
+                              {item.endDate && !isSameDay(item.date, item.endDate) && (
+                                <> – {format(item.endDate, "d MMM")}</>
+                              )}
+                              {item.subtitle && <> · {item.subtitle}</>}
+                            </p>
+                            {/* Office badges for events/holidays */}
+                            {(item.type === "holiday" || item.type === "event") && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {item.appliesToAllOffices ? (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                    All offices
+                                  </Badge>
+                                ) : item.officeNames && item.officeNames.length > 0 ? (
+                                  item.officeNames.map((name, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                      {name}
+                                    </Badge>
+                                  ))
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
                     </div>
-                  </button>
-                ))
+                  );
+                })
               )}
             </div>
           </ScrollArea>
@@ -845,6 +934,61 @@ const CalendarPage = () => {
           setIsAddEventOpen(false);
         }}
       />
+
+      <EditCalendarEventDialog
+        open={isEditEventOpen}
+        onOpenChange={setIsEditEventOpen}
+        event={selectedEvent}
+        onSuccess={() => {
+          refetchEvents();
+          setIsEditEventOpen(false);
+          setSelectedEvent(null);
+        }}
+      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedEvent?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!selectedEvent) return;
+                try {
+                  // Delete office associations first
+                  await supabase
+                    .from("calendar_event_offices")
+                    .delete()
+                    .eq("calendar_event_id", selectedEvent.id);
+
+                  // Delete the event
+                  const { error } = await supabase
+                    .from("calendar_events")
+                    .delete()
+                    .eq("id", selectedEvent.id);
+
+                  if (error) throw error;
+                  toast.success("Event deleted successfully");
+                  refetchEvents();
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to delete event");
+                } finally {
+                  setIsDeleteDialogOpen(false);
+                  setSelectedEvent(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
