@@ -5,7 +5,8 @@ import {
   Bold, Italic, Heading1, Heading2, Heading3, 
   List, ListOrdered, Link, Image, FileText, 
   Code, Quote, Minus, Table, Upload, Underline,
-  Plus, Trash2
+  Plus, Trash2, AlignLeft, AlignCenter, AlignRight,
+  Pencil, X, ExternalLink, ChevronDown, Type
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,11 +18,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import DOMPurify from "dompurify";
 import Prism from "prismjs";
 
 // Import Prism languages - order matters for dependencies
-import "prismjs/components/prism-markup"; // Required for PHP
+import "prismjs/components/prism-markup";
 import "prismjs/components/prism-css";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -33,7 +45,7 @@ import "prismjs/components/prism-csharp";
 import "prismjs/components/prism-go";
 import "prismjs/components/prism-rust";
 import "prismjs/components/prism-ruby";
-import "prismjs/components/prism-markup-templating"; // Required for PHP
+import "prismjs/components/prism-markup-templating";
 import "prismjs/components/prism-php";
 import "prismjs/components/prism-swift";
 import "prismjs/components/prism-kotlin";
@@ -74,6 +86,42 @@ const LANGUAGE_MAP: Record<string, string> = {
   plaintext: "plaintext",
 };
 
+// Text size configurations
+const TEXT_SIZES = [
+  { label: "Small", value: "small", class: "text-xs" },
+  { label: "Normal", value: "normal", class: "text-base" },
+  { label: "Large", value: "large", class: "text-lg" },
+  { label: "X-Large", value: "xlarge", class: "text-xl" },
+];
+
+// File type icons mapping
+const getFileIcon = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  const iconMap: Record<string, string> = {
+    pdf: "📄",
+    doc: "📝",
+    docx: "📝",
+    xls: "📊",
+    xlsx: "📊",
+    ppt: "📽️",
+    pptx: "📽️",
+    txt: "📃",
+    csv: "📊",
+    zip: "🗜️",
+    rar: "🗜️",
+  };
+  return iconMap[ext || ""] || "📎";
+};
+
+// Format file size
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
 interface WikiRichEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -89,9 +137,14 @@ const sanitizeConfig = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
     'a', 'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
     'div', 'span', 'iframe', 'colgroup', 'col',
-    'select', 'option', 'button'
+    'select', 'option', 'button', 'figure', 'figcaption'
   ],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 'frameborder', 'allowfullscreen', 'style', 'value', 'selected', 'contenteditable', 'data-language'],
+  ALLOWED_ATTR: [
+    'href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 
+    'frameborder', 'allowfullscreen', 'style', 'value', 'selected', 
+    'contenteditable', 'data-language', 'data-file-name', 'data-file-size',
+    'data-file-url', 'data-size', 'data-align', 'rel'
+  ],
   ALLOW_DATA_ATTR: true,
 };
 
@@ -105,15 +158,27 @@ export const WikiRichEditor = ({
 }: WikiRichEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const selectedTableRef = useRef<HTMLTableElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkText, setLinkText] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [editingLink, setEditingLink] = useState<HTMLAnchorElement | null>(null);
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [embedUrl, setEmbedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [activeHeading, setActiveHeading] = useState<string | null>(null);
+  const [activeTextSize, setActiveTextSize] = useState<string>("normal");
+  
+  // Image editing state
+  const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
+  const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
+  
+  // Link popover state
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<HTMLAnchorElement | null>(null);
   
   // Table hover controls state
   const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
@@ -128,6 +193,12 @@ export const WikiRichEditor = ({
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const resizeTableRef = useRef<HTMLTableElement | null>(null);
+  
+  // Image resize state
+  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [resizeImageStartX, setResizeImageStartX] = useState(0);
+  const [resizeImageStartWidth, setResizeImageStartWidth] = useState(0);
+  const resizingImageRef = useRef<HTMLImageElement | null>(null);
 
   // Save current selection
   const saveSelection = useCallback(() => {
@@ -166,6 +237,38 @@ export const WikiRichEditor = ({
     }
   }, [onChange]);
 
+  // Check current formatting state
+  const updateActiveFormatting = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+    
+    // Check heading
+    const h1 = element?.closest('h1');
+    const h2 = element?.closest('h2');
+    const h3 = element?.closest('h3');
+    
+    if (h1) setActiveHeading('h1');
+    else if (h2) setActiveHeading('h2');
+    else if (h3) setActiveHeading('h3');
+    else setActiveHeading(null);
+    
+    // Check text size
+    const sizeClasses = ['text-xs', 'text-lg', 'text-xl'];
+    let foundSize = 'normal';
+    sizeClasses.forEach(cls => {
+      if (element?.closest(`.${cls}`) || element?.classList?.contains(cls)) {
+        if (cls === 'text-xs') foundSize = 'small';
+        else if (cls === 'text-lg') foundSize = 'large';
+        else if (cls === 'text-xl') foundSize = 'xlarge';
+      }
+    });
+    setActiveTextSize(foundSize);
+  }, []);
+
   // Handle mouse move over table to show row/column controls
   const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -181,21 +284,18 @@ export const WikiRichEditor = ({
       selectedTableRef.current = table;
       setShowTableControls(true);
       
-      // Get row and column indices
       const rowIndex = row.rowIndex;
       const colIndex = cell.cellIndex;
       
       setHoveredRowIndex(rowIndex);
       setHoveredColIndex(colIndex);
       
-      // Position for row controls (left side of table)
       setRowControlPos({
         top: cellRect.top - editorRect.top,
         left: tableRect.left - editorRect.left - 28,
         height: cellRect.height
       });
       
-      // Position for column controls (top of table)
       setColControlPos({
         top: tableRect.top - editorRect.top - 28,
         left: cellRect.left - editorRect.left,
@@ -205,9 +305,7 @@ export const WikiRichEditor = ({
   }, []);
 
   const handleEditorMouseLeave = useCallback(() => {
-    // Don't hide controls if resizing
     if (isResizing) return;
-    // Delay hiding to allow clicking controls
     setTimeout(() => {
       setShowTableControls(false);
       setHoveredRowIndex(null);
@@ -224,7 +322,6 @@ export const WikiRichEditor = ({
     setResizeStartX(e.clientX);
     resizeTableRef.current = table;
     
-    // Get current column width
     const firstRow = table.querySelector('tr');
     if (firstRow) {
       const cell = firstRow.cells[colIndex];
@@ -243,7 +340,6 @@ export const WikiRichEditor = ({
       const diff = e.clientX - resizeStartX;
       const newWidth = Math.max(60, resizeStartWidth + diff);
       
-      // Apply width to all cells in the column
       const rows = resizeTableRef.current.querySelectorAll('tr');
       rows.forEach(row => {
         const cell = row.cells[resizeColIndex];
@@ -270,17 +366,68 @@ export const WikiRichEditor = ({
     };
   }, [isResizing, resizeColIndex, resizeStartX, resizeStartWidth, triggerUpdate]);
 
-  // Handle table selection on click
+  // Image resize handlers
+  useEffect(() => {
+    if (!isResizingImage) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingImageRef.current) return;
+      
+      const diff = e.clientX - resizeImageStartX;
+      const newWidth = Math.max(100, resizeImageStartWidth + diff);
+      
+      resizingImageRef.current.style.width = `${newWidth}px`;
+      resizingImageRef.current.style.height = 'auto';
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingImage(false);
+      resizingImageRef.current = null;
+      triggerUpdate();
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingImage, resizeImageStartX, resizeImageStartWidth, triggerUpdate]);
+
   const handleEditorClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const table = target.closest('table') as HTMLTableElement;
+    const img = target.closest('img') as HTMLImageElement;
+    const link = target.closest('a') as HTMLAnchorElement;
     
     if (table) {
       selectedTableRef.current = table;
     }
-  }, []);
+    
+    // Handle image selection
+    if (img && !img.closest('.wiki-code-block')) {
+      setSelectedImage(img);
+      setImagePopoverOpen(true);
+    } else {
+      setSelectedImage(null);
+      setImagePopoverOpen(false);
+    }
+    
+    // Handle link selection
+    if (link && !link.closest('.wiki-code-block') && !link.closest('.wiki-file-attachment')) {
+      setHoveredLink(link);
+      setLinkPopoverOpen(true);
+      e.preventDefault();
+    } else {
+      setHoveredLink(null);
+      setLinkPopoverOpen(false);
+    }
+    
+    updateActiveFormatting();
+  }, [updateActiveFormatting]);
 
-  // Table manipulation functions - now work with specific row/column
+  // Table manipulation functions
   const addRowAt = useCallback((e: React.MouseEvent, afterIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -300,7 +447,6 @@ export const WikiRichEditor = ({
       newRow.appendChild(cell);
     }
     
-    // Insert after the target row
     if (targetRow.nextSibling) {
       targetRow.parentNode?.insertBefore(newRow, targetRow.nextSibling);
     } else {
@@ -316,7 +462,6 @@ export const WikiRichEditor = ({
     if (!table) return;
     
     const allRows = table.querySelectorAll('tr');
-    // Don't delete if only one row left
     if (allRows.length <= 1) return;
     
     const targetRow = allRows[rowIndex];
@@ -344,7 +489,6 @@ export const WikiRichEditor = ({
         : 'border border-border p-2';
       cell.innerHTML = '&nbsp;';
       
-      // Insert after the target column
       const targetCell = cells[afterIndex];
       if (targetCell && targetCell.nextSibling) {
         row.insertBefore(cell, targetCell.nextSibling);
@@ -363,7 +507,6 @@ export const WikiRichEditor = ({
     
     const allRows = table.querySelectorAll('tr');
     const firstRow = allRows[0];
-    // Don't delete if only one column left
     if (firstRow && firstRow.cells.length <= 1) return;
     
     allRows.forEach((row) => {
@@ -377,26 +520,97 @@ export const WikiRichEditor = ({
 
   const handleInput = useCallback(() => {
     triggerUpdate();
-  }, [triggerUpdate]);
+    updateActiveFormatting();
+  }, [triggerUpdate, updateActiveFormatting]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     restoreSelection();
     document.execCommand(command, false, value);
     triggerUpdate();
+    updateActiveFormatting();
+  }, [triggerUpdate, restoreSelection, updateActiveFormatting]);
+
+  // Toggle heading - if already that heading, convert back to paragraph
+  const toggleHeading = useCallback((tag: 'h1' | 'h2' | 'h3') => {
+    restoreSelection();
+    const selection = window.getSelection();
+    
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+      const existingHeading = element?.closest(tag);
+      
+      if (existingHeading) {
+        // Already in this heading, convert to paragraph
+        const p = document.createElement('p');
+        p.innerHTML = existingHeading.innerHTML;
+        existingHeading.parentNode?.replaceChild(p, existingHeading);
+        setActiveHeading(null);
+      } else {
+        // Check if in another heading
+        const anyHeading = element?.closest('h1, h2, h3');
+        if (anyHeading) {
+          // Replace with new heading
+          const newHeading = document.createElement(tag);
+          newHeading.innerHTML = anyHeading.innerHTML;
+          anyHeading.parentNode?.replaceChild(newHeading, anyHeading);
+        } else {
+          // Apply heading format
+          document.execCommand('formatBlock', false, tag);
+        }
+        setActiveHeading(tag);
+      }
+    } else {
+      document.execCommand('formatBlock', false, tag);
+      setActiveHeading(tag);
+    }
+    
+    triggerUpdate();
+    editorRef.current?.focus();
+  }, [triggerUpdate, restoreSelection]);
+
+  // Apply text size
+  const applyTextSize = useCallback((size: string) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0);
+      
+      // Remove existing size classes from selection
+      const contents = range.extractContents();
+      const walker = document.createTreeWalker(contents, NodeFilter.SHOW_ELEMENT);
+      while (walker.nextNode()) {
+        const el = walker.currentNode as HTMLElement;
+        el.classList.remove('text-xs', 'text-base', 'text-lg', 'text-xl');
+      }
+      
+      // Wrap in span with size class
+      const span = document.createElement('span');
+      const sizeConfig = TEXT_SIZES.find(s => s.value === size);
+      if (sizeConfig && size !== 'normal') {
+        span.className = sizeConfig.class;
+      }
+      span.appendChild(contents);
+      range.insertNode(span);
+    }
+    
+    setActiveTextSize(size);
+    triggerUpdate();
+    editorRef.current?.focus();
   }, [triggerUpdate, restoreSelection]);
 
   const formatBlock = useCallback((tag: string) => {
     restoreSelection();
     const selection = window.getSelection();
     
-    // Check if cursor is already inside the same block type (prevent nesting)
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       const container = range.commonAncestorContainer;
       const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
       
       if (parentElement?.closest(tag)) {
-        // Already inside this block type, don't nest
         return;
       }
     }
@@ -416,7 +630,7 @@ export const WikiRichEditor = ({
         element.style.color = '#d4d4d4';
         element.style.padding = '1rem';
         element.style.borderRadius = '0.5rem';
-        element.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace';
+        element.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
         element.style.fontSize = '0.875rem';
         element.style.lineHeight = '1.5';
         element.style.overflow = 'auto';
@@ -429,31 +643,26 @@ export const WikiRichEditor = ({
       }
     };
     
-    // If there's a text selection (not collapsed), wrap it in the block element
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       const selectedContent = range.extractContents();
       
-      // Create the block element with selected content
       const element = document.createElement(tag);
       element.appendChild(selectedContent);
       applyBlockStyles(element, tag);
       
       range.insertNode(element);
       
-      // Move cursor to end of the new element
       const newRange = document.createRange();
       newRange.selectNodeContents(element);
       newRange.collapse(false);
       selection.removeAllRanges();
       selection.addRange(newRange);
     } else if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      // No selection or collapsed - insert empty block
       const range = selection?.getRangeAt(0);
       const isInsideEditor = range && editorRef.current?.contains(range.commonAncestorContainer);
       
       if (!isInsideEditor && editorRef.current) {
-        // Focus and move cursor to end if not inside editor
         editorRef.current.focus();
         const newRange = document.createRange();
         newRange.selectNodeContents(editorRef.current);
@@ -462,7 +671,6 @@ export const WikiRichEditor = ({
         selection?.addRange(newRange);
       }
       
-      // Create the block element with placeholder
       const element = document.createElement(tag);
       element.innerHTML = '<br>';
       applyBlockStyles(element, tag);
@@ -470,7 +678,6 @@ export const WikiRichEditor = ({
       const currentRange = selection?.getRangeAt(0);
       if (currentRange) {
         currentRange.insertNode(element);
-        // Move cursor inside the new element
         const newRange = document.createRange();
         newRange.setStart(element, 0);
         newRange.collapse(true);
@@ -483,7 +690,9 @@ export const WikiRichEditor = ({
     triggerUpdate();
   }, [triggerUpdate, restoreSelection]);
 
+  // Handle keyboard shortcuts and list behavior
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Keyboard shortcuts
     if (e.ctrlKey || e.metaKey) {
       switch (e.key.toLowerCase()) {
         case 'b':
@@ -498,9 +707,76 @@ export const WikiRichEditor = ({
           e.preventDefault();
           execCommand('underline');
           break;
+        case 'k':
+          e.preventDefault();
+          saveSelection();
+          setLinkDialogOpen(true);
+          break;
+        case 'z':
+          // Allow undo
+          break;
+        case 'y':
+          // Allow redo
+          break;
       }
     }
-  }, [execCommand]);
+    
+    // Handle Enter in lists
+    if (e.key === 'Enter' && !e.shiftKey) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const li = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement)?.closest('li');
+        
+        if (li && li.textContent?.trim() === '') {
+          // Empty list item - exit list
+          e.preventDefault();
+          const list = li.closest('ul, ol');
+          if (list) {
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            list.parentNode?.insertBefore(p, list.nextSibling);
+            li.remove();
+            
+            // If list is now empty, remove it
+            if (list.children.length === 0) {
+              list.remove();
+            }
+            
+            // Move cursor to new paragraph
+            const newRange = document.createRange();
+            newRange.setStart(p, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            triggerUpdate();
+          }
+        }
+      }
+    }
+    
+    // Handle Tab for list indentation
+    if (e.key === 'Tab') {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const li = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement)?.closest('li');
+        
+        if (li) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Outdent
+            execCommand('outdent');
+          } else {
+            // Indent
+            execCommand('indent');
+          }
+        }
+      }
+    }
+  }, [execCommand, triggerUpdate, saveSelection]);
 
   const isCommandActive = (command: string) => {
     try {
@@ -512,17 +788,14 @@ export const WikiRichEditor = ({
 
   // Insert a styled code block with header and language dropdown
   const handleInsertCodeBlock = useCallback(() => {
-    // Focus editor first to ensure we can insert
     if (editorRef.current) {
       editorRef.current.focus();
     }
     
-    // Try to restore saved selection
     restoreSelection();
     
     let selection = window.getSelection();
     
-    // Check if cursor is already inside a code block
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       const container = range.commonAncestorContainer;
@@ -533,7 +806,6 @@ export const WikiRichEditor = ({
       }
     }
     
-    // Get selected text if any
     let selectedText = "";
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       selectedText = selection.toString();
@@ -547,13 +819,12 @@ export const WikiRichEditor = ({
     ];
     
     const defaultCode = `function myFunction() {
-  let x = 10; // x is accessible here
+  let x = 10;
   console.log(x);
 }
 
 myFunction();`;
     
-    // Create the code block container
     const codeBlockWrapper = document.createElement('div');
     codeBlockWrapper.className = 'wiki-code-block';
     codeBlockWrapper.setAttribute('data-language', 'JavaScript');
@@ -563,7 +834,6 @@ myFunction();`;
     codeBlockWrapper.style.width = '100%';
     codeBlockWrapper.style.position = 'relative';
     
-    // Create header (non-editable)
     const header = document.createElement('div');
     header.className = 'wiki-code-header';
     header.contentEditable = 'false';
@@ -574,7 +844,6 @@ myFunction();`;
     header.style.justifyContent = 'space-between';
     header.style.borderBottom = '1px solid #333';
     
-    // Language dropdown selector
     const langSelect = document.createElement('select');
     langSelect.className = 'wiki-code-lang-select';
     langSelect.style.backgroundColor = 'transparent';
@@ -595,7 +864,6 @@ myFunction();`;
       langSelect.appendChild(option);
     });
     
-    // Copy button
     const copyBtn = document.createElement('button');
     copyBtn.className = 'wiki-code-copy';
     copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
@@ -626,14 +894,12 @@ myFunction();`;
     header.appendChild(langSelect);
     header.appendChild(copyBtn);
     
-    // Create code editor container with overlay approach
     const editorContainer = document.createElement('div');
     editorContainer.className = 'wiki-code-editor-container';
     editorContainer.style.position = 'relative';
     editorContainer.style.backgroundColor = '#1e1e1e';
     editorContainer.style.minHeight = '120px';
     
-    // Highlighted code display (background layer)
     const codeDisplay = document.createElement('pre');
     codeDisplay.className = 'wiki-code-display';
     codeDisplay.style.position = 'absolute';
@@ -651,7 +917,6 @@ myFunction();`;
     codeDisplay.style.pointerEvents = 'none';
     codeDisplay.style.color = '#d4d4d4';
     
-    // Editable textarea (foreground layer - transparent)
     const codeInput = document.createElement('textarea');
     codeInput.className = 'wiki-code-content';
     codeInput.style.position = 'relative';
@@ -676,18 +941,14 @@ myFunction();`;
     codeInput.value = selectedText || defaultCode;
     codeInput.setAttribute('data-raw-code', selectedText || defaultCode);
     
-    // Track if user has manually resized
     let userResized = false;
     let lastHeight = 0;
     
-    // Auto-resize function
     const autoResize = () => {
       if (userResized) {
-        // If user manually resized, just sync display height
         editorContainer.style.height = codeInput.style.height;
         return;
       }
-      // Reset height to auto to get scrollHeight
       codeInput.style.height = 'auto';
       const scrollHeight = codeInput.scrollHeight;
       const newHeight = Math.max(120, scrollHeight);
@@ -695,7 +956,6 @@ myFunction();`;
       editorContainer.style.height = newHeight + 'px';
     };
     
-    // Detect manual resize via mouse
     codeInput.addEventListener('mousedown', () => {
       lastHeight = codeInput.offsetHeight;
     });
@@ -707,13 +967,11 @@ myFunction();`;
       }
     });
     
-    // Sync scroll between textarea and display
     codeInput.onscroll = () => {
       codeDisplay.scrollTop = codeInput.scrollTop;
       codeDisplay.scrollLeft = codeInput.scrollLeft;
     };
     
-    // Update highlighting on input
     codeInput.oninput = () => {
       const code = codeInput.value;
       codeInput.setAttribute('data-raw-code', code);
@@ -729,7 +987,6 @@ myFunction();`;
       triggerUpdate();
     };
     
-    // Handle Tab key for indentation
     codeInput.onkeydown = (e) => {
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -741,7 +998,6 @@ myFunction();`;
       }
     };
     
-    // Update language and re-highlight
     langSelect.onchange = () => {
       codeBlockWrapper.setAttribute('data-language', langSelect.value);
       const code = codeInput.value;
@@ -761,15 +1017,12 @@ myFunction();`;
     codeBlockWrapper.appendChild(header);
     codeBlockWrapper.appendChild(editorContainer);
     
-    // Apply initial highlighting
     const initialLang = LANGUAGE_MAP['javascript'] || 'javascript';
     const initialGrammar = Prism.languages[initialLang];
     if (initialGrammar) {
       codeDisplay.innerHTML = Prism.highlight(codeInput.value, initialGrammar, initialLang);
     }
     
-    // Insert the code block into the editor
-    // Re-get selection after focus
     selection = window.getSelection();
     let insertRange: Range | null = null;
     
@@ -780,7 +1033,6 @@ myFunction();`;
       }
     }
     
-    // If no valid selection in editor, append to end
     if (!insertRange && editorRef.current) {
       insertRange = document.createRange();
       insertRange.selectNodeContents(editorRef.current);
@@ -790,15 +1042,12 @@ myFunction();`;
     if (insertRange && editorRef.current) {
       insertRange.insertNode(codeBlockWrapper);
       
-      // Add a paragraph after for continued editing
       const spacer = document.createElement('p');
       spacer.innerHTML = '<br>';
       codeBlockWrapper.parentNode?.insertBefore(spacer, codeBlockWrapper.nextSibling);
       
-      // Focus on code input and set initial height
       setTimeout(() => {
         codeInput.focus();
-        // Set initial height based on content
         codeInput.style.height = 'auto';
         const scrollHeight = codeInput.scrollHeight;
         const newHeight = Math.max(120, scrollHeight);
@@ -806,14 +1055,12 @@ myFunction();`;
         editorContainer.style.height = newHeight + 'px';
       }, 0);
     } else if (editorRef.current) {
-      // Fallback: directly append to editor
       editorRef.current.appendChild(codeBlockWrapper);
       const spacer = document.createElement('p');
       spacer.innerHTML = '<br>';
       editorRef.current.appendChild(spacer);
       setTimeout(() => {
         codeInput.focus();
-        // Set initial height based on content
         codeInput.style.height = 'auto';
         const scrollHeight = codeInput.scrollHeight;
         const newHeight = Math.max(120, scrollHeight);
@@ -825,14 +1072,19 @@ myFunction();`;
     triggerUpdate();
   }, [triggerUpdate, restoreSelection]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !organizationId) return;
 
     setIsUploading(true);
     try {
       for (const file of files) {
-        const isImage = file.type.startsWith("image/");
+        if (!file.type.startsWith("image/")) {
+          toast.error(`${file.name} is not an image`);
+          continue;
+        }
+        
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${organizationId}/${Date.now()}-${safeName}`;
         
@@ -849,30 +1101,150 @@ myFunction();`;
           .from("wiki-attachments")
           .getPublicUrl(path);
 
-        if (isImage) {
-          execCommand('insertHTML', `<img src="${urlData.publicUrl}" alt="${file.name}" class="max-w-full rounded-lg my-2" />`);
-        } else {
-          execCommand('insertHTML', `<a href="${urlData.publicUrl}" target="_blank" class="text-primary hover:underline">📎 ${file.name}</a>`);
-        }
+        // Insert resizable image with wrapper
+        const imageHtml = `
+          <figure class="wiki-image-wrapper my-4" data-align="left" contenteditable="false">
+            <img src="${urlData.publicUrl}" alt="${file.name}" class="rounded-lg max-w-full" style="width: 400px; height: auto;" />
+          </figure>
+        `;
+        execCommand('insertHTML', imageHtml);
       }
-      toast.success("Files uploaded successfully");
+      toast.success("Image uploaded successfully");
     } catch (err) {
       console.error("Upload error:", err);
-      toast.error("Failed to upload files");
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  // Handle file attachment upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !organizationId) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${organizationId}/${Date.now()}-${safeName}`;
+        
+        const { error } = await supabase.storage
+          .from("wiki-attachments")
+          .upload(path, file);
+
+        if (error) {
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("wiki-attachments")
+          .getPublicUrl(path);
+
+        // Insert file attachment block
+        const fileIcon = getFileIcon(file.name);
+        const fileSize = formatFileSize(file.size);
+        const attachmentHtml = `
+          <div class="wiki-file-attachment my-3 p-3 border border-border rounded-lg bg-muted/30 flex items-center gap-3 max-w-md cursor-pointer hover:bg-muted/50 transition-colors" 
+               contenteditable="false"
+               data-file-name="${file.name}"
+               data-file-size="${file.size}"
+               data-file-url="${urlData.publicUrl}"
+               onclick="window.open('${urlData.publicUrl}', '_blank')">
+            <span class="text-2xl">${fileIcon}</span>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate">${file.name}</div>
+              <div class="text-xs text-muted-foreground">${fileSize}</div>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+          </div>
+        `;
+        execCommand('insertHTML', attachmentHtml);
+      }
+      toast.success("File attached successfully");
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Failed to attach file");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
+  // Handle link insertion/editing
   const handleInsertLink = () => {
     if (linkUrl) {
       const text = linkText || linkUrl;
-      execCommand('insertHTML', `<a href="${linkUrl}" target="_blank" class="text-primary hover:underline">${text}</a>`);
+      if (editingLink) {
+        // Update existing link
+        editingLink.href = linkUrl;
+        editingLink.textContent = text;
+        setEditingLink(null);
+      } else {
+        execCommand('insertHTML', `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${text}</a>`);
+      }
     }
     setLinkDialogOpen(false);
     setLinkText("");
     setLinkUrl("");
+    setEditingLink(null);
+  };
+
+  // Edit existing link
+  const handleEditLink = () => {
+    if (hoveredLink) {
+      setEditingLink(hoveredLink);
+      setLinkText(hoveredLink.textContent || "");
+      setLinkUrl(hoveredLink.href || "");
+      setLinkPopoverOpen(false);
+      setLinkDialogOpen(true);
+    }
+  };
+
+  // Remove link
+  const handleRemoveLink = () => {
+    if (hoveredLink) {
+      const text = document.createTextNode(hoveredLink.textContent || "");
+      hoveredLink.parentNode?.replaceChild(text, hoveredLink);
+      setLinkPopoverOpen(false);
+      setHoveredLink(null);
+      triggerUpdate();
+    }
+  };
+
+  // Handle image alignment
+  const handleImageAlign = (align: 'left' | 'center' | 'right') => {
+    if (selectedImage) {
+      const wrapper = selectedImage.closest('.wiki-image-wrapper') as HTMLElement;
+      if (wrapper) {
+        wrapper.setAttribute('data-align', align);
+        wrapper.style.textAlign = align;
+        if (align === 'center') {
+          wrapper.style.display = 'flex';
+          wrapper.style.justifyContent = 'center';
+        } else if (align === 'right') {
+          wrapper.style.display = 'flex';
+          wrapper.style.justifyContent = 'flex-end';
+        } else {
+          wrapper.style.display = 'block';
+          wrapper.style.justifyContent = '';
+        }
+      }
+      triggerUpdate();
+    }
+  };
+
+  // Start image resize
+  const handleImageResizeStart = (e: React.MouseEvent) => {
+    if (selectedImage) {
+      e.preventDefault();
+      setIsResizingImage(true);
+      setResizeImageStartX(e.clientX);
+      setResizeImageStartWidth(selectedImage.offsetWidth);
+      resizingImageRef.current = selectedImage;
+    }
   };
 
   const handleInsertEmbed = () => {
@@ -882,20 +1254,66 @@ myFunction();`;
       if (embedUrl.includes("youtube.com") || embedUrl.includes("youtu.be")) {
         const videoId = embedUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
         if (videoId) {
-          embedCode = `<div class="my-4"><iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen class="rounded-lg max-w-full"></iframe></div>`;
+          embedCode = `
+            <div class="wiki-embed my-4" contenteditable="false">
+              <div class="relative w-full" style="padding-bottom: 56.25%;">
+                <iframe 
+                  src="https://www.youtube.com/embed/${videoId}" 
+                  frameborder="0" 
+                  allowfullscreen 
+                  class="absolute top-0 left-0 w-full h-full rounded-lg"
+                ></iframe>
+              </div>
+            </div>
+          `;
         }
       } else if (embedUrl.includes("vimeo.com")) {
         const videoId = embedUrl.match(/vimeo\.com\/(\d+)/)?.[1];
         if (videoId) {
-          embedCode = `<div class="my-4"><iframe width="560" height="315" src="https://player.vimeo.com/video/${videoId}" frameborder="0" allowfullscreen class="rounded-lg max-w-full"></iframe></div>`;
+          embedCode = `
+            <div class="wiki-embed my-4" contenteditable="false">
+              <div class="relative w-full" style="padding-bottom: 56.25%;">
+                <iframe 
+                  src="https://player.vimeo.com/video/${videoId}" 
+                  frameborder="0" 
+                  allowfullscreen 
+                  class="absolute top-0 left-0 w-full h-full rounded-lg"
+                ></iframe>
+              </div>
+            </div>
+          `;
         }
       } else if (embedUrl.includes("loom.com")) {
         const videoId = embedUrl.match(/loom\.com\/share\/([^?]+)/)?.[1];
         if (videoId) {
-          embedCode = `<div class="my-4"><iframe width="560" height="315" src="https://www.loom.com/embed/${videoId}" frameborder="0" allowfullscreen class="rounded-lg max-w-full"></iframe></div>`;
+          embedCode = `
+            <div class="wiki-embed my-4" contenteditable="false">
+              <div class="relative w-full" style="padding-bottom: 56.25%;">
+                <iframe 
+                  src="https://www.loom.com/embed/${videoId}" 
+                  frameborder="0" 
+                  allowfullscreen 
+                  class="absolute top-0 left-0 w-full h-full rounded-lg"
+                ></iframe>
+              </div>
+            </div>
+          `;
         }
       } else {
-        embedCode = `<div class="my-4"><iframe width="100%" height="400" src="${embedUrl}" frameborder="0" class="rounded-lg"></iframe></div>`;
+        // Generic link preview card
+        embedCode = `
+          <div class="wiki-link-preview my-4 p-4 border border-border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors" contenteditable="false">
+            <a href="${embedUrl}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 text-foreground no-underline">
+              <div class="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-sm truncate">${embedUrl}</div>
+                <div class="text-xs text-muted-foreground">Click to open link</div>
+              </div>
+            </a>
+          </div>
+        `;
       }
 
       if (embedCode) {
@@ -978,41 +1396,75 @@ myFunction();`;
         {/* Headings */}
         <Button
           type="button"
-          variant="ghost"
+          variant={activeHeading === 'h1' ? 'secondary' : 'ghost'}
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => formatBlock('h1')}
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+          onClick={() => toggleHeading('h1')}
           title="Heading 1"
         >
           <Heading1 className="h-4 w-4" />
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant={activeHeading === 'h2' ? 'secondary' : 'ghost'}
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => formatBlock('h2')}
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+          onClick={() => toggleHeading('h2')}
           title="Heading 2"
         >
           <Heading2 className="h-4 w-4" />
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant={activeHeading === 'h3' ? 'secondary' : 'ghost'}
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => formatBlock('h3')}
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+          onClick={() => toggleHeading('h3')}
           title="Heading 3"
         >
           <Heading3 className="h-4 w-4" />
         </Button>
+        
+        {/* Text Size Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 gap-1"
+              onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+              title="Text Size"
+            >
+              <Type className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-background border shadow-lg z-50">
+            {TEXT_SIZES.map((size) => (
+              <DropdownMenuItem
+                key={size.value}
+                onClick={() => applyTextSize(size.value)}
+                className={cn(
+                  "cursor-pointer",
+                  activeTextSize === size.value && "bg-muted"
+                )}
+              >
+                <span className={size.class}>{size.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         
         <div className="w-px h-5 bg-border mx-1" />
         
         {/* Lists */}
         <Button
           type="button"
-          variant="ghost"
+          variant={isCommandActive('insertUnorderedList') ? 'secondary' : 'ghost'}
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => execCommand('insertUnorderedList')}
@@ -1022,7 +1474,7 @@ myFunction();`;
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant={isCommandActive('insertOrderedList') ? 'secondary' : 'ghost'}
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => execCommand('insertOrderedList')}
@@ -1039,10 +1491,7 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            saveSelection();
-          }}
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => formatBlock('blockquote')}
           title="Quote"
         >
@@ -1053,10 +1502,7 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            saveSelection();
-          }}
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={handleInsertCodeBlock}
           title="Code Block"
         >
@@ -1091,8 +1537,9 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => setLinkDialogOpen(true)}
-          title="Insert Link"
+          title="Insert Link (Ctrl+K)"
         >
           <Link className="h-4 w-4" />
         </Button>
@@ -1101,7 +1548,7 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => imageInputRef.current?.click()}
           disabled={isUploading || !organizationId}
           title="Upload Image"
         >
@@ -1114,7 +1561,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || !organizationId}
-          title="Attach Document"
+          title="Attach File"
         >
           <FileText className="h-4 w-4" />
         </Button>
@@ -1131,10 +1578,17 @@ myFunction();`;
         </Button>
         
         <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+        <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
           className="hidden"
           onChange={handleFileUpload}
         />
@@ -1146,7 +1600,7 @@ myFunction();`;
         onMouseMove={handleEditorMouseMove}
         onMouseLeave={handleEditorMouseLeave}
       >
-        {/* Row Controls - Left side */}
+        {/* Row Controls */}
         {showTableControls && hoveredRowIndex !== null && (
           <div 
             className="absolute z-20 flex items-center gap-0.5"
@@ -1182,7 +1636,7 @@ myFunction();`;
           </div>
         )}
 
-        {/* Column Controls - Top side */}
+        {/* Column Controls */}
         {showTableControls && hoveredColIndex !== null && selectedTableRef.current && (
           <div 
             className="absolute z-20 flex items-center justify-center gap-0.5"
@@ -1218,7 +1672,7 @@ myFunction();`;
           </div>
         )}
 
-        {/* Column Resize Handle - Right edge of hovered column */}
+        {/* Column Resize Handle */}
         {showTableControls && hoveredColIndex !== null && selectedTableRef.current && !isResizing && (
           <div
             className="absolute z-30 w-1 bg-primary/50 hover:bg-primary cursor-col-resize transition-colors"
@@ -1245,6 +1699,7 @@ myFunction();`;
           onClick={handleEditorClick}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onSelect={updateActiveFormatting}
           data-placeholder={placeholder}
           className={cn(
             "wiki-editor outline-none p-6 pl-16",
@@ -1265,11 +1720,143 @@ myFunction();`;
             "prose-table:border-collapse prose-table:mt-8 prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted",
             "prose-td:border prose-td:border-border prose-td:p-2",
             "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none",
-            "[&_table]:relative [&_table]:ml-4 [&_th]:min-w-[80px] [&_td]:min-w-[80px]"
+            "[&_table]:relative [&_table]:ml-4 [&_th]:min-w-[80px] [&_td]:min-w-[80px]",
+            "[&_.wiki-image-wrapper]:relative [&_.wiki-image-wrapper_img]:cursor-pointer",
+            "[&_.wiki-file-attachment]:cursor-pointer"
           )}
           style={{ minHeight }}
         />
       </div>
+
+      {/* Image Toolbar Popover */}
+      {selectedImage && imagePopoverOpen && (
+        <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
+          <PopoverTrigger asChild>
+            <div 
+              className="absolute pointer-events-none" 
+              style={{ 
+                top: selectedImage.getBoundingClientRect().top - (editorRef.current?.getBoundingClientRect().top || 0) - 40,
+                left: selectedImage.getBoundingClientRect().left - (editorRef.current?.getBoundingClientRect().left || 0) 
+              }}
+            />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2 bg-background border shadow-lg z-50" align="start">
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => handleImageAlign('left')}
+                title="Align Left"
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => handleImageAlign('center')}
+                title="Align Center"
+              >
+                <AlignCenter className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => handleImageAlign('right')}
+                title="Align Right"
+              >
+                <AlignRight className="h-4 w-4" />
+              </Button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs cursor-ew-resize"
+                onMouseDown={handleImageResizeStart}
+                title="Drag to resize"
+              >
+                Resize
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                onClick={() => {
+                  const wrapper = selectedImage.closest('.wiki-image-wrapper');
+                  if (wrapper) wrapper.remove();
+                  else selectedImage.remove();
+                  setSelectedImage(null);
+                  setImagePopoverOpen(false);
+                  triggerUpdate();
+                }}
+                title="Delete Image"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* Link Edit Popover */}
+      {hoveredLink && linkPopoverOpen && (
+        <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
+          <PopoverTrigger asChild>
+            <div className="absolute pointer-events-none" />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2 bg-background border shadow-lg z-50" align="start">
+            <div className="flex items-center gap-2">
+              <a 
+                href={hoveredLink.href} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline truncate max-w-[200px]"
+              >
+                {hoveredLink.href}
+              </a>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => window.open(hoveredLink.href, '_blank')}
+                  title="Open Link"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={handleEditLink}
+                  title="Edit Link"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  onClick={handleRemoveLink}
+                  title="Remove Link"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Upload indicator */}
       {isUploading && (
@@ -1280,10 +1867,17 @@ myFunction();`;
       )}
 
       {/* Link Dialog */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+      <Dialog open={linkDialogOpen} onOpenChange={(open) => {
+        setLinkDialogOpen(open);
+        if (!open) {
+          setEditingLink(null);
+          setLinkText("");
+          setLinkUrl("");
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Insert Link</DialogTitle>
+            <DialogTitle>{editingLink ? 'Edit Link' : 'Insert Link'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1309,7 +1903,7 @@ myFunction();`;
                 Cancel
               </Button>
               <Button onClick={handleInsertLink} disabled={!linkUrl}>
-                Insert
+                {editingLink ? 'Update' : 'Insert'}
               </Button>
             </div>
           </div>
@@ -1324,7 +1918,7 @@ myFunction();`;
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              Paste a URL from YouTube, Vimeo, Loom, or any embeddable content.
+              Paste a URL from YouTube, Vimeo, Loom, or any link to embed.
             </p>
             <div className="space-y-2">
               <Label htmlFor="embed-url">URL</Label>
@@ -1413,6 +2007,15 @@ myFunction();`;
         .wiki-code-content::-webkit-scrollbar-thumb {
           background: #444;
           border-radius: 4px;
+        }
+        .wiki-image-wrapper {
+          position: relative;
+        }
+        .wiki-image-wrapper img {
+          transition: box-shadow 0.2s;
+        }
+        .wiki-image-wrapper img:hover {
+          box-shadow: 0 0 0 2px hsl(var(--primary));
         }
       `}</style>
     </div>
