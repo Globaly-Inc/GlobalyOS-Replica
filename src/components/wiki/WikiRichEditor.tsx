@@ -345,9 +345,45 @@ export const WikiRichEditor = ({
       }
     }
     
-    // If no selection or selection is collapsed, insert a new block element
-    if (!selection || selection.rangeCount === 0 || (selection.isCollapsed && editorRef.current)) {
-      // Check if we're inside the editor
+    const applyBlockStyles = (element: HTMLElement, blockTag: string) => {
+      if (blockTag === 'blockquote') {
+        element.style.backgroundColor = 'hsl(var(--muted))';
+        element.style.padding = '1rem';
+        element.style.borderRadius = '0.375rem';
+        element.style.borderLeft = '4px solid hsl(var(--primary))';
+        element.style.margin = '0.5rem 0';
+        element.style.width = '100%';
+        element.style.display = 'block';
+        element.style.boxSizing = 'border-box';
+      } else if (blockTag === 'pre') {
+        element.style.backgroundColor = 'hsl(var(--muted))';
+        element.style.padding = '1rem';
+        element.style.borderRadius = '0.375rem';
+        element.style.fontFamily = 'monospace';
+        element.style.overflow = 'auto';
+      }
+    };
+    
+    // If there's a text selection (not collapsed), wrap it in the block element
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0);
+      const selectedContent = range.extractContents();
+      
+      // Create the block element with selected content
+      const element = document.createElement(tag);
+      element.appendChild(selectedContent);
+      applyBlockStyles(element, tag);
+      
+      range.insertNode(element);
+      
+      // Move cursor to end of the new element
+      const newRange = document.createRange();
+      newRange.selectNodeContents(element);
+      newRange.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    } else if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      // No selection or collapsed - insert empty block
       const range = selection?.getRangeAt(0);
       const isInsideEditor = range && editorRef.current?.contains(range.commonAncestorContainer);
       
@@ -361,26 +397,10 @@ export const WikiRichEditor = ({
         selection?.addRange(newRange);
       }
       
-      // Create the block element with placeholder text
+      // Create the block element with placeholder
       const element = document.createElement(tag);
       element.innerHTML = '<br>';
-      
-      if (tag === 'blockquote') {
-        element.style.backgroundColor = 'hsl(var(--muted))';
-        element.style.padding = '1rem';
-        element.style.borderRadius = '0.375rem';
-        element.style.borderLeft = '4px solid hsl(var(--primary))';
-        element.style.margin = '0.5rem 0';
-        element.style.width = '100%';
-        element.style.display = 'block';
-        element.style.boxSizing = 'border-box';
-      } else if (tag === 'pre') {
-        element.style.backgroundColor = 'hsl(var(--muted))';
-        element.style.padding = '1rem';
-        element.style.borderRadius = '0.375rem';
-        element.style.fontFamily = 'monospace';
-        element.style.overflow = 'auto';
-      }
+      applyBlockStyles(element, tag);
       
       const currentRange = selection?.getRangeAt(0);
       if (currentRange) {
@@ -392,9 +412,6 @@ export const WikiRichEditor = ({
         selection?.removeAllRanges();
         selection?.addRange(newRange);
       }
-    } else {
-      // Use execCommand for existing selection
-      document.execCommand('formatBlock', false, `<${tag}>`);
     }
     
     editorRef.current?.focus();
