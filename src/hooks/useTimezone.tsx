@@ -1,8 +1,11 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 interface TimezoneContextType {
   timezone: string;
   setTimezone: (tz: string) => void;
+  isLoading: boolean;
 }
 
 const TimezoneContext = createContext<TimezoneContextType | undefined>(undefined);
@@ -20,7 +23,6 @@ const getBrowserTimezone = (): string => {
 
 // Get all available timezones
 export const getTimezones = (): string[] => {
-  // Common timezones list
   return [
     'UTC',
     'America/New_York',
@@ -89,8 +91,11 @@ export const formatTimezoneLabel = (tz: string): string => {
 };
 
 export const TimezoneProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Initialize with localStorage or browser timezone
   const [timezone, setTimezoneState] = useState<string>(() => {
-    // Try to get from localStorage, fallback to browser timezone
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(TIMEZONE_STORAGE_KEY);
       if (stored) return stored;
@@ -98,15 +103,54 @@ export const TimezoneProvider = ({ children }: { children: ReactNode }) => {
     return getBrowserTimezone();
   });
 
-  const setTimezone = (tz: string) => {
+  // Fetch timezone from database when user is authenticated
+  useEffect(() => {
+    const fetchTimezone = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('timezone')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data?.timezone) {
+          setTimezoneState(data.timezone);
+          localStorage.setItem(TIMEZONE_STORAGE_KEY, data.timezone);
+        }
+      } catch (err) {
+        console.error('Error fetching timezone:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTimezone();
+  }, [user?.id]);
+
+  const setTimezone = useCallback(async (tz: string) => {
     setTimezoneState(tz);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TIMEZONE_STORAGE_KEY, tz);
+    localStorage.setItem(TIMEZONE_STORAGE_KEY, tz);
+
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ timezone: tz })
+          .eq('id', user.id);
+      } catch (err) {
+        console.error('Error saving timezone:', err);
+      }
     }
-  };
+  }, [user?.id]);
 
   return (
-    <TimezoneContext.Provider value={{ timezone, setTimezone }}>
+    <TimezoneContext.Provider value={{ timezone, setTimezone, isLoading }}>
       {children}
     </TimezoneContext.Provider>
   );
