@@ -18,6 +18,59 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import DOMPurify from "dompurify";
+import Prism from "prismjs";
+
+// Import Prism languages
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-java";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-cpp";
+import "prismjs/components/prism-csharp";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-rust";
+import "prismjs/components/prism-ruby";
+import "prismjs/components/prism-php";
+import "prismjs/components/prism-swift";
+import "prismjs/components/prism-kotlin";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-yaml";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-graphql";
+
+const LANGUAGE_MAP: Record<string, string> = {
+  javascript: "javascript",
+  typescript: "typescript",
+  python: "python",
+  java: "java",
+  c: "c",
+  "c++": "cpp",
+  cpp: "cpp",
+  "c#": "csharp",
+  csharp: "csharp",
+  go: "go",
+  rust: "rust",
+  ruby: "ruby",
+  php: "php",
+  swift: "swift",
+  kotlin: "kotlin",
+  html: "markup",
+  css: "css",
+  sql: "sql",
+  bash: "bash",
+  shell: "bash",
+  json: "json",
+  yaml: "yaml",
+  xml: "markup",
+  markdown: "markdown",
+  graphql: "graphql",
+  "plain text": "plaintext",
+  plaintext: "plaintext",
+};
 
 interface WikiRichEditorProps {
   value: string;
@@ -481,8 +534,7 @@ export const WikiRichEditor = ({
     const languages = [
       'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
       'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'HTML', 'CSS', 'SQL',
-      'Bash', 'Shell', 'JSON', 'YAML', 'XML', 'Markdown', 'GraphQL', 'Dart',
-      'Scala', 'R', 'Lua', 'Perl', 'Objective-C', 'Elixir', 'Haskell', 'Plain text'
+      'Bash', 'Shell', 'JSON', 'YAML', 'XML', 'Markdown', 'GraphQL', 'Plain text'
     ];
     
     const defaultCode = `function myFunction() {
@@ -491,6 +543,18 @@ export const WikiRichEditor = ({
 }
 
 myFunction();`;
+
+    // Helper to apply syntax highlighting
+    const applyHighlighting = (codeEl: HTMLElement, language: string) => {
+      const code = codeEl.getAttribute('data-raw-code') || codeEl.textContent || '';
+      const prismLang = LANGUAGE_MAP[language.toLowerCase()] || 'plaintext';
+      const grammar = Prism.languages[prismLang];
+      if (grammar) {
+        codeEl.innerHTML = Prism.highlight(code, grammar, prismLang);
+      } else {
+        codeEl.textContent = code;
+      }
+    };
     
     // Create the code block container
     const codeBlockWrapper = document.createElement('div');
@@ -500,23 +564,24 @@ myFunction();`;
     codeBlockWrapper.style.overflow = 'hidden';
     codeBlockWrapper.style.margin = '0.5rem 0';
     codeBlockWrapper.style.width = '100%';
+    codeBlockWrapper.style.position = 'relative';
     
     // Create header (non-editable)
     const header = document.createElement('div');
     header.className = 'wiki-code-header';
     header.contentEditable = 'false';
-    header.style.backgroundColor = '#2d2d2d';
+    header.style.backgroundColor = '#1e1e1e';
     header.style.padding = '0.5rem 1rem';
     header.style.display = 'flex';
     header.style.alignItems = 'center';
     header.style.justifyContent = 'space-between';
-    header.style.borderBottom = '1px solid #404040';
+    header.style.borderBottom = '1px solid #333';
     
     // Language dropdown selector
     const langSelect = document.createElement('select');
     langSelect.className = 'wiki-code-lang-select';
     langSelect.style.backgroundColor = 'transparent';
-    langSelect.style.color = '#e0e0e0';
+    langSelect.style.color = '#9cdcfe';
     langSelect.style.fontSize = '0.875rem';
     langSelect.style.fontWeight = '500';
     langSelect.style.border = 'none';
@@ -528,15 +593,10 @@ myFunction();`;
       const option = document.createElement('option');
       option.value = lang;
       option.textContent = lang.toLowerCase();
-      option.style.backgroundColor = '#2d2d2d';
-      option.style.color = '#e0e0e0';
+      option.style.backgroundColor = '#252526';
+      option.style.color = '#cccccc';
       langSelect.appendChild(option);
     });
-    
-    langSelect.onchange = () => {
-      codeBlockWrapper.setAttribute('data-language', langSelect.value);
-      triggerUpdate();
-    };
     
     // Copy button
     const copyBtn = document.createElement('button');
@@ -555,40 +615,127 @@ myFunction();`;
     copyBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const codeContent = codeBlockWrapper.querySelector('.wiki-code-content');
-      if (codeContent) {
-        navigator.clipboard.writeText(codeContent.textContent || '').then(() => {
-          copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-          setTimeout(() => {
-            copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-          }, 2000);
-        });
-      }
+      const rawCode = codeBlockWrapper.querySelector('.wiki-code-content')?.getAttribute('data-raw-code') || 
+                      codeBlockWrapper.querySelector('.wiki-code-content')?.textContent || '';
+      navigator.clipboard.writeText(rawCode).then(() => {
+        copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        toast.success("Code copied to clipboard");
+        setTimeout(() => {
+          copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+        }, 2000);
+      });
     };
     
     header.appendChild(langSelect);
     header.appendChild(copyBtn);
     
-    // Create code content area (editable)
-    const codeContent = document.createElement('pre');
-    codeContent.className = 'wiki-code-content';
-    codeContent.style.backgroundColor = '#1e1e1e';
-    codeContent.style.color = '#d4d4d4';
-    codeContent.style.padding = '1rem';
-    codeContent.style.margin = '0';
-    codeContent.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
-    codeContent.style.fontSize = '0.875rem';
-    codeContent.style.lineHeight = '1.5';
-    codeContent.style.overflow = 'auto';
-    codeContent.style.whiteSpace = 'pre-wrap';
-    codeContent.style.wordBreak = 'break-word';
-    codeContent.style.minHeight = '60px';
-    codeContent.style.outline = 'none';
-    codeContent.contentEditable = 'true';
-    codeContent.textContent = selectedText || defaultCode;
+    // Create code editor container with overlay approach
+    const editorContainer = document.createElement('div');
+    editorContainer.className = 'wiki-code-editor-container';
+    editorContainer.style.position = 'relative';
+    editorContainer.style.backgroundColor = '#1e1e1e';
+    editorContainer.style.minHeight = '120px';
+    
+    // Highlighted code display (background layer)
+    const codeDisplay = document.createElement('pre');
+    codeDisplay.className = 'wiki-code-display';
+    codeDisplay.style.position = 'absolute';
+    codeDisplay.style.top = '0';
+    codeDisplay.style.left = '0';
+    codeDisplay.style.right = '0';
+    codeDisplay.style.bottom = '0';
+    codeDisplay.style.padding = '1rem';
+    codeDisplay.style.margin = '0';
+    codeDisplay.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
+    codeDisplay.style.fontSize = '0.875rem';
+    codeDisplay.style.lineHeight = '1.5';
+    codeDisplay.style.overflow = 'auto';
+    codeDisplay.style.whiteSpace = 'pre';
+    codeDisplay.style.pointerEvents = 'none';
+    codeDisplay.style.color = '#d4d4d4';
+    
+    // Editable textarea (foreground layer - transparent)
+    const codeInput = document.createElement('textarea');
+    codeInput.className = 'wiki-code-content';
+    codeInput.style.position = 'relative';
+    codeInput.style.width = '100%';
+    codeInput.style.minHeight = '120px';
+    codeInput.style.padding = '1rem';
+    codeInput.style.margin = '0';
+    codeInput.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
+    codeInput.style.fontSize = '0.875rem';
+    codeInput.style.lineHeight = '1.5';
+    codeInput.style.backgroundColor = 'transparent';
+    codeInput.style.color = 'transparent';
+    codeInput.style.caretColor = 'white';
+    codeInput.style.border = 'none';
+    codeInput.style.outline = 'none';
+    codeInput.style.resize = 'vertical';
+    codeInput.style.whiteSpace = 'pre';
+    codeInput.style.overflow = 'auto';
+    codeInput.spellcheck = false;
+    codeInput.value = selectedText || defaultCode;
+    codeInput.setAttribute('data-raw-code', selectedText || defaultCode);
+    
+    // Sync scroll between textarea and display
+    codeInput.onscroll = () => {
+      codeDisplay.scrollTop = codeInput.scrollTop;
+      codeDisplay.scrollLeft = codeInput.scrollLeft;
+    };
+    
+    // Update highlighting on input
+    codeInput.oninput = () => {
+      const code = codeInput.value;
+      codeInput.setAttribute('data-raw-code', code);
+      const lang = codeBlockWrapper.getAttribute('data-language') || 'JavaScript';
+      const prismLang = LANGUAGE_MAP[lang.toLowerCase()] || 'plaintext';
+      const grammar = Prism.languages[prismLang];
+      if (grammar) {
+        codeDisplay.innerHTML = Prism.highlight(code, grammar, prismLang);
+      } else {
+        codeDisplay.textContent = code;
+      }
+      triggerUpdate();
+    };
+    
+    // Handle Tab key for indentation
+    codeInput.onkeydown = (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = codeInput.selectionStart;
+        const end = codeInput.selectionEnd;
+        codeInput.value = codeInput.value.substring(0, start) + '  ' + codeInput.value.substring(end);
+        codeInput.selectionStart = codeInput.selectionEnd = start + 2;
+        codeInput.dispatchEvent(new Event('input'));
+      }
+    };
+    
+    // Update language and re-highlight
+    langSelect.onchange = () => {
+      codeBlockWrapper.setAttribute('data-language', langSelect.value);
+      const code = codeInput.value;
+      const prismLang = LANGUAGE_MAP[langSelect.value.toLowerCase()] || 'plaintext';
+      const grammar = Prism.languages[prismLang];
+      if (grammar) {
+        codeDisplay.innerHTML = Prism.highlight(code, grammar, prismLang);
+      } else {
+        codeDisplay.textContent = code;
+      }
+      triggerUpdate();
+    };
+    
+    editorContainer.appendChild(codeDisplay);
+    editorContainer.appendChild(codeInput);
     
     codeBlockWrapper.appendChild(header);
-    codeBlockWrapper.appendChild(codeContent);
+    codeBlockWrapper.appendChild(editorContainer);
+    
+    // Apply initial highlighting
+    const initialLang = LANGUAGE_MAP['javascript'] || 'javascript';
+    const initialGrammar = Prism.languages[initialLang];
+    if (initialGrammar) {
+      codeDisplay.innerHTML = Prism.highlight(codeInput.value, initialGrammar, initialLang);
+    }
     
     // Insert at cursor position
     if (selection && selection.rangeCount > 0) {
@@ -610,12 +757,8 @@ myFunction();`;
       spacer.innerHTML = '<br>';
       codeBlockWrapper.parentNode?.insertBefore(spacer, codeBlockWrapper.nextSibling);
       
-      // Focus on code content
-      const newRange = document.createRange();
-      newRange.selectNodeContents(codeContent);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
+      // Focus on code input
+      codeInput.focus();
     }
     
     triggerUpdate();
@@ -1142,6 +1285,75 @@ myFunction();`;
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* VS Code-like syntax highlighting styles */}
+      <style>{`
+        .wiki-code-display {
+          color: #d4d4d4;
+        }
+        .wiki-code-display .token.comment,
+        .wiki-code-display .token.prolog,
+        .wiki-code-display .token.doctype,
+        .wiki-code-display .token.cdata {
+          color: #6a9955;
+        }
+        .wiki-code-display .token.punctuation {
+          color: #d4d4d4;
+        }
+        .wiki-code-display .token.property,
+        .wiki-code-display .token.tag,
+        .wiki-code-display .token.boolean,
+        .wiki-code-display .token.number,
+        .wiki-code-display .token.constant,
+        .wiki-code-display .token.symbol,
+        .wiki-code-display .token.deleted {
+          color: #b5cea8;
+        }
+        .wiki-code-display .token.selector,
+        .wiki-code-display .token.attr-name,
+        .wiki-code-display .token.string,
+        .wiki-code-display .token.char,
+        .wiki-code-display .token.builtin,
+        .wiki-code-display .token.inserted {
+          color: #ce9178;
+        }
+        .wiki-code-display .token.operator,
+        .wiki-code-display .token.entity,
+        .wiki-code-display .token.url,
+        .language-css .wiki-code-display .token.string,
+        .style .wiki-code-display .token.string {
+          color: #d4d4d4;
+        }
+        .wiki-code-display .token.atrule,
+        .wiki-code-display .token.attr-value,
+        .wiki-code-display .token.keyword {
+          color: #569cd6;
+        }
+        .wiki-code-display .token.function,
+        .wiki-code-display .token.class-name {
+          color: #dcdcaa;
+        }
+        .wiki-code-display .token.regex,
+        .wiki-code-display .token.important,
+        .wiki-code-display .token.variable {
+          color: #d16969;
+        }
+        .wiki-code-content {
+          scrollbar-width: thin;
+          scrollbar-color: #444 #1e1e1e;
+        }
+        .wiki-code-content::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .wiki-code-content::-webkit-scrollbar-track {
+          background: #1e1e1e;
+        }
+        .wiki-code-content::-webkit-scrollbar-thumb {
+          background: #444;
+          border-radius: 4px;
+        }
+      `}</style>
     </div>
   );
 };
