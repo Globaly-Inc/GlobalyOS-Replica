@@ -1135,11 +1135,11 @@ const CalendarPage = () => {
             )}
 
           </div>
-          
-          {/* Mobile Upcoming Events - shown at bottom on mobile */}
-          <div className="lg:hidden">
-            {renderEventsList(true)}
-          </div>
+        </div>
+        
+        {/* Mobile Upcoming Events - shown at bottom on mobile */}
+        <div className="lg:hidden shrink-0">
+          {renderEventsList(true)}
         </div>
       </div>
 
