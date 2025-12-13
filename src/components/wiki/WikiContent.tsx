@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Pencil, Save, X, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,16 @@ import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { WikiRichEditor } from "./WikiRichEditor";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface WikiPage {
   id: string;
@@ -53,15 +63,59 @@ interface WikiContentProps {
   canEdit: boolean;
   isLoading: boolean;
   organizationId: string | undefined;
+  onEditingStateChange?: (isEditing: boolean, hasUnsavedChanges: boolean) => void;
+  pendingNavigation?: { type: 'page' | 'folder' | 'home'; id?: string } | null;
+  onNavigationConfirm?: () => void;
+  onNavigationCancel?: () => void;
 }
 
-export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organizationId }: WikiContentProps) => {
+export const WikiContent = ({ 
+  page, 
+  versions, 
+  onSave, 
+  canEdit, 
+  isLoading, 
+  organizationId,
+  onEditingStateChange,
+  pendingNavigation,
+  onNavigationConfirm,
+  onNavigationCancel,
+}: WikiContentProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = isEditing && page && (
+    editTitle !== page.title || editContent !== (page.content || "")
+  );
+
+  // Notify parent of editing state changes
+  useEffect(() => {
+    onEditingStateChange?.(isEditing, !!hasUnsavedChanges);
+  }, [isEditing, hasUnsavedChanges, onEditingStateChange]);
+
+  // Handle browser beforeunload event
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    if (hasUnsavedChanges) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
 
   const handleStartEdit = () => {
     if (page) {
@@ -89,11 +143,54 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
     }
   };
 
+  const handleSaveAndNavigate = async () => {
+    if (page && editTitle.trim()) {
+      setIsSaving(true);
+      try {
+        await onSave(page.id, editTitle.trim(), editContent);
+        setIsEditing(false);
+        onNavigationConfirm?.();
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const handleDiscardAndNavigate = () => {
+    setIsEditing(false);
+    setEditTitle("");
+    setEditContent("");
+    onNavigationConfirm?.();
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+        
+        {/* Unsaved Changes Dialog */}
+        <AlertDialog open={!!pendingNavigation} onOpenChange={(open) => !open && onNavigationCancel?.()}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+              <AlertDialogDescription>
+                You have unsaved changes. Would you like to save them before leaving this page?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel onClick={onNavigationCancel}>Cancel</AlertDialogCancel>
+              <Button variant="outline" onClick={handleDiscardAndNavigate}>
+                Discard
+              </Button>
+              <AlertDialogAction onClick={handleSaveAndNavigate} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save & Continue"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   }
 
@@ -238,6 +335,27 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}
       </div>
+
+      {/* Unsaved Changes Dialog */}
+      <AlertDialog open={!!pendingNavigation && hasUnsavedChanges} onOpenChange={(open) => !open && onNavigationCancel?.()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Would you like to save them before leaving this page?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={onNavigationCancel}>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={handleDiscardAndNavigate}>
+              Discard
+            </Button>
+            <AlertDialogAction onClick={handleSaveAndNavigate} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save & Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

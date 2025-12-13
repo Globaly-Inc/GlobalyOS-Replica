@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
@@ -59,6 +59,11 @@ interface WikiPageVersion {
 
 type ViewMode = "home" | "folder" | "page";
 
+interface PendingNavigation {
+  type: 'page' | 'folder' | 'home';
+  id?: string;
+}
+
 const Wiki = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
@@ -66,8 +71,74 @@ const Wiki = () => {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("home");
+  
+  // Editing state tracking for navigation guards
+  const [isEditingPage, setIsEditingPage] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
 
   const canEdit = isAdmin || isHR;
+
+  // Handle editing state changes from WikiContent
+  const handleEditingStateChange = useCallback((editing: boolean, unsaved: boolean) => {
+    setIsEditingPage(editing);
+    setHasUnsavedChanges(unsaved);
+  }, []);
+
+  // Navigation handlers with unsaved changes check
+  const handleSelectPage = useCallback((pageId: string) => {
+    if (hasUnsavedChanges && pageId !== selectedPageId) {
+      setPendingNavigation({ type: 'page', id: pageId });
+    } else {
+      setSelectedPageId(pageId);
+      setSelectedFolderId(null);
+      setViewMode("page");
+    }
+  }, [hasUnsavedChanges, selectedPageId]);
+
+  const handleSelectFolder = useCallback((folderId: string) => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation({ type: 'folder', id: folderId });
+    } else {
+      setSelectedFolderId(folderId);
+      setSelectedPageId(null);
+      setViewMode("folder");
+    }
+  }, [hasUnsavedChanges]);
+
+  const handleSelectHome = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation({ type: 'home' });
+    } else {
+      setSelectedPageId(null);
+      setSelectedFolderId(null);
+      setViewMode("home");
+    }
+  }, [hasUnsavedChanges]);
+
+  // Handle navigation confirmation
+  const handleNavigationConfirm = useCallback(() => {
+    if (pendingNavigation) {
+      if (pendingNavigation.type === 'page' && pendingNavigation.id) {
+        setSelectedPageId(pendingNavigation.id);
+        setSelectedFolderId(null);
+        setViewMode("page");
+      } else if (pendingNavigation.type === 'folder' && pendingNavigation.id) {
+        setSelectedFolderId(pendingNavigation.id);
+        setSelectedPageId(null);
+        setViewMode("folder");
+      } else if (pendingNavigation.type === 'home') {
+        setSelectedPageId(null);
+        setSelectedFolderId(null);
+        setViewMode("home");
+      }
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation]);
+
+  const handleNavigationCancel = useCallback(() => {
+    setPendingNavigation(null);
+  }, []);
 
   // Fetch folders
   const { data: folders = [] } = useQuery({
@@ -304,7 +375,7 @@ const Wiki = () => {
           <WikiSearch
             folders={folders}
             pages={pagesList}
-            onSelectPage={setSelectedPageId}
+            onSelectPage={handleSelectPage}
           />
           <WikiAskAI organizationId={currentOrg?.id} />
           {canEdit && (
@@ -330,21 +401,9 @@ const Wiki = () => {
               selectedPageId={selectedPageId}
               selectedFolderId={selectedFolderId}
               showingHome={viewMode === "home" || viewMode === "folder"}
-              onSelectPage={(pageId) => {
-                setSelectedPageId(pageId);
-                setSelectedFolderId(null);
-                setViewMode("page");
-              }}
-              onSelectFolder={(folderId) => {
-                setSelectedFolderId(folderId);
-                setSelectedPageId(null);
-                setViewMode("folder");
-              }}
-              onSelectHome={() => {
-                setSelectedPageId(null);
-                setSelectedFolderId(null);
-                setViewMode("home");
-              }}
+              onSelectPage={handleSelectPage}
+              onSelectFolder={handleSelectFolder}
+              onSelectHome={handleSelectHome}
               onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
               onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
               onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
@@ -367,21 +426,18 @@ const Wiki = () => {
                 canEdit={canEdit}
                 isLoading={isLoadingPage}
                 organizationId={currentOrg?.id}
+                onEditingStateChange={handleEditingStateChange}
+                pendingNavigation={pendingNavigation}
+                onNavigationConfirm={handleNavigationConfirm}
+                onNavigationCancel={handleNavigationCancel}
               />
             ) : (
               <WikiFolderView
                 folders={folders}
                 pages={pagesList}
                 currentFolderId={selectedFolderId}
-                onSelectFolder={(folderId) => {
-                  setSelectedFolderId(folderId);
-                  setViewMode("folder");
-                }}
-                onSelectPage={(pageId) => {
-                  setSelectedPageId(pageId);
-                  setSelectedFolderId(null);
-                  setViewMode("page");
-                }}
+                onSelectFolder={handleSelectFolder}
+                onSelectPage={handleSelectPage}
               />
             )}
           </div>
