@@ -112,6 +112,15 @@ interface UpcomingEvent {
   };
 }
 
+interface UpcomingCalendarEvent {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  event_type: string;
+  daysUntil: number;
+}
+
 // Map database type to UI type (database uses "update", UI uses "announcement")
 const mapDbTypeToUiType = (dbType: string): "win" | "announcement" | "achievement" => {
   if (dbType === "update") return "announcement";
@@ -131,6 +140,7 @@ const Home = () => {
   const [upcomingTeamLeave, setUpcomingTeamLeave] = useState<UpcomingTeamLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
+  const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<UpcomingCalendarEvent[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [dailyQuote, setDailyQuote] = useState<{
     quote: string;
@@ -152,6 +162,7 @@ const Home = () => {
       loadFeed();
       loadLeaveData();
       loadUpcomingEvents();
+      loadUpcomingCalendarEvents();
       loadDailyQuote();
 
       // Set up real-time subscriptions for auto-refresh
@@ -307,6 +318,30 @@ const Home = () => {
     anniversaries.sort((a, b) => a.daysUntil - b.daysUntil);
     setUpcomingBirthdays(birthdays.slice(0, 5));
     setUpcomingAnniversaries(anniversaries.slice(0, 5));
+  };
+  
+  const loadUpcomingCalendarEvents = async () => {
+    if (!currentOrg) return;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
+    
+    const { data: events } = await supabase
+      .from("calendar_events")
+      .select("id, title, start_date, end_date, event_type")
+      .eq("organization_id", currentOrg.id)
+      .gte("start_date", today)
+      .lte("start_date", nextMonth)
+      .order("start_date", { ascending: true })
+      .limit(5);
+    
+    if (events) {
+      const eventsWithDays = events.map(event => {
+        const eventDate = parseISO(event.start_date);
+        const daysUntil = Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return { ...event, daysUntil };
+      });
+      setUpcomingCalendarEvents(eventsWithDays);
+    }
   };
   const loadLeaveData = async () => {
     if (!currentOrg) return;
@@ -992,6 +1027,42 @@ const Home = () => {
                   </div>
                 </>}
             </Card>
+            
+            {/* Upcoming Events */}
+            {upcomingCalendarEvents.length > 0 && (
+              <Card className="p-6">
+                <Link to="/calendar" className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors">
+                  <CalendarPlus className="h-5 w-5 text-primary" />
+                  Upcoming Events
+                </Link>
+                <div className="space-y-3">
+                  {upcomingCalendarEvents.map(event => {
+                    const isMultiDay = event.start_date !== event.end_date;
+                    const dateDisplay = isMultiDay 
+                      ? `${format(parseISO(event.start_date), "d MMM")} - ${format(parseISO(event.end_date), "d MMM")}`
+                      : format(parseISO(event.start_date), "d MMM");
+                    const daysLabel = event.daysUntil === 0 ? "Today" : event.daysUntil === 1 ? "Tomorrow" : `In ${event.daysUntil} days`;
+                    
+                    return (
+                      <div key={event.id} className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-muted">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-2 w-2 rounded-full ${
+                            event.event_type === 'holiday' ? 'bg-red-500' : 
+                            event.event_type === 'event' ? 'bg-blue-500' : 'bg-primary'
+                          }`} />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{event.title}</p>
+                            <p className="text-xs text-muted-foreground">{dateDisplay}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{daysLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+            
             {/* Upcoming Birthdays */}
             <Card className="p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
