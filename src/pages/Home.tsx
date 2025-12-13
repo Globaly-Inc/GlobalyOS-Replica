@@ -745,7 +745,7 @@ const Home = () => {
                   100% { background-position: 0% 50%; }
                 }
               `}</style>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 {/* Left side - Greeting */}
                 <div className="flex items-center gap-3">
                   <TimeIcon className="h-8 w-8 text-white/90 drop-shadow-sm" />
@@ -758,6 +758,9 @@ const Home = () => {
                     </p>
                   </div>
                 </div>
+                
+                {/* Mobile separator */}
+                <hr className="md:hidden border-white/20" />
                 
                 {/* Right side - Weather */}
                 {weather && <div className="md:text-right">
