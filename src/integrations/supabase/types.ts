@@ -915,13 +915,109 @@ export type Database = {
           },
         ]
       }
+      chat_space_offices: {
+        Row: {
+          created_at: string
+          id: string
+          office_id: string
+          organization_id: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          office_id: string
+          organization_id: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          office_id?: string
+          organization_id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_space_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_offices_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_space_projects: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          project_id: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          project_id: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          project_id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_space_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_projects_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_spaces: {
         Row: {
+          access_scope:
+            | Database["public"]["Enums"]["chat_space_access_scope"]
+            | null
           access_type: Database["public"]["Enums"]["chat_space_access"]
           created_at: string
           created_by: string
           description: string | null
           history_enabled: boolean
+          icon_url: string | null
           id: string
           name: string
           organization_id: string
@@ -929,11 +1025,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_scope?:
+            | Database["public"]["Enums"]["chat_space_access_scope"]
+            | null
           access_type?: Database["public"]["Enums"]["chat_space_access"]
           created_at?: string
           created_by: string
           description?: string | null
           history_enabled?: boolean
+          icon_url?: string | null
           id?: string
           name: string
           organization_id: string
@@ -941,11 +1041,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_scope?:
+            | Database["public"]["Enums"]["chat_space_access_scope"]
+            | null
           access_type?: Database["public"]["Enums"]["chat_space_access"]
           created_at?: string
           created_by?: string
           description?: string | null
           history_enabled?: boolean
+          icon_url?: string | null
           id?: string
           name?: string
           organization_id?: string
@@ -3263,6 +3367,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "hr" | "user" | "super_admin"
       chat_space_access: "public" | "private"
+      chat_space_access_scope: "company" | "offices" | "projects" | "members"
       chat_space_type: "collaboration" | "announcements"
     }
     CompositeTypes: {
@@ -3393,6 +3498,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "hr", "user", "super_admin"],
       chat_space_access: ["public", "private"],
+      chat_space_access_scope: ["company", "offices", "projects", "members"],
       chat_space_type: ["collaboration", "announcements"],
     },
   },

@@ -437,15 +437,26 @@ export const useCreateSpace = () => {
     mutationFn: async ({ 
       name, 
       description,
+      iconUrl,
       spaceType = 'collaboration',
-      accessType = 'public'
+      accessScope = 'company',
+      officeIds,
+      projectIds,
+      memberIds,
     }: { 
       name: string; 
       description?: string;
+      iconUrl?: string;
       spaceType?: 'collaboration' | 'announcements';
-      accessType?: 'public' | 'private';
+      accessScope?: 'company' | 'offices' | 'projects' | 'members';
+      officeIds?: string[];
+      projectIds?: string[];
+      memberIds?: string[];
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Determine access_type based on access_scope
+      const accessType = accessScope === 'company' ? 'public' : 'private';
 
       // Create space
       const { data: space, error: spaceError } = await supabase
@@ -454,8 +465,10 @@ export const useCreateSpace = () => {
           organization_id: currentOrg.id,
           name,
           description: description || null,
+          icon_url: iconUrl || null,
           space_type: spaceType,
           access_type: accessType,
+          access_scope: accessScope,
           created_by: currentEmployee.id
         })
         .select()
@@ -474,6 +487,49 @@ export const useCreateSpace = () => {
         });
 
       if (memberError) throw memberError;
+
+      // Add office associations if office-wise access
+      if (accessScope === 'offices' && officeIds && officeIds.length > 0) {
+        const { error: officeError } = await supabase
+          .from('chat_space_offices')
+          .insert(
+            officeIds.map(officeId => ({
+              space_id: space.id,
+              office_id: officeId,
+              organization_id: currentOrg.id,
+            }))
+          );
+        if (officeError) throw officeError;
+      }
+
+      // Add project associations if project-wise access
+      if (accessScope === 'projects' && projectIds && projectIds.length > 0) {
+        const { error: projectError } = await supabase
+          .from('chat_space_projects')
+          .insert(
+            projectIds.map(projectId => ({
+              space_id: space.id,
+              project_id: projectId,
+              organization_id: currentOrg.id,
+            }))
+          );
+        if (projectError) throw projectError;
+      }
+
+      // Add member associations if members-only access
+      if (accessScope === 'members' && memberIds && memberIds.length > 0) {
+        const { error: membersError } = await supabase
+          .from('chat_space_members')
+          .insert(
+            memberIds.map(empId => ({
+              space_id: space.id,
+              employee_id: empId,
+              organization_id: currentOrg.id,
+              role: 'member'
+            }))
+          );
+        if (membersError) throw membersError;
+      }
 
       return space;
     },
