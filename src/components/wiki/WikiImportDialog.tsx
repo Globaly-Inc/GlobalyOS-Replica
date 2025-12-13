@@ -157,10 +157,10 @@ export const WikiImportDialog = ({
   const parseZipFile = async (file: File) => {
     const zip = await JSZip.loadAsync(file);
     
-    // Look for JSON file in the ZIP (any location)
-    let pagesJson: any = null;
     const attachmentMap = new Map<string, Blob>();
     const jsonFiles: string[] = [];
+    const markdownFiles: string[] = [];
+    const htmlFiles: string[] = [];
 
     // First pass: identify all files
     for (const [filename, zipEntry] of Object.entries(zip.files)) {
@@ -172,6 +172,12 @@ export const WikiImportDialog = ({
       // Check for JSON data file
       if (lowerName.endsWith(".json")) {
         jsonFiles.push(filename);
+      } else if (lowerName.endsWith(".md") || lowerName.endsWith(".markdown")) {
+        // Markdown files
+        markdownFiles.push(filename);
+      } else if (lowerName.endsWith(".html") || lowerName.endsWith(".htm")) {
+        // HTML files
+        htmlFiles.push(filename);
       } else if (
         baseName.match(/\.(png|jpg|jpeg|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
       ) {
@@ -181,7 +187,10 @@ export const WikiImportDialog = ({
       }
     }
 
-    // Try to find the best JSON file (prefer common names, then any JSON)
+    // Determine import mode: JSON-based or markdown-based
+    let pages: ImportedPage[] = [];
+
+    // Try JSON first
     const preferredNames = ["pages.json", "data.json", "wiki.json", "index.json"];
     let selectedJson = jsonFiles.find(f => {
       const baseName = f.split("/").pop()?.toLowerCase();
@@ -191,19 +200,90 @@ export const WikiImportDialog = ({
     if (selectedJson) {
       const content = await zip.files[selectedJson].async("string");
       try {
-        pagesJson = JSON.parse(content);
+        const pagesJson = JSON.parse(content);
+        setAttachments(attachmentMap);
+        validateAndSetPages(pagesJson);
+        return;
       } catch (e) {
         console.error("Failed to parse JSON:", e);
       }
     }
 
-    if (!pagesJson) {
-      throw new Error("No valid JSON file found in ZIP. Include a .json file with page data (e.g., pages.json).");
+    // If no JSON, try markdown files
+    if (markdownFiles.length > 0) {
+      for (const mdFile of markdownFiles) {
+        const content = await zip.files[mdFile].async("string");
+        const baseName = mdFile.split("/").pop() || mdFile;
+        const title = extractTitleFromFilename(baseName);
+        
+        // Get folder from path (if file is in a subdirectory)
+        const pathParts = mdFile.split("/");
+        let folder: string | undefined;
+        if (pathParts.length > 1) {
+          // Use the immediate parent folder as the wiki folder
+          folder = pathParts[pathParts.length - 2];
+          // Clean up folder name
+          if (folder && folder !== "." && folder !== "..") {
+            folder = folder.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          } else {
+            folder = undefined;
+          }
+        }
+        
+        // Convert markdown to HTML and update image references
+        let htmlContent = convertMarkdownToHtml(content);
+        
+        // Update relative image references to match attachment paths
+        for (const [attachPath] of attachmentMap.entries()) {
+          const attachBaseName = attachPath.split("/").pop() || "";
+          // Replace relative references like ![](images/foo.png) or ![](./foo.png)
+          const patterns = [
+            new RegExp(`src="[^"]*${escapeRegex(attachBaseName)}"`, "gi"),
+            new RegExp(`src='[^']*${escapeRegex(attachBaseName)}'`, "gi"),
+          ];
+          for (const pattern of patterns) {
+            htmlContent = htmlContent.replace(pattern, `src="ATTACHMENT:${attachPath}"`);
+          }
+        }
+        
+        pages.push({ title, content: htmlContent, folder });
+      }
+      
+      setAttachments(attachmentMap);
+      setPreviewData(pages);
+      return;
     }
 
-    setAttachments(attachmentMap);
-    validateAndSetPages(pagesJson);
+    // If no JSON or markdown, try HTML files
+    if (htmlFiles.length > 0) {
+      for (const htmlFile of htmlFiles) {
+        const content = await zip.files[htmlFile].async("string");
+        const baseName = htmlFile.split("/").pop() || htmlFile;
+        const title = extractTitleFromFilename(baseName);
+        
+        // Get folder from path
+        const pathParts = htmlFile.split("/");
+        let folder: string | undefined;
+        if (pathParts.length > 1) {
+          folder = pathParts[pathParts.length - 2];
+          if (folder && folder !== "." && folder !== "..") {
+            folder = folder.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          } else {
+            folder = undefined;
+          }
+        }
+        
+        pages.push({ title, content, folder });
+      }
+      
+      setAttachments(attachmentMap);
+      setPreviewData(pages);
+      return;
+    }
+
+    throw new Error("No valid content found in ZIP. Include .json, .md, or .html files.");
   };
+
 
 
   const validateAndSetPages = (json: any) => {
@@ -293,12 +373,20 @@ export const WikiImportDialog = ({
     let updatedContent = content;
     
     for (const [originalPath, publicUrl] of urlMap.entries()) {
+      // Replace ATTACHMENT: placeholder pattern (from markdown ZIP import)
+      updatedContent = updatedContent.replace(
+        new RegExp(`ATTACHMENT:${escapeRegex(originalPath)}`, "gi"),
+        publicUrl
+      );
+      
       // Replace various reference patterns
       const patterns = [
         new RegExp(`src=["']${escapeRegex(originalPath)}["']`, "gi"),
         new RegExp(`src=["']\./${escapeRegex(originalPath)}["']`, "gi"),
         new RegExp(`src=["']attachments/${escapeRegex(originalPath.split("/").pop() || "")}["']`, "gi"),
         new RegExp(`href=["']${escapeRegex(originalPath)}["']`, "gi"),
+        // Also match just the filename
+        new RegExp(`src=["'][^"']*${escapeRegex(originalPath.split("/").pop() || "")}["']`, "gi"),
       ];
 
       for (const pattern of patterns) {
