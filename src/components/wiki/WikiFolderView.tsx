@@ -1,11 +1,5 @@
-import { Folder, FileText, ChevronRight, MoreHorizontal, FolderPlus, FilePlus } from "lucide-react";
+import { Folder, FileText, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface WikiFolder {
   id: string;
@@ -27,9 +21,6 @@ interface WikiFolderViewProps {
   currentFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
   onSelectPage: (pageId: string) => void;
-  onCreateFolder?: (name: string, parentId: string | null) => void;
-  onCreatePage?: (title: string, folderId: string | null) => void;
-  canEdit?: boolean;
 }
 
 export const WikiFolderView = ({
@@ -38,9 +29,6 @@ export const WikiFolderView = ({
   currentFolderId,
   onSelectFolder,
   onSelectPage,
-  onCreateFolder,
-  onCreatePage,
-  canEdit = false,
 }: WikiFolderViewProps) => {
   // Get child folders and pages for current view
   const childFolders = folders
@@ -67,20 +55,6 @@ export const WikiFolderView = ({
   };
 
   const breadcrumbs = getBreadcrumbs();
-
-  const handleCreateFolder = (parentId: string | null) => {
-    const name = prompt("Enter folder name:");
-    if (name?.trim() && onCreateFolder) {
-      onCreateFolder(name.trim(), parentId);
-    }
-  };
-
-  const handleCreatePage = (folderId: string | null) => {
-    const title = prompt("Enter page title:");
-    if (title?.trim() && onCreatePage) {
-      onCreatePage(title.trim(), folderId);
-    }
-  };
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -122,33 +96,11 @@ export const WikiFolderView = ({
               const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
               
               return (
-                <div
+                <button
                   key={folder.id}
-                  className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
                   onClick={() => onSelectFolder(folder.id)}
+                  className="group flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md"
                 >
-                  {canEdit && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute top-2 right-2 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
-                        >
-                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={() => handleCreatePage(folder.id)}>
-                          <FilePlus className="h-4 w-4 mr-2" />
-                          New Page
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleCreateFolder(folder.id)}>
-                          <FolderPlus className="h-4 w-4 mr-2" />
-                          New Folder
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
                   <div className="relative mb-3">
                     <Folder className="h-12 w-12 text-primary fill-primary/10 group-hover:scale-105 transition-transform" />
                   </div>
@@ -161,39 +113,17 @@ export const WikiFolderView = ({
                     {folderPageCount > 0 && `${folderPageCount} page${folderPageCount > 1 ? "s" : ""}`}
                     {subfolderCount === 0 && folderPageCount === 0 && "Empty"}
                   </span>
-                </div>
+                </button>
               );
             })}
 
             {/* Pages */}
             {childPages.map((page) => (
-              <div
+              <button
                 key={page.id}
-                className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
                 onClick={() => onSelectPage(page.id)}
+                className="group flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md"
               >
-                {canEdit && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute top-2 right-2 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
-                      >
-                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuItem onClick={() => handleCreatePage(page.folder_id)}>
-                        <FilePlus className="h-4 w-4 mr-2" />
-                        New Page
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleCreateFolder(page.folder_id)}>
-                        <FolderPlus className="h-4 w-4 mr-2" />
-                        New Folder
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
                 <div className="relative mb-3">
                   <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
                 </div>
@@ -201,7 +131,7 @@ export const WikiFolderView = ({
                   {page.title}
                 </span>
                 <span className="text-xs text-muted-foreground mt-1">Page</span>
-              </div>
+              </button>
             ))}
           </div>
         )}
