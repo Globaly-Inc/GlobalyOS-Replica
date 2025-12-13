@@ -1,6 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Loader2, 
   Building2, 
@@ -9,7 +23,7 @@ import {
   TrendingDown,
   Activity,
   BookOpen,
-  Calendar,
+  CalendarDays,
   Clock,
   ClipboardCheck,
   Trophy,
@@ -17,7 +31,8 @@ import {
   Heart,
   Target,
   Minus,
-  LucideIcon
+  LucideIcon,
+  CalendarIcon
 } from "lucide-react";
 import {
   BarChart,
@@ -31,6 +46,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import { format, subDays, subMonths, startOfDay, endOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { cn } from "@/lib/utils";
+
+type ViewMode = 'days' | 'week' | 'month';
+type DatePreset = 'last7' | 'last30' | 'last90' | 'last6months' | 'last12months' | 'custom';
 
 interface FeatureItem {
   name: string;
@@ -39,21 +59,39 @@ interface FeatureItem {
   icon: LucideIcon;
 }
 
+interface GrowthDataPoint {
+  label: string;
+  count: number;
+}
+
 interface AnalyticsData {
   totalOrgs: number;
   activeOrgs: number;
   totalUsers: number;
   activeUsers: number;
   featureUsage: FeatureItem[];
-  orgGrowth: { month: string; count: number }[];
-  userGrowth: { month: string; count: number }[];
+  orgs: { id: string; created_at: string }[];
+  users: { id: string; created_at: string }[];
 }
 
-
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: 'last7', label: 'Last 7 days' },
+  { value: 'last30', label: 'Last 30 days' },
+  { value: 'last90', label: 'Last 90 days' },
+  { value: 'last6months', label: 'Last 6 months' },
+  { value: 'last12months', label: 'Last 12 months' },
+  { value: 'custom', label: 'Custom range' },
+];
 
 const SuperAdminAnalytics = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Chart filter states
+  const [viewMode, setViewMode] = useState<ViewMode>('days');
+  const [datePreset, setDatePreset] = useState<DatePreset>('last30');
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     fetchAnalytics();
@@ -158,31 +196,6 @@ const SuperAdminAnalytics = () => {
         .select('*', { count: 'exact', head: true })
         .lt('created_at', oneWeekAgoISO);
 
-      // Calculate org growth by month (last 6 months)
-      const orgGrowth: { month: string; count: number }[] = [];
-      const userGrowth: { month: string; count: number }[] = [];
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-        const monthOrgs = orgs?.filter((org) => {
-          const createdAt = new Date(org.created_at);
-          return createdAt <= monthEnd;
-        }) || [];
-        const monthUsers = profiles?.filter((profile) => {
-          const createdAt = new Date(profile.created_at);
-          return createdAt <= monthEnd;
-        }) || [];
-        orgGrowth.push({
-          month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
-          count: monthOrgs.length,
-        });
-        userGrowth.push({
-          month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
-          count: monthUsers.length,
-        });
-      }
-
       const activeOrgs = orgs?.filter(o => o.plan !== 'inactive').length || 0;
       const activeEmployees = employees?.filter(e => e.status === 'active').length || 0;
 
@@ -193,7 +206,7 @@ const SuperAdminAnalytics = () => {
         activeUsers: activeEmployees,
         featureUsage: [
           { name: 'Wiki Pages', count: wikiCount || 0, lastWeekCount: wikiCountLastWeek || 0, icon: BookOpen },
-          { name: 'Calendar Events', count: calendarCount || 0, lastWeekCount: calendarCountLastWeek || 0, icon: Calendar },
+          { name: 'Calendar Events', count: calendarCount || 0, lastWeekCount: calendarCountLastWeek || 0, icon: CalendarDays },
           { name: 'Leave Requests', count: leaveCount || 0, lastWeekCount: leaveCountLastWeek || 0, icon: Clock },
           { name: 'Attendance', count: attendanceCount || 0, lastWeekCount: attendanceCountLastWeek || 0, icon: ClipboardCheck },
           { name: 'Wins', count: winsCount || 0, lastWeekCount: winsCountLastWeek || 0, icon: Trophy },
@@ -201,8 +214,8 @@ const SuperAdminAnalytics = () => {
           { name: 'Kudos', count: kudosCount || 0, lastWeekCount: kudosCountLastWeek || 0, icon: Heart },
           { name: 'KPIs', count: kpiCount || 0, lastWeekCount: kpiCountLastWeek || 0, icon: Target },
         ],
-        orgGrowth,
-        userGrowth,
+        orgs: orgs?.map(o => ({ id: o.id, created_at: o.created_at })) || [],
+        users: profiles?.map(p => ({ id: p.id, created_at: p.created_at })) || [],
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -210,6 +223,116 @@ const SuperAdminAnalytics = () => {
       setLoading(false);
     }
   };
+
+  // Calculate date range based on preset
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    let end = endOfDay(now);
+    
+    switch (datePreset) {
+      case 'last7':
+        start = startOfDay(subDays(now, 6));
+        break;
+      case 'last30':
+        start = startOfDay(subDays(now, 29));
+        break;
+      case 'last90':
+        start = startOfDay(subDays(now, 89));
+        break;
+      case 'last6months':
+        start = startOfDay(subMonths(now, 6));
+        break;
+      case 'last12months':
+        start = startOfDay(subMonths(now, 12));
+        break;
+      case 'custom':
+        start = customStartDate ? startOfDay(customStartDate) : startOfDay(subDays(now, 29));
+        end = customEndDate ? endOfDay(customEndDate) : endOfDay(now);
+        break;
+      default:
+        start = startOfDay(subDays(now, 29));
+    }
+    
+    return { start, end };
+  }, [datePreset, customStartDate, customEndDate]);
+
+  // Calculate growth data based on view mode and date range
+  const growthData = useMemo(() => {
+    if (!data) return { orgGrowth: [], userGrowth: [] };
+
+    const { start, end } = dateRange;
+    let intervals: Date[];
+    let labelFormat: string;
+
+    switch (viewMode) {
+      case 'days':
+        intervals = eachDayOfInterval({ start, end });
+        labelFormat = 'd MMM';
+        break;
+      case 'week':
+        intervals = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+        labelFormat = 'd MMM';
+        break;
+      case 'month':
+        intervals = eachMonthOfInterval({ start, end });
+        labelFormat = 'MMM yyyy';
+        break;
+      default:
+        intervals = eachDayOfInterval({ start, end });
+        labelFormat = 'd MMM';
+    }
+
+    const orgGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      let intervalEnd: Date;
+      switch (viewMode) {
+        case 'week':
+          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
+          break;
+        case 'month':
+          intervalEnd = endOfMonth(intervalDate);
+          break;
+        default:
+          intervalEnd = endOfDay(intervalDate);
+      }
+      
+      const count = data.orgs.filter(org => {
+        const createdAt = new Date(org.created_at);
+        return createdAt <= intervalEnd;
+      }).length;
+
+      return {
+        label: format(intervalDate, labelFormat),
+        count,
+      };
+    });
+
+    const userGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      let intervalEnd: Date;
+      switch (viewMode) {
+        case 'week':
+          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
+          break;
+        case 'month':
+          intervalEnd = endOfMonth(intervalDate);
+          break;
+        default:
+          intervalEnd = endOfDay(intervalDate);
+      }
+      
+      const count = data.users.filter(user => {
+        const createdAt = new Date(user.created_at);
+        return createdAt <= intervalEnd;
+      }).length;
+
+      return {
+        label: format(intervalDate, labelFormat),
+        count,
+      };
+    });
+
+    return { orgGrowth, userGrowth };
+  }, [data, viewMode, dateRange]);
 
   if (loading) {
     return (
@@ -298,6 +421,87 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
+        {/* Chart Filters */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">View by:</span>
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium transition-colors",
+                    viewMode === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Period:</span>
+            <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_PRESETS.map((preset) => (
+                  <SelectItem key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {customStartDate ? format(customStartDate, 'dd MMM yyyy') : 'Start date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={setCustomStartDate}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground">to</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {customEndDate ? format(customEndDate, 'dd MMM yyyy') : 'End date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={setCustomEndDate}
+                    disabled={(date) => date > new Date() || (customStartDate && date < customStartDate)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+        </div>
+
         {/* Charts */}
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -307,12 +511,13 @@ const SuperAdminAnalytics = () => {
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data?.orgGrowth}>
+                  <BarChart data={growthData.orgGrowth}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
-                      dataKey="month" 
+                      dataKey="label" 
                       className="text-xs"
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      interval={viewMode === 'days' && growthData.orgGrowth.length > 15 ? Math.floor(growthData.orgGrowth.length / 10) : 0}
                     />
                     <YAxis 
                       className="text-xs"
@@ -343,12 +548,13 @@ const SuperAdminAnalytics = () => {
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data?.userGrowth}>
+                  <LineChart data={growthData.userGrowth}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
-                      dataKey="month" 
+                      dataKey="label" 
                       className="text-xs"
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      interval={viewMode === 'days' && growthData.userGrowth.length > 15 ? Math.floor(growthData.userGrowth.length / 10) : 0}
                     />
                     <YAxis 
                       className="text-xs"
