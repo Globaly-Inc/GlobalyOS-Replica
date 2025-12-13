@@ -148,6 +148,7 @@ const Home = () => {
     location: string;
     humidity: number;
     windSpeed: number;
+    forecast: { date: string; tempMax: number; tempMin: number; condition: string }[];
   } | null>(null);
   const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
   const seenItemIdsRef = useRef<Set<string>>(new Set());
@@ -214,14 +215,15 @@ const Home = () => {
         async (position) => {
           const { latitude, longitude } = position.coords;
           
-          // Fetch weather from Open-Meteo (free, no API key needed)
+          // Fetch weather with 7-day forecast from Open-Meteo (free, no API key needed)
           const weatherResponse = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=7`
           );
           
           if (weatherResponse.ok) {
             const weatherData = await weatherResponse.json();
             const current = weatherData.current;
+            const daily = weatherData.daily;
             
             // Get location name using reverse geocoding
             const geoResponse = await fetch(
@@ -244,12 +246,21 @@ const Home = () => {
               return "Cloudy";
             };
             
+            // Build 7-day forecast (skip today, show next 7 days)
+            const forecast = daily.time.slice(1, 8).map((date: string, i: number) => ({
+              date,
+              tempMax: Math.round(daily.temperature_2m_max[i + 1]),
+              tempMin: Math.round(daily.temperature_2m_min[i + 1]),
+              condition: getCondition(daily.weather_code[i + 1])
+            }));
+            
             setWeather({
               temperature: Math.round(current.temperature_2m),
               condition: getCondition(current.weather_code),
               location: locationName,
               humidity: current.relative_humidity_2m,
-              windSpeed: Math.round(current.wind_speed_10m)
+              windSpeed: Math.round(current.wind_speed_10m),
+              forecast
             });
           }
         },
@@ -768,6 +779,25 @@ const Home = () => {
                           <span>💧 {weather.humidity}%</span>
                           <span className="flex items-center gap-0.5"><Wind className="h-3 w-3" /> {weather.windSpeed} km/h</span>
                         </div>
+                      </div>
+                      {/* 7-day forecast */}
+                      <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
+                        {weather.forecast.slice(0, 7).map((day, i) => {
+                          const WeatherIcon = day.condition === "Clear" ? Sun 
+                            : day.condition === "Partly Cloudy" ? CloudSun
+                            : day.condition === "Rainy" ? CloudRain
+                            : day.condition === "Snowy" ? CloudSnow
+                            : day.condition === "Stormy" ? CloudRain
+                            : Cloud;
+                          return (
+                            <div key={i} className="flex flex-col items-center text-center min-w-[40px]">
+                              <span className="text-[10px] text-white/60">{format(parseISO(day.date), "EEE")}</span>
+                              <WeatherIcon className="h-4 w-4 text-white/80 my-0.5" />
+                              <span className="text-[10px] text-white/90">{day.tempMax}°</span>
+                              <span className="text-[10px] text-white/50">{day.tempMin}°</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>}
