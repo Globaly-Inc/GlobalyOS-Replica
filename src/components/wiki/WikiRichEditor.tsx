@@ -481,6 +481,30 @@ export const WikiRichEditor = ({
     };
   }, [isResizingImage, resizeImageStartX, resizeImageStartWidth, triggerUpdate]);
 
+  // Handle keydown on embed wrappers (since they have contenteditable=false)
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleEmbedKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const embedWrapper = target.closest('.wiki-embed-wrapper');
+      
+      if (embedWrapper && (e.key === 'Backspace' || e.key === 'Delete')) {
+        e.preventDefault();
+        e.stopPropagation();
+        embedWrapper.remove();
+        triggerUpdate();
+      }
+    };
+
+    editor.addEventListener('keydown', handleEmbedKeyDown, true);
+    
+    return () => {
+      editor.removeEventListener('keydown', handleEmbedKeyDown, true);
+    };
+  }, [triggerUpdate]);
+
   const handleEditorClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const table = target.closest('table') as HTMLTableElement;
@@ -1784,7 +1808,7 @@ myFunction();`;
 
       if (embedInner) {
         const embedCode = `
-          <div class="wiki-embed-wrapper my-4 relative group" contenteditable="false">
+          <div class="wiki-embed-wrapper my-4 relative group" contenteditable="false" tabindex="0" style="outline: none;">
             <button 
               type="button" 
               class="wiki-embed-delete absolute -top-2 -right-2 z-10 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/90"
