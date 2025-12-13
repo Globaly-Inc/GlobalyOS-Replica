@@ -64,6 +64,13 @@ export const WikiRichEditor = ({
   const [rowControlPos, setRowControlPos] = useState({ top: 0, left: 0, height: 0 });
   const [colControlPos, setColControlPos] = useState({ top: 0, left: 0, width: 0 });
   const [showTableControls, setShowTableControls] = useState(false);
+  
+  // Column resize state
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeColIndex, setResizeColIndex] = useState<number | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  const resizeTableRef = useRef<HTMLTableElement | null>(null);
 
   // Initialize content
   useEffect(() => {
@@ -121,13 +128,70 @@ export const WikiRichEditor = ({
   }, []);
 
   const handleEditorMouseLeave = useCallback(() => {
+    // Don't hide controls if resizing
+    if (isResizing) return;
     // Delay hiding to allow clicking controls
     setTimeout(() => {
       setShowTableControls(false);
       setHoveredRowIndex(null);
       setHoveredColIndex(null);
     }, 200);
+  }, [isResizing]);
+
+  // Column resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number, table: HTMLTableElement) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeColIndex(colIndex);
+    setResizeStartX(e.clientX);
+    resizeTableRef.current = table;
+    
+    // Get current column width
+    const firstRow = table.querySelector('tr');
+    if (firstRow) {
+      const cell = firstRow.cells[colIndex];
+      if (cell) {
+        setResizeStartWidth(cell.offsetWidth);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeTableRef.current || resizeColIndex === null) return;
+      
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(60, resizeStartWidth + diff);
+      
+      // Apply width to all cells in the column
+      const rows = resizeTableRef.current.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cell = row.cells[resizeColIndex];
+        if (cell) {
+          cell.style.width = `${newWidth}px`;
+          cell.style.minWidth = `${newWidth}px`;
+        }
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      setResizeColIndex(null);
+      resizeTableRef.current = null;
+      triggerUpdate();
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, resizeColIndex, resizeStartX, resizeStartWidth, triggerUpdate]);
 
   // Handle table selection on click
   const handleEditorClick = useCallback((e: React.MouseEvent) => {
@@ -627,7 +691,7 @@ export const WikiRichEditor = ({
         )}
 
         {/* Column Controls - Top side */}
-        {showTableControls && hoveredColIndex !== null && (
+        {showTableControls && hoveredColIndex !== null && selectedTableRef.current && (
           <div 
             className="absolute z-20 flex items-center justify-center gap-0.5"
             style={{ 
@@ -660,6 +724,24 @@ export const WikiRichEditor = ({
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
+        )}
+
+        {/* Column Resize Handle - Right edge of hovered column */}
+        {showTableControls && hoveredColIndex !== null && selectedTableRef.current && !isResizing && (
+          <div
+            className="absolute z-30 w-1 bg-primary/50 hover:bg-primary cursor-col-resize transition-colors"
+            style={{
+              top: colControlPos.top + 28,
+              left: colControlPos.left + colControlPos.width - 2,
+              height: selectedTableRef.current.offsetHeight,
+            }}
+            onMouseDown={(e) => {
+              if (selectedTableRef.current && hoveredColIndex !== null) {
+                handleResizeStart(e, hoveredColIndex, selectedTableRef.current);
+              }
+            }}
+            title="Drag to resize column"
+          />
         )}
 
         {/* WYSIWYG Editor */}
