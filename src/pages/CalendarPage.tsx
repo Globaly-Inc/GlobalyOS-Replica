@@ -96,6 +96,7 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [activeFilters, setActiveFilters] = useState<Set<CalendarItem["type"]>>(new Set());
+  const [showAllMobileEvents, setShowAllMobileEvents] = useState(false);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
@@ -655,7 +656,7 @@ const CalendarPage = () => {
               <p className="text-xs">No events {selectedDate ? "on this day" : "upcoming"}</p>
             </div>
           ) : (
-            filteredItems.slice(0, isMobile ? 5 : undefined).map((item) => {
+            filteredItems.slice(0, isMobile && !showAllMobileEvents ? 5 : undefined).map((item) => {
               const isManageableEvent = canManageEvents && (item.type === "holiday" || item.type === "event");
               
               return (
@@ -781,9 +782,12 @@ const CalendarPage = () => {
             })
           )}
           {isMobile && filteredItems.length > 5 && (
-            <p className="text-center text-xs text-muted-foreground py-2">
-              +{filteredItems.length - 5} more events
-            </p>
+            <button 
+              className="w-full text-center text-xs text-primary py-2 hover:underline"
+              onClick={() => setShowAllMobileEvents(!showAllMobileEvents)}
+            >
+              {showAllMobileEvents ? "Show less" : `+${filteredItems.length - 5} more events`}
+            </button>
           )}
         </div>
       </div>
