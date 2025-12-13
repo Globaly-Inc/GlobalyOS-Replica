@@ -1,15 +1,15 @@
-import { Building2, ChevronDown, Settings, Plus } from "lucide-react";
-import { Button } from "./ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { ChevronDown, Plus } from 'lucide-react';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import { useOrganization } from "@/hooks/useOrganization";
-import { useNavigate } from "react-router-dom";
+} from './ui/dropdown-menu';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useNavigate } from 'react-router-dom';
 
 export const OrganizationSwitcher = () => {
   const { currentOrg, organizations, switchOrganization, orgRole } = useOrganization();
@@ -17,12 +17,18 @@ export const OrganizationSwitcher = () => {
 
   if (!currentOrg) return null;
 
+  const handleSwitchOrg = (orgId: string) => {
+    switchOrganization(orgId);
+    // Navigate to the new org's home page
+    navigate(`/org/${orgId}`);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="gap-2 h-9 px-3">
           <Avatar className="h-5 w-5 rounded">
-            <AvatarImage src={currentOrg.logo_url || ""} alt={currentOrg.name} className="object-cover" />
+            <AvatarImage src={currentOrg.logo_url || ''} alt={currentOrg.name} className="object-cover" />
             <AvatarFallback className="rounded bg-primary/10 text-primary text-xs font-semibold">
               {currentOrg.name?.charAt(0).toUpperCase()}
             </AvatarFallback>
@@ -40,11 +46,11 @@ export const OrganizationSwitcher = () => {
         {organizations.map((org) => (
           <DropdownMenuItem
             key={org.id}
-            onClick={() => switchOrganization(org.id)}
+            onClick={() => handleSwitchOrg(org.id)}
             className="cursor-pointer group"
           >
             <Avatar className="h-5 w-5 rounded mr-2">
-              <AvatarImage src={org.logo_url || ""} alt={org.name} className="object-cover" />
+              <AvatarImage src={org.logo_url || ''} alt={org.name} className="object-cover" />
               <AvatarFallback className="rounded bg-primary/10 text-primary text-xs">
                 {org.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -56,7 +62,7 @@ export const OrganizationSwitcher = () => {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate('/signup')}
               className="cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" />

@@ -1,14 +1,14 @@
-import { Suspense, lazy } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { OrganizationProvider } from "@/hooks/useOrganization";
-import { TimezoneProvider } from "@/hooks/useTimezone";
-import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
-import Landing from "./pages/Landing";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Suspense, lazy } from 'react';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { OrganizationProvider } from '@/hooks/useOrganization';
+import { TimezoneProvider } from '@/hooks/useTimezone';
+import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
+import Landing from './pages/Landing';
+import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 
 // Component to handle SW updates
 const ServiceWorkerUpdater = () => {
@@ -17,32 +17,32 @@ const ServiceWorkerUpdater = () => {
 };
 
 // Lazy load pages for code splitting
-const Home = lazy(() => import("./pages/Home"));
-const Team = lazy(() => import("./pages/Team"));
-const TeamMemberProfile = lazy(() => import("./pages/TeamMemberProfile"));
-const BulkImport = lazy(() => import("./pages/BulkImport"));
-const OrgChart = lazy(() => import("./pages/OrgChart"));
-const Growth = lazy(() => import("./pages/Growth"));
-const Auth = lazy(() => import("./pages/Auth"));
-const Signup = lazy(() => import("./pages/Signup"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Join = lazy(() => import("./pages/Join"));
-const LeaveHistory = lazy(() => import("./pages/LeaveHistory"));
-const OrgLeaveHistory = lazy(() => import("./pages/OrgLeaveHistory"));
-const OrgAttendanceHistory = lazy(() => import("./pages/OrgAttendanceHistory"));
-const AttendanceHistory = lazy(() => import("./pages/AttendanceHistory"));
-const Notifications = lazy(() => import("./pages/Notifications"));
-const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
-const Install = lazy(() => import("./pages/Install"));
-const CalendarPage = lazy(() => import("./pages/CalendarPage"));
-const PerformanceReviews = lazy(() => import("./pages/PerformanceReviews"));
-const TeamKPIDashboard = lazy(() => import("./pages/TeamKPIDashboard"));
-const Chat = lazy(() => import("./pages/Chat"));
-const Wiki = lazy(() => import("./pages/Wiki"));
-const WikiEditPage = lazy(() => import("./pages/WikiEditPage"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const CRM = lazy(() => import("./pages/CRM"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const Home = lazy(() => import('./pages/Home'));
+const Team = lazy(() => import('./pages/Team'));
+const TeamMemberProfile = lazy(() => import('./pages/TeamMemberProfile'));
+const BulkImport = lazy(() => import('./pages/BulkImport'));
+const OrgChart = lazy(() => import('./pages/OrgChart'));
+const Growth = lazy(() => import('./pages/Growth'));
+const Auth = lazy(() => import('./pages/Auth'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Join = lazy(() => import('./pages/Join'));
+const LeaveHistory = lazy(() => import('./pages/LeaveHistory'));
+const OrgLeaveHistory = lazy(() => import('./pages/OrgLeaveHistory'));
+const OrgAttendanceHistory = lazy(() => import('./pages/OrgAttendanceHistory'));
+const AttendanceHistory = lazy(() => import('./pages/AttendanceHistory'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const NotificationPreferences = lazy(() => import('./pages/NotificationPreferences'));
+const Install = lazy(() => import('./pages/Install'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const PerformanceReviews = lazy(() => import('./pages/PerformanceReviews'));
+const TeamKPIDashboard = lazy(() => import('./pages/TeamKPIDashboard'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Wiki = lazy(() => import('./pages/Wiki'));
+const WikiEditPage = lazy(() => import('./pages/WikiEditPage'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const CRM = lazy(() => import('./pages/CRM'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,9 @@ const PageLoader = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
 );
+
+// Redirect component for root path - redirects to org-scoped home
+const RootRedirect = lazy(() => import('./components/RootRedirect'));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -63,33 +66,56 @@ const App = () => (
           <OrganizationProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
+                {/* Public routes - no org prefix */}
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/join" element={<Join />} />
                 <Route path="/install" element={<Install />} />
-                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-                <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-                <Route path="/team/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
-                <Route path="/team/:id" element={<ProtectedRoute><TeamMemberProfile /></ProtectedRoute>} />
-                <Route path="/team/:id/leave-history" element={<ProtectedRoute><LeaveHistory /></ProtectedRoute>} />
-                <Route path="/team/:id/attendance" element={<ProtectedRoute><AttendanceHistory /></ProtectedRoute>} />
-                <Route path="/org-chart" element={<ProtectedRoute><OrgChart /></ProtectedRoute>} />
-                <Route path="/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
-                <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-                <Route path="/leave-history" element={<ProtectedRoute><OrgLeaveHistory /></ProtectedRoute>} />
-                <Route path="/attendance-history" element={<ProtectedRoute><OrgAttendanceHistory /></ProtectedRoute>} />
-                <Route path="/team/:id/reviews" element={<ProtectedRoute><PerformanceReviews /></ProtectedRoute>} />
-                <Route path="/kpi-dashboard" element={<ProtectedRoute><TeamKPIDashboard /></ProtectedRoute>} />
-                <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-                <Route path="/wiki" element={<ProtectedRoute><Wiki /></ProtectedRoute>} />
-                <Route path="/wiki/edit/:pageId" element={<ProtectedRoute><WikiEditPage /></ProtectedRoute>} />
-                <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-                <Route path="/crm" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                
+                {/* Root redirect - will redirect to /org/:orgId */}
+                <Route path="/" element={<RootRedirect />} />
+                
+                {/* Organization-scoped routes */}
+                <Route path="/org/:orgId">
+                  {/* Team section */}
+                  <Route index element={<OrgProtectedRoute><Home /></OrgProtectedRoute>} />
+                  <Route path="team" element={<OrgProtectedRoute><Team /></OrgProtectedRoute>} />
+                  <Route path="team/bulk-import" element={<OrgProtectedRoute><BulkImport /></OrgProtectedRoute>} />
+                  <Route path="team/:id" element={<OrgProtectedRoute><TeamMemberProfile /></OrgProtectedRoute>} />
+                  <Route path="team/:id/leave-history" element={<OrgProtectedRoute><LeaveHistory /></OrgProtectedRoute>} />
+                  <Route path="team/:id/attendance" element={<OrgProtectedRoute><AttendanceHistory /></OrgProtectedRoute>} />
+                  <Route path="team/:id/reviews" element={<OrgProtectedRoute><PerformanceReviews /></OrgProtectedRoute>} />
+                  
+                  {/* Org-wide views */}
+                  <Route path="org-chart" element={<OrgProtectedRoute><OrgChart /></OrgProtectedRoute>} />
+                  <Route path="growth" element={<OrgProtectedRoute><Growth /></OrgProtectedRoute>} />
+                  <Route path="calendar" element={<OrgProtectedRoute><CalendarPage /></OrgProtectedRoute>} />
+                  <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} />
+                  <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} />
+                  <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} />
+                  
+                  {/* Settings & Notifications */}
+                  <Route path="settings" element={<OrgProtectedRoute><Settings /></OrgProtectedRoute>} />
+                  <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
+                  <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
+                  
+                  {/* Feature modules */}
+                  <Route path="chat" element={<OrgProtectedRoute><Chat /></OrgProtectedRoute>} />
+                  <Route path="wiki" element={<OrgProtectedRoute><Wiki /></OrgProtectedRoute>} />
+                  <Route path="wiki/edit/:pageId" element={<OrgProtectedRoute><WikiEditPage /></OrgProtectedRoute>} />
+                  <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
+                  <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
+                </Route>
+                
+                {/* Legacy routes redirect - for backward compatibility */}
+                <Route path="/team/*" element={<Navigate to="/" replace />} />
+                <Route path="/calendar" element={<Navigate to="/" replace />} />
+                <Route path="/wiki/*" element={<Navigate to="/" replace />} />
+                <Route path="/settings" element={<Navigate to="/" replace />} />
+                <Route path="/notifications/*" element={<Navigate to="/" replace />} />
+                
+                {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
