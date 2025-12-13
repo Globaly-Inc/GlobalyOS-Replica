@@ -1,4 +1,4 @@
-import { Home, Users, ScanLine, CalendarPlus, User, Calendar as CalendarIcon } from "lucide-react";
+import { Home, Users, ScanLine, User, MessageSquare, BookOpen, CheckSquare, Briefcase } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -7,19 +7,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import { QRScannerDialog } from "./dialogs/QRScannerDialog";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   href?: string;
   action?: string;
+  adminOnly?: boolean;
+  isStatic?: boolean;
 }
 
 const navItems: NavItem[] = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Users, label: "Team", href: "/team" },
   { icon: ScanLine, label: "Check In", action: "scan" },
-  { icon: CalendarIcon, label: "Cal", href: "/calendar" },
+  { icon: MessageSquare, label: "Chat", href: "/chat", adminOnly: true, isStatic: true },
   { icon: User, label: "Profile", action: "profile" },
 ];
 
@@ -28,6 +31,7 @@ export const MobileBottomNav = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
+  const { isAdmin } = useUserRole();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -67,6 +71,7 @@ export const MobileBottomNav = () => {
   }, [employeeId, qrScannerOpen]);
 
   const handleNavClick = (item: NavItem) => {
+    if (item.isStatic) return; // Don't navigate for static items
     if (item.href) {
       navigate(item.href);
     } else if (item.action === "scan") {
@@ -91,11 +96,14 @@ export const MobileBottomNav = () => {
     return false;
   };
 
+  // Filter nav items based on role
+  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
+
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
         <div className="flex items-center justify-around h-16 px-2">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const active = isActive(item);
             const isScan = item.action === "scan";
             
@@ -103,12 +111,13 @@ export const MobileBottomNav = () => {
               <button
                 key={item.label}
                 onClick={() => handleNavClick(item)}
-                disabled={item.action === "leave" && !employeeId}
+                disabled={(item.action === "leave" && !employeeId) || item.isStatic}
                 className={cn(
                   "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative",
                   active && "text-primary",
                   !active && "text-muted-foreground",
-                  isScan && "relative"
+                  isScan && "relative",
+                  item.isStatic && "opacity-50 cursor-not-allowed"
                 )}
               >
                 {isScan ? (
