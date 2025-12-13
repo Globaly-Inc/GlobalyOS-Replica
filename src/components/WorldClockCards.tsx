@@ -206,43 +206,38 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
   }
 
   return (
-    <div className="px-4 lg:px-6 pb-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="px-4 lg:px-6 py-3">
+      <div className="flex items-center gap-2 overflow-x-auto">
         {timezones.map((tz) => {
           const { time, date, seconds } = getTimeInZone(tz);
           const flag = getFlag(tz);
           
           return (
-            <Card
+            <div
               key={tz}
-              className={cn(
-                "relative shrink-0 p-3 min-w-[120px] bg-card border-border/50",
-                "hover:border-border transition-colors group"
-              )}
+              className="relative shrink-0 group"
             >
               <button
                 onClick={() => removeTimezone(tz)}
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
+                className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full bg-background border border-border shadow-sm hover:bg-destructive/10 z-10"
               >
-                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                <X className="h-2.5 w-2.5 text-muted-foreground hover:text-destructive" />
               </button>
               
-              <div className="flex items-center gap-1.5 mb-1">
-                {flag && <span className="text-sm">{flag}</span>}
-                <span className="text-[11px] font-medium text-muted-foreground truncate">
-                  {getDisplayName(tz)}
-                </span>
+              <div className="flex items-center gap-2">
+                {flag && <span className="text-lg">{flag}</span>}
+                <div>
+                  <span className="text-[11px] font-medium text-muted-foreground block">
+                    {getDisplayName(tz)}
+                  </span>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-base font-semibold tabular-nums text-primary">{time}</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{seconds}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{date}</span>
+                </div>
               </div>
-              
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-lg font-semibold tabular-nums">{time}</span>
-                <span className="text-[10px] text-muted-foreground tabular-nums">{seconds}</span>
-              </div>
-              
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {date}
-              </div>
-            </Card>
+            </div>
           );
         })}
         
@@ -256,9 +251,9 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
         {timezones.length < MAX_CLOCKS && (
           <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
             <PopoverTrigger asChild>
-              <Card className="shrink-0 p-3 min-w-[80px] bg-card border-border/50 border-dashed flex items-center justify-center cursor-pointer hover:border-border hover:bg-accent/50 transition-colors">
-                <Plus className="h-4 w-4 text-muted-foreground" />
-              </Card>
+              <button className="shrink-0 h-8 w-8 rounded-full border border-dashed border-border/70 flex items-center justify-center cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors ml-1">
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-[280px] p-0" align="start">
               <Command>
