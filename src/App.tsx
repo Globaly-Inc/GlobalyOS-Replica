@@ -113,6 +113,28 @@ const App = () => (
                   <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
                 </Route>
                 
+                {/* Super Admin Portal - separate from org context */}
+                <Route path="/super-admin" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminOverview />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/organisations" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminOrganisations />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/users" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminUsers />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/analytics" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminAnalytics />
+                  </SuperAdminProtectedRoute>
+                } />
+                
                 {/* Legacy routes redirect - for backward compatibility */}
                 <Route path="/team/*" element={<Navigate to="/" replace />} />
                 <Route path="/calendar" element={<Navigate to="/" replace />} />
