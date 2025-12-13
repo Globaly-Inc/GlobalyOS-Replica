@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWikiFavorites } from "@/hooks/useWikiFavorites";
+import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -74,6 +75,7 @@ const Wiki = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
+  const { recentItems, addRecentItem } = useWikiRecentlyViewed();
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -140,7 +142,6 @@ const Wiki = () => {
   const handleNavigationCancel = useCallback(() => {
     setPendingNavigation(null);
   }, []);
-
   // Fetch folders
   const { data: folders = [] } = useQuery({
     queryKey: ["wiki-folders", currentOrg?.id],
@@ -226,6 +227,21 @@ const Wiki = () => {
       return data;
     },
   });
+
+  // Track recently viewed pages and folders
+  useEffect(() => {
+    if (viewMode === "page" && selectedPageId) {
+      const page = pagesList.find(p => p.id === selectedPageId);
+      if (page) {
+        addRecentItem(selectedPageId, "page", page.title);
+      }
+    } else if (viewMode === "folder" && selectedFolderId) {
+      const folder = folders.find(f => f.id === selectedFolderId);
+      if (folder) {
+        addRecentItem(selectedFolderId, "folder", folder.name);
+      }
+    }
+  }, [selectedPageId, selectedFolderId, viewMode, pagesList, folders, addRecentItem]);
 
   // Create folder mutation
   const createFolderMutation = useMutation({
@@ -464,6 +480,7 @@ const Wiki = () => {
               canEdit={canEdit}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
+              recentItems={recentItems}
             />
           </div>
 

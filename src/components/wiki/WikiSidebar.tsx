@@ -1,4 +1,4 @@
-import { Folder, FileText, Plus, BookOpen, Star } from "lucide-react";
+import { Folder, FileText, Plus, BookOpen, Star, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,13 @@ interface WikiPage {
   sort_order: number;
 }
 
+interface RecentItem {
+  id: string;
+  type: "folder" | "page";
+  name: string;
+  viewedAt: number;
+}
+
 interface WikiSidebarProps {
   folders: WikiFolder[];
   pages: WikiPage[];
@@ -30,6 +37,7 @@ interface WikiSidebarProps {
   canEdit: boolean;
   isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
+  recentItems: RecentItem[];
 }
 
 export const WikiSidebar = ({
@@ -44,11 +52,13 @@ export const WikiSidebar = ({
   onStartCreating,
   canEdit,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  recentItems
 }: WikiSidebarProps) => {
   const favoriteFolders = folders.filter(f => isFavorite("folder", f.id));
   const favoritePages = pages.filter(p => isFavorite("page", p.id));
   const hasFavorites = favoriteFolders.length > 0 || favoritePages.length > 0;
+  const hasRecentItems = recentItems.length > 0;
 
   return (
     <div className="h-full flex flex-col bg-card border-r">
@@ -125,8 +135,44 @@ export const WikiSidebar = ({
           </div>
         )}
 
-        {/* Empty state when no favorites */}
-        {!hasFavorites && (
+        {/* Recently Viewed Section */}
+        {hasRecentItems && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <Clock className="h-3 w-3" />
+              Recently Viewed
+            </div>
+            {recentItems.map(item => (
+              <div
+                key={`${item.type}-${item.id}`}
+                className={cn(
+                  "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer",
+                  (item.type === "folder" && selectedFolderId === item.id) || 
+                  (item.type === "page" && selectedPageId === item.id)
+                    ? "bg-primary/10 text-primary" 
+                    : "hover:bg-muted/50"
+                )}
+                onClick={() => {
+                  if (item.type === "folder") {
+                    onSelectFolder(item.id);
+                  } else {
+                    onSelectPage(item.id);
+                  }
+                }}
+              >
+                {item.type === "folder" ? (
+                  <Folder className="h-4 w-4 text-primary" />
+                ) : (
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm truncate flex-1">{item.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty state when no favorites and no recent items */}
+        {!hasFavorites && !hasRecentItems && (
           <div className="text-center py-8 text-muted-foreground text-sm">
             <Star className="h-8 w-8 mx-auto mb-2 opacity-20" />
             <p>No favorites yet</p>
