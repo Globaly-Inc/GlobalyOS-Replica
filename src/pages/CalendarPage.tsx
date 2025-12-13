@@ -210,7 +210,7 @@ const CalendarPage = () => {
           const years = currentYear - joinDate.getFullYear();
           items.push({
             id: `anniversary-${emp.id}`,
-            title: `${emp.full_name}'s Work Anniversary`,
+            title: emp.full_name,
             subtitle: `${years} year${years > 1 ? 's' : ''} at company`,
             date: anniversaryThisYear,
             type: "anniversary",
