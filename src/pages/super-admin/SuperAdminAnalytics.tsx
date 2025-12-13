@@ -131,17 +131,41 @@ const SuperAdminAnalytics = () => {
         .from('employees')
         .select('id, status');
 
-      // Fetch activities for chart (updates, kudos, attendance, leave requests)
+      // Fetch activities for chart (all feature tables)
       const [
         { data: updatesData },
         { data: kudosData },
         { data: attendanceData },
-        { data: leaveData }
+        { data: leaveData },
+        { data: wikiPagesData },
+        { data: wikiFoldersData },
+        { data: learningData },
+        { data: reviewsData },
+        { data: achievementsData },
+        { data: calendarData },
+        { data: kpisData },
+        { data: documentsData },
+        { data: notificationsData },
+        { data: reactionsData },
+        { data: positionHistoryData },
+        { data: projectsData },
       ] = await Promise.all([
         supabase.from('updates').select('created_at'),
         supabase.from('kudos').select('created_at'),
         supabase.from('attendance_records').select('created_at'),
         supabase.from('leave_requests').select('created_at'),
+        supabase.from('wiki_pages').select('created_at'),
+        supabase.from('wiki_folders').select('created_at'),
+        supabase.from('learning_development').select('created_at'),
+        supabase.from('performance_reviews').select('created_at'),
+        supabase.from('achievements').select('created_at'),
+        supabase.from('calendar_events').select('created_at'),
+        supabase.from('kpis').select('created_at'),
+        supabase.from('employee_documents').select('created_at'),
+        supabase.from('notifications').select('created_at'),
+        supabase.from('feed_reactions').select('created_at'),
+        supabase.from('position_history').select('created_at'),
+        supabase.from('projects').select('created_at'),
       ]);
       
       const allActivities = [
@@ -149,6 +173,18 @@ const SuperAdminAnalytics = () => {
         ...(kudosData || []),
         ...(attendanceData || []),
         ...(leaveData || []),
+        ...(wikiPagesData || []),
+        ...(wikiFoldersData || []),
+        ...(learningData || []),
+        ...(reviewsData || []),
+        ...(achievementsData || []),
+        ...(calendarData || []),
+        ...(kpisData || []),
+        ...(documentsData || []),
+        ...(notificationsData || []),
+        ...(reactionsData || []),
+        ...(positionHistoryData || []),
+        ...(projectsData || []),
       ];
 
       // Helper function to get counts - using any to bypass strict table typing
