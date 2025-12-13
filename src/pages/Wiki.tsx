@@ -10,6 +10,7 @@ import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useWikiFavorites } from "@/hooks/useWikiFavorites";
 import { toast } from "sonner";
 
 interface WikiFolder {
@@ -67,6 +68,7 @@ interface PendingNavigation {
 const Wiki = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
+  const { isFavorite, toggleFavorite } = useWikiFavorites();
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -404,6 +406,8 @@ const Wiki = () => {
               onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
               onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
               canEdit={canEdit}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
             />
           </div>
 
