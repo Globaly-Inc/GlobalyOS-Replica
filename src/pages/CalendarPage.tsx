@@ -818,10 +818,10 @@ const CalendarPage = () => {
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm font-medium min-w-[140px] text-center">
+                  <span className="text-sm font-medium min-w-[90px] text-center">
                     {viewMode === "day" 
-                      ? format(currentDate, "d MMMM yyyy")
-                      : format(currentDate, "MMMM yyyy")
+                      ? format(currentDate, "d MMM yy")
+                      : format(currentDate, "MMM yyyy")
                     }
                   </span>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
