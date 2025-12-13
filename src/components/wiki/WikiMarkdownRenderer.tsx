@@ -74,9 +74,11 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         "[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
         // Links
         "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-        // Code
-        "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
-        "prose-pre:bg-muted prose-pre:border prose-pre:border-border",
+        // Code - inline code
+        "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono",
+        // Code blocks - dark themed like VS Code
+        "[&_pre]:bg-[#1e1e1e] [&_pre]:text-[#d4d4d4] [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-2 [&_pre]:overflow-auto [&_pre]:w-full",
+        "[&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-relaxed [&_pre]:whitespace-pre-wrap [&_pre]:break-words",
         // Blockquotes - full width box with light background
         "[&_blockquote]:bg-muted [&_blockquote]:p-4 [&_blockquote]:rounded-md [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:my-2 [&_blockquote]:w-full",
         "prose-blockquote:not-italic prose-blockquote:text-foreground prose-blockquote:font-normal",
