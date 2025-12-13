@@ -253,9 +253,10 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden"
+          className="absolute left-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden"
+          style={{ width: 'calc(200% + 1rem)' }}
         >
-          <ScrollArea className="max-h-[400px]">
+          <ScrollArea className="h-[400px]">
             <div className="py-2">
               {isLoading ? (
                 <div className="flex items-center justify-center py-6 text-muted-foreground">
