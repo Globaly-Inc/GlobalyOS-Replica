@@ -1140,8 +1140,7 @@ const CalendarPage = () => {
                 </div>
                 
                 {/* Timezone Selector */}
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center">
                   <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
                     <PopoverTrigger asChild>
                       <Button
