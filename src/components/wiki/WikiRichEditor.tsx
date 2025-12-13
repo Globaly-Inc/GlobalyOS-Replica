@@ -737,20 +737,27 @@ myFunction();`;
       codeDisplay.innerHTML = Prism.highlight(codeInput.value, initialGrammar, initialLang);
     }
     
-    // Insert at cursor position
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      
-      if (!editorRef.current?.contains(range.commonAncestorContainer)) {
-        editorRef.current?.focus();
-        const newRange = document.createRange();
-        newRange.selectNodeContents(editorRef.current!);
-        newRange.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
+    // Insert at cursor position or end of editor
+    const currentSelection = window.getSelection();
+    let insertRange: Range | null = null;
+    
+    if (currentSelection && currentSelection.rangeCount > 0) {
+      const range = currentSelection.getRangeAt(0);
+      if (editorRef.current?.contains(range.commonAncestorContainer)) {
+        insertRange = range;
       }
-      
-      selection.getRangeAt(0).insertNode(codeBlockWrapper);
+    }
+    
+    // If no valid selection in editor, create one at the end
+    if (!insertRange && editorRef.current) {
+      editorRef.current.focus();
+      insertRange = document.createRange();
+      insertRange.selectNodeContents(editorRef.current);
+      insertRange.collapse(false);
+    }
+    
+    if (insertRange && editorRef.current) {
+      insertRange.insertNode(codeBlockWrapper);
       
       // Add a paragraph after for continued editing
       const spacer = document.createElement('p');
