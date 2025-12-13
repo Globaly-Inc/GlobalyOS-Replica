@@ -74,6 +74,10 @@ const SuperAdminAnalytics = () => {
         .from('kudos')
         .select('*', { count: 'exact', head: true });
 
+      const { count: postsCount } = await supabase
+        .from('updates')
+        .select('*', { count: 'exact', head: true });
+
       const { count: kpiCount } = await supabase
         .from('kpis')
         .select('*', { count: 'exact', head: true });
@@ -107,6 +111,7 @@ const SuperAdminAnalytics = () => {
           { name: 'Calendar Events', count: calendarCount || 0 },
           { name: 'Leave Requests', count: leaveCount || 0 },
           { name: 'Attendance Records', count: attendanceCount || 0 },
+          { name: 'Posts (Wins & Announcements)', count: postsCount || 0 },
           { name: 'Kudos', count: kudosCount || 0 },
           { name: 'KPIs', count: kpiCount || 0 },
         ],
