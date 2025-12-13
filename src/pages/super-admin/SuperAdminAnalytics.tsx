@@ -22,15 +22,13 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 
@@ -48,9 +46,10 @@ interface AnalyticsData {
   activeUsers: number;
   featureUsage: FeatureItem[];
   orgGrowth: { month: string; count: number }[];
+  userGrowth: { month: string; count: number }[];
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
+
 
 const SuperAdminAnalytics = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -71,10 +70,10 @@ const SuperAdminAnalytics = () => {
         .from('organizations')
         .select('id, plan, created_at');
 
-      // Get user stats
+      // Get user stats with created_at for growth calculation
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id');
+        .select('id, created_at');
 
       // Get active employees
       const { data: employees } = await supabase
@@ -161,6 +160,7 @@ const SuperAdminAnalytics = () => {
 
       // Calculate org growth by month (last 6 months)
       const orgGrowth: { month: string; count: number }[] = [];
+      const userGrowth: { month: string; count: number }[] = [];
       const now = new Date();
       for (let i = 5; i >= 0; i--) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -169,9 +169,17 @@ const SuperAdminAnalytics = () => {
           const createdAt = new Date(org.created_at);
           return createdAt <= monthEnd;
         }) || [];
+        const monthUsers = profiles?.filter((profile) => {
+          const createdAt = new Date(profile.created_at);
+          return createdAt <= monthEnd;
+        }) || [];
         orgGrowth.push({
           month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
           count: monthOrgs.length,
+        });
+        userGrowth.push({
+          month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+          count: monthUsers.length,
         });
       }
 
@@ -194,6 +202,7 @@ const SuperAdminAnalytics = () => {
           { name: 'KPIs', count: kpiCount || 0, lastWeekCount: kpiCountLastWeek || 0, icon: Target },
         ],
         orgGrowth,
+        userGrowth,
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -329,28 +338,22 @@ const SuperAdminAnalytics = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Feature Usage</CardTitle>
+              <CardTitle>Users Growth</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={data?.featureUsage.filter(f => f.count > 0)}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="count"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      labelLine={false}
-                    >
-                      {data?.featureUsage.filter(f => f.count > 0).map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
+                  <LineChart data={data?.userGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="month" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))',
@@ -358,8 +361,14 @@ const SuperAdminAnalytics = () => {
                         borderRadius: '8px',
                       }}
                     />
-                    <Legend />
-                  </PieChart>
+                    <Line 
+                      type="monotone"
+                      dataKey="count" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2 }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
