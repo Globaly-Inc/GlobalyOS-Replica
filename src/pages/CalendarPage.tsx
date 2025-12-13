@@ -49,6 +49,8 @@ interface CalendarItem {
   endDate?: Date;
   type: "leave" | "holiday" | "event" | "birthday" | "anniversary" | "review";
   employeeName?: string;
+  appliesToAllOffices?: boolean;
+  officeNames?: string[];
 }
 
 const CalendarPage = () => {
@@ -135,6 +137,21 @@ const CalendarPage = () => {
     enabled: !!currentOrg?.id,
   });
 
+  // Fetch offices for the org
+  const { data: offices = [] } = useQuery({
+    queryKey: ["offices", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("offices")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id,
+  });
+
   // Fetch calendar events (holidays/events) with office filtering
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery({
     queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, format(monthStart, "yyyy-MM")],
@@ -149,30 +166,36 @@ const CalendarPage = () => {
         .or(`start_date.lte.${format(monthEnd, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
       if (error) throw error;
 
+      // Fetch all office associations
+      const eventIds = events?.map(e => e.id) || [];
+      let eventOffices: { calendar_event_id: string; office_id: string }[] = [];
+      
+      if (eventIds.length > 0) {
+        const { data: officeData, error: officeError } = await supabase
+          .from("calendar_event_offices")
+          .select("calendar_event_id, office_id")
+          .in("calendar_event_id", eventIds);
+        
+        if (officeError) throw officeError;
+        eventOffices = officeData || [];
+      }
+
+      // Attach office info to events
+      const eventsWithOffices = events?.map(event => ({
+        ...event,
+        officeIds: eventOffices.filter(eo => eo.calendar_event_id === event.id).map(eo => eo.office_id),
+      })) || [];
+
       // If user has no office or is admin/HR, show all events
       if (!currentEmployee?.office_id || isAdmin || isHR) {
-        return events || [];
+        return eventsWithOffices;
       }
-
-      // Fetch office associations for events that don't apply to all offices
-      const eventsNeedingFilter = events?.filter(e => !e.applies_to_all_offices) || [];
-      if (eventsNeedingFilter.length === 0) {
-        return events || [];
-      }
-
-      const { data: eventOffices, error: officeError } = await supabase
-        .from("calendar_event_offices")
-        .select("calendar_event_id, office_id")
-        .in("calendar_event_id", eventsNeedingFilter.map(e => e.id));
-      
-      if (officeError) throw officeError;
 
       // Filter events: show if applies_to_all_offices OR user's office is in the list
-      return events?.filter(event => {
+      return eventsWithOffices.filter(event => {
         if (event.applies_to_all_offices) return true;
-        const eventOfficeIds = eventOffices?.filter(eo => eo.calendar_event_id === event.id).map(eo => eo.office_id) || [];
-        return eventOfficeIds.includes(currentEmployee.office_id);
-      }) || [];
+        return event.officeIds.includes(currentEmployee.office_id);
+      });
     },
     enabled: !!currentOrg?.id,
   });
@@ -215,12 +238,18 @@ const CalendarPage = () => {
 
     // Add holidays and events
     calendarEvents.forEach((event) => {
+      const eventOfficeNames = event.officeIds
+        ?.map(officeId => offices.find(o => o.id === officeId)?.name)
+        .filter(Boolean) as string[] || [];
+      
       items.push({
         id: `event-${event.id}`,
         title: event.title,
         date: parseISO(event.start_date),
         endDate: parseISO(event.end_date),
         type: event.event_type === "holiday" ? "holiday" : "event",
+        appliesToAllOffices: event.applies_to_all_offices,
+        officeNames: eventOfficeNames,
       });
     });
 
@@ -277,7 +306,7 @@ const CalendarPage = () => {
 
     // Sort by date
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [leaves, calendarEvents, employees, reviews, currentDate]);
+  }, [leaves, calendarEvents, employees, reviews, currentDate, offices]);
 
   // Filter items for selected date or upcoming
   const filteredItems = useMemo(() => {
@@ -467,6 +496,22 @@ const CalendarPage = () => {
                           )}
                           {item.subtitle && <> · {item.subtitle}</>}
                         </p>
+                        {/* Office badges for events/holidays */}
+                        {(item.type === "holiday" || item.type === "event") && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.appliesToAllOffices ? (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                All offices
+                              </Badge>
+                            ) : item.officeNames && item.officeNames.length > 0 ? (
+                              item.officeNames.map((name, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {name}
+                                </Badge>
+                              ))
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>
