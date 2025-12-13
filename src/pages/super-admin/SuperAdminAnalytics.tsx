@@ -82,6 +82,7 @@ interface AnalyticsData {
   featureUsage: FeatureItem[];
   orgs: { id: string; created_at: string }[];
   users: { id: string; created_at: string }[];
+  activities: { created_at: string }[];
 }
 
 const DATE_PRESETS: { value: DatePreset; label: string }[] = [
@@ -103,6 +104,7 @@ const SuperAdminAnalytics = () => {
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
   const [showCumulative, setShowCumulative] = useState(false);
+  const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -128,6 +130,26 @@ const SuperAdminAnalytics = () => {
       const { data: employees } = await supabase
         .from('employees')
         .select('id, status');
+
+      // Fetch activities for chart (updates, kudos, attendance, leave requests)
+      const [
+        { data: updatesData },
+        { data: kudosData },
+        { data: attendanceData },
+        { data: leaveData }
+      ] = await Promise.all([
+        supabase.from('updates').select('created_at'),
+        supabase.from('kudos').select('created_at'),
+        supabase.from('attendance_records').select('created_at'),
+        supabase.from('leave_requests').select('created_at'),
+      ]);
+      
+      const allActivities = [
+        ...(updatesData || []),
+        ...(kudosData || []),
+        ...(attendanceData || []),
+        ...(leaveData || []),
+      ];
 
       // Helper function to get counts - using any to bypass strict table typing
       const getCount = async (table: string, filter?: { column: string; value: string }) => {
@@ -228,6 +250,7 @@ const SuperAdminAnalytics = () => {
         ],
         orgs: orgs?.map(o => ({ id: o.id, created_at: o.created_at })) || [],
         users: profiles?.map(p => ({ id: p.id, created_at: p.created_at })) || [],
+        activities: allActivities,
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -353,7 +376,36 @@ const SuperAdminAnalytics = () => {
       };
     });
 
-    return { orgGrowth, userGrowth };
+    const activityGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      let intervalStart: Date;
+      let intervalEnd: Date;
+      switch (viewMode) {
+        case 'week':
+          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
+          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
+          break;
+        case 'month':
+          intervalStart = startOfMonth(intervalDate);
+          intervalEnd = endOfMonth(intervalDate);
+          break;
+        default:
+          intervalStart = startOfDay(intervalDate);
+          intervalEnd = endOfDay(intervalDate);
+      }
+      
+      // Count activities created WITHIN this interval (incremental, not cumulative)
+      const count = data.activities.filter(activity => {
+        const createdAt = new Date(activity.created_at);
+        return createdAt >= intervalStart && createdAt <= intervalEnd;
+      }).length;
+
+      return {
+        label: format(intervalDate, labelFormat),
+        count,
+      };
+    });
+
+    return { orgGrowth, userGrowth, activityGrowth };
   }, [data, viewMode, dateRange]);
 
   if (loading) {
@@ -582,11 +634,13 @@ const SuperAdminAnalytics = () => {
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={showCumulative 
-                    ? growthData.userGrowth.reduce((acc, item, index) => {
-                        const prevCount = index > 0 ? acc[index - 1].count : 0;
-                        acc.push({ ...item, count: prevCount + item.count });
-                        return acc;
-                      }, [] as typeof growthData.userGrowth)
+                    ? (() => {
+                        let cumulative = 0;
+                        return growthData.userGrowth.map(item => {
+                          cumulative += item.count;
+                          return { label: item.label, count: cumulative };
+                        });
+                      })()
                     : growthData.userGrowth
                   }>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -622,6 +676,69 @@ const SuperAdminAnalytics = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Activities Chart - Full Width */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Activities</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Cumulative</span>
+              <Button
+                variant={showActivitiesCumulative ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
+              >
+                {showActivitiesCumulative ? "On" : "Off"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={showActivitiesCumulative 
+                  ? (() => {
+                      let cumulative = 0;
+                      return growthData.activityGrowth.map(item => {
+                        cumulative += item.count;
+                        return { label: item.label, count: cumulative };
+                      });
+                    })()
+                  : growthData.activityGrowth
+                }>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="label" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line 
+                    type="monotone"
+                    dataKey="count" 
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                    connectNulls
+                    activeDot={{ r: 6, fill: '#8b5cf6' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
 
         {/* Feature Usage Cards - Grouped by Module */}
         {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
