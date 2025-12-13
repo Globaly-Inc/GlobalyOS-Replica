@@ -20,7 +20,9 @@ import { Label } from "@/components/ui/label";
 import DOMPurify from "dompurify";
 import Prism from "prismjs";
 
-// Import Prism languages
+// Import Prism languages - order matters for dependencies
+import "prismjs/components/prism-markup"; // Required for PHP
+import "prismjs/components/prism-css";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-python";
@@ -31,10 +33,10 @@ import "prismjs/components/prism-csharp";
 import "prismjs/components/prism-go";
 import "prismjs/components/prism-rust";
 import "prismjs/components/prism-ruby";
+import "prismjs/components/prism-markup-templating"; // Required for PHP
 import "prismjs/components/prism-php";
 import "prismjs/components/prism-swift";
 import "prismjs/components/prism-kotlin";
-import "prismjs/components/prism-css";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-json";
