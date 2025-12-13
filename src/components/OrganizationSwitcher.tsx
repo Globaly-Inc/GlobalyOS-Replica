@@ -1,4 +1,4 @@
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
@@ -10,9 +10,11 @@ import {
 } from './ui/dropdown-menu';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useNavigate } from 'react-router-dom';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 
 export const OrganizationSwitcher = () => {
   const { currentOrg, organizations, switchOrganization, orgRole } = useOrganization();
+  const { isSuperAdmin } = useSuperAdmin();
   const navigate = useNavigate();
 
   if (!currentOrg) return null;
@@ -67,6 +69,18 @@ export const OrganizationSwitcher = () => {
             >
               <Plus className="mr-2 h-4 w-4" />
               Create New Org
+            </DropdownMenuItem>
+          </>
+        )}
+        {isSuperAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => navigate('/super-admin')}
+              className="cursor-pointer text-amber-600"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Super Admin
             </DropdownMenuItem>
           </>
         )}
