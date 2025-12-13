@@ -35,7 +35,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
-  const { employee } = useCurrentEmployee();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   const getConversationName = (conv: ChatConversation) => {
     if (conv.name) return conv.name;
@@ -43,7 +43,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
     
     // For DMs, show the other person's name
     const otherParticipant = conv.participants?.find(
-      p => p.employee_id !== employee?.id
+      p => p.employee_id !== currentEmployee?.id
     );
     return otherParticipant?.employee?.profiles?.full_name || "Unknown";
   };
@@ -51,7 +51,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const getConversationAvatar = (conv: ChatConversation) => {
     if (conv.is_group) return null;
     const otherParticipant = conv.participants?.find(
-      p => p.employee_id !== employee?.id
+      p => p.employee_id !== currentEmployee?.id
     );
     return otherParticipant?.employee?.profiles?.avatar_url;
   };

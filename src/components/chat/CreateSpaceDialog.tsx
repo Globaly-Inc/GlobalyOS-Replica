@@ -26,7 +26,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   const [spaceType, setSpaceType] = useState<"collaboration" | "announcements">("collaboration");
   const [accessType, setAccessType] = useState<"public" | "private">("public");
   
-  const { organization } = useOrganization();
+  const { currentOrg } = useOrganization();
   const createSpace = useCreateSpace();
 
   const handleCreate = async () => {
@@ -140,7 +140,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
               <Building2 className="h-5 w-5 text-primary" />
               <div className="flex-1">
-                <p className="font-medium text-primary">{organization?.name || "Organization"}</p>
+                <p className="font-medium text-primary">{currentOrg?.name || "Organization"}</p>
                 <p className="text-sm text-muted-foreground">
                   {accessType === 'public' 
                     ? "Anyone in this group can find, view, and join"

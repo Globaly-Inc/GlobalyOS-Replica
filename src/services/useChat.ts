@@ -5,13 +5,13 @@ import { useCurrentEmployee } from './useCurrentEmployee';
 import type { ChatConversation, ChatSpace, ChatMessage, ChatSpaceMember, ChatParticipant } from '@/types/chat';
 
 export const useConversations = () => {
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['chat-conversations', organization?.id],
+    queryKey: ['chat-conversations', currentOrg?.id],
     queryFn: async () => {
-      if (!organization?.id || !employee?.id) return [];
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
 
       const { data, error } = await supabase
         .from('chat_participants')
@@ -29,8 +29,8 @@ export const useConversations = () => {
             updated_at
           )
         `)
-        .eq('employee_id', employee.id)
-        .eq('organization_id', organization.id);
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
 
       if (error) throw error;
 
@@ -80,18 +80,17 @@ export const useConversations = () => {
 
       return conversations;
     },
-    enabled: !!organization?.id && !!employee?.id,
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
   });
 };
 
 export const useSpaces = () => {
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
 
   return useQuery({
-    queryKey: ['chat-spaces', organization?.id],
+    queryKey: ['chat-spaces', currentOrg?.id],
     queryFn: async () => {
-      if (!organization?.id) return [];
+      if (!currentOrg?.id) return [];
 
       const { data, error } = await supabase
         .from('chat_spaces')
@@ -102,7 +101,7 @@ export const useSpaces = () => {
             employee_id
           )
         `)
-        .eq('organization_id', organization.id);
+        .eq('organization_id', currentOrg.id);
 
       if (error) throw error;
 
@@ -111,7 +110,7 @@ export const useSpaces = () => {
         member_count: space.chat_space_members?.length || 0
       })) as ChatSpace[];
     },
-    enabled: !!organization?.id,
+    enabled: !!currentOrg?.id,
   });
 };
 
@@ -232,8 +231,8 @@ export const usePinnedMessages = (conversationId: string | null, spaceId: string
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
@@ -245,15 +244,15 @@ export const useSendMessage = () => {
       conversationId?: string; 
       spaceId?: string;
     }) => {
-      if (!organization?.id || !employee?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
-          organization_id: organization.id,
+          organization_id: currentOrg.id,
           conversation_id: conversationId || null,
           space_id: spaceId || null,
-          sender_id: employee.id,
+          sender_id: currentEmployee.id,
           content,
           content_type: 'text'
         })
@@ -275,8 +274,8 @@ export const useSendMessage = () => {
 
 export const useCreateConversation = () => {
   const queryClient = useQueryClient();
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
@@ -288,16 +287,16 @@ export const useCreateConversation = () => {
       name?: string;
       isGroup?: boolean;
     }) => {
-      if (!organization?.id || !employee?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       // Create conversation
       const { data: conversation, error: convError } = await supabase
         .from('chat_conversations')
         .insert({
-          organization_id: organization.id,
+          organization_id: currentOrg.id,
           name: name || null,
           is_group: isGroup,
-          created_by: employee.id
+          created_by: currentEmployee.id
         })
         .select()
         .single();
@@ -305,14 +304,14 @@ export const useCreateConversation = () => {
       if (convError) throw convError;
 
       // Add all participants including creator
-      const allParticipants = [...new Set([employee.id, ...participantIds])];
+      const allParticipants = [...new Set([currentEmployee.id, ...participantIds])];
       const { error: partError } = await supabase
         .from('chat_participants')
         .insert(
           allParticipants.map(empId => ({
             conversation_id: conversation.id,
             employee_id: empId,
-            organization_id: organization.id
+            organization_id: currentOrg.id
           }))
         );
 
@@ -328,8 +327,8 @@ export const useCreateConversation = () => {
 
 export const useCreateSpace = () => {
   const queryClient = useQueryClient();
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
@@ -343,18 +342,18 @@ export const useCreateSpace = () => {
       spaceType?: 'collaboration' | 'announcements';
       accessType?: 'public' | 'private';
     }) => {
-      if (!organization?.id || !employee?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       // Create space
       const { data: space, error: spaceError } = await supabase
         .from('chat_spaces')
         .insert({
-          organization_id: organization.id,
+          organization_id: currentOrg.id,
           name,
           description: description || null,
           space_type: spaceType,
           access_type: accessType,
-          created_by: employee.id
+          created_by: currentEmployee.id
         })
         .select()
         .single();
@@ -366,8 +365,8 @@ export const useCreateSpace = () => {
         .from('chat_space_members')
         .insert({
           space_id: space.id,
-          employee_id: employee.id,
-          organization_id: organization.id,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
           role: 'admin'
         });
 
@@ -383,19 +382,19 @@ export const useCreateSpace = () => {
 
 export const useJoinSpace = () => {
   const queryClient = useQueryClient();
-  const { organization } = useOrganization();
-  const { employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      if (!organization?.id || !employee?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('chat_space_members')
         .insert({
           space_id: spaceId,
-          employee_id: employee.id,
-          organization_id: organization.id,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
           role: 'member'
         });
 

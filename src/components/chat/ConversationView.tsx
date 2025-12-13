@@ -34,7 +34,7 @@ interface ConversationViewProps {
 
 const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: ConversationViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { employee } = useCurrentEmployee();
+  const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const togglePin = useTogglePinMessage();
   
@@ -217,7 +217,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                 {/* Messages for this date */}
                 <div className="space-y-3">
                   {dateMessages.map((message) => {
-                    const isOwn = message.sender_id === employee?.id;
+                    const isOwn = message.sender_id === currentEmployee?.id;
                     const senderName = message.sender?.profiles?.full_name || "Unknown";
                     
                     return (
