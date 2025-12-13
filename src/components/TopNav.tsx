@@ -32,11 +32,6 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
         >
           <item.icon className="h-4 w-4" />
           {item.name}
-          {item.isStatic && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal opacity-60">
-              Soon
-            </Badge>
-          )}
         </NavLink>
       ))}
     </nav>
