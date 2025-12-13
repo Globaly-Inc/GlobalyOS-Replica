@@ -215,13 +215,57 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         deleteBtn.remove();
       }
       
-      // Ensure copy button is visible and properly styled
-      const copyBtn = block.querySelector('.wiki-code-copy') as HTMLElement;
-      if (copyBtn) {
+      // Ensure header exists and has proper structure with copy button
+      let header = block.querySelector('.wiki-code-header') as HTMLElement;
+      if (!header) {
+        // Create header if it doesn't exist
+        header = document.createElement('div');
+        header.className = 'wiki-code-header';
+        header.style.backgroundColor = '#1e1e1e';
+        header.style.padding = '0.5rem 1rem';
+        header.style.display = 'flex';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'space-between';
+        header.style.borderBottom = '1px solid #333';
+        
+        const langSpan = document.createElement('span');
+        langSpan.className = 'wiki-code-lang';
+        langSpan.textContent = language.toLowerCase();
+        langSpan.style.color = '#9cdcfe';
+        langSpan.style.fontSize = '0.875rem';
+        langSpan.style.fontWeight = '500';
+        header.appendChild(langSpan);
+        
+        block.insertBefore(header, block.firstChild);
+      }
+      
+      // Ensure copy button exists in header
+      let copyBtn = block.querySelector('.wiki-code-copy') as HTMLElement;
+      if (!copyBtn) {
+        copyBtn = document.createElement('button');
+        copyBtn.className = 'wiki-code-copy';
+        copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+        copyBtn.style.backgroundColor = 'transparent';
+        copyBtn.style.border = 'none';
+        copyBtn.style.color = '#808080';
+        copyBtn.style.cursor = 'pointer';
+        copyBtn.style.padding = '0.25rem';
+        copyBtn.style.borderRadius = '0.25rem';
+        copyBtn.style.display = 'flex';
+        copyBtn.style.alignItems = 'center';
+        copyBtn.style.justifyContent = 'center';
+        copyBtn.title = 'Copy code';
+        header.appendChild(copyBtn);
+      } else {
+        // Ensure copy button is visible and properly styled
         copyBtn.style.display = 'flex';
         copyBtn.style.alignItems = 'center';
         copyBtn.style.justifyContent = 'center';
         copyBtn.style.cursor = 'pointer';
+        // Move copy button directly into header if it's nested
+        if (copyBtn.parentElement !== header) {
+          header.appendChild(copyBtn);
+        }
       }
     });
 
