@@ -166,9 +166,9 @@ serve(async (req) => {
 
     // Send email with OTP
     const { error: emailError } = await resend.emails.send({
-      from: 'TeamHub <hello@globalyhub.com>',
+      from: 'GlobalyOS <hello@globalyhub.com>',
       to: [email],
-      subject: `Your TeamHub verification code: ${otpCode}`,
+      subject: `Your GlobalyOS verification code: ${otpCode}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -184,13 +184,13 @@ serve(async (req) => {
                   <tr>
                     <td align="center" style="padding-bottom: 24px;">
                       <div style="display: inline-block; width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #6366f1, #4f46e5); line-height: 64px; text-align: center;">
-                        <span style="color: #ffffff; font-size: 24px; font-weight: bold;">TH</span>
+                        <span style="color: #ffffff; font-size: 24px; font-weight: bold;">GO</span>
                       </div>
                     </td>
                   </tr>
                   <tr>
                     <td align="center" style="padding-bottom: 16px;">
-                      <h1 style="margin: 0; color: #1f2937; font-size: 24px; font-weight: bold;">Sign in to TeamHub</h1>
+                      <h1 style="margin: 0; color: #1f2937; font-size: 24px; font-weight: bold;">Sign in to GlobalyOS</h1>
                     </td>
                   </tr>
                   <tr>
@@ -224,7 +224,7 @@ serve(async (req) => {
                   <tr>
                     <td align="center" style="padding-top: 16px;">
                       <p style="margin: 0; color: #d1d5db; font-size: 12px;">
-                        © ${new Date().getFullYear()} TeamHub - HRMS & Social Intranet
+                        © ${new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
                       </p>
                     </td>
                   </tr>

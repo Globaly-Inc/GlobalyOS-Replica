@@ -324,11 +324,11 @@ serve(async (req: Request) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎉 Welcome to TeamHub!</h1>
+            <h1>🎉 Welcome to GlobalyOS!</h1>
           </div>
           <div class="content">
             <p>Hi <strong>${fullName}</strong>,</p>
-            <p>You've been added to TeamHub! Your account is now active. Here are your details:</p>
+            <p>You've been added to GlobalyOS! Your account is now active. Here are your details:</p>
             <div class="details">
               <p><strong>Position:</strong> ${position}</p>
               <p><strong>Department:</strong> ${department}</p>
@@ -339,7 +339,7 @@ serve(async (req: Request) => {
             <div class="code-box">${inviteCode}</div>
             <p>Click the button below and enter this code to log in:</p>
             <div class="cta">
-              <a href="${joinUrl}" class="button">Log In to TeamHub</a>
+              <a href="${joinUrl}" class="button">Log In to GlobalyOS</a>
             </div>
             <div class="note">
               <strong>Note:</strong> This code is valid for 7 days. After first login, you can request a new code anytime.
@@ -361,9 +361,9 @@ serve(async (req: Request) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'TeamHub <hello@globalyhub.com>',
+          from: 'GlobalyOS <hello@globalyhub.com>',
           to: [normalizedEmail],
-          subject: 'Welcome to TeamHub - Your Account is Ready!',
+          subject: 'Welcome to GlobalyOS - Your Account is Ready!',
           html: emailHtml,
         }),
       });

@@ -301,7 +301,7 @@ const Auth = () => {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark mb-4">
             <Users className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Welcome to TeamHub</h1>
+          <h1 className="text-3xl font-bold text-foreground">Welcome to GlobalyOS</h1>
           <p className="text-muted-foreground mt-2">HRMS & Social Intranet</p>
         </div>
 

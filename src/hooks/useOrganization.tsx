@@ -27,7 +27,7 @@ interface OrganizationContextType {
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
-const CURRENT_ORG_KEY = "teamhub_current_org";
+const CURRENT_ORG_KEY = "globalyos_current_org";
 
 export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();

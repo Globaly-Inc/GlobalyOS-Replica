@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
   console.log('Push notification received:', event);
 
   let data = {
-    title: 'TeamHub Notification',
+    title: 'GlobalyOS Notification',
     body: 'You have a new notification',
     icon: '/favicon.png',
     badge: '/favicon.png',
