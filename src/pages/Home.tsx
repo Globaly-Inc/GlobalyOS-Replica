@@ -117,6 +117,8 @@ interface UpcomingCalendarEvent {
   title: string;
   start_date: string;
   end_date: string;
+  start_time: string | null;
+  end_time: string | null;
   event_type: string;
   daysUntil: number;
 }
@@ -378,7 +380,7 @@ const Home = () => {
     
     const { data: events } = await supabase
       .from("calendar_events")
-      .select("id, title, start_date, end_date, event_type")
+      .select("id, title, start_date, end_date, start_time, end_time, event_type")
       .eq("organization_id", currentOrg.id)
       .gte("start_date", today)
       .lte("start_date", nextMonth)
@@ -1117,9 +1119,11 @@ const Home = () => {
                 <div className="space-y-3">
                   {upcomingCalendarEvents.map(event => {
                     const isMultiDay = event.start_date !== event.end_date;
+                    const startDate = parseISO(event.start_date);
+                    const endDate = parseISO(event.end_date);
                     const dateDisplay = isMultiDay 
-                      ? `${format(parseISO(event.start_date), "d MMM")} - ${format(parseISO(event.end_date), "d MMM")}`
-                      : format(parseISO(event.start_date), "d MMM");
+                      ? `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''} - ${format(endDate, "d MMM")}${event.end_time ? ` · ${format(new Date(`2000-01-01T${event.end_time}`), "h:mm a")}` : ''}`
+                      : `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''}`;
                     const daysLabel = event.daysUntil === 0 ? "Today" : event.daysUntil === 1 ? "Tomorrow" : `In ${event.daysUntil} days`;
                     
                     return (
