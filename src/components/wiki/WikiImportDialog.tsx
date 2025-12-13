@@ -169,7 +169,7 @@ export const WikiImportDialog = ({
           Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md overflow-hidden">
+      <DialogContent className="w-[90vw] max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5 text-primary" />
@@ -183,10 +183,10 @@ export const WikiImportDialog = ({
         <div className="space-y-4 pt-2">
           {/* File input */}
           <div
-            className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all"
+            className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all"
             onClick={() => fileInputRef.current?.click()}
           >
-            <FileJson className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+            <FileJson className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground mb-1">
               Click to select a JSON file
             </p>
@@ -217,7 +217,7 @@ export const WikiImportDialog = ({
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{previewData.length} pages ready to import</span>
               </div>
-              <ScrollArea className="h-40 border border-border rounded-lg">
+              <ScrollArea className="h-32 border border-border rounded-lg">
                 <div className="p-2 space-y-0.5">
                   {previewData.map((page, index) => (
                     <div key={index} className="text-sm py-1.5 px-2 rounded-md hover:bg-accent/50 transition-colors">
@@ -233,9 +233,9 @@ export const WikiImportDialog = ({
           )}
 
           {/* JSON format hint */}
-          <div className="text-xs bg-muted/50 border border-border rounded-lg p-3">
+          <div className="text-xs bg-muted/50 border border-border rounded-lg p-3 overflow-hidden">
             <p className="font-medium text-foreground mb-2">Expected JSON format:</p>
-            <pre className="overflow-x-auto text-muted-foreground font-mono text-[11px] leading-relaxed">
+            <pre className="text-muted-foreground font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all">
 {`[
   { "title": "Page Title", "content": "<p>HTML</p>", "folder": "Folder" },
   { "title": "Another Page" }
