@@ -56,7 +56,7 @@ const ChatDropZone = ({ children, onFilesDropped, disabled }: ChatDropZoneProps)
 
   return (
     <div
-      className="relative flex-1 flex flex-col min-h-0"
+      className="relative h-full flex flex-col"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
