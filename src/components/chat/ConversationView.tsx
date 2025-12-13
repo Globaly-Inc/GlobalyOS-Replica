@@ -20,6 +20,8 @@ import {
   Users,
   Settings,
   UserPlus,
+  Camera,
+  Pencil,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,7 @@ import {
   useMessageReactions,
   useToggleReaction,
   useSpaceMembers,
+  useConversationParticipants,
 } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
@@ -44,6 +47,7 @@ import ChatDropZone from "./ChatDropZone";
 import SpaceMembersDialog from "./SpaceMembersDialog";
 import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
 import SpaceSettingsDialog from "./SpaceSettingsDialog";
+import EditGroupChatDialog from "./EditGroupChatDialog";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,6 +55,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface OtherParticipant {
   id: string;
   position: string | null;
+  full_name: string | null;
   avatar_url: string | null;
   is_online: boolean;
 }
@@ -93,6 +98,9 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showAddMembersDialog, setShowAddMembersDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showEditGroupDialog, setShowEditGroupDialog] = useState(false);
+  const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
+  const [groupName, setGroupName] = useState(activeChat.name);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -101,6 +109,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
   const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
+  const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
   
   // Check if current user is a space admin
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
@@ -184,7 +193,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('full_name, avatar_url')
         .eq('id', employee.user_id)
         .single();
 
@@ -201,6 +210,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
       setOtherParticipant({
         id: employee.id,
         position: employee.position,
+        full_name: profile?.full_name || null,
         avatar_url: profile?.avatar_url || null,
         is_online: isOnline,
       });
@@ -208,6 +218,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
 
     fetchOtherParticipant();
   }, [activeChat, currentEmployee?.id]);
+
+  // Update local state when activeChat changes
+  useEffect(() => {
+    setGroupIconUrl(activeChat.iconUrl || null);
+    setGroupName(activeChat.name);
+  }, [activeChat.id, activeChat.iconUrl, activeChat.name]);
 
   // Subscribe to presence changes for the other participant
   useEffect(() => {
@@ -332,7 +348,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
               <ArrowLeft className="h-5 w-5" />
             </Button>
             
-            {activeChat.type === 'conversation' ? (
+            {activeChat.type === 'conversation' && !activeChat.isGroup ? (
+              // Direct message - show other participant
               <div className="relative">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
@@ -344,21 +361,69 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                   <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
                 )}
               </div>
+            ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
+              // Group chat - show group icon with edit option
+              <div 
+                className="relative h-10 w-10 rounded-full cursor-pointer group"
+                onClick={() => setShowEditGroupDialog(true)}
+              >
+                {groupIconUrl ? (
+                  <img 
+                    src={groupIconUrl} 
+                    alt={groupName} 
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                    {getInitials(groupName || "GC")}
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+              </div>
             ) : (
+              // Space
               <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm">
                 {activeChat.name.charAt(0).toUpperCase()}
               </div>
             )}
             
-            <div>
-              <h2 className="font-semibold text-foreground">{activeChat.name}</h2>
-              {activeChat.type === 'conversation' && otherParticipant?.position && (
-                <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
-              )}
-              {activeChat.type === 'space' && (
-                <p className="text-xs text-muted-foreground">
-                  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-                </p>
+            <div className="flex-1 min-w-0">
+              {activeChat.type === 'conversation' && activeChat.isGroup ? (
+                // Group chat info
+                <div 
+                  className="cursor-pointer hover:opacity-80"
+                  onClick={() => setShowEditGroupDialog(true)}
+                >
+                  <h2 className="font-semibold text-foreground flex items-center gap-1">
+                    {groupName}
+                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                  </h2>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {conversationParticipants
+                      .filter(p => p.employee_id !== currentEmployee?.id)
+                      .map(p => p.employee?.profiles?.full_name?.split(' ')[0])
+                      .filter(Boolean)
+                      .join(', ') || 'Group members'}
+                  </p>
+                </div>
+              ) : activeChat.type === 'conversation' ? (
+                // Direct message info
+                <div>
+                  <h2 className="font-semibold text-foreground">{activeChat.name}</h2>
+                  {otherParticipant?.position && (
+                    <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
+                  )}
+                </div>
+              ) : (
+                // Space info
+                <div>
+                  <h2 className="font-semibold text-foreground">{activeChat.name}</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -372,7 +437,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
             >
               <Search className="h-4 w-4" />
             </Button>
-            {activeChat.type === 'conversation' && (
+            {activeChat.type === 'conversation' && !activeChat.isGroup && (
               <>
                 <Button variant="ghost" size="icon">
                   <Phone className="h-4 w-4" />
@@ -394,7 +459,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="bg-popover">
                   <DropdownMenuItem onClick={() => setShowMembersDialog(true)}>
                     <Users className="h-4 w-4 mr-2" />
                     View members
@@ -594,6 +659,21 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
               onDeleted={onBack}
             />
           </>
+        )}
+        
+        {/* Edit Group Chat Dialog */}
+        {activeChat.type === 'conversation' && activeChat.isGroup && conversationId && (
+          <EditGroupChatDialog
+            open={showEditGroupDialog}
+            onOpenChange={setShowEditGroupDialog}
+            conversationId={conversationId}
+            currentName={groupName}
+            currentIconUrl={groupIconUrl}
+            onUpdated={(name, iconUrl) => {
+              setGroupName(name);
+              setGroupIconUrl(iconUrl);
+            }}
+          />
         )}
       </div>
     </ChatDropZone>

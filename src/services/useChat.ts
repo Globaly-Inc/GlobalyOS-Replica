@@ -313,10 +313,12 @@ export const useCreateConversation = () => {
     mutationFn: async ({ 
       participantIds, 
       name,
+      iconUrl,
       isGroup = false 
     }: { 
       participantIds: string[]; 
       name?: string;
+      iconUrl?: string;
       isGroup?: boolean;
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
@@ -327,6 +329,7 @@ export const useCreateConversation = () => {
         .insert({
           organization_id: currentOrg.id,
           name: name || null,
+          icon_url: iconUrl || null,
           is_group: isGroup,
           created_by: currentEmployee.id
         })
@@ -354,6 +357,73 @@ export const useCreateConversation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
     },
+  });
+};
+
+export const useUpdateConversation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      name,
+      iconUrl 
+    }: { 
+      conversationId: string;
+      name?: string;
+      iconUrl?: string;
+    }) => {
+      const updates: Record<string, any> = {};
+      if (name !== undefined) updates.name = name;
+      if (iconUrl !== undefined) updates.icon_url = iconUrl;
+
+      const { data, error } = await supabase
+        .from('chat_conversations')
+        .update(updates)
+        .eq('id', conversationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+    },
+  });
+};
+
+export const useConversationParticipants = (conversationId: string | null) => {
+  return useQuery({
+    queryKey: ['chat-conversation-participants', conversationId],
+    queryFn: async () => {
+      if (!conversationId) return [];
+
+      const { data, error } = await supabase
+        .from('chat_participants')
+        .select(`
+          *,
+          employees:employee_id (
+            id,
+            user_id,
+            position,
+            profiles:user_id (
+              full_name,
+              avatar_url,
+              email
+            )
+          )
+        `)
+        .eq('conversation_id', conversationId);
+
+      if (error) throw error;
+
+      return (data || []).map((p: any) => ({
+        ...p,
+        employee: p.employees
+      })) as ChatParticipant[];
+    },
+    enabled: !!conversationId,
   });
 };
 

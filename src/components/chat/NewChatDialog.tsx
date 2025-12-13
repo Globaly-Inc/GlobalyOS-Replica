@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Camera, X } from "lucide-react";
 import { useEmployees } from "@/services/useEmployees";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useCreateConversation } from "@/services/useChat";
+import { useOrganization } from "@/hooks/useOrganization";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ActiveChat } from "@/types/chat";
 
@@ -27,9 +29,14 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
+  const [groupIcon, setGroupIcon] = useState<File | null>(null);
+  const [groupIconPreview, setGroupIconPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { data: employeesData = [], isLoading } = useEmployees();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
   const createConversation = useCreateConversation();
 
   // Type the employees data properly
@@ -72,6 +79,32 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
     );
   };
 
+  const handleIconSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    setGroupIcon(file);
+    setGroupIconPreview(URL.createObjectURL(file));
+  };
+
+  const removeIcon = () => {
+    if (groupIconPreview) {
+      URL.revokeObjectURL(groupIconPreview);
+    }
+    setGroupIcon(null);
+    setGroupIconPreview(null);
+  };
+
   const handleCreate = async () => {
     if (selectedEmployees.length === 0) {
       toast.error("Please select at least one person");
@@ -79,18 +112,51 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
     }
 
     try {
+      setIsUploading(true);
       const isGroup = selectedEmployees.length > 1;
+      let iconUrl: string | undefined;
+
+      // Upload icon if provided (for group chats)
+      if (isGroup && groupIcon && currentOrg?.id) {
+        const fileExt = groupIcon.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${currentOrg.id}/group-icons/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('chat-attachments')
+          .upload(filePath, groupIcon);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(filePath);
+
+        iconUrl = publicUrl;
+      }
+
       const conversation = await createConversation.mutateAsync({
         participantIds: selectedEmployees,
         name: isGroup ? groupName : undefined,
+        iconUrl,
         isGroup,
       });
 
-      // Get the name for the chat
+      // Get names for the chat
       let chatName = groupName;
+      const participantNames: string[] = [];
+      
       if (!isGroup) {
         const selectedEmp = employees.find(e => e.id === selectedEmployees[0]);
         chatName = selectedEmp?.profiles?.full_name || "Chat";
+      } else {
+        selectedEmployees.forEach(empId => {
+          const emp = employees.find(e => e.id === empId);
+          if (emp?.profiles?.full_name) {
+            const firstName = emp.profiles.full_name.split(' ')[0];
+            participantNames.push(firstName);
+          }
+        });
       }
 
       onChatCreated({
@@ -98,25 +164,34 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
         id: conversation.id,
         name: chatName || "Group Chat",
         isGroup,
+        iconUrl,
+        participantNames,
       });
 
+      // Reset state
       setSelectedEmployees([]);
       setGroupName("");
+      removeIcon();
       setSearchQuery("");
       onOpenChange(false);
       toast.success("Chat created");
     } catch (error) {
       console.error("Error creating chat:", error);
       toast.error("Failed to create chat");
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleClose = () => {
     setSelectedEmployees([]);
     setGroupName("");
+    removeIcon();
     setSearchQuery("");
     onOpenChange(false);
   };
+
+  const isGroupChat = selectedEmployees.length > 1;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -136,13 +211,58 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
           />
         </div>
 
-        {/* Group name (if multiple selected) */}
-        {selectedEmployees.length > 1 && (
-          <Input
-            placeholder="Group name (optional)"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-          />
+        {/* Group settings (if multiple selected) */}
+        {isGroupChat && (
+          <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              {/* Group icon picker */}
+              <div className="relative">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleIconSelect}
+                />
+                <div 
+                  className="relative h-14 w-14 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors overflow-hidden"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {groupIconPreview ? (
+                    <>
+                      <img 
+                        src={groupIconPreview} 
+                        alt="Group icon" 
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeIcon();
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <Camera className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <Input
+                  placeholder="Group name (optional)"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add an icon and name for your group
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Selected count */}
@@ -201,9 +321,9 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
           </Button>
           <Button 
             onClick={handleCreate}
-            disabled={selectedEmployees.length === 0 || createConversation.isPending}
+            disabled={selectedEmployees.length === 0 || createConversation.isPending || isUploading}
           >
-            {createConversation.isPending ? (
+            {(createConversation.isPending || isUploading) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
             Start chat
