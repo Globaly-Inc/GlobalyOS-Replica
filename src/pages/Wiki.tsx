@@ -412,21 +412,27 @@ const Wiki = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => {
-                    const title = prompt("Enter page title:");
-                    if (title?.trim()) {
-                      createPageMutation.mutate({ title: title.trim(), folderId: getCurrentFolderId() });
-                    }
-                  }}>
+                  <DropdownMenuItem 
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      const title = prompt("Enter page title:");
+                      if (title?.trim()) {
+                        createPageMutation.mutate({ title: title.trim(), folderId: getCurrentFolderId() });
+                      }
+                    }}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     New Page
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    const name = prompt("Enter folder name:");
-                    if (name?.trim()) {
-                      createFolderMutation.mutate({ name: name.trim(), parentId: getCurrentFolderId() });
-                    }
-                  }}>
+                  <DropdownMenuItem 
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      const name = prompt("Enter folder name:");
+                      if (name?.trim()) {
+                        createFolderMutation.mutate({ name: name.trim(), parentId: getCurrentFolderId() });
+                      }
+                    }}
+                  >
                     <Folder className="h-4 w-4 mr-2" />
                     New Folder
                   </DropdownMenuItem>
