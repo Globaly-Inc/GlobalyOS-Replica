@@ -27,12 +27,14 @@ import {
   X,
   FileIcon,
   Upload,
+  AtSign,
 } from "lucide-react";
-import { useSendMessage, useTypingIndicator } from "@/services/useChat";
+import { useSendMessage, useTypingIndicator, useSaveMentions } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import UploadProgress, { UploadingFile } from "./UploadProgress";
+import MentionAutocomplete from "./MentionAutocomplete";
 
 const EMOJI_LIST = ["👍", "❤️", "😊", "😂", "🎉", "👏", "🔥", "💯", "✨", "🙌", "👀", "🤔"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -62,6 +64,11 @@ interface SelectedFile {
   preview?: string;
 }
 
+interface MentionedMember {
+  id: string;
+  name: string;
+}
+
 const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   ({ conversationId, spaceId }, ref) => {
   const [message, setMessage] = useState("");
@@ -72,11 +79,15 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [mentionedMembers, setMentionedMembers] = useState<MentionedMember[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const sendMessage = useSendMessage();
+  const saveMentions = useSaveMentions();
   const { currentOrg } = useOrganization();
   const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
 
@@ -130,6 +141,56 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       }
     };
   }, [conversationId, spaceId, clearTypingStatus]);
+
+  // Handle @ mention detection
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    if (value.trim()) {
+      handleTyping();
+    }
+
+    // Detect @ mentions
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      // Check if there's no space after @ (still typing mention)
+      if (!textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
+        setMentionSearch(textAfterAt);
+        setShowMentions(true);
+        return;
+      }
+    }
+    
+    setShowMentions(false);
+    setMentionSearch("");
+  };
+
+  // Handle mention selection
+  const handleMentionSelect = (member: { id: string; name: string }) => {
+    const cursorPosition = textareaRef.current?.selectionStart || 0;
+    const textBeforeCursor = message.slice(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterCursor = message.slice(cursorPosition);
+      const newMessage = message.slice(0, lastAtIndex) + `@${member.name} ` + textAfterCursor;
+      setMessage(newMessage);
+      
+      // Add to mentioned members if not already there
+      if (!mentionedMembers.find(m => m.id === member.id)) {
+        setMentionedMembers(prev => [...prev, { id: member.id, name: member.name }]);
+      }
+    }
+    
+    setShowMentions(false);
+    setMentionSearch("");
+    textareaRef.current?.focus();
+  };
 
   const handleSend = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
@@ -191,16 +252,25 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         });
       }
       
-      await sendMessage.mutateAsync({
+      const result = await sendMessage.mutateAsync({
         content: message.trim() || (uploadedAttachments.length > 0 ? "Shared file(s)" : ""),
         conversationId: conversationId || undefined,
         spaceId: spaceId || undefined,
         attachments: uploadedAttachments,
       });
+
+      // Save mentions if any
+      if (mentionedMembers.length > 0 && result?.id) {
+        await saveMentions.mutateAsync({
+          messageId: result.id,
+          employeeIds: mentionedMembers.map(m => m.id),
+        });
+      }
       
       setMessage("");
       setSelectedFiles([]);
       setUploadingFiles([]);
+      setMentionedMembers([]);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
@@ -427,16 +497,19 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
 
         {/* Message input */}
         <div className="flex-1 relative">
+          {/* Mention Autocomplete */}
+          <MentionAutocomplete
+            isOpen={showMentions}
+            searchText={mentionSearch}
+            onSelect={handleMentionSelect}
+            onClose={() => setShowMentions(false)}
+          />
+          
           <Textarea
             ref={textareaRef}
-            placeholder="Type a message..."
+            placeholder="Type a message... Use @ to mention"
             value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              if (e.target.value.trim()) {
-                handleTyping();
-              }
-            }}
+            onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
             className="min-h-[40px] max-h-[200px] resize-none pr-24"
             rows={1}

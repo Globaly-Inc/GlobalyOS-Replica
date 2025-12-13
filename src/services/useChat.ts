@@ -777,3 +777,26 @@ export const useToggleReaction = () => {
     },
   });
 };
+
+// Save mentions for a message
+export const useSaveMentions = () => {
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ messageId, employeeIds }: { messageId: string; employeeIds: string[] }) => {
+      if (!currentOrg?.id || employeeIds.length === 0) return;
+
+      const mentions = employeeIds.map(employeeId => ({
+        message_id: messageId,
+        employee_id: employeeId,
+        organization_id: currentOrg.id,
+      }));
+
+      const { error } = await supabase
+        .from('chat_mentions')
+        .insert(mentions);
+
+      if (error) throw error;
+    },
+  });
+};

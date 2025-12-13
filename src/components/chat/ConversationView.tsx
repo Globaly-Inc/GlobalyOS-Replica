@@ -28,6 +28,7 @@ import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
 import DateSeparator from "./DateSeparator";
 import ScrollToBottom from "./ScrollToBottom";
+import MessageSearch from "./MessageSearch";
 import ChatDropZone from "./ChatDropZone";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +75,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -340,7 +342,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setShowSearch(!showSearch)}
+              className={showSearch ? "bg-accent" : ""}
+            >
               <Search className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon">
@@ -354,6 +361,25 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
             </Button>
           </div>
         </div>
+
+        {/* Message Search */}
+        <MessageSearch
+          conversationId={conversationId}
+          spaceId={spaceId}
+          isOpen={showSearch}
+          onClose={() => setShowSearch(false)}
+          onResultClick={(messageId) => {
+            // Scroll to the message
+            const messageElement = document.getElementById(`message-${messageId}`);
+            if (messageElement) {
+              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              messageElement.classList.add('ring-2', 'ring-primary');
+              setTimeout(() => {
+                messageElement.classList.remove('ring-2', 'ring-primary');
+              }, 2000);
+            }
+          }}
+        />
 
         {/* Messages */}
         <div className="flex-1 relative overflow-hidden">
