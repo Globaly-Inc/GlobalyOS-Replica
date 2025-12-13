@@ -1,3 +1,9 @@
+/**
+ * Legacy employee types for backward compatibility with existing components
+ * These are VIEW types used for display, separate from DATABASE types
+ */
+
+// Display/View type for employee cards (camelCase for React components)
 export interface Employee {
   id: string;
   name: string;
@@ -16,6 +22,7 @@ export interface Employee {
   officeEmployeeCount?: number;
 }
 
+// Display type for kudos
 export interface Kudos {
   id: string;
   employeeId: string;
@@ -31,6 +38,7 @@ export interface Kudos {
   otherRecipientIds?: string[];
 }
 
+// Display type for update mentions
 export interface UpdateMention {
   id: string;
   employeeId: string;
@@ -38,6 +46,7 @@ export interface UpdateMention {
   avatar?: string;
 }
 
+// Display type for feed updates
 export interface Update {
   id: string;
   employeeId: string;
@@ -50,6 +59,7 @@ export interface Update {
   mentions?: UpdateMention[];
 }
 
+// Display type for achievements
 export interface Achievement {
   id: string;
   employeeId: string;
@@ -57,3 +67,19 @@ export interface Achievement {
   description: string;
   date: string;
 }
+
+// Re-export database types with explicit naming
+export type {
+  Employee as EmployeeRecord,
+  EmployeeWithProfile,
+  EmployeeWithRelations,
+  EmployeeDirectoryItem,
+  EmployeeStatus,
+  PositionHistory,
+  PositionChangeType,
+  EmployeeSchedule,
+  LearningDevelopment,
+  LearningType,
+  LearningStatus,
+  Achievement as AchievementRecord,
+} from './employee-new';
