@@ -208,6 +208,21 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         langSpan.style.fontWeight = '500';
         langSelect.replaceWith(langSpan);
       }
+      
+      // Remove delete button from view mode (only shown in edit mode)
+      const deleteBtn = block.querySelector('.wiki-code-delete');
+      if (deleteBtn) {
+        deleteBtn.remove();
+      }
+      
+      // Ensure copy button is visible and properly styled
+      const copyBtn = block.querySelector('.wiki-code-copy') as HTMLElement;
+      if (copyBtn) {
+        copyBtn.style.display = 'flex';
+        copyBtn.style.alignItems = 'center';
+        copyBtn.style.justifyContent = 'center';
+        copyBtn.style.cursor = 'pointer';
+      }
     });
 
     // Add copy functionality to code blocks
