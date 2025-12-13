@@ -20,6 +20,7 @@ import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
+import { GlobalAskAI } from "./GlobalAskAI";
 
 interface UserProfile {
   fullName: string;
@@ -395,6 +396,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <span>{elapsedTime}</span>
               </div>
             )}
+            <GlobalAskAI organizationId={currentOrg?.id} />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
