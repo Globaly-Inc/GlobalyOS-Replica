@@ -394,6 +394,15 @@ const Wiki = () => {
           
           {canEdit && (
             <>
+              <WikiImportDialog
+                organizationId={currentOrg?.id}
+                employeeId={currentEmployee?.id}
+                existingFolders={folders}
+                onImportComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+                }}
+              />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -423,15 +432,6 @@ const Wiki = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <WikiImportDialog
-                organizationId={currentOrg?.id}
-                employeeId={currentEmployee?.id}
-                existingFolders={folders}
-                onImportComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
-                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-                }}
-              />
             </>
           )}
         </div>
