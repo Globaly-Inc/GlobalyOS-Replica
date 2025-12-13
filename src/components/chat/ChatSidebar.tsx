@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConversations, useSpaces, useUnreadCounts } from "@/services/useChat";
@@ -22,6 +23,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChatConversation, ChatSpace, ActiveChat } from "@/types/chat";
+import { ChatSettingsDialog } from "./ChatSettingsDialog";
 
 interface ChatSidebarProps {
   activeChat: ActiveChat | null;
@@ -35,6 +37,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [dmExpanded, setDmExpanded] = useState(true);
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
+  const [settingsOpen, setSettingsOpen] = useState(false);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
@@ -227,17 +230,29 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
 
   return (
     <div className="flex flex-col h-full bg-card border-r border-border">
-      {/* New Chat Button */}
+      {/* Header with Settings and New Chat */}
       <div className="p-3 border-b border-border">
-        <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2"
-          onClick={onNewChat}
-        >
-          <MessageSquarePlus className="h-4 w-4" />
-          New chat
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex-1 justify-start gap-2"
+            onClick={onNewChat}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            New chat
+          </Button>
+        </div>
       </div>
+
+      <ChatSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* Search */}
       <div className="p-3">
