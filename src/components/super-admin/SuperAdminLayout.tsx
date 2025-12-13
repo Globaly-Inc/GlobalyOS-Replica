@@ -52,7 +52,7 @@ const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
       </header>
 
       {/* Sub Navigation */}
-      <nav className="bg-card border-b border-border">
+      <nav className="sticky top-16 z-40 bg-card border-b border-border">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-1 h-12">
             {navItems.map((item) => (
