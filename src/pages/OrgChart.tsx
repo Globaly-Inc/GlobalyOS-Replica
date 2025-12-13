@@ -1,15 +1,14 @@
-import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { Users, ArrowLeft, Building2, ArrowUpRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { cn } from "@/lib/utils";
 
 interface Employee {
@@ -45,7 +44,7 @@ const OrgChart = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
@@ -163,7 +162,7 @@ const OrgChart = () => {
     
     return (
       <Card
-        onClick={() => navigate(`/team/${employee.id}`)}
+        onClick={() => navigateOrg(`/team/${employee.id}`)}
         className={cn(
           "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] max-w-[200px] rounded-xl",
           isExternal && "border-dashed"
@@ -310,14 +309,13 @@ const OrgChart = () => {
   });
 
   return (
-    <Layout>
-      <div className="space-y-4">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate("/team")}
-          className="gap-2"
-        >
+    <div className="space-y-4">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => navigateOrg("/team")}
+        className="gap-2"
+      >
           <ArrowLeft className="h-4 w-4" />
           Back to Team
         </Button>
@@ -421,7 +419,7 @@ const OrgChart = () => {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 };
 

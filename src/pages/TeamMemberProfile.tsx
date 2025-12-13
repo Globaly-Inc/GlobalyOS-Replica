@@ -1,7 +1,8 @@
-import { Layout } from "@/components/Layout";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { OrgLink } from "@/components/OrgLink";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -523,25 +524,25 @@ const TeamMemberProfile = () => {
   };
 
   if (loading) {
-    return <Layout>
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </Card>
-      </Layout>;
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </Card>
+    );
   }
 
   if (!employee) {
-    return <Layout>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Employee not found</p>
-          <Link to="/team">
-            <Button className="mt-4" variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Team
-            </Button>
-          </Link>
-        </div>
-      </Layout>;
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Employee not found</p>
+        <OrgLink to="/team">
+          <Button className="mt-4" variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Team
+          </Button>
+        </OrgLink>
+      </div>
+    );
   }
 
   // Format partial address (city and country only) for limited view
@@ -552,16 +553,16 @@ const TeamMemberProfile = () => {
     .filter(Boolean)
     .join(", ");
 
-  return <Layout>
+  return <>
       <div className="space-y-4 sm:space-y-8 overflow-hidden">
         <div className="flex items-center justify-between">
-          <Link to="/team">
+          <OrgLink to="/team">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Back to Team</span>
               <span className="sm:hidden">Back</span>
             </Button>
-          </Link>
+          </OrgLink>
           <div className="flex items-center gap-2">
             {isAdmin && !isOwnProfile && (
               <div className="hidden sm:block">
@@ -708,7 +709,7 @@ const TeamMemberProfile = () => {
                     <span className="text-xs text-muted-foreground">Manager:</span>
                     {manager ? (
                       <div className="flex items-center gap-1.5">
-                        <Link to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                        <OrgLink to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                           <Avatar className="h-6 w-6 border-2 border-background">
                             <AvatarImage src={manager.profiles.avatar_url || undefined} />
                             <AvatarFallback className="text-xs bg-muted">
@@ -716,7 +717,7 @@ const TeamMemberProfile = () => {
                             </AvatarFallback>
                           </Avatar>
                           <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
-                        </Link>
+                        </OrgLink>
                         {canEditManager && (
                           <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
@@ -747,7 +748,7 @@ const TeamMemberProfile = () => {
                       <span className="text-xs text-muted-foreground">Manages:</span>
                       <div className="flex items-center">
                         {directReports.slice(0, 5).map((report, index) => (
-                          <Link 
+                          <OrgLink 
                             key={report.id} 
                             to={`/team/${report.id}`} 
                             className={`hover:z-20 transition-transform hover:scale-110 ${index > 0 ? '-ml-1.5' : ''}`}
@@ -760,7 +761,7 @@ const TeamMemberProfile = () => {
                                 {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
                               </AvatarFallback>
                             </Avatar>
-                          </Link>
+                          </OrgLink>
                         ))}
                         {directReports.length > 5 && (
                           <Popover>
@@ -773,7 +774,7 @@ const TeamMemberProfile = () => {
                               <p className="text-xs font-medium text-muted-foreground mb-2">All Direct Reports ({directReports.length})</p>
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {directReports.map((report) => (
-                                  <Link 
+                                  <OrgLink 
                                     key={report.id} 
                                     to={`/team/${report.id}`} 
                                     className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted transition-colors"
@@ -785,7 +786,7 @@ const TeamMemberProfile = () => {
                                       </AvatarFallback>
                                     </Avatar>
                                     <span className="text-sm text-foreground">{report.profiles.full_name}</span>
-                                  </Link>
+                                  </OrgLink>
                                 ))}
                               </div>
                             </PopoverContent>
@@ -982,11 +983,11 @@ const TeamMemberProfile = () => {
                     <ClipboardList className="h-5 w-5 text-primary" />
                     Performance Reviews
                   </h2>
-                  <Link to={`/team/${id}/reviews`}>
+                  <OrgLink to={`/team/${id}/reviews`}>
                     <Button size="sm" variant="outline">
                       View All
                     </Button>
-                  </Link>
+                  </OrgLink>
                 </div>
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">
@@ -1242,12 +1243,12 @@ const TeamMemberProfile = () => {
                     Leave Balances
                   </h2>
                   <div className="flex items-center gap-1 sm:gap-2">
-                    <Link to={`/team/${id}/leave-history`}>
+                    <OrgLink to={`/team/${id}/leave-history`}>
                       <Button size="sm" variant="ghost">
                         <History className="h-4 w-4 sm:mr-1" />
                         <span className="hidden sm:inline">Leave History</span>
                       </Button>
-                    </Link>
+                    </OrgLink>
                     {canManageLeave && (
                       <AddLeaveBalanceDialog employeeId={id!} />
                     )}
@@ -1437,6 +1438,6 @@ const TeamMemberProfile = () => {
           onSuccess={loadEmployeeSchedule}
         />
       )}
-    </Layout>;
+    </>;
 };
 export default TeamMemberProfile;

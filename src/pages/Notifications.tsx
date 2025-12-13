@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,7 @@ interface Notification {
 }
 
 const Notifications = () => {
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const { user } = useAuth();
   const { isSupported, isSubscribed, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -183,9 +182,9 @@ const Notifications = () => {
 
     // Navigate based on reference type
     if (notification.reference_type === "kudos" || notification.reference_type === "update") {
-      navigate("/");
+      navigateOrg("/");
     } else if (notification.reference_type === "leave_request") {
-      navigate("/leave-history");
+      navigateOrg("/leave-history");
     }
   };
 
@@ -230,7 +229,7 @@ const Notifications = () => {
   const leaveCount = notifications.filter((n) => n.type === "leave_request" || n.type === "leave_decision").length;
 
   return (
-    <Layout>
+    <>
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <PageHeader title="Notifications" />
@@ -279,7 +278,7 @@ const Notifications = () => {
                   variant="outline"
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => navigate("/notifications/preferences")}
+                  onClick={() => navigateOrg("/notifications/preferences")}
                 >
                   <Settings2 className="h-4 w-4" />
                 </Button>
@@ -435,7 +434,7 @@ const Notifications = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
+    </>
   );
 };
 

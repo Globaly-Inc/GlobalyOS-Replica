@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Save, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
 
 const WikiEditPage = () => {
   const { pageId } = useParams<{ pageId: string }>();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR, loading: roleLoading } = useUserRole();
   const queryClient = useQueryClient();

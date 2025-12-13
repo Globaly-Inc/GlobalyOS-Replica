@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, subMonths, startOfYear } from "date-fns";
 import { ArrowLeft, Plus, FileText, Star, Clock, CheckCircle, Edit, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Layout } from "@/components/Layout";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ interface ReviewDraft {
 
 const PerformanceReviewsPage = () => {
   const { id: employeeId } = useParams();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { isAdmin, isHR } = useUserRole();
@@ -169,13 +169,13 @@ const PerformanceReviewsPage = () => {
   const currentReview = reviews?.find((r) => r.id === selectedReview);
 
   return (
-    <Layout>
+    <>
       <div className="container mx-auto py-4 md:py-6 px-4 max-w-6xl">
         <Button
           variant="ghost"
           size="sm"
           className="mb-4"
-          onClick={() => navigate(`/team/${employeeId}`)}
+          onClick={() => navigateOrg(`/team/${employeeId}`)}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Profile
@@ -449,7 +449,7 @@ const PerformanceReviewsPage = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 
