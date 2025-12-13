@@ -647,7 +647,7 @@ const CalendarPage = () => {
         )}
       </div>
       
-      <ScrollArea className={isMobile ? "max-h-[250px]" : "flex-1"}>
+      <div className={isMobile ? "" : "flex-1 overflow-auto"}>
         <div className={cn("space-y-2", isMobile ? "p-2" : "p-3")}>
           {filteredItems.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
@@ -786,7 +786,7 @@ const CalendarPage = () => {
             </p>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 
