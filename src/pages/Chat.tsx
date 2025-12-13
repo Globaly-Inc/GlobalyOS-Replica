@@ -45,7 +45,7 @@ const Chat = () => {
 
       {/* Center - Conversation View */}
       <div className={cn(
-        "flex-1 min-w-0",
+        "flex-1 min-w-0 h-full",
         isMobile && !activeChat && "hidden"
       )}>
         {activeChat ? (
