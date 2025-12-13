@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
-import { WikiMarkdownEditor } from "./WikiMarkdownEditor";
+import { WikiRichEditor } from "./WikiRichEditor";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
 
@@ -200,11 +200,11 @@ export const WikiContent = ({ page, versions, onSave, canEdit, isLoading, organi
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {isEditing ? (
-          <WikiMarkdownEditor
+          <WikiRichEditor
             value={editContent}
             onChange={setEditContent}
             organizationId={organizationId}
-            placeholder="Write your wiki page in markdown..."
+            placeholder="Start writing..."
             minHeight="400px"
           />
         ) : page.content ? (
