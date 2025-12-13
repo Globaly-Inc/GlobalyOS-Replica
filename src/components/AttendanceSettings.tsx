@@ -17,7 +17,6 @@ export const AttendanceSettings = () => {
   const [saving, setSaving] = useState(false);
   
   const [featureEnabled, setFeatureEnabled] = useState(false);
-  const [workdayHours, setWorkdayHours] = useState("8");
   const [maxDilDays, setMaxDilDays] = useState("");
   const [hasDilCap, setHasDilCap] = useState(false);
 
@@ -33,13 +32,12 @@ export const AttendanceSettings = () => {
 
     const { data, error } = await supabase
       .from("organizations")
-      .select("workday_hours, max_day_in_lieu_days, auto_attendance_adjustments_enabled")
+      .select("max_day_in_lieu_days, auto_attendance_adjustments_enabled")
       .eq("id", currentOrg.id)
       .single();
 
     if (!error && data) {
       setFeatureEnabled(data.auto_attendance_adjustments_enabled || false);
-      setWorkdayHours(String(data.workday_hours || 8));
       setHasDilCap(data.max_day_in_lieu_days !== null);
       setMaxDilDays(data.max_day_in_lieu_days !== null ? String(data.max_day_in_lieu_days) : "");
     }
@@ -50,21 +48,13 @@ export const AttendanceSettings = () => {
   const handleSave = async () => {
     if (!currentOrg) return;
 
-    const hours = parseFloat(workdayHours);
-    if (isNaN(hours) || hours <= 0 || hours > 24) {
-      toast.error("Workday hours must be between 0 and 24");
-      return;
-    }
-
     setSaving(true);
 
     try {
       const updateData: { 
-        workday_hours: number; 
         max_day_in_lieu_days: number | null;
         auto_attendance_adjustments_enabled: boolean;
       } = {
-        workday_hours: hours,
         max_day_in_lieu_days: null,
         auto_attendance_adjustments_enabled: featureEnabled
       };
@@ -159,26 +149,7 @@ export const AttendanceSettings = () => {
 
         {featureEnabled && (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="workdayHours">Workday Hours</Label>
-                <Input
-                  id="workdayHours"
-                  type="number"
-                  min="1"
-                  max="24"
-                  step="0.5"
-                  value={workdayHours}
-                  onChange={(e) => setWorkdayHours(e.target.value)}
-                  placeholder="8"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Hours that equal 1 full day for overtime/undertime conversion
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Cap Day In Lieu Accumulation</Label>
@@ -214,8 +185,8 @@ export const AttendanceSettings = () => {
             <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
               <h4 className="font-medium text-sm">How it works</h4>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li><strong>Early check-in / late check-out:</strong> Extra hours accumulate. When they reach {workdayHours || 8} hours, +1 &quot;Day In Lieu&quot; is automatically added.</li>
-                <li><strong>Late check-in / early check-out:</strong> Deficit hours accumulate. When they reach {workdayHours || 8} hours, 1 day is deducted from Day In Lieu first, then Annual Leave.</li>
+                <li><strong>Early check-in / late check-out:</strong> Extra hours accumulate based on each employee&apos;s work schedule. When they reach a full workday, +1 &quot;Day In Lieu&quot; is automatically added.</li>
+                <li><strong>Late check-in / early check-out:</strong> Deficit hours accumulate. When they reach a full workday, 1 day is deducted from Day In Lieu first, then Annual Leave.</li>
                 <li>Adjustments are processed automatically at end of each day.</li>
               </ul>
             </div>

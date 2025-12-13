@@ -24,7 +24,6 @@ interface AttendanceRecord {
 
 interface Organization {
   id: string;
-  workday_hours: number;
   max_day_in_lieu_days: number | null;
   auto_attendance_adjustments_enabled: boolean;
 }
@@ -51,7 +50,7 @@ Deno.serve(async (req) => {
     // Get all organizations with their settings (only those with feature enabled)
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
-      .select('id, workday_hours, max_day_in_lieu_days, auto_attendance_adjustments_enabled')
+      .select('id, max_day_in_lieu_days, auto_attendance_adjustments_enabled')
       .eq('auto_attendance_adjustments_enabled', true);
 
     if (orgError) {
@@ -99,8 +98,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const workdayMinutes = org.workday_hours * 60;
       let adjustmentCount = 0;
+      const defaultWorkdayMinutes = 8 * 60; // 8 hours default if no schedule
 
       // Process each employee
       for (const [employeeId, data] of Object.entries(employeeWorkHours)) {
@@ -111,7 +110,7 @@ Deno.serve(async (req) => {
           .eq('employee_id', employeeId)
           .single();
 
-        let expectedMinutes = workdayMinutes;
+        let expectedMinutes = defaultWorkdayMinutes;
         
         if (scheduleData) {
           // Calculate expected work hours from schedule
@@ -172,10 +171,10 @@ Deno.serve(async (req) => {
 
           console.log(`Employee ${employeeId}: Added ${difference} overtime minutes (total: ${newOvertimeMinutes})`);
 
-          // Check if overtime reaches a full day
-          if (newOvertimeMinutes >= workdayMinutes) {
-            const daysToAdd = Math.floor(newOvertimeMinutes / workdayMinutes);
-            const remainingMinutes = newOvertimeMinutes % workdayMinutes;
+          // Check if overtime reaches a full day (based on employee's expected hours)
+          if (newOvertimeMinutes >= expectedMinutes) {
+            const daysToAdd = Math.floor(newOvertimeMinutes / expectedMinutes);
+            const remainingMinutes = newOvertimeMinutes % expectedMinutes;
 
             // Get or create Day In Lieu leave type
             let { data: dilLeaveType } = await supabase
@@ -263,9 +262,9 @@ Deno.serve(async (req) => {
                   adjustment_type: 'overtime_credit',
                   leave_type_id: dilLeaveType.id,
                   days_adjusted: actualDaysToAdd,
-                  minutes_converted: actualDaysToAdd * workdayMinutes,
+                  minutes_converted: actualDaysToAdd * expectedMinutes,
                   attendance_date: targetDate,
-                  notes: `Auto-credited ${actualDaysToAdd} day(s) in lieu for accumulated overtime`
+                  notes: `Auto-credited ${actualDaysToAdd} day(s) in lieu for accumulated overtime (${expectedMinutes} min/day)`
                 });
 
               // Update remaining overtime minutes
@@ -296,10 +295,10 @@ Deno.serve(async (req) => {
 
           console.log(`Employee ${employeeId}: Added ${undertimeMinutes} undertime minutes (total: ${newUndertimeMinutes})`);
 
-          // Check if undertime reaches a full day
-          if (newUndertimeMinutes >= workdayMinutes) {
-            const daysToDeduct = Math.floor(newUndertimeMinutes / workdayMinutes);
-            const remainingMinutes = newUndertimeMinutes % workdayMinutes;
+          // Check if undertime reaches a full day (based on employee's expected hours)
+          if (newUndertimeMinutes >= expectedMinutes) {
+            const daysToDeduct = Math.floor(newUndertimeMinutes / expectedMinutes);
+            const remainingMinutes = newUndertimeMinutes % expectedMinutes;
 
             let deducted = 0;
             let deductFromType: { id: string; name: string } | null = null;
@@ -346,9 +345,9 @@ Deno.serve(async (req) => {
                   adjustment_type: 'undertime_deduction',
                   leave_type_id: leaveType.id,
                   days_adjusted: -canDeduct,
-                  minutes_converted: canDeduct * workdayMinutes,
+                  minutes_converted: canDeduct * expectedMinutes,
                   attendance_date: targetDate,
-                  notes: `Auto-deducted ${canDeduct} day(s) from ${typeName} for accumulated undertime`
+                  notes: `Auto-deducted ${canDeduct} day(s) from ${typeName} for accumulated undertime (${expectedMinutes} min/day)`
                 });
 
               deducted += canDeduct;
