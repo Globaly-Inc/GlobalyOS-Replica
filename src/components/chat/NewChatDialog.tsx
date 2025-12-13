@@ -28,9 +28,22 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
   
-  const { data: employees = [], isLoading } = useEmployees();
-  const { employee: currentEmployee } = useCurrentEmployee();
+  const { data: employeesData = [], isLoading } = useEmployees();
+  const { data: currentEmployee } = useCurrentEmployee();
   const createConversation = useCreateConversation();
+
+  // Type the employees data properly
+  const employees = (employeesData as unknown) as Array<{
+    id: string;
+    position: string;
+    department: string;
+    status: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+      email: string;
+    };
+  }>;
 
   const filteredEmployees = employees.filter(emp => {
     if (emp.id === currentEmployee?.id) return false;
