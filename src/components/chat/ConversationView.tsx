@@ -1,0 +1,307 @@
+import { useState, useRef, useEffect } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ArrowLeft,
+  Search,
+  MoreVertical,
+  Phone,
+  Video,
+  Pin,
+  History,
+} from "lucide-react";
+import { format, isToday, isYesterday } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useMessages, useTogglePinMessage } from "@/services/useChat";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import MessageComposer from "./MessageComposer";
+import type { ActiveChat, ChatMessage } from "@/types/chat";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface ConversationViewProps {
+  activeChat: ActiveChat;
+  onBack: () => void;
+  onToggleRightPanel: () => void;
+}
+
+const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: ConversationViewProps) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { employee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const togglePin = useTogglePinMessage();
+  
+  const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
+  const spaceId = activeChat.type === 'space' ? activeChat.id : null;
+  
+  const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
+
+  // Subscribe to real-time messages
+  useEffect(() => {
+    const channel = supabase
+      .channel('chat-messages-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: conversationId 
+            ? `conversation_id=eq.${conversationId}`
+            : `space_id=eq.${spaceId}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, spaceId, queryClient]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const formatMessageTime = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isToday(date)) {
+      return format(date, "h:mm a");
+    }
+    if (isYesterday(date)) {
+      return `Yesterday ${format(date, "h:mm a")}`;
+    }
+    return format(date, "MMM d, h:mm a");
+  };
+
+  const formatDateDivider = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isToday(date)) return "Today";
+    if (isYesterday(date)) return "Yesterday";
+    return format(date, "MMMM d, yyyy");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Group messages by date
+  const groupedMessages = messages.reduce((groups, message) => {
+    const date = format(new Date(message.created_at), "yyyy-MM-dd");
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(message);
+    return groups;
+  }, {} as Record<string, ChatMessage[]>);
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden"
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          
+          {activeChat.type === 'conversation' ? (
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs">
+                {getInitials(activeChat.name)}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className="flex items-center justify-center h-8 w-8 rounded bg-primary/10 text-primary font-semibold text-sm">
+              {activeChat.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          
+          <div>
+            <h2 className="font-semibold text-foreground">{activeChat.name}</h2>
+            {activeChat.type === 'space' && (
+              <p className="text-xs text-muted-foreground">
+                {messages.length} messages
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon">
+            <Search className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <Video className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onToggleRightPanel}>
+            <Pin className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-muted-foreground">Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            {activeChat.type === 'conversation' ? (
+              <>
+                <Avatar className="h-20 w-20 mb-4">
+                  <AvatarFallback className="text-2xl">
+                    {getInitials(activeChat.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <h3 className="text-lg font-semibold">{activeChat.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You created this chat today
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center h-20 w-20 rounded-lg bg-primary/10 text-primary font-bold text-3xl mb-4">
+                  {activeChat.name.charAt(0).toUpperCase()}
+                </div>
+                <h3 className="text-lg font-semibold">{activeChat.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Welcome to your new space! Start the conversation.
+                </p>
+              </>
+            )}
+            <div className="flex items-center gap-1 mt-4 text-sm text-muted-foreground">
+              <History className="h-4 w-4" />
+              <span>HISTORY IS ON</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Messages sent with history on are saved
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(groupedMessages).map(([date, dateMessages]) => (
+              <div key={date}>
+                {/* Date divider */}
+                <div className="flex items-center justify-center my-4">
+                  <span className="px-3 py-1 text-xs font-medium text-muted-foreground bg-muted rounded-full">
+                    {formatDateDivider(dateMessages[0].created_at)}
+                  </span>
+                </div>
+
+                {/* Messages for this date */}
+                <div className="space-y-3">
+                  {dateMessages.map((message) => {
+                    const isOwn = message.sender_id === employee?.id;
+                    const senderName = message.sender?.profiles?.full_name || "Unknown";
+                    
+                    return (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "flex gap-3 group",
+                          isOwn && "flex-row-reverse"
+                        )}
+                      >
+                        {!isOwn && (
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(senderName)}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div className={cn("flex flex-col max-w-[70%]", isOwn && "items-end")}>
+                          {!isOwn && (
+                            <span className="text-xs font-medium text-muted-foreground mb-1">
+                              {senderName}
+                            </span>
+                          )}
+                          
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={cn(
+                                "px-3 py-2 rounded-2xl text-sm",
+                                isOwn
+                                  ? "bg-primary text-primary-foreground rounded-br-md"
+                                  : "bg-muted rounded-bl-md",
+                                message.is_pinned && "ring-2 ring-yellow-400"
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                >
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align={isOwn ? "end" : "start"}>
+                                <DropdownMenuItem 
+                                  onClick={() => togglePin.mutate({ 
+                                    messageId: message.id, 
+                                    isPinned: message.is_pinned 
+                                  })}
+                                >
+                                  <Pin className="h-4 w-4 mr-2" />
+                                  {message.is_pinned ? "Unpin" : "Pin"} message
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          
+                          <span className="text-[10px] text-muted-foreground mt-1">
+                            {formatMessageTime(message.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+
+      {/* Message Composer */}
+      <MessageComposer 
+        conversationId={conversationId}
+        spaceId={spaceId}
+      />
+    </div>
+  );
+};
+
+export default ConversationView;

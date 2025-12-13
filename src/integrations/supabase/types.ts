@@ -359,6 +359,564 @@ export type Database = {
           },
         ]
       }
+      chat_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          message_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          message_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          message_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_group: boolean
+          name: string | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_group?: boolean
+          name?: string | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_group?: boolean
+          name?: string | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_mentions: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          message_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          message_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          message_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_mentions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          content_type: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          is_pinned: boolean
+          organization_id: string
+          reply_to_id: string | null
+          sender_id: string
+          space_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          content_type?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          organization_id: string
+          reply_to_id?: string | null
+          sender_id: string
+          space_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          content_type?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          organization_id?: string
+          reply_to_id?: string | null
+          sender_id?: string
+          space_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participants: {
+        Row: {
+          conversation_id: string
+          employee_id: string
+          id: string
+          is_muted: boolean
+          joined_at: string
+          last_read_at: string | null
+          organization_id: string
+        }
+        Insert: {
+          conversation_id: string
+          employee_id: string
+          id?: string
+          is_muted?: boolean
+          joined_at?: string
+          last_read_at?: string | null
+          organization_id: string
+        }
+        Update: {
+          conversation_id?: string
+          employee_id?: string
+          id?: string
+          is_muted?: boolean
+          joined_at?: string
+          last_read_at?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_pinned_resources: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          file_path: string | null
+          id: string
+          organization_id: string
+          pinned_by: string
+          space_id: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          organization_id: string
+          pinned_by: string
+          space_id?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          organization_id?: string
+          pinned_by?: string
+          space_id?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_pinned_resources_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pinned_resources_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pinned_resources_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pinned_resources_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pinned_resources_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_presence: {
+        Row: {
+          employee_id: string
+          id: string
+          is_online: boolean
+          last_seen_at: string
+          organization_id: string
+          typing_in_conversation_id: string | null
+          typing_in_space_id: string | null
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          organization_id: string
+          typing_in_conversation_id?: string | null
+          typing_in_space_id?: string | null
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          organization_id?: string
+          typing_in_conversation_id?: string | null
+          typing_in_space_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_presence_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_presence_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_presence_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_presence_typing_in_conversation_id_fkey"
+            columns: ["typing_in_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_presence_typing_in_space_id_fkey"
+            columns: ["typing_in_space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_space_members: {
+        Row: {
+          employee_id: string
+          id: string
+          joined_at: string
+          last_read_at: string | null
+          notification_setting: string
+          organization_id: string
+          role: string
+          space_id: string
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          notification_setting?: string
+          organization_id: string
+          role?: string
+          space_id: string
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          notification_setting?: string
+          organization_id?: string
+          role?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_space_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_spaces: {
+        Row: {
+          access_type: Database["public"]["Enums"]["chat_space_access"]
+          created_at: string
+          created_by: string
+          description: string | null
+          history_enabled: boolean
+          id: string
+          name: string
+          organization_id: string
+          space_type: Database["public"]["Enums"]["chat_space_type"]
+          updated_at: string
+        }
+        Insert: {
+          access_type?: Database["public"]["Enums"]["chat_space_access"]
+          created_at?: string
+          created_by: string
+          description?: string | null
+          history_enabled?: boolean
+          id?: string
+          name: string
+          organization_id: string
+          space_type?: Database["public"]["Enums"]["chat_space_type"]
+          updated_at?: string
+        }
+        Update: {
+          access_type?: Database["public"]["Enums"]["chat_space_access"]
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          history_enabled?: boolean
+          id?: string
+          name?: string
+          organization_id?: string
+          space_type?: Database["public"]["Enums"]["chat_space_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_spaces_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_spaces_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_spaces_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_documents: {
         Row: {
           created_at: string
@@ -2629,6 +3187,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "hr" | "user" | "super_admin"
+      chat_space_access: "public" | "private"
+      chat_space_type: "collaboration" | "announcements"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2757,6 +3317,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "hr", "user", "super_admin"],
+      chat_space_access: ["public", "private"],
+      chat_space_type: ["collaboration", "announcements"],
     },
   },
 } as const
