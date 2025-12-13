@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   MessageSquarePlus,
-  Home,
   AtSign,
   Star,
   Hash,
@@ -260,18 +259,30 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             Shortcuts
           </p>
           <div className="space-y-1">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-              <Home className="h-4 w-4" />
-              Home
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+            <button
+              onClick={() => onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' })}
+              className={cn(
+                "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                activeChat?.type === 'mentions'
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
               <AtSign className="h-4 w-4" />
               Mentions
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+            </button>
+            <button
+              onClick={() => onSelectChat({ type: 'starred', id: 'starred', name: 'Starred' })}
+              className={cn(
+                "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                activeChat?.type === 'starred'
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
               <Star className="h-4 w-4" />
               Starred
-            </Button>
+            </button>
           </div>
         </div>
 

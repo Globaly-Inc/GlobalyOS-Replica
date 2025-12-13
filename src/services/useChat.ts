@@ -1036,7 +1036,166 @@ export const useRemoveSpaceMember = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
-      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
     },
+  });
+};
+
+// Fetch messages where current user is mentioned
+export const useMentionedMessages = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['chat-mentioned-messages', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      // Get all mentions for current employee
+      const { data: mentions, error: mentionsError } = await supabase
+        .from('chat_mentions')
+        .select('message_id')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      if (mentionsError) throw mentionsError;
+      if (!mentions?.length) return [];
+
+      const messageIds = mentions.map(m => m.message_id);
+
+      // Get full message details
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          employees:sender_id (
+            id,
+            user_id,
+            position,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          ),
+          chat_attachments (
+            id,
+            file_name,
+            file_path,
+            file_type,
+            file_size,
+            created_at
+          ),
+          chat_conversations:conversation_id (
+            id,
+            name,
+            is_group
+          ),
+          chat_spaces:space_id (
+            id,
+            name
+          )
+        `)
+        .in('id', messageIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (messages || []).map((msg: any) => ({
+        ...msg,
+        sender: msg.employees,
+        attachments: msg.chat_attachments || [],
+        conversation: msg.chat_conversations,
+        space: msg.chat_spaces
+      }));
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+  });
+};
+
+// Fetch all starred/pinned messages for current user
+export const useStarredMessages = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['chat-starred-messages', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      // Get pinned messages from conversations the user is part of
+      const { data: participantConvs } = await supabase
+        .from('chat_participants')
+        .select('conversation_id')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const { data: memberSpaces } = await supabase
+        .from('chat_space_members')
+        .select('space_id')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const convIds = participantConvs?.map(p => p.conversation_id) || [];
+      const spaceIds = memberSpaces?.map(s => s.space_id) || [];
+
+      if (!convIds.length && !spaceIds.length) return [];
+
+      let query = supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          employees:sender_id (
+            id,
+            user_id,
+            position,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          ),
+          chat_attachments (
+            id,
+            file_name,
+            file_path,
+            file_type,
+            file_size,
+            created_at
+          ),
+          chat_conversations:conversation_id (
+            id,
+            name,
+            is_group
+          ),
+          chat_spaces:space_id (
+            id,
+            name
+          )
+        `)
+        .eq('is_pinned', true)
+        .eq('organization_id', currentOrg.id)
+        .order('created_at', { ascending: false });
+
+      // Filter by conversations or spaces user has access to
+      if (convIds.length && spaceIds.length) {
+        query = query.or(`conversation_id.in.(${convIds.join(',')}),space_id.in.(${spaceIds.join(',')})`);
+      } else if (convIds.length) {
+        query = query.in('conversation_id', convIds);
+      } else if (spaceIds.length) {
+        query = query.in('space_id', spaceIds);
+      }
+
+      const { data: messages, error } = await query;
+
+      if (error) throw error;
+
+      return (messages || []).map((msg: any) => ({
+        ...msg,
+        sender: msg.employees,
+        attachments: msg.chat_attachments || [],
+        conversation: msg.chat_conversations,
+        space: msg.chat_spaces
+      }));
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
   });
 };
