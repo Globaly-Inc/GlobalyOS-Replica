@@ -26,7 +26,7 @@ interface WorldClockCardsProps {
 }
 
 const STORAGE_KEY = "world-clock-timezones";
-const MAX_CLOCKS = 5;
+const MAX_CLOCKS = 7;
 
 // Map country names to default timezones
 const countryToTimezone: Record<string, string> = {
