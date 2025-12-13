@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -10,12 +10,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WikiFolder {
   id: string;
   name: string;
   parent_id: string | null;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface WikiPage {
@@ -23,7 +32,12 @@ interface WikiPage {
   folder_id: string | null;
   title: string;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
+
+type SortOption = "name" | "created" | "modified";
+type SortDirection = "asc" | "desc";
 
 interface WikiFolderViewProps {
   folders: WikiFolder[];
@@ -63,6 +77,8 @@ export const WikiFolderView = ({
   onCreatingItemComplete,
 }: WikiFolderViewProps) => {
   const [creatingName, setCreatingName] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when creating item
@@ -104,14 +120,45 @@ export const WikiFolderView = ({
     }
   };
 
+  // Sort function
+  const sortItems = <T extends { name?: string; title?: string; created_at: string; updated_at: string }>(
+    items: T[],
+    sortBy: SortOption,
+    direction: SortDirection
+  ): T[] => {
+    return [...items].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case "name":
+          const nameA = (a.name || a.title || "").toLowerCase();
+          const nameB = (b.name || b.title || "").toLowerCase();
+          comparison = nameA.localeCompare(nameB);
+          break;
+        case "created":
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "modified":
+          comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+          break;
+      }
+      
+      return direction === "asc" ? comparison : -comparison;
+    });
+  };
+
   // Get child folders and pages for current view
-  const childFolders = folders
-    .filter((f) => f.parent_id === currentFolderId)
-    .sort((a, b) => a.sort_order - b.sort_order);
+  const childFolders = sortItems(
+    folders.filter((f) => f.parent_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
   
-  const childPages = pages
-    .filter((p) => p.folder_id === currentFolderId)
-    .sort((a, b) => a.sort_order - b.sort_order);
+  const childPages = sortItems(
+    pages.filter((p) => p.folder_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
 
   // Get breadcrumb path
   const getBreadcrumbs = () => {
@@ -130,27 +177,71 @@ export const WikiFolderView = ({
 
   const breadcrumbs = getBreadcrumbs();
 
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Breadcrumb navigation */}
+      {/* Breadcrumb navigation and sort controls */}
       <div className="border-b bg-card px-6 py-4">
-        <div className="flex items-center gap-1 text-sm">
-          {breadcrumbs.map((crumb, index) => (
-            <div key={crumb.id ?? "home"} className="flex items-center">
-              {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
-              <button
-                onClick={() => onSelectFolder(crumb.id)}
-                className={cn(
-                  "hover:text-primary transition-colors",
-                  index === breadcrumbs.length - 1
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground hover:underline"
-                )}
-              >
-                {crumb.name}
-              </button>
-            </div>
-          ))}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1 text-sm">
+            {breadcrumbs.map((crumb, index) => (
+              <div key={crumb.id ?? "home"} className="flex items-center">
+                {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
+                <button
+                  onClick={() => onSelectFolder(crumb.id)}
+                  className={cn(
+                    "hover:text-primary transition-colors",
+                    index === breadcrumbs.length - 1
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground hover:underline"
+                  )}
+                >
+                  {crumb.name}
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          {/* Sort controls */}
+          <div className="flex items-center gap-2">
+            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">
+                  <div className="flex items-center gap-2">
+                    <ArrowDownAZ className="h-3 w-3" />
+                    Name
+                  </div>
+                </SelectItem>
+                <SelectItem value="created">
+                  <div className="flex items-center gap-2">
+                    <CalendarPlus className="h-3 w-3" />
+                    Created
+                  </div>
+                </SelectItem>
+                <SelectItem value="modified">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3 w-3" />
+                    Modified
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleSortDirection}
+              title={sortDirection === "asc" ? "Ascending" : "Descending"}
+            >
+              <ArrowUpDown className={cn("h-4 w-4", sortDirection === "desc" && "rotate-180")} />
+            </Button>
+          </div>
         </div>
       </div>
 

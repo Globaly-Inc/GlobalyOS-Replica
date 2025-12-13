@@ -21,6 +21,8 @@ interface WikiFolder {
   name: string;
   parent_id: string | null;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface WikiPage {
@@ -146,7 +148,7 @@ const Wiki = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("wiki_folders")
-        .select("id, name, parent_id, sort_order")
+        .select("id, name, parent_id, sort_order, created_at, updated_at")
         .eq("organization_id", currentOrg.id)
         .order("sort_order");
       if (error) throw error;
@@ -162,7 +164,7 @@ const Wiki = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("wiki_pages")
-        .select("id, folder_id, title, content, sort_order")
+        .select("id, folder_id, title, content, sort_order, created_at, updated_at")
         .eq("organization_id", currentOrg.id)
         .order("sort_order");
       if (error) throw error;
