@@ -33,10 +33,11 @@ const sanitizeConfig = {
     'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
     'a', 'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-    'div', 'span', 'iframe', 'colgroup', 'col'
+    'div', 'span', 'iframe', 'colgroup', 'col',
+    'select', 'option', 'button'
   ],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 'frameborder', 'allowfullscreen', 'style'],
-  ALLOW_DATA_ATTR: false,
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'width', 'height', 'frameborder', 'allowfullscreen', 'style', 'value', 'selected', 'contenteditable', 'data-language'],
+  ALLOW_DATA_ATTR: true,
 };
 
 export const WikiRichEditor = ({ 
@@ -454,7 +455,7 @@ export const WikiRichEditor = ({
     }
   };
 
-  // Insert a styled code block with header
+  // Insert a styled code block with header and language dropdown
   const handleInsertCodeBlock = useCallback(() => {
     restoreSelection();
     const selection = window.getSelection();
@@ -477,6 +478,13 @@ export const WikiRichEditor = ({
       selection.getRangeAt(0).deleteContents();
     }
     
+    const languages = [
+      'Plain text', 'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
+      'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'HTML', 'CSS', 'SQL',
+      'Bash', 'Shell', 'JSON', 'YAML', 'XML', 'Markdown', 'GraphQL', 'Dart',
+      'Scala', 'R', 'Lua', 'Perl', 'Objective-C', 'Elixir', 'Haskell'
+    ];
+    
     // Create the code block container
     const codeBlockWrapper = document.createElement('div');
     codeBlockWrapper.className = 'wiki-code-block';
@@ -485,11 +493,11 @@ export const WikiRichEditor = ({
     codeBlockWrapper.style.overflow = 'hidden';
     codeBlockWrapper.style.margin = '0.5rem 0';
     codeBlockWrapper.style.width = '100%';
-    codeBlockWrapper.contentEditable = 'false';
     
-    // Create header
+    // Create header (non-editable)
     const header = document.createElement('div');
     header.className = 'wiki-code-header';
+    header.contentEditable = 'false';
     header.style.backgroundColor = '#2d2d2d';
     header.style.padding = '0.5rem 1rem';
     header.style.display = 'flex';
@@ -497,13 +505,31 @@ export const WikiRichEditor = ({
     header.style.justifyContent = 'space-between';
     header.style.borderBottom = '1px solid #404040';
     
-    // Language label
-    const langLabel = document.createElement('span');
-    langLabel.className = 'wiki-code-lang';
-    langLabel.textContent = 'plain text';
-    langLabel.style.color = '#e0e0e0';
-    langLabel.style.fontSize = '0.875rem';
-    langLabel.style.fontWeight = '500';
+    // Language dropdown selector
+    const langSelect = document.createElement('select');
+    langSelect.className = 'wiki-code-lang-select';
+    langSelect.style.backgroundColor = 'transparent';
+    langSelect.style.color = '#e0e0e0';
+    langSelect.style.fontSize = '0.875rem';
+    langSelect.style.fontWeight = '500';
+    langSelect.style.border = 'none';
+    langSelect.style.outline = 'none';
+    langSelect.style.cursor = 'pointer';
+    langSelect.style.padding = '0.25rem 0';
+    
+    languages.forEach(lang => {
+      const option = document.createElement('option');
+      option.value = lang;
+      option.textContent = lang.toLowerCase();
+      option.style.backgroundColor = '#2d2d2d';
+      option.style.color = '#e0e0e0';
+      langSelect.appendChild(option);
+    });
+    
+    langSelect.onchange = () => {
+      codeBlockWrapper.setAttribute('data-language', langSelect.value);
+      triggerUpdate();
+    };
     
     // Copy button
     const copyBtn = document.createElement('button');
@@ -515,6 +541,9 @@ export const WikiRichEditor = ({
     copyBtn.style.cursor = 'pointer';
     copyBtn.style.padding = '0.25rem';
     copyBtn.style.borderRadius = '0.25rem';
+    copyBtn.style.display = 'flex';
+    copyBtn.style.alignItems = 'center';
+    copyBtn.style.justifyContent = 'center';
     copyBtn.title = 'Copy code';
     copyBtn.onclick = (e) => {
       e.preventDefault();
@@ -530,10 +559,10 @@ export const WikiRichEditor = ({
       }
     };
     
-    header.appendChild(langLabel);
+    header.appendChild(langSelect);
     header.appendChild(copyBtn);
     
-    // Create code content area
+    // Create code content area (editable)
     const codeContent = document.createElement('pre');
     codeContent.className = 'wiki-code-content';
     codeContent.style.backgroundColor = '#1e1e1e';
@@ -547,6 +576,7 @@ export const WikiRichEditor = ({
     codeContent.style.whiteSpace = 'pre-wrap';
     codeContent.style.wordBreak = 'break-word';
     codeContent.style.minHeight = '60px';
+    codeContent.style.outline = 'none';
     codeContent.contentEditable = 'true';
     codeContent.textContent = selectedText || '// Enter your code here...';
     
