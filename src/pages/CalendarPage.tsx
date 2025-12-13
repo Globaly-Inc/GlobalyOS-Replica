@@ -126,7 +126,7 @@ const CalendarPage = () => {
     is_recurring?: boolean;
   } | null>(null);
   const { currentOrg } = useOrganization();
-  const { isAdmin, isHR } = useUserRole();
+  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { user } = useAuth();
   const { timezone, setTimezone } = useTimezone();
   const canManageEvents = isAdmin || isHR;
@@ -265,7 +265,7 @@ const CalendarPage = () => {
   // For upcoming section, we fetch a wider date range (current month + next 2 months)
   const extendedEndDate = addMonths(monthEnd, 2);
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery({
-    queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, format(monthStart, "yyyy-MM")],
+    queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, isAdmin, isHR, format(monthStart, "yyyy-MM")],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       
@@ -319,7 +319,7 @@ const CalendarPage = () => {
         return event.officeIds.includes(currentEmployee.office_id);
       });
     },
-    enabled: !!currentOrg?.id,
+    enabled: !!currentOrg?.id && !roleLoading,
   });
 
   // Fetch performance reviews
