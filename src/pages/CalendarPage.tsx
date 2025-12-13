@@ -86,6 +86,7 @@ const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [activeFilters, setActiveFilters] = useState<Set<CalendarItem["type"]>>(new Set());
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -438,10 +439,12 @@ const CalendarPage = () => {
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [leaves, calendarEvents, employees, reviews, currentDate, offices]);
 
-  // Filter items for selected date or upcoming
+  // Filter items for selected date or upcoming (respecting type filters)
   const filteredItems = useMemo(() => {
+    const baseItems = activeFilters.size === 0 ? allItems : allItems.filter((item) => activeFilters.has(item.type));
+    
     if (selectedDate) {
-      return allItems.filter((item) => {
+      return baseItems.filter((item) => {
         if (item.endDate) {
           return isWithinInterval(selectedDate, { start: item.date, end: item.endDate }) ||
                  isSameDay(selectedDate, item.date) ||
@@ -453,11 +456,11 @@ const CalendarPage = () => {
     // Show upcoming items (from today onwards)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return allItems.filter((item) => {
+    return baseItems.filter((item) => {
       const itemEnd = item.endDate || item.date;
       return itemEnd >= today;
     }).slice(0, 20);
-  }, [allItems, selectedDate]);
+  }, [allItems, selectedDate, activeFilters]);
 
   // Get calendar days based on view mode
   const calendarDays = useMemo(() => {
@@ -474,15 +477,50 @@ const CalendarPage = () => {
     }
   }, [currentDate, viewMode, monthStart, monthEnd]);
 
-  // Get events for a specific day
+  // Filter items by active type filters
+  const typeFilteredItems = useMemo(() => {
+    if (activeFilters.size === 0) return allItems;
+    return allItems.filter((item) => activeFilters.has(item.type));
+  }, [allItems, activeFilters]);
+
+  // Get counts by type for filter badges
+  const typeCounts = useMemo(() => {
+    const counts: Record<CalendarItem["type"], number> = {
+      leave: 0,
+      holiday: 0,
+      event: 0,
+      birthday: 0,
+      anniversary: 0,
+      review: 0,
+    };
+    allItems.forEach((item) => {
+      counts[item.type]++;
+    });
+    return counts;
+  }, [allItems]);
+
+  // Get events for a specific day (respecting filters)
   const getDayItems = (date: Date): CalendarItem[] => {
-    return allItems.filter((item) => {
+    return typeFilteredItems.filter((item) => {
       if (item.endDate) {
         return isWithinInterval(date, { start: item.date, end: item.endDate }) ||
                isSameDay(date, item.date) ||
                isSameDay(date, item.endDate);
       }
       return isSameDay(item.date, date);
+    });
+  };
+
+  // Toggle filter
+  const toggleFilter = (type: CalendarItem["type"]) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
     });
   };
 
@@ -1040,10 +1078,10 @@ const CalendarPage = () => {
               </div>
             )}
 
-            {/* Legend and Timezone */}
+            {/* Filter Tabs and Timezone */}
             <div className="mt-6 px-4 py-3 bg-muted/30 rounded-xl border border-border/50">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                <div className="flex flex-wrap gap-1.5">
                   {[
                     { type: "leave" as const, label: "Leave" },
                     { type: "holiday" as const, label: "Holiday" },
@@ -1051,12 +1089,45 @@ const CalendarPage = () => {
                     { type: "birthday" as const, label: "Birthday" },
                     { type: "anniversary" as const, label: "Anniversary" },
                     { type: "review" as const, label: "Review" },
-                  ].map((item) => (
-                    <div key={item.type} className="flex items-center gap-2">
-                      <div className={cn("h-3 w-3 rounded-full shrink-0", getTypeColor(item.type))} />
-                      <span className="text-xs text-foreground/80">{item.label}</span>
-                    </div>
-                  ))}
+                  ].map((item) => {
+                    const isActive = activeFilters.has(item.type);
+                    const count = typeCounts[item.type];
+                    return (
+                      <button
+                        key={item.type}
+                        onClick={() => toggleFilter(item.type)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-background hover:bg-accent border border-border/50"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-2.5 w-2.5 rounded-full shrink-0",
+                          isActive ? "bg-primary-foreground/80" : getTypeColor(item.type)
+                        )} />
+                        <span>{item.label}</span>
+                        <Badge 
+                          variant={isActive ? "secondary" : "outline"} 
+                          className={cn(
+                            "h-5 min-w-[20px] px-1.5 text-[10px] font-semibold",
+                            isActive && "bg-primary-foreground/20 text-primary-foreground border-0"
+                          )}
+                        >
+                          {count}
+                        </Badge>
+                      </button>
+                    );
+                  })}
+                  {activeFilters.size > 0 && (
+                    <button
+                      onClick={() => setActiveFilters(new Set())}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  )}
                 </div>
                 
                 {/* Timezone Selector */}
