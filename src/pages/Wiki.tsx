@@ -7,6 +7,7 @@ import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
 import { WikiAskAI } from "@/components/wiki/WikiAskAI";
 import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
+import { WikiUploadDialog } from "@/components/wiki/WikiUploadDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -416,6 +417,14 @@ const Wiki = () => {
                 existingFolders={folders}
                 onImportComplete={() => {
                   queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+                }}
+              />
+              <WikiUploadDialog
+                organizationId={currentOrg?.id}
+                employeeId={currentEmployee?.id}
+                currentFolderId={getCurrentFolderId()}
+                onUploadComplete={() => {
                   queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
                 }}
               />
