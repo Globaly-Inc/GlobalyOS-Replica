@@ -411,8 +411,12 @@ const CalendarPage = () => {
                             {getTypeLabel(item.type)}
                           </span>
                         </div>
-                        <p className="font-medium text-sm text-foreground truncate">
-                          {item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
+                        <p className="font-medium text-sm text-foreground">
+                          {item.type === "anniversary" || item.type === "birthday" 
+                            ? item.title 
+                            : item.employeeName 
+                              ? `${item.title} – ${item.employeeName}` 
+                              : item.title}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(item.date, "d MMM")}
