@@ -77,8 +77,9 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         // Code
         "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
         "prose-pre:bg-muted prose-pre:border prose-pre:border-border",
-        // Blockquotes
-        "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground",
+        // Blockquotes - full width box with light background
+        "[&_blockquote]:bg-muted [&_blockquote]:p-4 [&_blockquote]:rounded-md [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:my-2 [&_blockquote]:w-full",
+        "prose-blockquote:not-italic prose-blockquote:text-foreground prose-blockquote:font-normal",
         // Tables
         "prose-table:border-collapse prose-table:w-full",
         "prose-th:border prose-th:border-border prose-th:bg-muted prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-medium",

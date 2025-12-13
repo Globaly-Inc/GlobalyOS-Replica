@@ -333,6 +333,18 @@ export const WikiRichEditor = ({
     restoreSelection();
     const selection = window.getSelection();
     
+    // Check if cursor is already inside the same block type (prevent nesting)
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+      
+      if (parentElement?.closest(tag)) {
+        // Already inside this block type, don't nest
+        return;
+      }
+    }
+    
     // If no selection or selection is collapsed, insert a new block element
     if (!selection || selection.rangeCount === 0 || (selection.isCollapsed && editorRef.current)) {
       // Check if we're inside the editor
@@ -354,11 +366,14 @@ export const WikiRichEditor = ({
       element.innerHTML = '<br>';
       
       if (tag === 'blockquote') {
-        element.style.borderLeft = '4px solid hsl(var(--border))';
-        element.style.paddingLeft = '1rem';
-        element.style.marginLeft = '0';
-        element.style.fontStyle = 'italic';
-        element.style.color = 'hsl(var(--muted-foreground))';
+        element.style.backgroundColor = 'hsl(var(--muted))';
+        element.style.padding = '1rem';
+        element.style.borderRadius = '0.375rem';
+        element.style.borderLeft = '4px solid hsl(var(--primary))';
+        element.style.margin = '0.5rem 0';
+        element.style.width = '100%';
+        element.style.display = 'block';
+        element.style.boxSizing = 'border-box';
       } else if (tag === 'pre') {
         element.style.backgroundColor = 'hsl(var(--muted))';
         element.style.padding = '1rem';
