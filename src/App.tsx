@@ -32,6 +32,7 @@ const PerformanceReviews = lazy(() => import("./pages/PerformanceReviews"));
 const TeamKPIDashboard = lazy(() => import("./pages/TeamKPIDashboard"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Wiki = lazy(() => import("./pages/Wiki"));
+const WikiEditPage = lazy(() => import("./pages/WikiEditPage"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const CRM = lazy(() => import("./pages/CRM"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -77,6 +78,7 @@ const App = () => (
                 <Route path="/kpi-dashboard" element={<ProtectedRoute><TeamKPIDashboard /></ProtectedRoute>} />
                 <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
                 <Route path="/wiki" element={<ProtectedRoute><Wiki /></ProtectedRoute>} />
+                <Route path="/wiki/edit/:pageId" element={<ProtectedRoute><WikiEditPage /></ProtectedRoute>} />
                 <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
                 <Route path="/crm" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

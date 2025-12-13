@@ -1,24 +1,13 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from "react";
-import { Pencil, Save, X, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useState, useImperativeHandle, forwardRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
-import { WikiRichEditor } from "./WikiRichEditor";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface WikiPage {
   id: string;
@@ -76,150 +65,29 @@ export interface WikiContentHandle {
 export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({ 
   page, 
   versions, 
-  onSave, 
   canEdit, 
-  isLoading, 
-  organizationId,
-  pendingNavigation,
-  onNavigationConfirm,
-  onNavigationCancel,
+  isLoading,
 }, ref) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate();
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
-  
-  // Use refs to store current values for synchronous access
-  const isEditingRef = useRef(isEditing);
-  const editTitleRef = useRef(editTitle);
-  const editContentRef = useRef(editContent);
-  const pageRef = useRef(page);
-  
-  // Keep refs in sync with state
-  isEditingRef.current = isEditing;
-  editTitleRef.current = editTitle;
-  editContentRef.current = editContent;
-  pageRef.current = page;
 
-  // Expose hasUnsavedChanges method to parent via ref
-  // This allows parent to check synchronously without timing issues
+  // No unsaved changes in view mode - editing happens on separate page
   useImperativeHandle(ref, () => ({
-    hasUnsavedChanges: () => {
-      const currentPage = pageRef.current;
-      if (!isEditingRef.current || !currentPage) return false;
-      return editTitleRef.current !== currentPage.title || 
-             editContentRef.current !== (currentPage.content || "");
-    }
+    hasUnsavedChanges: () => false
   }), []);
-
-  // Check if there are unsaved changes (for internal use)
-  const hasUnsavedChanges = isEditing && page && (
-    editTitle !== page.title || editContent !== (page.content || "")
-  );
-
-  // Handle browser beforeunload event
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
-
-    if (hasUnsavedChanges) {
-      window.addEventListener('beforeunload', handleBeforeUnload);
-    }
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges]);
 
   const handleStartEdit = () => {
     if (page) {
-      setEditTitle(page.title);
-      setEditContent(page.content || "");
-      setIsEditing(true);
+      navigate(`/wiki/edit/${page.id}`);
     }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditTitle("");
-    setEditContent("");
-  };
-
-  const handleTitleChange = useCallback((newTitle: string) => {
-    setEditTitle(newTitle);
-  }, []);
-
-  const handleContentChange = useCallback((newContent: string) => {
-    setEditContent(newContent);
-  }, []);
-
-  const handleSave = async () => {
-    if (page && editTitle.trim()) {
-      setIsSaving(true);
-      try {
-        await onSave(page.id, editTitle.trim(), editContent);
-        setIsEditing(false);
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  };
-
-  const handleSaveAndNavigate = async () => {
-    if (page && editTitle.trim()) {
-      setIsSaving(true);
-      try {
-        await onSave(page.id, editTitle.trim(), editContent);
-        setIsEditing(false);
-        onNavigationConfirm?.();
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  };
-
-  const handleDiscardAndNavigate = () => {
-    setIsEditing(false);
-    setEditTitle("");
-    setEditContent("");
-    onNavigationConfirm?.();
   };
 
   if (isLoading) {
     return (
-      <>
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-        
-        {/* Unsaved Changes Dialog */}
-        <AlertDialog open={!!pendingNavigation} onOpenChange={(open) => !open && onNavigationCancel?.()}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-              <AlertDialogDescription>
-                You have unsaved changes. Would you like to save them before leaving this page?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 sm:gap-0">
-              <AlertDialogCancel onClick={onNavigationCancel}>Cancel</AlertDialogCancel>
-              <Button variant="outline" onClick={handleDiscardAndNavigate}>
-                Discard
-              </Button>
-              <AlertDialogAction onClick={handleSaveAndNavigate} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save & Continue"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
@@ -239,16 +107,7 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
       <div className="border-b bg-card p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            {isEditing ? (
-              <Input
-                value={editTitle}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                className="text-2xl font-bold h-auto py-1"
-                placeholder="Page title..."
-              />
-            ) : (
-              <h1 className="text-2xl font-bold">{page.title}</h1>
-            )}
+            <h1 className="text-2xl font-bold">{page.title}</h1>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
@@ -263,62 +122,47 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isEditing ? (
-              <>
-                <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleSave} disabled={isSaving || !editTitle.trim()}>
-                  <Save className="h-4 w-4 mr-1" />
-                  {isSaving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            ) : (
-              <>
-                {versions.length > 0 && (
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <History className="h-4 w-4 mr-1" />
-                        History
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent>
-                      <SheetHeader>
-                        <SheetTitle>Version History</SheetTitle>
-                      </SheetHeader>
-                      <ScrollArea className="h-[calc(100vh-100px)] mt-4">
-                        <div className="space-y-4">
-                          {versions.map((version) => (
-                            <div key={version.id} className="border rounded-lg p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
-                                  <AvatarFallback className="text-xs">
-                                    {version.edited_by.profiles.full_name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                {formatDateTime(version.created_at)}
-                              </p>
-                              <p className="text-sm font-medium">{version.title}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </SheetContent>
-                  </Sheet>
-                )}
-                {canEdit && (
-                  <Button size="sm" onClick={handleStartEdit}>
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
+            {versions.length > 0 && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <History className="h-4 w-4 mr-1" />
+                    History
                   </Button>
-                )}
-              </>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Version History</SheetTitle>
+                  </SheetHeader>
+                  <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+                    <div className="space-y-4">
+                      {versions.map((version) => (
+                        <div key={version.id} className="border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {version.edited_by.profiles.full_name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {formatDateTime(version.created_at)}
+                          </p>
+                          <p className="text-sm font-medium">{version.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+            )}
+            {canEdit && (
+              <Button size="sm" onClick={handleStartEdit}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
             )}
           </div>
         </div>
@@ -326,18 +170,10 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {isEditing ? (
-          <WikiRichEditor
-            value={editContent}
-            onChange={handleContentChange}
-            organizationId={organizationId}
-            placeholder="Start writing..."
-            minHeight="400px"
-          />
-        ) : page.content ? (
+        {page.content ? (
           <div className="flex gap-6 relative">
             {/* Main content */}
-            <div className={`flex-1 min-w-0 transition-all duration-300`}>
+            <div className="flex-1 min-w-0 transition-all duration-300">
               <WikiMarkdownRenderer content={page.content} />
             </div>
             {/* Table of Contents with toggle - only show on larger screens */}
@@ -364,27 +200,6 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}
       </div>
-
-      {/* Unsaved Changes Dialog */}
-      <AlertDialog open={!!pendingNavigation && hasUnsavedChanges} onOpenChange={(open) => !open && onNavigationCancel?.()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Would you like to save them before leaving this page?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel onClick={onNavigationCancel}>Cancel</AlertDialogCancel>
-            <Button variant="outline" onClick={handleDiscardAndNavigate}>
-              Discard
-            </Button>
-            <AlertDialogAction onClick={handleSaveAndNavigate} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save & Continue"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 });

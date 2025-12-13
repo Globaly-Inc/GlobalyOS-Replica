@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
 import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
@@ -72,6 +73,7 @@ interface PendingNavigation {
 }
 
 const Wiki = () => {
+  const navigate = useNavigate();
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
@@ -278,8 +280,9 @@ const Wiki = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-      setSelectedPageId(data.id);
       toast.success("Page created");
+      // Navigate to edit page for new pages
+      navigate(`/wiki/edit/${data.id}`);
     },
     onError: () => toast.error("Failed to create page"),
   });
