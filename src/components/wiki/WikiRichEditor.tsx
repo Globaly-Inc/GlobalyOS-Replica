@@ -454,6 +454,136 @@ export const WikiRichEditor = ({
     }
   };
 
+  // Insert a styled code block with header
+  const handleInsertCodeBlock = useCallback(() => {
+    restoreSelection();
+    const selection = window.getSelection();
+    
+    // Check if cursor is already inside a code block
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+      
+      if (parentElement?.closest('.wiki-code-block')) {
+        return;
+      }
+    }
+    
+    // Get selected text if any
+    let selectedText = "";
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      selectedText = selection.toString();
+      selection.getRangeAt(0).deleteContents();
+    }
+    
+    // Create the code block container
+    const codeBlockWrapper = document.createElement('div');
+    codeBlockWrapper.className = 'wiki-code-block';
+    codeBlockWrapper.setAttribute('data-language', 'Plain text');
+    codeBlockWrapper.style.borderRadius = '0.5rem';
+    codeBlockWrapper.style.overflow = 'hidden';
+    codeBlockWrapper.style.margin = '0.5rem 0';
+    codeBlockWrapper.style.width = '100%';
+    codeBlockWrapper.contentEditable = 'false';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'wiki-code-header';
+    header.style.backgroundColor = '#2d2d2d';
+    header.style.padding = '0.5rem 1rem';
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.borderBottom = '1px solid #404040';
+    
+    // Language label
+    const langLabel = document.createElement('span');
+    langLabel.className = 'wiki-code-lang';
+    langLabel.textContent = 'plain text';
+    langLabel.style.color = '#e0e0e0';
+    langLabel.style.fontSize = '0.875rem';
+    langLabel.style.fontWeight = '500';
+    
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'wiki-code-copy';
+    copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+    copyBtn.style.backgroundColor = 'transparent';
+    copyBtn.style.border = 'none';
+    copyBtn.style.color = '#808080';
+    copyBtn.style.cursor = 'pointer';
+    copyBtn.style.padding = '0.25rem';
+    copyBtn.style.borderRadius = '0.25rem';
+    copyBtn.title = 'Copy code';
+    copyBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const codeContent = codeBlockWrapper.querySelector('.wiki-code-content');
+      if (codeContent) {
+        navigator.clipboard.writeText(codeContent.textContent || '').then(() => {
+          copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+          setTimeout(() => {
+            copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+          }, 2000);
+        });
+      }
+    };
+    
+    header.appendChild(langLabel);
+    header.appendChild(copyBtn);
+    
+    // Create code content area
+    const codeContent = document.createElement('pre');
+    codeContent.className = 'wiki-code-content';
+    codeContent.style.backgroundColor = '#1e1e1e';
+    codeContent.style.color = '#d4d4d4';
+    codeContent.style.padding = '1rem';
+    codeContent.style.margin = '0';
+    codeContent.style.fontFamily = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
+    codeContent.style.fontSize = '0.875rem';
+    codeContent.style.lineHeight = '1.5';
+    codeContent.style.overflow = 'auto';
+    codeContent.style.whiteSpace = 'pre-wrap';
+    codeContent.style.wordBreak = 'break-word';
+    codeContent.style.minHeight = '60px';
+    codeContent.contentEditable = 'true';
+    codeContent.textContent = selectedText || '// Enter your code here...';
+    
+    codeBlockWrapper.appendChild(header);
+    codeBlockWrapper.appendChild(codeContent);
+    
+    // Insert at cursor position
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      if (!editorRef.current?.contains(range.commonAncestorContainer)) {
+        editorRef.current?.focus();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRef.current!);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+      
+      selection.getRangeAt(0).insertNode(codeBlockWrapper);
+      
+      // Add a paragraph after for continued editing
+      const spacer = document.createElement('p');
+      spacer.innerHTML = '<br>';
+      codeBlockWrapper.parentNode?.insertBefore(spacer, codeBlockWrapper.nextSibling);
+      
+      // Focus on code content
+      const newRange = document.createRange();
+      newRange.selectNodeContents(codeContent);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+    
+    triggerUpdate();
+  }, [triggerUpdate, restoreSelection]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !organizationId) return;
@@ -686,7 +816,7 @@ export const WikiRichEditor = ({
             e.preventDefault();
             saveSelection();
           }}
-          onClick={() => formatBlock('pre')}
+          onClick={handleInsertCodeBlock}
           title="Code Block"
         >
           <Code className="h-4 w-4" />

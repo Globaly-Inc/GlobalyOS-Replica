@@ -76,9 +76,14 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
         // Code - inline code
         "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono",
-        // Code blocks - dark themed like VS Code
-        "[&_pre]:bg-[#1e1e1e] [&_pre]:text-[#d4d4d4] [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-2 [&_pre]:overflow-auto [&_pre]:w-full",
-        "[&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-relaxed [&_pre]:whitespace-pre-wrap [&_pre]:break-words",
+        // Code blocks - styled via WikiCodeBlock component styles
+        "[&_.wiki-code-block]:rounded-lg [&_.wiki-code-block]:overflow-hidden [&_.wiki-code-block]:my-2",
+        "[&_.wiki-code-header]:bg-[#2d2d2d] [&_.wiki-code-header]:px-4 [&_.wiki-code-header]:py-2 [&_.wiki-code-header]:flex [&_.wiki-code-header]:items-center [&_.wiki-code-header]:justify-between [&_.wiki-code-header]:border-b [&_.wiki-code-header]:border-[#404040]",
+        "[&_.wiki-code-lang]:text-[#e0e0e0] [&_.wiki-code-lang]:text-sm [&_.wiki-code-lang]:font-medium",
+        "[&_.wiki-code-copy]:bg-transparent [&_.wiki-code-copy]:border-none [&_.wiki-code-copy]:text-[#808080] [&_.wiki-code-copy]:cursor-pointer [&_.wiki-code-copy]:p-1 [&_.wiki-code-copy]:rounded hover:[&_.wiki-code-copy]:text-white hover:[&_.wiki-code-copy]:bg-[#404040]",
+        "[&_.wiki-code-content]:bg-[#1e1e1e] [&_.wiki-code-content]:text-[#d4d4d4] [&_.wiki-code-content]:p-4 [&_.wiki-code-content]:m-0 [&_.wiki-code-content]:font-mono [&_.wiki-code-content]:text-sm [&_.wiki-code-content]:leading-relaxed [&_.wiki-code-content]:overflow-auto [&_.wiki-code-content]:whitespace-pre-wrap",
+        // Fallback for regular pre tags
+        "[&_pre:not(.wiki-code-content)]:bg-[#1e1e1e] [&_pre:not(.wiki-code-content)]:text-[#d4d4d4] [&_pre:not(.wiki-code-content)]:p-4 [&_pre:not(.wiki-code-content)]:rounded-lg [&_pre:not(.wiki-code-content)]:my-2 [&_pre:not(.wiki-code-content)]:overflow-auto [&_pre:not(.wiki-code-content)]:font-mono [&_pre:not(.wiki-code-content)]:text-sm",
         // Blockquotes - full width box with light background
         "[&_blockquote]:bg-muted [&_blockquote]:p-4 [&_blockquote]:rounded-md [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:my-2 [&_blockquote]:w-full",
         "prose-blockquote:not-italic prose-blockquote:text-foreground prose-blockquote:font-normal",
