@@ -39,17 +39,21 @@ export const AdminSetup = () => {
         return;
       }
 
+      // Check if user has any role in this organization OR is a super_admin
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error checking role:', error);
+        setHasRole(true); // Hide card on error
+        return;
       }
 
-      setHasRole(!!data);
+      // User has a role if they have any org-scoped role OR are super_admin
+      const hasAnyRole = data && data.length > 0;
+      setHasRole(hasAnyRole);
     } catch (error) {
       console.error('Error in checkUserRole:', error);
     }
