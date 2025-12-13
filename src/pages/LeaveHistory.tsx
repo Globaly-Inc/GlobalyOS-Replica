@@ -208,173 +208,172 @@ const LeaveHistory = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </OrgLink>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <History className="h-6 w-6" />
-              Leave History
-            </h1>
-            {employeeName && (
-              <p className="text-muted-foreground">{employeeName}</p>
-            )}
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <History className="h-6 w-6" />
+            Leave History
+          </h1>
+          {employeeName && (
+            <p className="text-muted-foreground">{employeeName}</p>
+          )}
         </div>
-
-        {/* Tabs */}
-        <Card>
-          <CardContent className="pt-6">
-            <Tabs defaultValue="requests" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="requests" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Leave Requests
-                </TabsTrigger>
-                <TabsTrigger value="balance" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Balance Changes
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="requests">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">Loading...</p>
-                  </div>
-                ) : requests.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No leave requests yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {requests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="border rounded-lg p-4 space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getLeaveTypeBadgeVariant(request.leave_type)}>
-                              {request.leave_type}
-                            </Badge>
-                            {getStatusBadge(request.status)}
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            Requested {formatDateTime(request.created_at)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          {formatDateRange(request.start_date, request.end_date)}
-                          <span className="ml-2">
-                            ({request.days_count} {request.days_count === 1 ? 'day' : 'days'})
-                            {request.half_day_type !== 'full' && (
-                              <span className="text-primary ml-1">
-                                • {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        {request.reason && (
-                          <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
-                            {request.reason}
-                          </p>
-                        )}
-                        {request.reviewed_at && (
-                          <p className="text-sm text-muted-foreground">
-                            Reviewed on {formatDateTime(request.reviewed_at)}
-                            {request.reviewed_by_employee?.profiles &&
-                              ` by ${request.reviewed_by_employee.profiles.full_name}`
-                            }
-                          </p>
-                        )}
-                        {isOwnProfile && request.status === "pending" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-destructive hover:text-destructive"
-                            onClick={() => setCancelDialog({ open: true, request })}
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Cancel Request
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="balance">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">Loading...</p>
-                  </div>
-                ) : logs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No balance changes recorded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {logs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="border rounded-lg p-4 space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
-                              {log.leave_type}
-                            </Badge>
-                            {log.change_amount > 0 ? (
-                              <Badge
-                                variant="outline"
-                                className="text-green-600 border-green-600"
-                              >
-                                <TrendingUp className="h-3 w-3 mr-1" />
-                                +{log.change_amount}
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-red-600 border-red-600"
-                              >
-                                <TrendingDown className="h-3 w-3 mr-1" />
-                                {log.change_amount}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDateTime(log.created_at)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-muted-foreground">Balance:</span>
-                          <span className="text-muted-foreground line-through">
-                            {log.previous_balance}
-                          </span>
-                          <span className="text-foreground">→</span>
-                          <span className="font-medium">{log.new_balance}</span>
-                        </div>
-                        {log.reason && (
-                          <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
-                            {log.reason}
-                          </p>
-                        )}
-                        {log.created_by_employee?.profiles && (
-                          <p className="text-sm text-muted-foreground">
-                            Updated by {log.created_by_employee.profiles.full_name}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Tabs */}
+      <Card>
+        <CardContent className="pt-6">
+          <Tabs defaultValue="requests" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="requests" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Leave Requests
+              </TabsTrigger>
+              <TabsTrigger value="balance" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Balance Changes
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="requests">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">No leave requests yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {requests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="border rounded-lg p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getLeaveTypeBadgeVariant(request.leave_type)}>
+                            {request.leave_type}
+                          </Badge>
+                          {getStatusBadge(request.status)}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          Requested {formatDateTime(request.created_at)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {formatDateRange(request.start_date, request.end_date)}
+                        <span className="ml-2">
+                          ({request.days_count} {request.days_count === 1 ? 'day' : 'days'})
+                          {request.half_day_type !== 'full' && (
+                            <span className="text-primary ml-1">
+                              • {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      {request.reason && (
+                        <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+                          {request.reason}
+                        </p>
+                      )}
+                      {request.reviewed_at && (
+                        <p className="text-sm text-muted-foreground">
+                          Reviewed on {formatDateTime(request.reviewed_at)}
+                          {request.reviewed_by_employee?.profiles &&
+                            ` by ${request.reviewed_by_employee.profiles.full_name}`
+                          }
+                        </p>
+                      )}
+                      {isOwnProfile && request.status === "pending" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-destructive hover:text-destructive"
+                          onClick={() => setCancelDialog({ open: true, request })}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel Request
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="balance">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">No balance changes recorded</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="border rounded-lg p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
+                            {log.leave_type}
+                          </Badge>
+                          {log.change_amount > 0 ? (
+                            <Badge
+                              variant="outline"
+                              className="text-green-600 border-green-600"
+                            >
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              +{log.change_amount}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-red-600 border-red-600"
+                            >
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                              {log.change_amount}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {formatDateTime(log.created_at)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Balance:</span>
+                        <span className="text-muted-foreground line-through">
+                          {log.previous_balance}
+                        </span>
+                        <span className="text-foreground">→</span>
+                        <span className="font-medium">{log.new_balance}</span>
+                      </div>
+                      {log.reason && (
+                        <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+                          {log.reason}
+                        </p>
+                      )}
+                      {log.created_by_employee?.profiles && (
+                        <p className="text-sm text-muted-foreground">
+                          Updated by {log.created_by_employee.profiles.full_name}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Cancel Confirmation Dialog */}
       <AlertDialog 

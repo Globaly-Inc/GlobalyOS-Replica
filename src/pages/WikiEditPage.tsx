@@ -168,7 +168,7 @@ const WikiEditPage = () => {
     setIsSaving(true);
     try {
       await saveMutation.mutateAsync();
-      navigate("/wiki");
+      navigateOrg("/wiki");
     } finally {
       setIsSaving(false);
     }
@@ -178,13 +178,13 @@ const WikiEditPage = () => {
     if (hasUnsavedChanges) {
       setShowExitDialog(true);
     } else {
-      navigate("/wiki");
+      navigateOrg("/wiki");
     }
   };
 
   const handleDiscardAndClose = () => {
     setShowExitDialog(false);
-    navigate("/wiki");
+    navigateOrg("/wiki");
   };
 
   const handleContentChange = useCallback((value: string) => {
@@ -195,9 +195,9 @@ const WikiEditPage = () => {
   useEffect(() => {
     if (!isLoading && !roleLoading && !canEdit) {
       toast.error("You don't have permission to edit this page");
-      navigate("/wiki");
+      navigateOrg("/wiki");
     }
-  }, [isLoading, roleLoading, canEdit, navigate]);
+  }, [isLoading, roleLoading, canEdit, navigateOrg]);
 
   if (isLoading || roleLoading) {
     return (
@@ -211,7 +211,7 @@ const WikiEditPage = () => {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50">
         <p className="text-muted-foreground mb-4">Page not found</p>
-        <Button onClick={() => navigate("/wiki")}>Back to Wiki</Button>
+        <Button onClick={() => navigateOrg("/wiki")}>Back to Wiki</Button>
       </div>
     );
   }
