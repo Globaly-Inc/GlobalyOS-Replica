@@ -21,6 +21,7 @@ const Signup = lazy(() => import("./pages/Signup"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Join = lazy(() => import("./pages/Join"));
 const LeaveHistory = lazy(() => import("./pages/LeaveHistory"));
+const OrgLeaveHistory = lazy(() => import("./pages/OrgLeaveHistory"));
 const AttendanceHistory = lazy(() => import("./pages/AttendanceHistory"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
@@ -69,6 +70,7 @@ const App = () => (
                 <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/notifications/preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                <Route path="/leave-history" element={<ProtectedRoute><OrgLeaveHistory /></ProtectedRoute>} />
                 <Route path="/team/:id/reviews" element={<ProtectedRoute><PerformanceReviews /></ProtectedRoute>} />
                 <Route path="/kpi-dashboard" element={<ProtectedRoute><TeamKPIDashboard /></ProtectedRoute>} />
                 <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
