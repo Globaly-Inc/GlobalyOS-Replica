@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useMessages, useTogglePinMessage } from "@/services/useChat";
+import { useMessages, useTogglePinMessage, useTypingUsers, useMarkAsRead } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
 import AttachmentRenderer from "./AttachmentRenderer";
@@ -45,12 +45,43 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const togglePin = useTogglePinMessage();
+  const markAsRead = useMarkAsRead();
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
   
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
+  const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
+
+  // Mark as read when viewing conversation
+  useEffect(() => {
+    if (conversationId || spaceId) {
+      markAsRead.mutate({ conversationId: conversationId || undefined, spaceId: spaceId || undefined });
+    }
+  }, [conversationId, spaceId]);
+
+  // Subscribe to typing indicator changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('typing-indicators')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_presence'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['typing-users', conversationId, spaceId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, spaceId, queryClient]);
 
   // Fetch other participant details for direct chats
   useEffect(() => {
@@ -417,6 +448,26 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
           </div>
         )}
       </ScrollArea>
+
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 py-2 border-t border-border bg-muted/30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex gap-1">
+              <span className="animate-bounce" style={{ animationDelay: '0ms' }}>•</span>
+              <span className="animate-bounce" style={{ animationDelay: '150ms' }}>•</span>
+              <span className="animate-bounce" style={{ animationDelay: '300ms' }}>•</span>
+            </div>
+            <span>
+              {typingUsers.length === 1
+                ? `${typingUsers[0].name} is typing...`
+                : typingUsers.length === 2
+                ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing...`
+                : `${typingUsers[0].name} and ${typingUsers.length - 1} others are typing...`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Message Composer */}
       <MessageComposer 

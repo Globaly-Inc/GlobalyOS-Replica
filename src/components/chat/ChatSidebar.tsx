@@ -17,7 +17,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +39,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
+  const { data: unreadCounts } = useUnreadCounts();
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
@@ -155,6 +156,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
+          queryClient.invalidateQueries({ queryKey: ['unread-counts', currentOrg.id] });
         }
       )
       .on(
@@ -323,9 +325,9 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         )}
                       </div>
                       <span className="truncate flex-1 text-left">{name}</span>
-                      {conv.unread_count && conv.unread_count > 0 && (
+                      {(unreadCounts?.conversations[conv.id] || 0) > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5">
-                          {conv.unread_count}
+                          {unreadCounts?.conversations[conv.id]}
                         </Badge>
                       )}
                     </button>
@@ -390,9 +392,9 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         {space.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="truncate flex-1 text-left">{space.name}</span>
-                      {space.unread_count && space.unread_count > 0 && (
+                      {(unreadCounts?.spaces[space.id] || 0) > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5">
-                          {space.unread_count}
+                          {unreadCounts?.spaces[space.id]}
                         </Badge>
                       )}
                     </button>

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -28,7 +28,7 @@ import {
   FileIcon,
   Upload,
 } from "lucide-react";
-import { useSendMessage } from "@/services/useChat";
+import { useSendMessage, useTypingIndicator } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -67,12 +67,45 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const sendMessage = useSendMessage();
   const { currentOrg } = useOrganization();
+  const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
+
+  // Handle typing indicator
+  const handleTyping = useCallback(() => {
+    updateTypingStatus(conversationId, spaceId);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set timeout to clear typing status after 3 seconds of no typing
+    typingTimeoutRef.current = setTimeout(() => {
+      clearTypingStatus();
+    }, 3000);
+  }, [conversationId, spaceId, updateTypingStatus, clearTypingStatus]);
+
+  // Clear typing status on unmount or when conversation changes
+  useEffect(() => {
+    return () => {
+      clearTypingStatus();
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [conversationId, spaceId, clearTypingStatus]);
 
   const handleSend = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
+    
+    // Clear typing status immediately when sending
+    clearTypingStatus();
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
     
     try {
       setIsUploading(true);
@@ -334,7 +367,12 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
             ref={textareaRef}
             placeholder="Type a message..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              if (e.target.value.trim()) {
+                handleTyping();
+              }
+            }}
             onKeyDown={handleKeyDown}
             className="min-h-[40px] max-h-[200px] resize-none pr-24"
             rows={1}
