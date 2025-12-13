@@ -989,6 +989,43 @@ const Home = () => {
                   </Card>}
               </TabsContent>
             </Tabs>
+            
+            {/* Mobile Upcoming Events - shown only on mobile */}
+            {upcomingCalendarEvents.length > 0 && (
+              <Card className="p-4 lg:hidden">
+                <Link to="/calendar" className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary transition-colors">
+                  <CalendarPlus className="h-4 w-4 text-primary" />
+                  Upcoming Events
+                </Link>
+                <div className="space-y-2">
+                  {upcomingCalendarEvents.slice(0, 3).map(event => {
+                    const isMultiDay = event.start_date !== event.end_date;
+                    const startDate = parseISO(event.start_date);
+                    const endDate = parseISO(event.end_date);
+                    const dateDisplay = isMultiDay 
+                      ? `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''} - ${format(endDate, "d MMM")}${event.end_time ? ` · ${format(new Date(`2000-01-01T${event.end_time}`), "h:mm a")}` : ''}`
+                      : `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''}`;
+                    const daysLabel = event.daysUntil === 0 ? "Today" : event.daysUntil === 1 ? "Tomorrow" : `In ${event.daysUntil} days`;
+                    
+                    return (
+                      <div key={event.id} className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-muted">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full ${
+                            event.event_type === 'holiday' ? 'bg-red-500' : 
+                            event.event_type === 'event' ? 'bg-blue-500' : 'bg-primary'
+                          }`} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{event.title}</p>
+                            <p className="text-xs text-muted-foreground">{dateDisplay}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{daysLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
