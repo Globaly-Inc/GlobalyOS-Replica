@@ -5,6 +5,7 @@ import { WikiSidebar } from "@/components/wiki/WikiSidebar";
 import { WikiContent } from "@/components/wiki/WikiContent";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
 import { WikiAskAI } from "@/components/wiki/WikiAskAI";
+import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -301,6 +302,17 @@ const Wiki = () => {
             onSelectPage={setSelectedPageId}
           />
           <WikiAskAI organizationId={currentOrg?.id} />
+          {canEdit && (
+            <WikiImportDialog
+              organizationId={currentOrg?.id}
+              employeeId={currentEmployee?.id}
+              existingFolders={folders}
+              onImportComplete={() => {
+                queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+                queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+              }}
+            />
+          )}
         </div>
 
         {/* Main content */}
