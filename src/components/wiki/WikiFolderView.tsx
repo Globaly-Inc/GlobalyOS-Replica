@@ -79,7 +79,9 @@ export const WikiFolderView = ({
   const [creatingName, setCreatingName] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [editingItem, setEditingItem] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when creating item
   useEffect(() => {
@@ -92,6 +94,16 @@ export const WikiFolderView = ({
       }, 50);
     }
   }, [creatingItem]);
+
+  // Focus input when editing item
+  useEffect(() => {
+    if (editingItem) {
+      setTimeout(() => {
+        editInputRef.current?.focus();
+        editInputRef.current?.select();
+      }, 50);
+    }
+  }, [editingItem]);
 
   const handleCreateConfirm = () => {
     if (creatingName.trim() && creatingItem) {
@@ -118,6 +130,36 @@ export const WikiFolderView = ({
       e.preventDefault();
       handleCreateCancel();
     }
+  };
+
+  // Editing handlers
+  const handleEditConfirm = () => {
+    if (editingItem && editingItem.name.trim()) {
+      if (editingItem.type === "folder") {
+        onRenameFolder?.(editingItem.id, editingItem.name.trim());
+      } else {
+        onRenamePage?.(editingItem.id, editingItem.name.trim());
+      }
+    }
+    setEditingItem(null);
+  };
+
+  const handleEditCancel = () => {
+    setEditingItem(null);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleEditConfirm();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleEditCancel();
+    }
+  };
+
+  const startEditing = (type: "folder" | "page", id: string, currentName: string) => {
+    setEditingItem({ type, id, name: currentName });
   };
 
   // Sort function
@@ -282,15 +324,21 @@ export const WikiFolderView = ({
               const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
               const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
               const isFav = isFavorite?.("folder", folder.id) ?? false;
+              const isEditing = editingItem?.type === "folder" && editingItem.id === folder.id;
               
               return (
                 <div
                   key={folder.id}
-                  className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
-                  onClick={() => onSelectFolder(folder.id)}
+                  className={cn(
+                    "group relative flex flex-col items-center p-4 rounded-xl border bg-card transition-all cursor-pointer",
+                    isEditing 
+                      ? "border-2 border-primary shadow-md" 
+                      : "hover:bg-muted/50 hover:border-primary/30 hover:shadow-md"
+                  )}
+                  onClick={() => !isEditing && onSelectFolder(folder.id)}
                 >
                   {/* Three-dot menu */}
-                  {canEdit && (
+                  {canEdit && !isEditing && (
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -299,12 +347,7 @@ export const WikiFolderView = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => {
-                            const name = prompt("Rename folder:", folder.name);
-                            if (name?.trim() && name !== folder.name) {
-                              onRenameFolder?.(folder.id, name.trim());
-                            }
-                          }}>
+                          <DropdownMenuItem onClick={() => startEditing("folder", folder.id, folder.name)}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
@@ -349,7 +392,7 @@ export const WikiFolderView = ({
                   )}
                   
                   {/* Favorite indicator */}
-                  {isFav && (
+                  {isFav && !isEditing && (
                     <div className="absolute top-2 left-2">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     </div>
@@ -358,9 +401,22 @@ export const WikiFolderView = ({
                   <div className="relative mb-3">
                     <Folder className="h-12 w-12 text-primary fill-primary/10 group-hover:scale-105 transition-transform" />
                   </div>
-                  <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                    {folder.name}
-                  </span>
+                  {isEditing ? (
+                    <Input
+                      ref={editInputRef}
+                      value={editingItem.name}
+                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                      onKeyDown={handleEditKeyDown}
+                      onBlur={handleEditConfirm}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-medium text-center h-8 px-2"
+                      placeholder="Folder name"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
+                      {folder.name}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground mt-1">
                     {subfolderCount > 0 && `${subfolderCount} folder${subfolderCount > 1 ? "s" : ""}`}
                     {subfolderCount > 0 && folderPageCount > 0 && ", "}
@@ -374,15 +430,21 @@ export const WikiFolderView = ({
             {/* Pages */}
             {childPages.map((page) => {
               const isFav = isFavorite?.("page", page.id) ?? false;
+              const isEditing = editingItem?.type === "page" && editingItem.id === page.id;
               
               return (
                 <div
                   key={page.id}
-                  className="group relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer"
-                  onClick={() => onSelectPage(page.id)}
+                  className={cn(
+                    "group relative flex flex-col items-center p-4 rounded-xl border bg-card transition-all cursor-pointer",
+                    isEditing 
+                      ? "border-2 border-primary shadow-md" 
+                      : "hover:bg-muted/50 hover:border-primary/30 hover:shadow-md"
+                  )}
+                  onClick={() => !isEditing && onSelectPage(page.id)}
                 >
                   {/* Three-dot menu */}
-                  {canEdit && (
+                  {canEdit && !isEditing && (
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -391,12 +453,7 @@ export const WikiFolderView = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => {
-                            const title = prompt("Rename page:", page.title);
-                            if (title?.trim() && title !== page.title) {
-                              onRenamePage?.(page.id, title.trim());
-                            }
-                          }}>
+                          <DropdownMenuItem onClick={() => startEditing("page", page.id, page.title)}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
@@ -422,7 +479,7 @@ export const WikiFolderView = ({
                   )}
                   
                   {/* Favorite indicator */}
-                  {isFav && (
+                  {isFav && !isEditing && (
                     <div className="absolute top-2 left-2">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     </div>
@@ -431,9 +488,22 @@ export const WikiFolderView = ({
                   <div className="relative mb-3">
                     <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
                   </div>
-                  <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                    {page.title}
-                  </span>
+                  {isEditing ? (
+                    <Input
+                      ref={editInputRef}
+                      value={editingItem.name}
+                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                      onKeyDown={handleEditKeyDown}
+                      onBlur={handleEditConfirm}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-medium text-center h-8 px-2"
+                      placeholder="Page title"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
+                      {page.title}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground mt-1">Page</span>
                 </div>
               );
