@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +29,7 @@ import AttachmentRenderer from "./AttachmentRenderer";
 import MessageActions from "./MessageActions";
 import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
+import ChatDropZone from "./ChatDropZone";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,6 +49,7 @@ interface ConversationViewProps {
 
 const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: ConversationViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const togglePin = useTogglePinMessage();
@@ -64,6 +66,10 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
   const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
   const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
+
+  const handleFilesDropped = useCallback((files: File[]) => {
+    composerRef.current?.addFiles(files);
+  }, []);
 
   // Mark as read when viewing conversation
   useEffect(() => {
@@ -272,8 +278,9 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   }, {} as Record<string, ChatMessage[]>);
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
+    <ChatDropZone onFilesDropped={handleFilesDropped}>
+      <div className="flex flex-col h-full bg-background">
+        {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-3">
           <Button 
@@ -516,10 +523,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
 
       {/* Message Composer */}
       <MessageComposer 
+        ref={composerRef}
         conversationId={conversationId}
         spaceId={spaceId}
       />
-    </div>
+      </div>
+    </ChatDropZone>
   );
 };
 
