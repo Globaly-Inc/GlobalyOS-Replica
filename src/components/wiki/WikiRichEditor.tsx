@@ -2066,6 +2066,7 @@ myFunction();`;
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
+          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => setEmbedDialogOpen(true)}
           title="Embed Video/Content"
         >
