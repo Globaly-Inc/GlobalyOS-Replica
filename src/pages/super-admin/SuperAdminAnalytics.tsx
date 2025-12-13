@@ -6,6 +6,7 @@ import {
   Building2, 
   Users, 
   TrendingUp, 
+  TrendingDown,
   Activity,
   BookOpen,
   Calendar,
@@ -15,6 +16,7 @@ import {
   Megaphone,
   Heart,
   Target,
+  Minus,
   LucideIcon
 } from "lucide-react";
 import {
@@ -35,6 +37,7 @@ import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 interface FeatureItem {
   name: string;
   count: number;
+  lastWeekCount: number;
   icon: LucideIcon;
 }
 
@@ -59,6 +62,10 @@ const SuperAdminAnalytics = () => {
 
   const fetchAnalytics = async () => {
     try {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const oneWeekAgoISO = oneWeekAgo.toISOString();
+
       // Get organization stats
       const { data: orgs } = await supabase
         .from('organizations')
@@ -74,7 +81,7 @@ const SuperAdminAnalytics = () => {
         .from('employees')
         .select('id, status');
 
-      // Feature usage counts
+      // Feature usage counts - current totals
       const { count: wikiCount } = await supabase
         .from('wiki_pages')
         .select('*', { count: 'exact', head: true });
@@ -95,7 +102,6 @@ const SuperAdminAnalytics = () => {
         .from('kudos')
         .select('*', { count: 'exact', head: true });
 
-      // Separate wins and announcements
       const { count: winsCount } = await supabase
         .from('updates')
         .select('*', { count: 'exact', head: true })
@@ -109,6 +115,49 @@ const SuperAdminAnalytics = () => {
       const { count: kpiCount } = await supabase
         .from('kpis')
         .select('*', { count: 'exact', head: true });
+
+      // Last week counts (records created before one week ago)
+      const { count: wikiCountLastWeek } = await supabase
+        .from('wiki_pages')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: calendarCountLastWeek } = await supabase
+        .from('calendar_events')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: leaveCountLastWeek } = await supabase
+        .from('leave_requests')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: attendanceCountLastWeek } = await supabase
+        .from('attendance_records')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: kudosCountLastWeek } = await supabase
+        .from('kudos')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: winsCountLastWeek } = await supabase
+        .from('updates')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'win')
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: announcementsCountLastWeek } = await supabase
+        .from('updates')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'announcement')
+        .lt('created_at', oneWeekAgoISO);
+
+      const { count: kpiCountLastWeek } = await supabase
+        .from('kpis')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', oneWeekAgoISO);
 
       // Calculate org growth by month (last 6 months)
       const orgGrowth: { month: string; count: number }[] = [];
@@ -135,14 +184,14 @@ const SuperAdminAnalytics = () => {
         totalUsers: profiles?.length || 0,
         activeUsers: activeEmployees,
         featureUsage: [
-          { name: 'Wiki Pages', count: wikiCount || 0, icon: BookOpen },
-          { name: 'Calendar Events', count: calendarCount || 0, icon: Calendar },
-          { name: 'Leave Requests', count: leaveCount || 0, icon: Clock },
-          { name: 'Attendance Records', count: attendanceCount || 0, icon: ClipboardCheck },
-          { name: 'Wins', count: winsCount || 0, icon: Trophy },
-          { name: 'Announcements', count: announcementsCount || 0, icon: Megaphone },
-          { name: 'Kudos', count: kudosCount || 0, icon: Heart },
-          { name: 'KPIs', count: kpiCount || 0, icon: Target },
+          { name: 'Wiki Pages', count: wikiCount || 0, lastWeekCount: wikiCountLastWeek || 0, icon: BookOpen },
+          { name: 'Calendar Events', count: calendarCount || 0, lastWeekCount: calendarCountLastWeek || 0, icon: Calendar },
+          { name: 'Leave Requests', count: leaveCount || 0, lastWeekCount: leaveCountLastWeek || 0, icon: Clock },
+          { name: 'Attendance', count: attendanceCount || 0, lastWeekCount: attendanceCountLastWeek || 0, icon: ClipboardCheck },
+          { name: 'Wins', count: winsCount || 0, lastWeekCount: winsCountLastWeek || 0, icon: Trophy },
+          { name: 'Announcements', count: announcementsCount || 0, lastWeekCount: announcementsCountLastWeek || 0, icon: Megaphone },
+          { name: 'Kudos', count: kudosCount || 0, lastWeekCount: kudosCountLastWeek || 0, icon: Heart },
+          { name: 'KPIs', count: kpiCount || 0, lastWeekCount: kpiCountLastWeek || 0, icon: Target },
         ],
         orgGrowth,
       });
@@ -317,44 +366,50 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Feature Usage Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Feature Usage Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {data?.featureUsage.sort((a, b) => b.count - a.count).map((feature, index) => {
-                const maxCount = Math.max(...(data?.featureUsage.map(f => f.count) || [1]));
-                const percentage = maxCount > 0 ? (feature.count / maxCount) * 100 : 0;
-                const IconComponent = feature.icon;
-                
-                return (
-                  <div key={feature.name} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <IconComponent className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{feature.name}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {feature.count.toLocaleString()}
+        {/* Feature Usage Cards */}
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Feature Usage</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {data?.featureUsage.map((feature) => {
+              const IconComponent = feature.icon;
+              const weeklyGrowth = feature.count - feature.lastWeekCount;
+              const growthPercentage = feature.lastWeekCount > 0 
+                ? ((weeklyGrowth / feature.lastWeekCount) * 100).toFixed(1)
+                : feature.count > 0 ? '100' : '0';
+              const isPositive = weeklyGrowth > 0;
+              const isNeutral = weeklyGrowth === 0;
+              
+              return (
+                <Card key={feature.name}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {feature.name}
+                    </CardTitle>
+                    <IconComponent className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{feature.count.toLocaleString()}</div>
+                    <div className="flex items-center gap-1 mt-1">
+                      {isNeutral ? (
+                        <Minus className="h-3 w-3 text-muted-foreground" />
+                      ) : isPositive ? (
+                        <TrendingUp className="h-3 w-3 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 text-red-600" />
+                      )}
+                      <span className={`text-xs ${
+                        isNeutral ? 'text-muted-foreground' : isPositive ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {isNeutral ? 'No change' : `${isPositive ? '+' : ''}${weeklyGrowth} (${growthPercentage}%)`}
                       </span>
+                      <span className="text-xs text-muted-foreground">this week</span>
                     </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${percentage}%`,
-                          backgroundColor: COLORS[index % COLORS.length],
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </SuperAdminLayout>
   );
