@@ -944,7 +944,6 @@ const CalendarPage = () => {
               officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
             />
           </div>
-
           {/* Calendar Grid */}
           <div className="flex-1 p-4 lg:p-6 overflow-auto">
             {viewMode === "month" && (
