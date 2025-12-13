@@ -60,13 +60,17 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
 
       const { data: presences } = await supabase
         .from('chat_presence')
-        .select('employee_id, is_online')
+        .select('employee_id, is_online, last_seen_at')
         .in('employee_id', otherEmployeeIds);
 
       if (presences) {
         const statusMap: Record<string, boolean> = {};
+        const now = new Date();
         presences.forEach(p => {
-          statusMap[p.employee_id] = p.is_online;
+          // Consider offline if last_seen_at is older than 60 seconds
+          const lastSeen = new Date(p.last_seen_at);
+          const isStale = (now.getTime() - lastSeen.getTime()) > 60000;
+          statusMap[p.employee_id] = p.is_online && !isStale;
         });
         setOnlineStatuses(statusMap);
       }

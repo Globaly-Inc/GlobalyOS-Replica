@@ -88,15 +88,20 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
       // Fetch presence status
       const { data: presence } = await supabase
         .from('chat_presence')
-        .select('is_online')
+        .select('is_online, last_seen_at')
         .eq('employee_id', otherEmployeeId)
         .single();
+
+      // Consider offline if last_seen_at is older than 60 seconds
+      const isOnline = presence?.is_online && presence?.last_seen_at
+        ? (new Date().getTime() - new Date(presence.last_seen_at).getTime()) < 60000
+        : false;
 
       setOtherParticipant({
         id: employee.id,
         position: employee.position,
         avatar_url: profile?.avatar_url || null,
-        is_online: presence?.is_online || false,
+        is_online: isOnline,
       });
     };
 
@@ -118,8 +123,11 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
           filter: `employee_id=eq.${otherParticipant.id}`
         },
         (payload: any) => {
-          if (payload.new?.is_online !== undefined) {
-            setOtherParticipant(prev => prev ? { ...prev, is_online: payload.new.is_online } : null);
+          if (payload.new) {
+            const lastSeen = payload.new.last_seen_at ? new Date(payload.new.last_seen_at) : null;
+            const isStale = lastSeen ? (new Date().getTime() - lastSeen.getTime()) > 60000 : true;
+            const isOnline = payload.new.is_online && !isStale;
+            setOtherParticipant(prev => prev ? { ...prev, is_online: isOnline } : null);
           }
         }
       )
