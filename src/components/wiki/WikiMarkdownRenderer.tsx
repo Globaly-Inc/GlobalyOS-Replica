@@ -243,15 +243,15 @@ export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendere
         ref={containerRef}
         className={cn(
           "prose prose-sm max-w-none dark:prose-invert",
-          // Headings
-          "prose-headings:font-semibold prose-headings:text-foreground",
-          "prose-h1:text-2xl prose-h1:mt-6 prose-h1:mb-4",
-          "prose-h2:text-xl prose-h2:mt-5 prose-h2:mb-3",
-          "prose-h3:text-lg prose-h3:mt-4 prose-h3:mb-2",
-          // Paragraphs
-          "prose-p:text-foreground/80 prose-p:my-2 prose-p:leading-relaxed",
+          // Headings - consistent with editor: H1=26px, H2=22px, H3=18px, all bold
+          "prose-headings:font-bold prose-headings:text-foreground",
+          "[&_h1]:text-[26px] [&_h1]:mt-6 [&_h1]:mb-4 [&_h1]:font-bold",
+          "[&_h2]:text-[22px] [&_h2]:mt-5 [&_h2]:mb-3 [&_h2]:font-bold",
+          "[&_h3]:text-[18px] [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:font-bold",
+          // Paragraphs - base text size 14px
+          "prose-p:text-foreground/80 prose-p:my-2 prose-p:leading-relaxed [&_p]:text-[14px]",
           // Lists
-          "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+          "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 [&_li]:text-[14px]",
           "[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
           // Links
           "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
