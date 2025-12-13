@@ -18,6 +18,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface WikiFolder {
   id: string;
@@ -84,6 +103,12 @@ export const WikiFolderView = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
+  // Dialog states
+  const [deleteDialog, setDeleteDialog] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
+  const [createDialog, setCreateDialog] = useState<{ type: "folder" | "page"; parentFolderId: string } | null>(null);
+  const [createDialogName, setCreateDialogName] = useState("");
+  const createDialogInputRef = useRef<HTMLInputElement>(null);
+
   // Focus input when creating item
   useEffect(() => {
     if (creatingItem) {
@@ -106,31 +131,55 @@ export const WikiFolderView = ({
     }
   }, [editingItem]);
 
+  // Focus create dialog input when opened
+  useEffect(() => {
+    if (createDialog) {
+      setCreateDialogName(createDialog.type === "folder" ? "New Folder" : "New Page");
+      setTimeout(() => {
+        createDialogInputRef.current?.focus();
+        createDialogInputRef.current?.select();
+      }, 50);
+    }
+  }, [createDialog]);
+
   // Check for duplicate names
-  const isDuplicateFolderName = (name: string, excludeId?: string) => {
-    return childFolders.some(
+  const isDuplicateFolderName = (name: string, parentId: string | null, excludeId?: string) => {
+    return folders.filter((f) => f.parent_id === parentId).some(
       (f) => f.name.toLowerCase() === name.toLowerCase() && f.id !== excludeId
     );
   };
 
-  const isDuplicatePageName = (title: string, excludeId?: string) => {
-    return childPages.some(
+  const isDuplicatePageName = (title: string, folderId: string | null, excludeId?: string) => {
+    return pages.filter((p) => p.folder_id === folderId).some(
       (p) => p.title.toLowerCase() === title.toLowerCase() && p.id !== excludeId
     );
   };
+
+  // Get child folders and pages for current view
+  const childFolders = sortItems(
+    folders.filter((f) => f.parent_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
+  
+  const childPages = sortItems(
+    pages.filter((p) => p.folder_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
 
   const handleCreateConfirm = () => {
     if (creatingName.trim() && creatingItem) {
       const trimmedName = creatingName.trim();
       
       if (creatingItem.type === "folder") {
-        if (isDuplicateFolderName(trimmedName)) {
+        if (isDuplicateFolderName(trimmedName, currentFolderId)) {
           toast.error("A folder with this name already exists");
           return;
         }
         onCreateFolder?.(trimmedName, currentFolderId);
       } else {
-        if (isDuplicatePageName(trimmedName)) {
+        if (isDuplicatePageName(trimmedName, currentFolderId)) {
           toast.error("A page with this name already exists in this folder");
           return;
         }
@@ -162,13 +211,15 @@ export const WikiFolderView = ({
       const trimmedName = editingItem.name.trim();
       
       if (editingItem.type === "folder") {
-        if (isDuplicateFolderName(trimmedName, editingItem.id)) {
+        const folder = folders.find(f => f.id === editingItem.id);
+        if (isDuplicateFolderName(trimmedName, folder?.parent_id ?? null, editingItem.id)) {
           toast.error("A folder with this name already exists");
           return;
         }
         onRenameFolder?.(editingItem.id, trimmedName);
       } else {
-        if (isDuplicatePageName(trimmedName, editingItem.id)) {
+        const page = pages.find(p => p.id === editingItem.id);
+        if (isDuplicatePageName(trimmedName, page?.folder_id ?? null, editingItem.id)) {
           toast.error("A page with this name already exists in this folder");
           return;
         }
@@ -196,12 +247,54 @@ export const WikiFolderView = ({
     setEditingItem({ type, id, name: currentName });
   };
 
+  // Delete handlers
+  const handleDeleteConfirm = () => {
+    if (deleteDialog) {
+      if (deleteDialog.type === "folder") {
+        onDeleteFolder?.(deleteDialog.id);
+      } else {
+        onDeletePage?.(deleteDialog.id);
+      }
+      setDeleteDialog(null);
+    }
+  };
+
+  // Create dialog handlers
+  const handleCreateDialogConfirm = () => {
+    if (createDialog && createDialogName.trim()) {
+      const trimmedName = createDialogName.trim();
+      
+      if (createDialog.type === "folder") {
+        if (isDuplicateFolderName(trimmedName, createDialog.parentFolderId)) {
+          toast.error("A folder with this name already exists");
+          return;
+        }
+        onCreateFolder?.(trimmedName, createDialog.parentFolderId);
+      } else {
+        if (isDuplicatePageName(trimmedName, createDialog.parentFolderId)) {
+          toast.error("A page with this name already exists in this folder");
+          return;
+        }
+        onCreatePage?.(trimmedName, createDialog.parentFolderId);
+      }
+      setCreateDialog(null);
+      setCreateDialogName("");
+    }
+  };
+
+  const handleCreateDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCreateDialogConfirm();
+    }
+  };
+
   // Sort function
-  const sortItems = <T extends { name?: string; title?: string; created_at: string; updated_at: string }>(
+  function sortItems<T extends { name?: string; title?: string; created_at: string; updated_at: string }>(
     items: T[],
     sortBy: SortOption,
     direction: SortDirection
-  ): T[] => {
+  ): T[] {
     return [...items].sort((a, b) => {
       let comparison = 0;
       
@@ -221,20 +314,7 @@ export const WikiFolderView = ({
       
       return direction === "asc" ? comparison : -comparison;
     });
-  };
-
-  // Get child folders and pages for current view
-  const childFolders = sortItems(
-    folders.filter((f) => f.parent_id === currentFolderId),
-    sortBy,
-    sortDirection
-  );
-  
-  const childPages = sortItems(
-    pages.filter((p) => p.folder_id === currentFolderId),
-    sortBy,
-    sortDirection
-  );
+  }
 
   // Get breadcrumb path
   const getBreadcrumbs = () => {
@@ -390,32 +470,18 @@ export const WikiFolderView = ({
                             {isFav ? "Remove from Favorites" : "Add to Favorites"}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => {
-                            const title = prompt("Enter page title:");
-                            if (title?.trim()) {
-                              onCreatePage?.(title.trim(), folder.id);
-                            }
-                          }}>
+                          <DropdownMenuItem onClick={() => setCreateDialog({ type: "page", parentFolderId: folder.id })}>
                             <FilePlus className="h-4 w-4 mr-2" />
                             New Page
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            const name = prompt("Enter folder name:");
-                            if (name?.trim()) {
-                              onCreateFolder?.(name.trim(), folder.id);
-                            }
-                          }}>
+                          <DropdownMenuItem onClick={() => setCreateDialog({ type: "folder", parentFolderId: folder.id })}>
                             <FolderPlus className="h-4 w-4 mr-2" />
                             New Subfolder
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              if (confirm("Delete this folder and all its contents?")) {
-                                onDeleteFolder?.(folder.id);
-                              }
-                            }}
+                            onClick={() => setDeleteDialog({ type: "folder", id: folder.id, name: folder.name })}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -498,11 +564,7 @@ export const WikiFolderView = ({
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              if (confirm("Delete this page?")) {
-                                onDeletePage?.(page.id);
-                              }
-                            }}
+                            onClick={() => setDeleteDialog({ type: "page", id: page.id, name: page.title })}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -545,6 +607,69 @@ export const WikiFolderView = ({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteDialog?.type === "folder" ? "Folder" : "Page"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialog?.type === "folder" 
+                ? `Are you sure you want to delete "${deleteDialog?.name}" and all its contents? This action cannot be undone.`
+                : `Are you sure you want to delete "${deleteDialog?.name}"? This action cannot be undone.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create New Item Dialog */}
+      <Dialog open={!!createDialog} onOpenChange={(open) => !open && setCreateDialog(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {createDialog?.type === "folder" ? "New Subfolder" : "New Page"}
+            </DialogTitle>
+            <DialogDescription>
+              Enter a name for the new {createDialog?.type === "folder" ? "folder" : "page"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">
+                {createDialog?.type === "folder" ? "Folder Name" : "Page Title"}
+              </Label>
+              <Input
+                id="name"
+                ref={createDialogInputRef}
+                value={createDialogName}
+                onChange={(e) => setCreateDialogName(e.target.value)}
+                onKeyDown={handleCreateDialogKeyDown}
+                placeholder={createDialog?.type === "folder" ? "Enter folder name" : "Enter page title"}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialog(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateDialogConfirm} disabled={!createDialogName.trim()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
