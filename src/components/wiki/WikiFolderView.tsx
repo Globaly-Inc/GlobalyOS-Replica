@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,12 +106,35 @@ export const WikiFolderView = ({
     }
   }, [editingItem]);
 
+  // Check for duplicate names
+  const isDuplicateFolderName = (name: string, excludeId?: string) => {
+    return childFolders.some(
+      (f) => f.name.toLowerCase() === name.toLowerCase() && f.id !== excludeId
+    );
+  };
+
+  const isDuplicatePageName = (title: string, excludeId?: string) => {
+    return childPages.some(
+      (p) => p.title.toLowerCase() === title.toLowerCase() && p.id !== excludeId
+    );
+  };
+
   const handleCreateConfirm = () => {
     if (creatingName.trim() && creatingItem) {
+      const trimmedName = creatingName.trim();
+      
       if (creatingItem.type === "folder") {
-        onCreateFolder?.(creatingName.trim(), currentFolderId);
+        if (isDuplicateFolderName(trimmedName)) {
+          toast.error("A folder with this name already exists");
+          return;
+        }
+        onCreateFolder?.(trimmedName, currentFolderId);
       } else {
-        onCreatePage?.(creatingName.trim(), currentFolderId);
+        if (isDuplicatePageName(trimmedName)) {
+          toast.error("A page with this name already exists in this folder");
+          return;
+        }
+        onCreatePage?.(trimmedName, currentFolderId);
       }
     }
     onCreatingItemComplete?.();
@@ -135,10 +159,20 @@ export const WikiFolderView = ({
   // Editing handlers
   const handleEditConfirm = () => {
     if (editingItem && editingItem.name.trim()) {
+      const trimmedName = editingItem.name.trim();
+      
       if (editingItem.type === "folder") {
-        onRenameFolder?.(editingItem.id, editingItem.name.trim());
+        if (isDuplicateFolderName(trimmedName, editingItem.id)) {
+          toast.error("A folder with this name already exists");
+          return;
+        }
+        onRenameFolder?.(editingItem.id, trimmedName);
       } else {
-        onRenamePage?.(editingItem.id, editingItem.name.trim());
+        if (isDuplicatePageName(trimmedName, editingItem.id)) {
+          toast.error("A page with this name already exists in this folder");
+          return;
+        }
+        onRenamePage?.(editingItem.id, trimmedName);
       }
     }
     setEditingItem(null);
