@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, FileJson, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, FileJson, AlertCircle, CheckCircle2, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import JSZip from "jszip";
 
 interface ImportedPage {
   title: string;
@@ -37,51 +38,155 @@ export const WikiImportDialog = ({
   const [isImporting, setIsImporting] = useState(false);
   const [previewData, setPreviewData] = useState<ImportedPage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<"json" | "zip" | null>(null);
+  const [attachments, setAttachments] = useState<Map<string, Blob>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setError(null);
     setPreviewData(null);
+    setAttachments(new Map());
 
-    if (!file.name.endsWith(".json")) {
-      setError("Please select a JSON file");
+    const isJson = file.name.endsWith(".json");
+    const isZip = file.name.endsWith(".zip");
+
+    if (!isJson && !isZip) {
+      setError("Please select a JSON or ZIP file");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        
-        // Support both array format and object with pages array
-        let pages: ImportedPage[] = [];
-        if (Array.isArray(json)) {
-          pages = json;
-        } else if (json.pages && Array.isArray(json.pages)) {
-          pages = json.pages;
-        } else {
-          throw new Error("Invalid format");
-        }
-
-        // Validate structure
-        const validPages = pages.filter((p) => p && typeof p.title === "string" && p.title.trim());
-        if (validPages.length === 0) {
-          throw new Error("No valid pages found. Each page must have a 'title' field.");
-        }
-
-        setPreviewData(validPages);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Invalid JSON format. Expected an array of pages with 'title' and optional 'content' and 'folder' fields."
-        );
+    try {
+      if (isJson) {
+        setFileType("json");
+        await parseJsonFile(file);
+      } else if (isZip) {
+        setFileType("zip");
+        await parseZipFile(file);
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error("Parse error:", err);
+      setError(err instanceof Error ? err.message : "Failed to parse file");
+    }
+  };
+
+  const parseJsonFile = async (file: File) => {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    validateAndSetPages(json);
+  };
+
+  const parseZipFile = async (file: File) => {
+    const zip = await JSZip.loadAsync(file);
+    
+    // Look for JSON file in the ZIP
+    let pagesJson: any = null;
+    const attachmentMap = new Map<string, Blob>();
+
+    for (const [filename, zipEntry] of Object.entries(zip.files)) {
+      if (zipEntry.dir) continue;
+
+      const lowerName = filename.toLowerCase();
+      
+      // Check for JSON data file
+      if (lowerName.endsWith(".json") && !lowerName.includes("/")) {
+        const content = await zipEntry.async("string");
+        try {
+          pagesJson = JSON.parse(content);
+        } catch {
+          // Skip invalid JSON files
+        }
+      } else if (
+        lowerName.match(/\.(png|jpg|jpeg|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
+      ) {
+        // Extract attachments
+        const blob = await zipEntry.async("blob");
+        // Store with the path as key (relative to zip root)
+        attachmentMap.set(filename, blob);
+      }
+    }
+
+    if (!pagesJson) {
+      throw new Error("No valid JSON file found in ZIP. Expected a .json file with page data.");
+    }
+
+    setAttachments(attachmentMap);
+    validateAndSetPages(pagesJson);
+  };
+
+  const validateAndSetPages = (json: any) => {
+    let pages: ImportedPage[] = [];
+    if (Array.isArray(json)) {
+      pages = json;
+    } else if (json.pages && Array.isArray(json.pages)) {
+      pages = json.pages;
+    } else {
+      throw new Error("Invalid format");
+    }
+
+    const validPages = pages.filter((p) => p && typeof p.title === "string" && p.title.trim());
+    if (validPages.length === 0) {
+      throw new Error("No valid pages found. Each page must have a 'title' field.");
+    }
+
+    setPreviewData(validPages);
+  };
+
+  const uploadAttachments = async (): Promise<Map<string, string>> => {
+    const urlMap = new Map<string, string>();
+    
+    if (!organizationId || attachments.size === 0) return urlMap;
+
+    for (const [filename, blob] of attachments.entries()) {
+      const safeName = filename.replace(/[^a-zA-Z0-9._/-]/g, "_");
+      const path = `${organizationId}/${Date.now()}-${safeName}`;
+      
+      const { error } = await supabase.storage
+        .from("wiki-attachments")
+        .upload(path, blob);
+
+      if (error) {
+        console.error(`Failed to upload ${filename}:`, error);
+        continue;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("wiki-attachments")
+        .getPublicUrl(path);
+
+      urlMap.set(filename, urlData.publicUrl);
+    }
+
+    return urlMap;
+  };
+
+  const replaceAttachmentRefs = (content: string, urlMap: Map<string, string>): string => {
+    let updatedContent = content;
+    
+    for (const [originalPath, publicUrl] of urlMap.entries()) {
+      // Replace various reference patterns
+      const patterns = [
+        new RegExp(`src=["']${escapeRegex(originalPath)}["']`, "gi"),
+        new RegExp(`src=["']\./${escapeRegex(originalPath)}["']`, "gi"),
+        new RegExp(`src=["']attachments/${escapeRegex(originalPath.split("/").pop() || "")}["']`, "gi"),
+        new RegExp(`href=["']${escapeRegex(originalPath)}["']`, "gi"),
+      ];
+
+      for (const pattern of patterns) {
+        updatedContent = updatedContent.replace(pattern, (match) => {
+          const attr = match.startsWith("src") ? "src" : "href";
+          return `${attr}="${publicUrl}"`;
+        });
+      }
+    }
+
+    return updatedContent;
+  };
+
+  const escapeRegex = (str: string): string => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   };
 
   const handleImport = async () => {
@@ -89,9 +194,11 @@ export const WikiImportDialog = ({
 
     setIsImporting(true);
     try {
+      // Upload attachments first
+      const urlMap = await uploadAttachments();
+
       // Group pages by folder
       const folderMap = new Map<string, ImportedPage[]>();
-      const noFolderPages: ImportedPage[] = [];
 
       previewData.forEach((page) => {
         if (page.folder && page.folder.trim()) {
@@ -100,8 +207,6 @@ export const WikiImportDialog = ({
             folderMap.set(folderName, []);
           }
           folderMap.get(folderName)!.push(page);
-        } else {
-          noFolderPages.push(page);
         }
       });
 
@@ -127,23 +232,37 @@ export const WikiImportDialog = ({
         }
       }
 
-      // Create pages
-      const pagesToInsert = previewData.map((page, index) => ({
-        title: page.title.trim(),
-        content: page.content || "",
-        folder_id: page.folder ? folderIdMap.get(page.folder.trim().toLowerCase()) || null : null,
-        organization_id: organizationId,
-        created_by: employeeId,
-        sort_order: index,
-      }));
+      // Create pages with updated content
+      const pagesToInsert = previewData.map((page, index) => {
+        let content = page.content || "";
+        
+        // Replace attachment references with uploaded URLs
+        if (urlMap.size > 0) {
+          content = replaceAttachmentRefs(content, urlMap);
+        }
+
+        return {
+          title: page.title.trim(),
+          content,
+          folder_id: page.folder ? folderIdMap.get(page.folder.trim().toLowerCase()) || null : null,
+          organization_id: organizationId,
+          created_by: employeeId,
+          sort_order: index,
+        };
+      });
 
       const { error: insertError } = await supabase.from("wiki_pages").insert(pagesToInsert);
 
       if (insertError) throw insertError;
 
-      toast.success(`Imported ${pagesToInsert.length} pages successfully`);
+      const attachmentCount = urlMap.size;
+      toast.success(
+        `Imported ${pagesToInsert.length} pages${attachmentCount > 0 ? ` and ${attachmentCount} attachments` : ""} successfully`
+      );
       setIsOpen(false);
       setPreviewData(null);
+      setAttachments(new Map());
+      setFileType(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       onImportComplete();
     } catch (err) {
@@ -158,6 +277,8 @@ export const WikiImportDialog = ({
     setIsOpen(false);
     setPreviewData(null);
     setError(null);
+    setAttachments(new Map());
+    setFileType(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -176,7 +297,7 @@ export const WikiImportDialog = ({
             Import Wiki Pages
           </DialogTitle>
           <DialogDescription>
-            Import pages from a JSON file. Each page should have a title and optionally content and folder.
+            Import pages from a JSON or ZIP file. ZIP files can include attachments.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,9 +307,12 @@ export const WikiImportDialog = ({
             className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all"
             onClick={() => fileInputRef.current?.click()}
           >
-            <FileJson className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+            <div className="flex justify-center gap-2 mb-2">
+              <FileJson className="h-10 w-10 text-muted-foreground" />
+              <FileArchive className="h-10 w-10 text-muted-foreground" />
+            </div>
             <p className="text-sm font-medium text-foreground mb-1">
-              Click to select a JSON file
+              Click to select a JSON or ZIP file
             </p>
             <p className="text-xs text-muted-foreground">
               or drag and drop
@@ -196,7 +320,7 @@ export const WikiImportDialog = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json"
+              accept=".json,.zip"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -215,7 +339,11 @@ export const WikiImportDialog = ({
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-500">
                 <CheckCircle2 className="h-4 w-4" />
-                <span>{previewData.length} pages ready to import</span>
+                <span>
+                  {previewData.length} pages
+                  {attachments.size > 0 && ` + ${attachments.size} attachments`}
+                  {" "}ready to import
+                </span>
               </div>
               <ScrollArea className="h-32 border border-border rounded-lg">
                 <div className="p-2 space-y-0.5">
@@ -232,15 +360,21 @@ export const WikiImportDialog = ({
             </div>
           )}
 
-          {/* JSON format hint */}
+          {/* Format hints */}
           <div className="text-xs bg-muted/50 border border-border rounded-lg p-3 overflow-hidden">
-            <p className="font-medium text-foreground mb-2">Expected JSON format:</p>
-            <pre className="text-muted-foreground font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all">
-{`[
-  { "title": "Page Title", "content": "<p>HTML</p>", "folder": "Folder" },
-  { "title": "Another Page" }
-]`}
-            </pre>
+            <p className="font-medium text-foreground mb-2">Supported formats:</p>
+            <div className="space-y-2 text-muted-foreground">
+              <div>
+                <span className="font-medium text-foreground">JSON:</span>
+                <pre className="font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all mt-1">
+{`[{ "title": "Page", "content": "<p>HTML</p>", "folder": "Folder" }]`}
+                </pre>
+              </div>
+              <div>
+                <span className="font-medium text-foreground">ZIP:</span>
+                <span className="ml-1">Include pages.json + image/document files</span>
+              </div>
+            </div>
           </div>
 
           {/* Actions */}
