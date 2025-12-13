@@ -686,9 +686,8 @@ export const useMessageReactions = (conversationId: string | null, spaceId: stri
 
       const messageIds = messages.map(m => m.id);
 
-      // Use raw query since types may not be regenerated yet
-      const { data: reactions, error } = await (supabase
-        .from('chat_message_reactions' as any)
+      const { data: reactions, error } = await supabase
+        .from('chat_message_reactions')
         .select(`
           id,
           message_id,
@@ -702,7 +701,7 @@ export const useMessageReactions = (conversationId: string | null, spaceId: stri
             )
           )
         `)
-        .in('message_id', messageIds)) as any;
+        .in('message_id', messageIds);
 
       if (error) throw error;
 
@@ -742,32 +741,32 @@ export const useToggleReaction = () => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       // Check if reaction exists
-      const { data: existing } = await (supabase
-        .from('chat_message_reactions' as any)
+      const { data: existing } = await supabase
+        .from('chat_message_reactions')
         .select('id')
         .eq('message_id', messageId)
         .eq('employee_id', currentEmployee.id)
         .eq('emoji', emoji)
-        .single()) as any;
+        .maybeSingle();
 
       if (existing) {
         // Remove reaction
-        const { error } = await (supabase
-          .from('chat_message_reactions' as any)
+        const { error } = await supabase
+          .from('chat_message_reactions')
           .delete()
-          .eq('id', existing.id)) as any;
+          .eq('id', existing.id);
 
         if (error) throw error;
       } else {
         // Add reaction
-        const { error } = await (supabase
-          .from('chat_message_reactions' as any)
+        const { error } = await supabase
+          .from('chat_message_reactions')
           .insert({
             message_id: messageId,
             employee_id: currentEmployee.id,
             organization_id: currentOrg.id,
             emoji
-          })) as any;
+          });
 
         if (error) throw error;
       }
