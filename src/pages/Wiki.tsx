@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { WikiSidebar } from "@/components/wiki/WikiSidebar";
-import { WikiContent } from "@/components/wiki/WikiContent";
+import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
 import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
 import { WikiAskAI } from "@/components/wiki/WikiAskAI";
@@ -71,27 +71,16 @@ const Wiki = () => {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("home");
-  
-  // Editing state tracking for navigation guards
-  const [isEditingPage, setIsEditingPage] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   
-  // Use ref to track unsaved changes synchronously (to avoid stale closure issues)
-  const hasUnsavedChangesRef = useRef(false);
+  // Ref to WikiContent to check unsaved changes synchronously
+  const wikiContentRef = useRef<WikiContentHandle>(null);
 
   const canEdit = isAdmin || isHR;
 
-  // Handle editing state changes from WikiContent
-  const handleEditingStateChange = useCallback((editing: boolean, unsaved: boolean) => {
-    setIsEditingPage(editing);
-    setHasUnsavedChanges(unsaved);
-    hasUnsavedChangesRef.current = unsaved;
-  }, []);
-
-  // Navigation handlers with unsaved changes check - use ref for immediate value
+  // Navigation handlers - check unsaved changes synchronously via ref
   const handleSelectPage = useCallback((pageId: string) => {
-    if (hasUnsavedChangesRef.current && pageId !== selectedPageId) {
+    if (wikiContentRef.current?.hasUnsavedChanges() && pageId !== selectedPageId) {
       setPendingNavigation({ type: 'page', id: pageId });
     } else {
       setSelectedPageId(pageId);
@@ -101,7 +90,7 @@ const Wiki = () => {
   }, [selectedPageId]);
 
   const handleSelectFolder = useCallback((folderId: string) => {
-    if (hasUnsavedChangesRef.current) {
+    if (wikiContentRef.current?.hasUnsavedChanges()) {
       setPendingNavigation({ type: 'folder', id: folderId });
     } else {
       setSelectedFolderId(folderId);
@@ -111,7 +100,7 @@ const Wiki = () => {
   }, []);
 
   const handleSelectHome = useCallback(() => {
-    if (hasUnsavedChangesRef.current) {
+    if (wikiContentRef.current?.hasUnsavedChanges()) {
       setPendingNavigation({ type: 'home' });
     } else {
       setSelectedPageId(null);
@@ -422,6 +411,7 @@ const Wiki = () => {
           <div className="flex-1 min-w-0 bg-background">
             {viewMode === "page" ? (
               <WikiContent
+                ref={wikiContentRef}
                 page={selectedPage || null}
                 versions={pageVersions}
                 onSave={async (pageId, title, content) => {
@@ -430,7 +420,6 @@ const Wiki = () => {
                 canEdit={canEdit}
                 isLoading={isLoadingPage}
                 organizationId={currentOrg?.id}
-                onEditingStateChange={handleEditingStateChange}
                 pendingNavigation={pendingNavigation}
                 onNavigationConfirm={handleNavigationConfirm}
                 onNavigationCancel={handleNavigationCancel}
