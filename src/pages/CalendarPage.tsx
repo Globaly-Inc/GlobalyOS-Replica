@@ -492,22 +492,6 @@ const CalendarPage = () => {
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 mt-4 text-xs">
-              {[
-                { type: "leave" as const, label: "Leave" },
-                { type: "holiday" as const, label: "Holiday" },
-                { type: "event" as const, label: "Event" },
-                { type: "birthday" as const, label: "Birthday" },
-                { type: "anniversary" as const, label: "Anniversary" },
-                { type: "review" as const, label: "Review" },
-              ].map((item) => (
-                <div key={item.type} className="flex items-center gap-1.5">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", getTypeColor(item.type))} />
-                  <span className="text-muted-foreground">{item.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Calendar Grid */}
@@ -743,6 +727,26 @@ const CalendarPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Legend */}
+            <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/50">
+              <div className="text-xs font-medium text-muted-foreground mb-3">Event Types</div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {[
+                  { type: "leave" as const, label: "Leave" },
+                  { type: "holiday" as const, label: "Holiday" },
+                  { type: "event" as const, label: "Event" },
+                  { type: "birthday" as const, label: "Birthday" },
+                  { type: "anniversary" as const, label: "Anniversary" },
+                  { type: "review" as const, label: "Review" },
+                ].map((item) => (
+                  <div key={item.type} className="flex items-center gap-2">
+                    <div className={cn("h-3 w-3 rounded-full shrink-0", getTypeColor(item.type))} />
+                    <span className="text-xs text-foreground/80">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
