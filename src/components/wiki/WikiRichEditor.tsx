@@ -57,8 +57,13 @@ export const WikiRichEditor = ({
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [embedUrl, setEmbedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  
+  // Table hover controls state
+  const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
+  const [hoveredColIndex, setHoveredColIndex] = useState<number | null>(null);
+  const [rowControlPos, setRowControlPos] = useState({ top: 0, left: 0, height: 0 });
+  const [colControlPos, setColControlPos] = useState({ top: 0, left: 0, width: 0 });
   const [showTableControls, setShowTableControls] = useState(false);
-  const [tablePosition, setTablePosition] = useState({ top: 0, left: 0 });
 
   // Initialize content
   useEffect(() => {
@@ -77,70 +82,111 @@ export const WikiRichEditor = ({
     }
   }, [onChange]);
 
-  // Handle table selection
+  // Handle mouse move over table to show row/column controls
+  const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const cell = target.closest('td, th') as HTMLTableCellElement;
+    const table = target.closest('table') as HTMLTableElement;
+    
+    if (cell && table && editorRef.current) {
+      const editorRect = editorRef.current.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      const row = cell.parentElement as HTMLTableRowElement;
+      
+      selectedTableRef.current = table;
+      setShowTableControls(true);
+      
+      // Get row and column indices
+      const rowIndex = row.rowIndex;
+      const colIndex = cell.cellIndex;
+      
+      setHoveredRowIndex(rowIndex);
+      setHoveredColIndex(colIndex);
+      
+      // Position for row controls (left side of table)
+      setRowControlPos({
+        top: cellRect.top - editorRect.top,
+        left: tableRect.left - editorRect.left - 28,
+        height: cellRect.height
+      });
+      
+      // Position for column controls (top of table)
+      setColControlPos({
+        top: tableRect.top - editorRect.top - 28,
+        left: cellRect.left - editorRect.left,
+        width: cellRect.width
+      });
+    }
+  }, []);
+
+  const handleEditorMouseLeave = useCallback(() => {
+    // Delay hiding to allow clicking controls
+    setTimeout(() => {
+      setShowTableControls(false);
+      setHoveredRowIndex(null);
+      setHoveredColIndex(null);
+    }, 200);
+  }, []);
+
+  // Handle table selection on click
   const handleEditorClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const table = target.closest('table') as HTMLTableElement;
     
-    if (table && editorRef.current) {
-      const editorRect = editorRef.current.getBoundingClientRect();
-      const tableRect = table.getBoundingClientRect();
+    if (table) {
       selectedTableRef.current = table;
-      setShowTableControls(true);
-      setTablePosition({
-        top: tableRect.top - editorRect.top,
-        left: tableRect.left - editorRect.left
-      });
-    } else {
-      selectedTableRef.current = null;
-      setShowTableControls(false);
     }
   }, []);
 
-  // Table manipulation functions
-  const addTableRow = useCallback((e: React.MouseEvent) => {
+  // Table manipulation functions - now work with specific row/column
+  const addRowAt = useCallback((e: React.MouseEvent, afterIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     const table = selectedTableRef.current;
     if (!table) return;
     
-    // Find the last row in tbody or table itself
-    const tbody = table.querySelector('tbody');
-    const container = tbody || table;
-    const rows = container.querySelectorAll('tr');
-    const lastRow = rows[rows.length - 1];
+    const allRows = table.querySelectorAll('tr');
+    const targetRow = allRows[afterIndex];
+    if (!targetRow) return;
     
-    if (lastRow) {
-      const newRow = document.createElement('tr');
-      const cellCount = lastRow.cells.length;
-      for (let i = 0; i < cellCount; i++) {
-        const cell = document.createElement('td');
-        cell.className = 'border border-border p-2';
-        cell.innerHTML = '&nbsp;';
-        newRow.appendChild(cell);
-      }
-      container.appendChild(newRow);
-      triggerUpdate();
+    const newRow = document.createElement('tr');
+    const cellCount = targetRow.cells.length;
+    for (let i = 0; i < cellCount; i++) {
+      const cell = document.createElement('td');
+      cell.className = 'border border-border p-2';
+      cell.innerHTML = '&nbsp;';
+      newRow.appendChild(cell);
     }
+    
+    // Insert after the target row
+    if (targetRow.nextSibling) {
+      targetRow.parentNode?.insertBefore(newRow, targetRow.nextSibling);
+    } else {
+      targetRow.parentNode?.appendChild(newRow);
+    }
+    triggerUpdate();
   }, [triggerUpdate]);
 
-  const removeTableRow = useCallback((e: React.MouseEvent) => {
+  const deleteRowAt = useCallback((e: React.MouseEvent, rowIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     const table = selectedTableRef.current;
     if (!table) return;
     
-    const tbody = table.querySelector('tbody');
-    const container = tbody || table;
-    const rows = container.querySelectorAll('tr');
+    const allRows = table.querySelectorAll('tr');
+    // Don't delete if only one row left
+    if (allRows.length <= 1) return;
     
-    if (rows.length > 1) {
-      rows[rows.length - 1].remove();
+    const targetRow = allRows[rowIndex];
+    if (targetRow) {
+      targetRow.remove();
       triggerUpdate();
+      setHoveredRowIndex(null);
     }
   }, [triggerUpdate]);
 
-  const addTableColumn = useCallback((e: React.MouseEvent) => {
+  const addColumnAt = useCallback((e: React.MouseEvent, afterIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     const table = selectedTableRef.current;
@@ -148,21 +194,27 @@ export const WikiRichEditor = ({
     
     const allRows = table.querySelectorAll('tr');
     allRows.forEach((row) => {
-      const isHeader = row.parentElement?.tagName === 'THEAD' || row.querySelector('th');
-      const existingCells = row.querySelectorAll('th, td');
-      const isHeaderRow = existingCells[0]?.tagName === 'TH';
+      const cells = row.querySelectorAll('th, td');
+      const isHeaderRow = cells[0]?.tagName === 'TH';
       
       const cell = document.createElement(isHeaderRow ? 'th' : 'td');
       cell.className = isHeaderRow 
         ? 'border border-border p-2 bg-muted text-left'
         : 'border border-border p-2';
-      cell.innerHTML = isHeaderRow ? `Col ${existingCells.length + 1}` : '&nbsp;';
-      row.appendChild(cell);
+      cell.innerHTML = '&nbsp;';
+      
+      // Insert after the target column
+      const targetCell = cells[afterIndex];
+      if (targetCell && targetCell.nextSibling) {
+        row.insertBefore(cell, targetCell.nextSibling);
+      } else {
+        row.appendChild(cell);
+      }
     });
     triggerUpdate();
   }, [triggerUpdate]);
 
-  const removeTableColumn = useCallback((e: React.MouseEvent) => {
+  const deleteColumnAt = useCallback((e: React.MouseEvent, colIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     const table = selectedTableRef.current;
@@ -170,14 +222,16 @@ export const WikiRichEditor = ({
     
     const allRows = table.querySelectorAll('tr');
     const firstRow = allRows[0];
-    if (firstRow && firstRow.cells.length > 1) {
-      allRows.forEach((row) => {
-        if (row.cells.length > 0) {
-          row.deleteCell(row.cells.length - 1);
-        }
-      });
-      triggerUpdate();
-    }
+    // Don't delete if only one column left
+    if (firstRow && firstRow.cells.length <= 1) return;
+    
+    allRows.forEach((row) => {
+      if (row.cells[colIndex]) {
+        row.deleteCell(colIndex);
+      }
+    });
+    triggerUpdate();
+    setHoveredColIndex(null);
   }, [triggerUpdate]);
 
   const handleInput = useCallback(() => {
@@ -187,14 +241,14 @@ export const WikiRichEditor = ({
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
-    handleInput();
-  }, [handleInput]);
+    triggerUpdate();
+  }, [triggerUpdate]);
 
   const formatBlock = useCallback((tag: string) => {
     document.execCommand('formatBlock', false, tag);
     editorRef.current?.focus();
-    handleInput();
-  }, [handleInput]);
+    triggerUpdate();
+  }, [triggerUpdate]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -531,72 +585,80 @@ export const WikiRichEditor = ({
       </div>
 
       {/* Editor Container with Table Controls */}
-      <div className="relative">
-        {/* Table Controls Floating Toolbar */}
-        {showTableControls && (
+      <div 
+        className="relative"
+        onMouseMove={handleEditorMouseMove}
+        onMouseLeave={handleEditorMouseLeave}
+      >
+        {/* Row Controls - Left side */}
+        {showTableControls && hoveredRowIndex !== null && (
           <div 
-            className="absolute z-20 flex items-center gap-2 px-2 py-1.5 bg-popover border rounded-lg shadow-md"
+            className="absolute z-20 flex items-center gap-0.5"
             style={{ 
-              top: Math.max(8, tablePosition.top - 44), 
-              left: Math.max(8, tablePosition.left) 
+              top: rowControlPos.top,
+              left: Math.max(4, rowControlPos.left),
+              height: rowControlPos.height
             }}
             onMouseDown={(e) => e.preventDefault()}
           >
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-muted-foreground mr-1">Row:</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs gap-1"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={addTableRow}
-                title="Add Row Below"
-              >
-                <Plus className="h-3 w-3" />
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={removeTableRow}
-                title="Remove Last Row"
-              >
-                <Trash2 className="h-3 w-3" />
-                Remove
-              </Button>
-            </div>
-            <div className="w-px h-5 bg-border" />
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-muted-foreground mr-1">Column:</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs gap-1"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={addTableColumn}
-                title="Add Column Right"
-              >
-                <Plus className="h-3 w-3" />
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={removeTableColumn}
-                title="Remove Last Column"
-              >
-                <Trash2 className="h-3 w-3" />
-                Remove
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full shadow-sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => addRowAt(e, hoveredRowIndex)}
+              title="Add row below"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-full shadow-sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => deleteRowAt(e, hoveredRowIndex)}
+              title="Delete this row"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Column Controls - Top side */}
+        {showTableControls && hoveredColIndex !== null && (
+          <div 
+            className="absolute z-20 flex items-center justify-center gap-0.5"
+            style={{ 
+              top: Math.max(4, colControlPos.top),
+              left: colControlPos.left,
+              width: colControlPos.width
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full shadow-sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => addColumnAt(e, hoveredColIndex)}
+              title="Add column right"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-full shadow-sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => deleteColumnAt(e, hoveredColIndex)}
+              title="Delete this column"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
         )}
 
@@ -611,7 +673,7 @@ export const WikiRichEditor = ({
           onBlur={() => setIsFocused(false)}
           data-placeholder={placeholder}
           className={cn(
-            "wiki-editor outline-none p-6",
+            "wiki-editor outline-none p-6 pl-16",
             "prose prose-sm sm:prose max-w-none",
             "prose-headings:font-semibold prose-headings:text-foreground",
             "prose-h1:text-2xl prose-h1:mb-4 prose-h1:mt-6",
@@ -626,11 +688,10 @@ export const WikiRichEditor = ({
             "prose-code:text-sm prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
             "prose-img:rounded-lg prose-img:max-w-full",
             "prose-hr:border-border",
-            "prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted",
+            "prose-table:border-collapse prose-table:mt-8 prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted",
             "prose-td:border prose-td:border-border prose-td:p-2",
             "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none",
-            "[&_table]:relative [&_th]:min-w-[80px] [&_td]:min-w-[80px]",
-            "[&_th]:resize-x [&_th]:overflow-hidden [&_td]:resize-x [&_td]:overflow-hidden"
+            "[&_table]:relative [&_table]:ml-4 [&_th]:min-w-[80px] [&_td]:min-w-[80px]"
           )}
           style={{ minHeight }}
         />
