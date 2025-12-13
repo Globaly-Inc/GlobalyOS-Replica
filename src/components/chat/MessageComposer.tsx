@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -32,6 +32,7 @@ import { useSendMessage, useTypingIndicator } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import UploadProgress, { UploadingFile } from "./UploadProgress";
 
 const EMOJI_LIST = ["👍", "❤️", "😊", "😂", "🎉", "👏", "🔥", "💯", "✨", "🙌", "👀", "🤔"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -52,12 +53,17 @@ interface MessageComposerProps {
   spaceId: string | null;
 }
 
+export interface MessageComposerHandle {
+  addFiles: (files: File[]) => void;
+}
+
 interface SelectedFile {
   file: File;
   preview?: string;
 }
 
-const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
+const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
+  ({ conversationId, spaceId }, ref) => {
   const [message, setMessage] = useState("");
   const [showFormatting, setShowFormatting] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -65,6 +71,7 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -72,6 +79,32 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
   const sendMessage = useSendMessage();
   const { currentOrg } = useOrganization();
   const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
+
+  // Expose addFiles method to parent component
+  useImperativeHandle(ref, () => ({
+    addFiles: (files: File[]) => {
+      const newFiles: SelectedFile[] = [];
+      files.forEach(file => {
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(`${file.name} exceeds 10MB limit`);
+          return;
+        }
+        if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+          toast.error(`${file.name} is not a supported file type`);
+          return;
+        }
+        const selectedFile: SelectedFile = { file };
+        if (file.type.startsWith("image/")) {
+          selectedFile.preview = URL.createObjectURL(file);
+        }
+        newFiles.push(selectedFile);
+      });
+      if (newFiles.length > 0) {
+        setSelectedFiles(prev => [...prev, ...newFiles]);
+        toast.success(`${newFiles.length} file(s) added`);
+      }
+    }
+  }), []);
 
   // Handle typing indicator
   const handleTyping = useCallback(() => {
@@ -110,19 +143,45 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
     try {
       setIsUploading(true);
       
+      // Initialize uploading files state for progress tracking
+      const uploadingFilesInit: UploadingFile[] = selectedFiles.map((sf, index) => ({
+        id: `upload-${index}-${Date.now()}`,
+        name: sf.file.name,
+        progress: 0,
+        status: "uploading" as const,
+        preview: sf.preview,
+      }));
+      setUploadingFiles(uploadingFilesInit);
+      
       // Upload files first if any
       const uploadedAttachments: { fileName: string; filePath: string; fileSize: number; fileType: string }[] = [];
       
-      for (const { file } of selectedFiles) {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const { file } = selectedFiles[i];
         const fileExt = file.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${currentOrg?.id}/${fileName}`;
+        
+        // Update progress to simulate upload start
+        setUploadingFiles(prev => prev.map((uf, idx) => 
+          idx === i ? { ...uf, progress: 30 } : uf
+        ));
         
         const { error: uploadError } = await supabase.storage
           .from('chat-attachments')
           .upload(filePath, file);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          setUploadingFiles(prev => prev.map((uf, idx) => 
+            idx === i ? { ...uf, status: "error" as const } : uf
+          ));
+          throw uploadError;
+        }
+        
+        // Update progress to complete
+        setUploadingFiles(prev => prev.map((uf, idx) => 
+          idx === i ? { ...uf, progress: 100, status: "complete" as const } : uf
+        ));
         
         uploadedAttachments.push({
           fileName: file.name,
@@ -141,6 +200,7 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
       
       setMessage("");
       setSelectedFiles([]);
+      setUploadingFiles([]);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
@@ -265,7 +325,11 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
   };
 
   return (
-    <div className="border-t border-border bg-card p-3">
+    <div className="border-t border-border bg-card">
+      {/* Upload Progress */}
+      <UploadProgress files={uploadingFiles} />
+      
+      <div className="p-3">
       {/* Selected files preview */}
       {selectedFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
@@ -526,8 +590,11 @@ const MessageComposer = ({ conversationId, spaceId }: MessageComposerProps) => {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
-};
+});
+
+MessageComposer.displayName = "MessageComposer";
 
 export default MessageComposer;
