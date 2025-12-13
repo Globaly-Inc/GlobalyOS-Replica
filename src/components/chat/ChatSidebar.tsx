@@ -204,7 +204,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   };
 
   const getConversationAvatar = (conv: ChatConversation) => {
-    if (conv.is_group) return null;
+    if (conv.is_group) return conv.icon_url || null;
     const otherParticipant = conv.participants?.find(
       p => p.employee_id !== currentEmployee?.id
     );
