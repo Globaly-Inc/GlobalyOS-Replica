@@ -172,10 +172,12 @@ export type Database = {
           created_at: string
           created_by: string
           end_date: string
+          end_time: string | null
           event_type: string
           id: string
           organization_id: string
           start_date: string
+          start_time: string | null
           title: string
           updated_at: string
         }
@@ -184,10 +186,12 @@ export type Database = {
           created_at?: string
           created_by: string
           end_date: string
+          end_time?: string | null
           event_type?: string
           id?: string
           organization_id: string
           start_date: string
+          start_time?: string | null
           title: string
           updated_at?: string
         }
@@ -196,10 +200,12 @@ export type Database = {
           created_at?: string
           created_by?: string
           end_date?: string
+          end_time?: string | null
           event_type?: string
           id?: string
           organization_id?: string
           start_date?: string
+          start_time?: string | null
           title?: string
           updated_at?: string
         }

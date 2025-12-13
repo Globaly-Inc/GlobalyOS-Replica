@@ -47,6 +47,8 @@ const formSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),
   start_date: z.date({ required_error: "Start date is required" }),
   end_date: z.date({ required_error: "End date is required" }),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
   event_type: z.enum(["holiday", "event"]),
   applies_to_all_offices: z.boolean(),
   office_ids: z.array(z.string()),
@@ -65,6 +67,8 @@ interface CalendarEvent {
   title: string;
   start_date: string;
   end_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
   event_type: string;
   applies_to_all_offices: boolean;
   officeIds?: string[];
@@ -108,6 +112,8 @@ const EditCalendarEventDialog = ({
       event_type: "holiday",
       applies_to_all_offices: true,
       office_ids: [],
+      start_time: "",
+      end_time: "",
     },
   });
 
@@ -118,6 +124,8 @@ const EditCalendarEventDialog = ({
         title: event.title,
         start_date: parseISO(event.start_date),
         end_date: parseISO(event.end_date),
+        start_time: event.start_time || "",
+        end_time: event.end_time || "",
         event_type: event.event_type as "holiday" | "event",
         applies_to_all_offices: event.applies_to_all_offices,
         office_ids: event.officeIds || [],
@@ -152,6 +160,8 @@ const EditCalendarEventDialog = ({
           title: values.title,
           start_date: format(values.start_date, "yyyy-MM-dd"),
           end_date: format(values.end_date, "yyyy-MM-dd"),
+          start_time: values.start_time || null,
+          end_time: values.end_time || null,
           event_type: values.event_type,
           applies_to_all_offices: values.applies_to_all_offices,
         })
@@ -311,6 +321,37 @@ const EditCalendarEventDialog = ({
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Time fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="start_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="end_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

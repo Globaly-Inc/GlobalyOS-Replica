@@ -61,6 +61,8 @@ interface CalendarItem {
   subtitle?: string;
   date: Date;
   endDate?: Date;
+  startTime?: string | null;
+  endTime?: string | null;
   type: "leave" | "holiday" | "event" | "birthday" | "anniversary" | "review";
   employeeName?: string;
   appliesToAllOffices?: boolean;
@@ -81,6 +83,8 @@ const CalendarPage = () => {
     title: string;
     start_date: string;
     end_date: string;
+    start_time?: string | null;
+    end_time?: string | null;
     event_type: string;
     applies_to_all_offices: boolean;
     officeIds?: string[];
@@ -188,7 +192,7 @@ const CalendarPage = () => {
       // Fetch all events
       const { data: events, error } = await supabase
         .from("calendar_events")
-        .select("id, title, start_date, end_date, event_type, applies_to_all_offices")
+        .select("id, title, start_date, end_date, start_time, end_time, event_type, applies_to_all_offices")
         .eq("organization_id", currentOrg.id)
         .or(`start_date.lte.${format(monthEnd, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
       if (error) throw error;
@@ -274,6 +278,8 @@ const CalendarPage = () => {
         title: event.title,
         date: parseISO(event.start_date),
         endDate: parseISO(event.end_date),
+        startTime: event.start_time,
+        endTime: event.end_time,
         type: event.event_type === "holiday" ? "holiday" : "event",
         appliesToAllOffices: event.applies_to_all_offices,
         officeNames: eventOfficeNames,
@@ -516,6 +522,8 @@ const CalendarPage = () => {
                                   title: eventData.title,
                                   start_date: eventData.start_date,
                                   end_date: eventData.end_date,
+                                  start_time: eventData.start_time,
+                                  end_time: eventData.end_time,
                                   event_type: eventData.event_type,
                                   applies_to_all_offices: eventData.applies_to_all_offices,
                                   officeIds: eventData.officeIds,
@@ -539,6 +547,8 @@ const CalendarPage = () => {
                                   title: eventData.title,
                                   start_date: eventData.start_date,
                                   end_date: eventData.end_date,
+                                  start_time: eventData.start_time,
+                                  end_time: eventData.end_time,
                                   event_type: eventData.event_type,
                                   applies_to_all_offices: eventData.applies_to_all_offices,
                                   officeIds: eventData.officeIds,
@@ -580,6 +590,10 @@ const CalendarPage = () => {
                               {format(item.date, "d MMM")}
                               {item.endDate && !isSameDay(item.date, item.endDate) && (
                                 <> – {format(item.endDate, "d MMM")}</>
+                              )}
+                              {/* Show time if available */}
+                              {(item.startTime || item.endTime) && (
+                                <> · {item.startTime?.slice(0, 5) || ""}{item.startTime && item.endTime && " – "}{item.endTime?.slice(0, 5) || ""}</>
                               )}
                               {item.subtitle && <> · {item.subtitle}</>}
                             </p>
