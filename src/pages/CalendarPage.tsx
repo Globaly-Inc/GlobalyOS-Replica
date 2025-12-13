@@ -545,20 +545,20 @@ const CalendarPage = () => {
                         </div>
 
                         {/* Events in cell */}
-                        <div className="flex flex-col gap-1 overflow-hidden">
+                        <div className="flex flex-col gap-0.5 overflow-hidden">
                           {dayItems.slice(0, 3).map((item) => (
                             <div
                               key={item.id}
                               className={cn(
-                                "text-[11px] px-2 py-1 rounded-md truncate font-medium",
+                                "flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded truncate",
                                 getTypeBadgeVariant(item.type)
                               )}
                               title={item.employeeName ? `${item.title} – ${item.employeeName}` : item.title}
                             >
-                              {item.employeeName 
-                                ? `${item.title.split(' ')[0]} – ${item.employeeName.split(' ')[0]}`
-                                : item.title
-                              }
+                              <span className="shrink-0 [&>svg]:h-3 [&>svg]:w-3">{getTypeIcon(item.type)}</span>
+                              <span className="truncate font-medium">
+                                {item.employeeName ? item.employeeName.split(' ')[0] : item.title.split(' ')[0]}
+                              </span>
                             </div>
                           ))}
                         </div>
