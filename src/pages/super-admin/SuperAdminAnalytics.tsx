@@ -582,7 +582,9 @@ const SuperAdminAnalytics = () => {
                       dataKey="count" 
                       stroke="hsl(var(--chart-2))" 
                       strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2 }}
+                      dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 4 }}
+                      connectNulls
+                      activeDot={{ r: 6 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
