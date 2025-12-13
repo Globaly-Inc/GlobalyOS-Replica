@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Check } from "lucide-react";
+import { CalendarIcon, Check, Repeat } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useQuery } from "@tanstack/react-query";
@@ -52,6 +52,7 @@ const formSchema = z.object({
   event_type: z.enum(["holiday", "event"]),
   applies_to_all_offices: z.boolean(),
   office_ids: z.array(z.string()),
+  is_recurring: z.boolean(),
 }).refine((data) => data.end_date >= data.start_date, {
   message: "End date must be on or after start date",
   path: ["end_date"],
@@ -72,6 +73,7 @@ interface CalendarEvent {
   event_type: string;
   applies_to_all_offices: boolean;
   officeIds?: string[];
+  is_recurring?: boolean;
 }
 
 interface EditCalendarEventDialogProps {
@@ -114,6 +116,7 @@ const EditCalendarEventDialog = ({
       office_ids: [],
       start_time: "",
       end_time: "",
+      is_recurring: false,
     },
   });
 
@@ -129,6 +132,7 @@ const EditCalendarEventDialog = ({
         event_type: event.event_type as "holiday" | "event",
         applies_to_all_offices: event.applies_to_all_offices,
         office_ids: event.officeIds || [],
+        is_recurring: event.is_recurring || false,
       });
     }
   }, [event, open, form]);
@@ -164,6 +168,7 @@ const EditCalendarEventDialog = ({
           end_time: values.end_time || null,
           event_type: values.event_type,
           applies_to_all_offices: values.applies_to_all_offices,
+          is_recurring: values.is_recurring,
         })
         .eq("id", event.id);
 
@@ -357,6 +362,31 @@ const EditCalendarEventDialog = ({
                 )}
               />
             </div>
+
+            {/* Recurring toggle */}
+            <FormField
+              control={form.control}
+              name="is_recurring"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="flex items-center gap-2">
+                      <Repeat className="h-4 w-4" />
+                      Repeat annually
+                    </FormLabel>
+                    <FormDescription>
+                      This event will automatically repeat every year
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             {/* Office Selection */}
             <FormField

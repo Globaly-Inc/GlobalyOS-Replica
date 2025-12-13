@@ -28,7 +28,8 @@ import {
   ClipboardList,
   CalendarDays,
   Pencil,
-  Trash2
+  Trash2,
+  Repeat
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -69,6 +70,7 @@ interface CalendarItem {
   officeNames?: string[];
   rawEventId?: string; // Original event ID for edit/delete
   officeIds?: string[];
+  isRecurring?: boolean;
 }
 
 const CalendarPage = () => {
@@ -88,6 +90,7 @@ const CalendarPage = () => {
     event_type: string;
     applies_to_all_offices: boolean;
     officeIds?: string[];
+    is_recurring?: boolean;
   } | null>(null);
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
@@ -184,21 +187,33 @@ const CalendarPage = () => {
   });
 
   // Fetch calendar events (holidays/events) with office filtering
+  // For recurring events, we need to fetch ALL recurring events regardless of date filter
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery({
     queryKey: ["calendar-events", currentOrg?.id, currentEmployee?.office_id, format(monthStart, "yyyy-MM")],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       
-      // Fetch all events
-      const { data: events, error } = await supabase
+      // Fetch non-recurring events within date range
+      const { data: nonRecurringEvents, error: nonRecurringError } = await supabase
         .from("calendar_events")
-        .select("id, title, start_date, end_date, start_time, end_time, event_type, applies_to_all_offices")
+        .select("id, title, start_date, end_date, start_time, end_time, event_type, applies_to_all_offices, is_recurring")
         .eq("organization_id", currentOrg.id)
+        .eq("is_recurring", false)
         .or(`start_date.lte.${format(monthEnd, "yyyy-MM-dd")},end_date.gte.${format(monthStart, "yyyy-MM-dd")}`);
-      if (error) throw error;
+      if (nonRecurringError) throw nonRecurringError;
+
+      // Fetch ALL recurring events (they repeat every year so we need all of them)
+      const { data: recurringEvents, error: recurringError } = await supabase
+        .from("calendar_events")
+        .select("id, title, start_date, end_date, start_time, end_time, event_type, applies_to_all_offices, is_recurring")
+        .eq("organization_id", currentOrg.id)
+        .eq("is_recurring", true);
+      if (recurringError) throw recurringError;
+
+      const allEvents = [...(nonRecurringEvents || []), ...(recurringEvents || [])];
 
       // Fetch all office associations
-      const eventIds = events?.map(e => e.id) || [];
+      const eventIds = allEvents.map(e => e.id) || [];
       let eventOffices: { calendar_event_id: string; office_id: string }[] = [];
       
       if (eventIds.length > 0) {
@@ -212,10 +227,10 @@ const CalendarPage = () => {
       }
 
       // Attach office info to events
-      const eventsWithOffices = events?.map(event => ({
+      const eventsWithOffices = allEvents.map(event => ({
         ...event,
         officeIds: eventOffices.filter(eo => eo.calendar_event_id === event.id).map(eo => eo.office_id),
-      })) || [];
+      }));
 
       // If user has no office or is admin/HR, show all events
       if (!currentEmployee?.office_id || isAdmin || isHR) {
@@ -267,25 +282,55 @@ const CalendarPage = () => {
       });
     });
 
-    // Add holidays and events
+    // Add holidays and events (handling recurring events)
     calendarEvents.forEach((event) => {
       const eventOfficeNames = event.officeIds
         ?.map(officeId => offices.find(o => o.id === officeId)?.name)
         .filter(Boolean) as string[] || [];
       
-      items.push({
-        id: `event-${event.id}`,
-        title: event.title,
-        date: parseISO(event.start_date),
-        endDate: parseISO(event.end_date),
-        startTime: event.start_time,
-        endTime: event.end_time,
-        type: event.event_type === "holiday" ? "holiday" : "event",
-        appliesToAllOffices: event.applies_to_all_offices,
-        officeNames: eventOfficeNames,
-        rawEventId: event.id,
-        officeIds: event.officeIds,
-      });
+      const originalStartDate = parseISO(event.start_date);
+      const originalEndDate = parseISO(event.end_date);
+      const eventDuration = originalEndDate.getTime() - originalStartDate.getTime();
+      
+      if (event.is_recurring) {
+        // For recurring events, generate instances for the current view year
+        const adjustedStartDate = new Date(currentYear, originalStartDate.getMonth(), originalStartDate.getDate());
+        const adjustedEndDate = new Date(adjustedStartDate.getTime() + eventDuration);
+        
+        // Check if this recurring instance falls in the current month view
+        if (adjustedStartDate.getMonth() === currentMonth || adjustedEndDate.getMonth() === currentMonth) {
+          items.push({
+            id: `event-${event.id}-${currentYear}`,
+            title: event.title,
+            date: adjustedStartDate,
+            endDate: adjustedEndDate,
+            startTime: event.start_time,
+            endTime: event.end_time,
+            type: event.event_type === "holiday" ? "holiday" : "event",
+            appliesToAllOffices: event.applies_to_all_offices,
+            officeNames: eventOfficeNames,
+            rawEventId: event.id,
+            officeIds: event.officeIds,
+            isRecurring: true,
+          });
+        }
+      } else {
+        // Non-recurring event - show as-is
+        items.push({
+          id: `event-${event.id}`,
+          title: event.title,
+          date: originalStartDate,
+          endDate: originalEndDate,
+          startTime: event.start_time,
+          endTime: event.end_time,
+          type: event.event_type === "holiday" ? "holiday" : "event",
+          appliesToAllOffices: event.applies_to_all_offices,
+          officeNames: eventOfficeNames,
+          rawEventId: event.id,
+          officeIds: event.officeIds,
+          isRecurring: false,
+        });
+      }
     });
 
     // Add birthdays (show for current month, adjust year)
@@ -527,6 +572,7 @@ const CalendarPage = () => {
                                   event_type: eventData.event_type,
                                   applies_to_all_offices: eventData.applies_to_all_offices,
                                   officeIds: eventData.officeIds,
+                                  is_recurring: eventData.is_recurring,
                                 });
                                 setIsEditEventOpen(true);
                               }
@@ -552,6 +598,7 @@ const CalendarPage = () => {
                                   event_type: eventData.event_type,
                                   applies_to_all_offices: eventData.applies_to_all_offices,
                                   officeIds: eventData.officeIds,
+                                  is_recurring: eventData.is_recurring,
                                 });
                                 setIsDeleteDialogOpen(true);
                               }
@@ -597,9 +644,15 @@ const CalendarPage = () => {
                               )}
                               {item.subtitle && <> · {item.subtitle}</>}
                             </p>
-                            {/* Office badges for events/holidays */}
+                            {/* Office badges and recurring indicator for events/holidays */}
                             {(item.type === "holiday" || item.type === "event") && (
                               <div className="flex flex-wrap gap-1 mt-2">
+                                {item.isRecurring && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                                    <Repeat className="h-2.5 w-2.5" />
+                                    Annual
+                                  </Badge>
+                                )}
                                 {item.appliesToAllOffices ? (
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                     All offices
