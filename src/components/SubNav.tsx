@@ -1,4 +1,4 @@
-import { Home, Users, Target, Calendar } from "lucide-react";
+import { Home, Users, Target, Calendar, CalendarDays } from "lucide-react";
 import { NavLink } from "./NavLink";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ const teamSubNavItems = [
   { name: "Directory", href: "/team", icon: Users },
   { name: "KPIs", href: "/kpi-dashboard", icon: Target },
   { name: "Team Cal", href: "/calendar", icon: Calendar },
+  { name: "Leave History", href: "/leave-history", icon: CalendarDays },
 ];
 
 export const SubNav = () => {
@@ -19,7 +20,8 @@ export const SubNav = () => {
     location.pathname === "/team" || 
     location.pathname.startsWith("/team/") ||
     location.pathname === "/kpi-dashboard" ||
-    location.pathname === "/calendar";
+    location.pathname === "/calendar" ||
+    location.pathname === "/leave-history";
 
   if (!isTeamSection) return null;
 
