@@ -979,7 +979,7 @@ const CalendarPage = () => {
           </div>
           
           {/* Calendar Grid */}
-          <div className="flex-1 mt-4 p-2 lg:p-6 overflow-auto">
+          <div className="flex-1 p-2 pt-4 lg:p-6 lg:pt-4 overflow-auto">
             {viewMode === "month" && (
               <div className="grid grid-cols-7 rounded-xl overflow-hidden border border-border">
                 {/* Day headers */}
