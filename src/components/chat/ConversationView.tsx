@@ -64,6 +64,7 @@ interface ConversationViewProps {
   activeChat: ActiveChat;
   onBack: () => void;
   onToggleRightPanel: () => void;
+  highlightMessageId?: string;
 }
 
 // Check if two messages should be grouped (same sender within 5 minutes)
@@ -79,7 +80,7 @@ const shouldGroupMessages = (currentMsg: ChatMessage, prevMsg: ChatMessage | nul
   return timeDiff < 5;
 };
 
-const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: ConversationViewProps) => {
+const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMessageId }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
@@ -309,10 +310,24 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
     }
   }, [messages, isAtBottom, scrollToBottom]);
 
-  // Initial scroll to bottom
+  // Initial scroll to bottom or to highlighted message
   useEffect(() => {
-    scrollToBottom();
-  }, [conversationId, spaceId]);
+    if (highlightMessageId) {
+      // Wait for messages to render, then scroll to the highlighted message
+      setTimeout(() => {
+        const messageElement = document.getElementById(`message-${highlightMessageId}`);
+        if (messageElement) {
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          messageElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+          setTimeout(() => {
+            messageElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+          }, 2500);
+        }
+      }, 100);
+    } else {
+      scrollToBottom();
+    }
+  }, [conversationId, spaceId, highlightMessageId, scrollToBottom]);
 
   const getInitials = (name: string) => {
     return name

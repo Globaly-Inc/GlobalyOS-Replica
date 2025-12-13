@@ -13,17 +13,24 @@ import { cn } from "@/lib/utils";
 
 const Chat = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
+  const [highlightMessageId, setHighlightMessageId] = useState<string | undefined>(undefined);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  const handleSelectChat = (chat: ActiveChat) => {
+  const handleSelectChat = (chat: ActiveChat, messageId?: string) => {
     setActiveChat(chat);
+    setHighlightMessageId(messageId);
+    // Clear highlight after a delay
+    if (messageId) {
+      setTimeout(() => setHighlightMessageId(undefined), 3000);
+    }
   };
 
   const handleBack = () => {
     setActiveChat(null);
+    setHighlightMessageId(undefined);
   };
 
   const handleChatCreated = (chat: ActiveChat) => {
@@ -53,6 +60,7 @@ const Chat = () => {
         activeChat={activeChat}
         onBack={handleBack}
         onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+        highlightMessageId={highlightMessageId}
       />
     );
   };

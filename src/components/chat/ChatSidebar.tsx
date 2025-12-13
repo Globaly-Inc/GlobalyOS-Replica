@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -10,30 +9,30 @@ import {
   Star,
   Hash,
   Users,
-  Search,
   ChevronDown,
   ChevronRight,
   Plus,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces, useUnreadCounts } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts, useCreateConversation } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChatConversation, ChatSpace, ActiveChat } from "@/types/chat";
+import type { ChatConversation, ActiveChat } from "@/types/chat";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
+import GlobalChatSearch from "./GlobalChatSearch";
+import type { GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
 
 interface ChatSidebarProps {
   activeChat: ActiveChat | null;
-  onSelectChat: (chat: ActiveChat) => void;
+  onSelectChat: (chat: ActiveChat, highlightMessageId?: string) => void;
   onNewChat: () => void;
   onNewSpace: () => void;
 }
 
 const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSidebarProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
   const [dmExpanded, setDmExpanded] = useState(true);
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
@@ -45,6 +44,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
+  const createConversation = useCreateConversation();
 
   // Fetch online statuses for all conversation participants
   useEffect(() => {
@@ -220,13 +220,50 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
       .slice(0, 2);
   };
 
-  const filteredConversations = conversations.filter(conv => 
-    getConversationName(conv).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleSearchResult = (result: GlobalSearchResult, chat: ActiveChat) => {
+    if (result.type === 'message' && result.messageId) {
+      onSelectChat(chat, result.messageId);
+    } else {
+      onSelectChat(chat);
+    }
+  };
 
-  const filteredSpaces = spaces.filter(space => 
-    space.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleStartDM = async (employeeId: string, name: string) => {
+    if (!currentEmployee?.id || !currentOrg?.id) return;
+
+    // Check if conversation already exists
+    const existingConv = conversations.find(conv => {
+      if (conv.is_group) return false;
+      return conv.participants?.some(p => p.employee_id === employeeId);
+    });
+
+    if (existingConv) {
+      onSelectChat({
+        type: 'conversation',
+        id: existingConv.id,
+        name: getConversationName(existingConv),
+        isGroup: false,
+      });
+    } else {
+      // Create new DM
+      createConversation.mutate(
+        {
+          participantIds: [employeeId],
+          isGroup: false,
+        },
+        {
+          onSuccess: (newConv) => {
+            onSelectChat({
+              type: 'conversation',
+              id: newConv.id,
+              name,
+              isGroup: false,
+            });
+          },
+        }
+      );
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-card border-r border-border">
@@ -254,17 +291,12 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
 
       <ChatSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
-      {/* Search */}
+      {/* Global Search */}
       <div className="p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search chat"
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <GlobalChatSearch
+          onSelectResult={handleSearchResult}
+          onStartDM={handleStartDM}
+        />
       </div>
 
       <ScrollArea className="flex-1">
@@ -315,10 +347,10 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             <div className="space-y-1">
               {loadingConversations ? (
                 <p className="text-sm text-muted-foreground px-2">Loading...</p>
-              ) : filteredConversations.length === 0 ? (
+              ) : conversations.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-2">No conversations yet</p>
               ) : (
-                filteredConversations.map((conv) => {
+                conversations.map((conv) => {
                   const name = getConversationName(conv);
                   const avatar = getConversationAvatar(conv);
                   const isActive = activeChat?.type === 'conversation' && activeChat.id === conv.id;
@@ -389,10 +421,10 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             <div className="space-y-1">
               {loadingSpaces ? (
                 <p className="text-sm text-muted-foreground px-2">Loading...</p>
-              ) : filteredSpaces.length === 0 ? (
+              ) : spaces.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-2">No spaces yet</p>
               ) : (
-                filteredSpaces.map((space) => {
+                spaces.map((space) => {
                   const isActive = activeChat?.type === 'space' && activeChat.id === space.id;
                   
                   return (
