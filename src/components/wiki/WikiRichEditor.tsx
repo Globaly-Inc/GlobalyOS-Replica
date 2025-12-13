@@ -479,16 +479,23 @@ export const WikiRichEditor = ({
     }
     
     const languages = [
-      'Plain text', 'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
+      'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
       'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'HTML', 'CSS', 'SQL',
       'Bash', 'Shell', 'JSON', 'YAML', 'XML', 'Markdown', 'GraphQL', 'Dart',
-      'Scala', 'R', 'Lua', 'Perl', 'Objective-C', 'Elixir', 'Haskell'
+      'Scala', 'R', 'Lua', 'Perl', 'Objective-C', 'Elixir', 'Haskell', 'Plain text'
     ];
+    
+    const defaultCode = `function myFunction() {
+  let x = 10; // x is accessible here
+  console.log(x);
+}
+
+myFunction();`;
     
     // Create the code block container
     const codeBlockWrapper = document.createElement('div');
     codeBlockWrapper.className = 'wiki-code-block';
-    codeBlockWrapper.setAttribute('data-language', 'Plain text');
+    codeBlockWrapper.setAttribute('data-language', 'JavaScript');
     codeBlockWrapper.style.borderRadius = '0.5rem';
     codeBlockWrapper.style.overflow = 'hidden';
     codeBlockWrapper.style.margin = '0.5rem 0';
@@ -578,7 +585,7 @@ export const WikiRichEditor = ({
     codeContent.style.minHeight = '60px';
     codeContent.style.outline = 'none';
     codeContent.contentEditable = 'true';
-    codeContent.textContent = selectedText || '// Enter your code here...';
+    codeContent.textContent = selectedText || defaultCode;
     
     codeBlockWrapper.appendChild(header);
     codeBlockWrapper.appendChild(codeContent);
