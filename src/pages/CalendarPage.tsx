@@ -603,178 +603,183 @@ const CalendarPage = () => {
     }
   };
 
+  // Render events list content (reusable for desktop sidebar and mobile bottom)
+  const renderEventsList = (isMobile: boolean = false) => (
+    <div className={cn(
+      "flex flex-col",
+      isMobile ? "bg-card border-t border-border" : "flex-1"
+    )}>
+      <div className={cn("border-b border-border", isMobile ? "p-3" : "p-6")}>
+        <h2 className={cn("font-semibold text-foreground", isMobile ? "text-base" : "text-lg")}>
+          {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {selectedDate 
+            ? `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`
+            : "Don't miss scheduled events"
+          }
+        </p>
+        {selectedDate && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-1 -ml-2 text-primary text-xs"
+            onClick={() => setSelectedDate(null)}
+          >
+            ← Show all upcoming
+          </Button>
+        )}
+      </div>
+      
+      <ScrollArea className={isMobile ? "max-h-[250px]" : "flex-1"}>
+        <div className={cn("space-y-2", isMobile ? "p-2" : "p-3")}>
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-xs">No events {selectedDate ? "on this day" : "upcoming"}</p>
+            </div>
+          ) : (
+            filteredItems.slice(0, isMobile ? 5 : undefined).map((item) => {
+              const isManageableEvent = canManageEvents && (item.type === "holiday" || item.type === "event");
+              
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "w-full text-left rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm group relative",
+                    isMobile ? "p-3" : "p-4 hover:shadow-md",
+                    selectedDate && isSameDay(item.date, selectedDate) && "ring-2 ring-primary"
+                  )}
+                >
+                  {/* Edit/Delete buttons for HR/Admin on events/holidays */}
+                  {isManageableEvent && !isMobile && (
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
+                          if (eventData) {
+                            setSelectedEvent({
+                              id: eventData.id,
+                              title: eventData.title,
+                              start_date: eventData.start_date,
+                              end_date: eventData.end_date,
+                              start_time: eventData.start_time,
+                              end_time: eventData.end_time,
+                              event_type: eventData.event_type,
+                              applies_to_all_offices: eventData.applies_to_all_offices,
+                              officeIds: eventData.officeIds,
+                              is_recurring: eventData.is_recurring,
+                            });
+                            setIsEditEventOpen(true);
+                          }
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
+                          if (eventData) {
+                            setSelectedEvent({
+                              id: eventData.id,
+                              title: eventData.title,
+                              start_date: eventData.start_date,
+                              end_date: eventData.end_date,
+                              start_time: eventData.start_time,
+                              end_time: eventData.end_time,
+                              event_type: eventData.event_type,
+                              applies_to_all_offices: eventData.applies_to_all_offices,
+                              officeIds: eventData.officeIds,
+                              is_recurring: eventData.is_recurring,
+                            });
+                            setIsDeleteDialogOpen(true);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <button
+                    className="w-full text-left"
+                    onClick={() => handleDayClick(item.date)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className={cn("p-1.5 rounded-lg shrink-0", getTypeBadgeVariant(item.type))}>
+                        {getTypeIcon(item.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("font-medium text-foreground truncate", isMobile ? "text-xs" : "text-sm")}>
+                          {item.type === "anniversary" || item.type === "birthday" 
+                            ? item.title 
+                            : item.employeeName 
+                              ? `${item.title} – ${item.employeeName}` 
+                              : item.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {format(item.date, "d MMM")}
+                          {item.startTime && (
+                            <> · {format(new Date(`2000-01-01T${item.startTime}`), "h:mm a")}</>
+                          )}
+                          {item.endDate && !isSameDay(item.date, item.endDate) && (
+                            <> - {format(item.endDate, "d MMM")}</>
+                          )}
+                          {item.subtitle && <> · {item.subtitle}</>}
+                        </p>
+                        {/* Office badges - only on desktop */}
+                        {!isMobile && (item.type === "holiday" || item.type === "event") && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.isRecurring && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                                <Repeat className="h-2.5 w-2.5" />
+                                Annual
+                              </Badge>
+                            )}
+                            {item.appliesToAllOffices ? (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                All offices
+                              </Badge>
+                            ) : item.officeNames && item.officeNames.length > 0 ? (
+                              item.officeNames.map((name, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {name}
+                                </Badge>
+                              ))
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              );
+            })
+          )}
+          {isMobile && filteredItems.length > 5 && (
+            <p className="text-center text-xs text-muted-foreground py-2">
+              +{filteredItems.length - 5} more events
+            </p>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
   return (
     <Layout>
       <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] overflow-hidden">
-        {/* Left Sidebar - Upcoming Events (hidden on mobile) */}
+        {/* Left Sidebar - Upcoming Events (desktop only) */}
         <div className="hidden lg:flex w-[320px] xl:w-[360px] border-r border-border bg-card/50 flex-col shrink-0">
-          <div className="p-6 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground">
-              {selectedDate ? format(selectedDate, "d MMMM yyyy") : "Upcoming"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedDate 
-                ? `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''} on this day`
-                : "Don't miss scheduled events"
-              }
-            </p>
-            {selectedDate && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="mt-2 -ml-2 text-primary"
-                onClick={() => setSelectedDate(null)}
-              >
-                ← Show all upcoming
-              </Button>
-            )}
-          </div>
-          
-          <ScrollArea className="flex-1">
-            <div className="p-3 space-y-2">
-              {filteredItems.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No events {selectedDate ? "on this day" : "upcoming"}</p>
-                </div>
-              ) : (
-                filteredItems.map((item) => {
-                  const isManageableEvent = canManageEvents && (item.type === "holiday" || item.type === "event");
-                  
-                  return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "w-full text-left p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 shadow-sm hover:shadow-md group relative",
-                        selectedDate && isSameDay(item.date, selectedDate) && "ring-2 ring-primary"
-                      )}
-                    >
-                      {/* Edit/Delete buttons for HR/Admin on events/holidays */}
-                      {isManageableEvent && (
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
-                              if (eventData) {
-                                setSelectedEvent({
-                                  id: eventData.id,
-                                  title: eventData.title,
-                                  start_date: eventData.start_date,
-                                  end_date: eventData.end_date,
-                                  start_time: eventData.start_time,
-                                  end_time: eventData.end_time,
-                                  event_type: eventData.event_type,
-                                  applies_to_all_offices: eventData.applies_to_all_offices,
-                                  officeIds: eventData.officeIds,
-                                  is_recurring: eventData.is_recurring,
-                                });
-                                setIsEditEventOpen(true);
-                              }
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const eventData = calendarEvents.find(ce => ce.id === item.rawEventId);
-                              if (eventData) {
-                                setSelectedEvent({
-                                  id: eventData.id,
-                                  title: eventData.title,
-                                  start_date: eventData.start_date,
-                                  end_date: eventData.end_date,
-                                  start_time: eventData.start_time,
-                                  end_time: eventData.end_time,
-                                  event_type: eventData.event_type,
-                                  applies_to_all_offices: eventData.applies_to_all_offices,
-                                  officeIds: eventData.officeIds,
-                                  is_recurring: eventData.is_recurring,
-                                });
-                                setIsDeleteDialogOpen(true);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                      
-                      <button
-                        className="w-full text-left"
-                        onClick={() => handleDayClick(item.date)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={cn("p-2 rounded-lg", getTypeBadgeVariant(item.type))}>
-                            {getTypeIcon(item.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={cn(
-                                "text-xs font-medium px-2 py-0.5 rounded-full",
-                                getTypeBadgeVariant(item.type)
-                              )}>
-                                {getTypeLabel(item.type)}
-                              </span>
-                            </div>
-                            <p className="font-medium text-sm text-foreground">
-                              {item.type === "anniversary" || item.type === "birthday" 
-                                ? item.title 
-                                : item.employeeName 
-                                  ? `${item.title} – ${item.employeeName}` 
-                                  : item.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(item.date, "d MMM")}
-                              {item.startTime && (
-                                <> · {format(new Date(`2000-01-01T${item.startTime}`), "h:mm a")}</>
-                              )}
-                              {item.endDate && !isSameDay(item.date, item.endDate) && (
-                                <> - {format(item.endDate, "d MMM")}</>
-                              )}
-                              {item.endTime && (
-                                <> · {format(new Date(`2000-01-01T${item.endTime}`), "h:mm a")}</>
-                              )}
-                              {item.subtitle && <> · {item.subtitle}</>}
-                            </p>
-                            {/* Office badges and recurring indicator for events/holidays */}
-                            {(item.type === "holiday" || item.type === "event") && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {item.isRecurring && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
-                                    <Repeat className="h-2.5 w-2.5" />
-                                    Annual
-                                  </Badge>
-                                )}
-                                {item.appliesToAllOffices ? (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                    All offices
-                                  </Badge>
-                                ) : item.officeNames && item.officeNames.length > 0 ? (
-                                  item.officeNames.map((name, idx) => (
-                                    <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                      {name}
-                                    </Badge>
-                                  ))
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
+          {renderEventsList(false)}
         </div>
 
         {/* Right Side - Calendar */}
@@ -1129,6 +1134,11 @@ const CalendarPage = () => {
               </div>
             )}
 
+          </div>
+          
+          {/* Mobile Upcoming Events - shown at bottom on mobile */}
+          <div className="lg:hidden">
+            {renderEventsList(true)}
           </div>
         </div>
       </div>
