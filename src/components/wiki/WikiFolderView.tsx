@@ -255,11 +255,15 @@ export const WikiFolderView = ({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {/* Creating new folder card */}
-            {creatingItem?.type === "folder" && (
+            {/* Creating new item card - always at top front */}
+            {creatingItem && (
               <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
                 <div className="relative mb-3">
-                  <Folder className="h-12 w-12 text-primary fill-primary/10" />
+                  {creatingItem.type === "folder" ? (
+                    <Folder className="h-12 w-12 text-primary fill-primary/10" />
+                  ) : (
+                    <FileText className="h-12 w-12 text-primary" />
+                  )}
                 </div>
                 <Input
                   ref={inputRef}
@@ -268,7 +272,7 @@ export const WikiFolderView = ({
                   onKeyDown={handleKeyDown}
                   onBlur={handleCreateConfirm}
                   className="text-sm font-medium text-center h-8 px-2"
-                  placeholder="Folder name"
+                  placeholder={creatingItem.type === "folder" ? "Folder name" : "Page title"}
                 />
               </div>
             )}
@@ -366,24 +370,6 @@ export const WikiFolderView = ({
                 </div>
               );
             })}
-
-            {/* Creating new page card */}
-            {creatingItem?.type === "page" && (
-              <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
-                <div className="relative mb-3">
-                  <FileText className="h-12 w-12 text-primary" />
-                </div>
-                <Input
-                  ref={inputRef}
-                  value={creatingName}
-                  onChange={(e) => setCreatingName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleCreateConfirm}
-                  className="text-sm font-medium text-center h-8 px-2"
-                  placeholder="Page title"
-                />
-              </div>
-            )}
 
             {/* Pages */}
             {childPages.map((page) => {
