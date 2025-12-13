@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -8,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface WikiFolder {
   id: string;
@@ -38,6 +40,8 @@ interface WikiFolderViewProps {
   onDeletePage?: (pageId: string) => void;
   isFavorite?: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite?: (itemType: "folder" | "page", itemId: string) => void;
+  creatingItem?: { type: "folder" | "page" } | null;
+  onCreatingItemComplete?: () => void;
 }
 
 export const WikiFolderView = ({
@@ -55,7 +59,51 @@ export const WikiFolderView = ({
   onDeletePage,
   isFavorite,
   onToggleFavorite,
+  creatingItem,
+  onCreatingItemComplete,
 }: WikiFolderViewProps) => {
+  const [creatingName, setCreatingName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when creating item
+  useEffect(() => {
+    if (creatingItem) {
+      setCreatingName(creatingItem.type === "folder" ? "New Folder" : "New Page");
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 50);
+    }
+  }, [creatingItem]);
+
+  const handleCreateConfirm = () => {
+    if (creatingName.trim() && creatingItem) {
+      if (creatingItem.type === "folder") {
+        onCreateFolder?.(creatingName.trim(), currentFolderId);
+      } else {
+        onCreatePage?.(creatingName.trim(), currentFolderId);
+      }
+    }
+    onCreatingItemComplete?.();
+    setCreatingName("");
+  };
+
+  const handleCreateCancel = () => {
+    onCreatingItemComplete?.();
+    setCreatingName("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCreateConfirm();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleCreateCancel();
+    }
+  };
+
   // Get child folders and pages for current view
   const childFolders = folders
     .filter((f) => f.parent_id === currentFolderId)
@@ -108,7 +156,7 @@ export const WikiFolderView = ({
 
       {/* Content grid */}
       <div className="flex-1 overflow-y-auto p-6">
-        {childFolders.length === 0 && childPages.length === 0 ? (
+        {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <Folder className="h-16 w-16 mb-4 opacity-20" />
             <p className="text-lg">This folder is empty</p>
@@ -116,6 +164,24 @@ export const WikiFolderView = ({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {/* Creating new folder card */}
+            {creatingItem?.type === "folder" && (
+              <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
+                <div className="relative mb-3">
+                  <Folder className="h-12 w-12 text-primary fill-primary/10" />
+                </div>
+                <Input
+                  ref={inputRef}
+                  value={creatingName}
+                  onChange={(e) => setCreatingName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCreateConfirm}
+                  className="text-sm font-medium text-center h-8 px-2"
+                  placeholder="Folder name"
+                />
+              </div>
+            )}
+
             {/* Folders */}
             {childFolders.map((folder) => {
               const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
@@ -209,6 +275,24 @@ export const WikiFolderView = ({
                 </div>
               );
             })}
+
+            {/* Creating new page card */}
+            {creatingItem?.type === "page" && (
+              <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
+                <div className="relative mb-3">
+                  <FileText className="h-12 w-12 text-primary" />
+                </div>
+                <Input
+                  ref={inputRef}
+                  value={creatingName}
+                  onChange={(e) => setCreatingName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCreateConfirm}
+                  className="text-sm font-medium text-center h-8 px-2"
+                  placeholder="Page title"
+                />
+              </div>
+            )}
 
             {/* Pages */}
             {childPages.map((page) => {

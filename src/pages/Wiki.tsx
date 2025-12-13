@@ -77,6 +77,7 @@ const Wiki = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("home");
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
+  const [creatingItem, setCreatingItem] = useState<{ type: "folder" | "page" } | null>(null);
   
   // Ref to WikiContent to check unsaved changes synchronously
   const wikiContentRef = useRef<WikiContentHandle>(null);
@@ -413,24 +414,26 @@ const Wiki = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem 
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      const title = prompt("Enter page title:");
-                      if (title?.trim()) {
-                        createPageMutation.mutate({ title: title.trim(), folderId: getCurrentFolderId() });
+                    onSelect={() => {
+                      // Switch to folder view first if on page view
+                      if (viewMode === "page") {
+                        setSelectedPageId(null);
+                        setViewMode(selectedFolderId ? "folder" : "home");
                       }
+                      setCreatingItem({ type: "page" });
                     }}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     New Page
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      const name = prompt("Enter folder name:");
-                      if (name?.trim()) {
-                        createFolderMutation.mutate({ name: name.trim(), parentId: getCurrentFolderId() });
+                    onSelect={() => {
+                      // Switch to folder view first if on page view
+                      if (viewMode === "page") {
+                        setSelectedPageId(null);
+                        setViewMode(selectedFolderId ? "folder" : "home");
                       }
+                      setCreatingItem({ type: "folder" });
                     }}
                   >
                     <Folder className="h-4 w-4 mr-2" />
@@ -500,6 +503,8 @@ const Wiki = () => {
                 onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
                 isFavorite={isFavorite}
                 onToggleFavorite={toggleFavorite}
+                creatingItem={creatingItem}
+                onCreatingItemComplete={() => setCreatingItem(null)}
               />
             )}
           </div>
