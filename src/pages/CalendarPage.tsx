@@ -30,7 +30,9 @@ import {
   Pencil,
   Trash2,
   Repeat,
-  Globe
+  Globe,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -43,12 +45,18 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import AddCalendarEventDialog from "@/components/dialogs/AddCalendarEventDialog";
 import EditCalendarEventDialog from "@/components/dialogs/EditCalendarEventDialog";
 import {
@@ -88,6 +96,7 @@ const CalendarPage = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [activeFilters, setActiveFilters] = useState<Set<CalendarItem["type"]>>(new Set());
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<{
@@ -1133,18 +1142,48 @@ const CalendarPage = () => {
                 {/* Timezone Selector */}
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-muted-foreground" />
-                  <Select value={timezone} onValueChange={setTimezone}>
-                    <SelectTrigger className="w-[200px] h-8 text-xs">
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {getTimezones().map((tz) => (
-                        <SelectItem key={tz} value={tz} className="text-xs">
-                          {formatTimezoneLabel(tz)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={timezoneOpen}
+                        className="w-[200px] h-8 justify-between text-xs"
+                      >
+                        {timezone ? formatTimezoneLabel(timezone).substring(0, 25) + (formatTimezoneLabel(timezone).length > 25 ? '...' : '') : "Select timezone"}
+                        <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Search timezone..." className="h-9" />
+                        <CommandList>
+                          <CommandEmpty>No timezone found.</CommandEmpty>
+                          <CommandGroup className="max-h-[250px] overflow-auto">
+                            {getTimezones().map((tz) => (
+                              <CommandItem
+                                key={tz}
+                                value={formatTimezoneLabel(tz)}
+                                onSelect={() => {
+                                  setTimezone(tz);
+                                  setTimezoneOpen(false);
+                                }}
+                                className="text-xs"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    timezone === tz ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {formatTimezoneLabel(tz)}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
