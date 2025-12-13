@@ -457,3 +457,168 @@ export const useTogglePinMessage = () => {
     },
   });
 };
+
+// Typing indicator hooks
+export const useTypingIndicator = () => {
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+
+  const updateTypingStatus = async (conversationId: string | null, spaceId: string | null) => {
+    if (!currentEmployee?.id || !currentOrg?.id) return;
+
+    await supabase
+      .from('chat_presence')
+      .upsert({
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        typing_in_conversation_id: conversationId,
+        typing_in_space_id: spaceId,
+        is_online: true,
+        last_seen_at: new Date().toISOString()
+      }, { onConflict: 'employee_id' });
+  };
+
+  const clearTypingStatus = async () => {
+    if (!currentEmployee?.id) return;
+
+    await supabase
+      .from('chat_presence')
+      .update({
+        typing_in_conversation_id: null,
+        typing_in_space_id: null
+      })
+      .eq('employee_id', currentEmployee.id);
+  };
+
+  return { updateTypingStatus, clearTypingStatus };
+};
+
+export const useTypingUsers = (conversationId: string | null, spaceId: string | null) => {
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['typing-users', conversationId, spaceId],
+    queryFn: async () => {
+      if (!conversationId && !spaceId) return [];
+
+      let query = supabase
+        .from('chat_presence')
+        .select(`
+          employee_id,
+          employees:employee_id (
+            id,
+            profiles:user_id (
+              full_name
+            )
+          )
+        `)
+        .neq('employee_id', currentEmployee?.id || '');
+
+      if (conversationId) {
+        query = query.eq('typing_in_conversation_id', conversationId);
+      } else if (spaceId) {
+        query = query.eq('typing_in_space_id', spaceId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((p: any) => ({
+        employeeId: p.employee_id,
+        name: p.employees?.profiles?.full_name || 'Someone'
+      }));
+    },
+    enabled: (!!conversationId || !!spaceId) && !!currentEmployee?.id,
+    refetchInterval: 3000, // Poll every 3 seconds as fallback
+  });
+};
+
+// Update last_read_at when viewing a conversation
+export const useMarkAsRead = () => {
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ conversationId, spaceId }: { conversationId?: string; spaceId?: string }) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      if (conversationId) {
+        const { error } = await supabase
+          .from('chat_participants')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('conversation_id', conversationId)
+          .eq('employee_id', currentEmployee.id);
+
+        if (error) throw error;
+      } else if (spaceId) {
+        const { error } = await supabase
+          .from('chat_space_members')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('space_id', spaceId)
+          .eq('employee_id', currentEmployee.id);
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts'] });
+    },
+  });
+};
+
+// Get unread counts for conversations
+export const useUnreadCounts = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['unread-counts', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return { conversations: {}, spaces: {} };
+
+      // Get conversation unread counts
+      const { data: participants } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, last_read_at')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const conversationCounts: Record<string, number> = {};
+      
+      for (const p of participants || []) {
+        const { count } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', p.conversation_id)
+          .gt('created_at', p.last_read_at || '1970-01-01');
+
+        conversationCounts[p.conversation_id] = count || 0;
+      }
+
+      // Get space unread counts
+      const { data: memberships } = await supabase
+        .from('chat_space_members')
+        .select('space_id, last_read_at')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const spaceCounts: Record<string, number> = {};
+
+      for (const m of memberships || []) {
+        const { count } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('space_id', m.space_id)
+          .gt('created_at', m.last_read_at || '1970-01-01');
+
+        spaceCounts[m.space_id] = count || 0;
+      }
+
+      return { conversations: conversationCounts, spaces: spaceCounts };
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+};
