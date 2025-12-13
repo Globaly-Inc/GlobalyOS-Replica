@@ -1659,6 +1659,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          auto_attendance_adjustments_enabled: boolean
           created_at: string
           id: string
           logo_url: string | null
@@ -1670,6 +1671,7 @@ export type Database = {
           workday_hours: number
         }
         Insert: {
+          auto_attendance_adjustments_enabled?: boolean
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -1681,6 +1683,7 @@ export type Database = {
           workday_hours?: number
         }
         Update: {
+          auto_attendance_adjustments_enabled?: boolean
           created_at?: string
           id?: string
           logo_url?: string | null
