@@ -1138,7 +1138,7 @@ const CalendarPage = () => {
         </div>
         
         {/* Mobile Upcoming Events - shown at bottom on mobile */}
-        <div className="lg:hidden shrink-0 -mt-2">
+        <div className="lg:hidden shrink-0 mt-2">
           {renderEventsList(true)}
         </div>
       </div>
