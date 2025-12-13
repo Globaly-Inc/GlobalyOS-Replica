@@ -81,40 +81,54 @@ export const WikiImportDialog = ({
   const parseZipFile = async (file: File) => {
     const zip = await JSZip.loadAsync(file);
     
-    // Look for JSON file in the ZIP
+    // Look for JSON file in the ZIP (any location)
     let pagesJson: any = null;
     const attachmentMap = new Map<string, Blob>();
+    const jsonFiles: string[] = [];
 
+    // First pass: identify all files
     for (const [filename, zipEntry] of Object.entries(zip.files)) {
       if (zipEntry.dir) continue;
 
       const lowerName = filename.toLowerCase();
+      const baseName = filename.split("/").pop()?.toLowerCase() || "";
       
       // Check for JSON data file
-      if (lowerName.endsWith(".json") && !lowerName.includes("/")) {
-        const content = await zipEntry.async("string");
-        try {
-          pagesJson = JSON.parse(content);
-        } catch {
-          // Skip invalid JSON files
-        }
+      if (lowerName.endsWith(".json")) {
+        jsonFiles.push(filename);
       } else if (
-        lowerName.match(/\.(png|jpg|jpeg|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
+        baseName.match(/\.(png|jpg|jpeg|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
       ) {
         // Extract attachments
         const blob = await zipEntry.async("blob");
-        // Store with the path as key (relative to zip root)
         attachmentMap.set(filename, blob);
       }
     }
 
+    // Try to find the best JSON file (prefer common names, then any JSON)
+    const preferredNames = ["pages.json", "data.json", "wiki.json", "index.json"];
+    let selectedJson = jsonFiles.find(f => {
+      const baseName = f.split("/").pop()?.toLowerCase();
+      return preferredNames.includes(baseName || "");
+    }) || jsonFiles[0];
+
+    if (selectedJson) {
+      const content = await zip.files[selectedJson].async("string");
+      try {
+        pagesJson = JSON.parse(content);
+      } catch (e) {
+        console.error("Failed to parse JSON:", e);
+      }
+    }
+
     if (!pagesJson) {
-      throw new Error("No valid JSON file found in ZIP. Expected a .json file with page data.");
+      throw new Error("No valid JSON file found in ZIP. Include a .json file with page data (e.g., pages.json).");
     }
 
     setAttachments(attachmentMap);
     validateAndSetPages(pagesJson);
   };
+
 
   const validateAndSetPages = (json: any) => {
     let pages: ImportedPage[] = [];
