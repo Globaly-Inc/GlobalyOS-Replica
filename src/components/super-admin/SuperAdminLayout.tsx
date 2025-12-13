@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
-  LayoutDashboard, 
   Building2, 
   Users, 
   BarChart3,
@@ -15,10 +14,9 @@ interface SuperAdminLayoutProps {
 }
 
 const navItems = [
-  { path: "/super-admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { path: "/super-admin", label: "Analytics", icon: BarChart3, exact: true },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
-  { path: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {

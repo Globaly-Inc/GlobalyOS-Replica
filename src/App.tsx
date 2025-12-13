@@ -43,7 +43,7 @@ const WikiEditPage = lazy(() => import('./pages/WikiEditPage'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const SuperAdminOverview = lazy(() => import('./pages/super-admin/SuperAdminOverview'));
+
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
@@ -116,7 +116,7 @@ const App = () => (
                 {/* Super Admin Portal - separate from org context */}
                 <Route path="/super-admin" element={
                   <SuperAdminProtectedRoute>
-                    <SuperAdminOverview />
+                    <SuperAdminAnalytics />
                   </SuperAdminProtectedRoute>
                 } />
                 <Route path="/super-admin/organisations" element={
