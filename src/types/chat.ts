@@ -32,13 +32,17 @@ export interface ChatParticipant {
   };
 }
 
+export type AccessScope = 'company' | 'offices' | 'projects' | 'members';
+
 export interface ChatSpace {
   id: string;
   organization_id: string;
   name: string;
   description: string | null;
+  icon_url: string | null;
   space_type: 'collaboration' | 'announcements';
   access_type: 'public' | 'private';
+  access_scope: AccessScope;
   history_enabled: boolean;
   created_by: string;
   created_at: string;
@@ -46,6 +50,8 @@ export interface ChatSpace {
   member_count?: number;
   last_message?: ChatMessage;
   unread_count?: number;
+  offices?: { id: string; name: string }[];
+  projects?: { id: string; name: string }[];
 }
 
 export interface ChatSpaceMember {
