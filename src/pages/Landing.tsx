@@ -261,8 +261,10 @@ const Landing = () => {
                   </li>)}
               </ul>
               <div className="mt-10 flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="gap-2" onClick={() => scrollToSection("pricing")}>
-                  Sign In <ArrowRight className="h-4 w-4" />
+                <Button size="lg" className="gap-2" asChild>
+                  <Link to="/auth">
+                    Sign In <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
                   <Link to="/team/sample">
