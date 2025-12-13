@@ -169,23 +169,29 @@ export const WikiImportDialog = ({
           Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Import Wiki Pages</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-primary" />
+            Import Wiki Pages
+          </DialogTitle>
           <DialogDescription>
             Import pages from a JSON file. Each page should have a title and optionally content and folder.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pt-2">
           {/* File input */}
           <div
-            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all"
             onClick={() => fileInputRef.current?.click()}
           >
-            <FileJson className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Click to select a JSON file or drag and drop
+            <FileJson className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground mb-1">
+              Click to select a JSON file
+            </p>
+            <p className="text-xs text-muted-foreground">
+              or drag and drop
             </p>
             <input
               ref={fileInputRef}
@@ -206,18 +212,18 @@ export const WikiImportDialog = ({
 
           {/* Preview */}
           {previewData && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-green-600">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-500">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{previewData.length} pages ready to import</span>
               </div>
-              <ScrollArea className="h-48 border rounded-lg p-2">
-                <div className="space-y-1">
+              <ScrollArea className="h-40 border border-border rounded-lg">
+                <div className="p-2 space-y-0.5">
                   {previewData.map((page, index) => (
-                    <div key={index} className="text-sm py-1 px-2 rounded hover:bg-muted/50">
-                      <span className="font-medium">{page.title}</span>
+                    <div key={index} className="text-sm py-1.5 px-2 rounded-md hover:bg-accent/50 transition-colors">
+                      <span className="font-medium text-foreground">{page.title}</span>
                       {page.folder && (
-                        <span className="text-muted-foreground ml-2">→ {page.folder}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">→ {page.folder}</span>
                       )}
                     </div>
                   ))}
@@ -227,18 +233,18 @@ export const WikiImportDialog = ({
           )}
 
           {/* JSON format hint */}
-          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <p className="font-medium mb-1">Expected JSON format:</p>
-            <pre className="overflow-x-auto">
+          <div className="text-xs bg-muted/50 border border-border rounded-lg p-3">
+            <p className="font-medium text-foreground mb-2">Expected JSON format:</p>
+            <pre className="overflow-x-auto text-muted-foreground font-mono text-[11px] leading-relaxed">
 {`[
-  { "title": "Page Title", "content": "<p>HTML content</p>", "folder": "Folder Name" },
+  { "title": "Page Title", "content": "<p>HTML</p>", "folder": "Folder" },
   { "title": "Another Page" }
 ]`}
             </pre>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
