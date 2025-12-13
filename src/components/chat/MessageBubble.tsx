@@ -65,8 +65,9 @@ const MessageBubble = ({
 
   return (
     <div
+      id={`message-${message.id}`}
       className={cn(
-        "flex gap-3 group",
+        "flex gap-3 group transition-all duration-300",
         isOwn && "flex-row-reverse",
         isGrouped && !isOwn && "pl-11" // Indent grouped messages (avatar width + gap)
       )}
