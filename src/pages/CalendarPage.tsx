@@ -1088,15 +1088,15 @@ const CalendarPage = () => {
             )}
 
             {/* Filter Tabs and Timezone */}
-            <div className="mt-6 px-4 py-3 bg-muted/30 rounded-xl border border-border/50">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap gap-1.5">
+            <div className="mt-6 px-3 py-2 bg-muted/30 rounded-xl border border-border/50">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
                   {[
                     { type: "leave" as const, label: "Leave" },
                     { type: "holiday" as const, label: "Holiday" },
                     { type: "event" as const, label: "Event" },
-                    { type: "birthday" as const, label: "Birthday" },
-                    { type: "anniversary" as const, label: "Anniversary" },
+                    { type: "birthday" as const, label: "Bday" },
+                    { type: "anniversary" as const, label: "Anniv" },
                     { type: "review" as const, label: "Review" },
                   ].map((item) => {
                     const isActive = activeFilters.has(item.type);
@@ -1106,53 +1106,46 @@ const CalendarPage = () => {
                         key={item.type}
                         onClick={() => toggleFilter(item.type)}
                         className={cn(
-                          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                          "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
                           isActive
                             ? "bg-primary text-primary-foreground shadow-sm"
                             : "bg-background hover:bg-accent border border-border/50"
                         )}
                       >
                         <div className={cn(
-                          "h-2.5 w-2.5 rounded-full shrink-0",
+                          "h-2 w-2 rounded-full shrink-0",
                           isActive ? "bg-primary-foreground/80" : getTypeColor(item.type)
                         )} />
-                        <span>{item.label}</span>
-                        <Badge 
-                          variant={isActive ? "secondary" : "outline"} 
-                          className={cn(
-                            "h-5 min-w-[20px] px-1.5 text-[10px] font-semibold",
-                            isActive && "bg-primary-foreground/20 text-primary-foreground border-0"
-                          )}
-                        >
-                          {count}
-                        </Badge>
+                        <span className="hidden sm:inline">{item.label}</span>
+                        <span className="text-[10px] opacity-80">{count}</span>
                       </button>
                     );
                   })}
                   {activeFilters.size > 0 && (
                     <button
                       onClick={() => setActiveFilters(new Set())}
-                      className="flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="px-1.5 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Clear filters
+                      ✕
                     </button>
                   )}
                 </div>
                 
                 {/* Timezone Selector */}
-                <div className="flex items-center">
-                  <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={timezoneOpen}
-                        className="w-[200px] h-8 justify-between text-xs"
-                      >
-                        {timezone ? formatTimezoneLabel(timezone).substring(0, 25) + (formatTimezoneLabel(timezone).length > 25 ? '...' : '') : "Select timezone"}
-                        <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
+                <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={timezoneOpen}
+                      className="h-7 px-2 justify-between text-[11px] shrink-0"
+                    >
+                      <span className="truncate max-w-[120px]">
+                        {timezone ? timezone.split('/').pop()?.replace(/_/g, ' ') : "Timezone"}
+                      </span>
+                      <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="end">
                       <Command>
                         <CommandInput placeholder="Search timezone..." className="h-9" />
@@ -1182,8 +1175,7 @@ const CalendarPage = () => {
                         </CommandList>
                       </Command>
                     </PopoverContent>
-                  </Popover>
-                </div>
+                </Popover>
               </div>
             </div>
           </div>
