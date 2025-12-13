@@ -27,6 +27,13 @@ import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 
+interface OtherParticipant {
+  id: string;
+  position: string | null;
+  avatar_url: string | null;
+  is_online: boolean;
+}
+
 interface ConversationViewProps {
   activeChat: ActiveChat;
   onBack: () => void;
@@ -38,11 +45,90 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const togglePin = useTogglePinMessage();
+  const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
   
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
+
+  // Fetch other participant details for direct chats
+  useEffect(() => {
+    const fetchOtherParticipant = async () => {
+      if (activeChat.type !== 'conversation' || !currentEmployee?.id) return;
+
+      // Get the other participant from chat_participants
+      const { data: participants } = await supabase
+        .from('chat_participants')
+        .select('employee_id')
+        .eq('conversation_id', activeChat.id)
+        .neq('employee_id', currentEmployee.id)
+        .limit(1);
+
+      if (!participants?.[0]) return;
+
+      const otherEmployeeId = participants[0].employee_id;
+
+      // Fetch employee position and profile avatar
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('id, position, user_id')
+        .eq('id', otherEmployeeId)
+        .single();
+
+      if (!employee) return;
+
+      // Fetch profile for avatar
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', employee.user_id)
+        .single();
+
+      // Fetch presence status
+      const { data: presence } = await supabase
+        .from('chat_presence')
+        .select('is_online')
+        .eq('employee_id', otherEmployeeId)
+        .single();
+
+      setOtherParticipant({
+        id: employee.id,
+        position: employee.position,
+        avatar_url: profile?.avatar_url || null,
+        is_online: presence?.is_online || false,
+      });
+    };
+
+    fetchOtherParticipant();
+  }, [activeChat, currentEmployee?.id]);
+
+  // Subscribe to presence changes for the other participant
+  useEffect(() => {
+    if (!otherParticipant?.id) return;
+
+    const channel = supabase
+      .channel(`presence-${otherParticipant.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_presence',
+          filter: `employee_id=eq.${otherParticipant.id}`
+        },
+        (payload: any) => {
+          if (payload.new?.is_online !== undefined) {
+            setOtherParticipant(prev => prev ? { ...prev, is_online: payload.new.is_online } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [otherParticipant?.id]);
 
   // Subscribe to real-time messages and attachments
   useEffect(() => {
@@ -139,19 +225,28 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel }: Conversati
           </Button>
           
           {activeChat.type === 'conversation' ? (
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs">
-                {getInitials(activeChat.name)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {getInitials(activeChat.name)}
+                </AvatarFallback>
+              </Avatar>
+              {otherParticipant?.is_online && (
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
+              )}
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-8 w-8 rounded bg-primary/10 text-primary font-semibold text-sm">
+            <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm">
               {activeChat.name.charAt(0).toUpperCase()}
             </div>
           )}
           
           <div>
             <h2 className="font-semibold text-foreground">{activeChat.name}</h2>
+            {activeChat.type === 'conversation' && otherParticipant?.position && (
+              <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
+            )}
             {activeChat.type === 'space' && (
               <p className="text-xs text-muted-foreground">
                 {messages.length} messages
