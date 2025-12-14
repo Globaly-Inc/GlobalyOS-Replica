@@ -347,7 +347,7 @@ const Team = () => {
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>
-              <Button onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2">
+              <Button onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2 tour-add-team-member">
                 <UserPlus className="h-4 w-4" />
                 Add Team Member
               </Button>
