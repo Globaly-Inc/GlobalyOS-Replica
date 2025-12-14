@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Sparkles, Send, Loader2, Info, History, Lightbulb } from "lucide-react";
+import { Sparkles, Send, Loader2, Info, History, Lightbulb, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +22,8 @@ interface ConversationRecord {
 
 interface GlobalAskAIProps {
   organizationId: string | undefined;
+  isMobileFullscreen?: boolean;
+  onClose?: () => void;
 }
 
 const STORAGE_KEY = "globalai_conversation_history";
@@ -181,8 +183,8 @@ const generateSmartSuggestions = (history: ConversationRecord[]): string[] => {
   return suggestions.slice(0, 4);
 };
 
-export const GlobalAskAI = ({ organizationId }: GlobalAskAIProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: GlobalAskAIProps) => {
+  const [isOpen, setIsOpen] = useState(isMobileFullscreen || false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -231,11 +233,11 @@ export const GlobalAskAI = ({ organizationId }: GlobalAskAIProps) => {
 
   // Clear messages when sheet opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isMobileFullscreen) {
       setMessages([]);
       setInput("");
     }
-  }, [isOpen]);
+  }, [isOpen, isMobileFullscreen]);
 
   // Generate smart suggestions based on history
   const smartSuggestions = useMemo(() => {
@@ -296,6 +298,173 @@ export const GlobalAskAI = ({ organizationId }: GlobalAskAIProps) => {
 
   const recentQuestions = conversationHistory.slice(-3).reverse();
 
+  // Mobile fullscreen content
+  const renderContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+        <Info className="h-3.5 w-3.5 shrink-0" />
+        <span>Answers are based on your GlobalyOS data (Wiki, Team, Chat).</span>
+      </div>
+
+      {/* Smart Suggestions Bar */}
+      {messages.length === 0 && smartSuggestions.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lightbulb className="h-3.5 w-3.5" />
+            <span className="font-medium">Suggested for you</span>
+            {conversationHistory.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                Based on your history
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {smartSuggestions.slice(0, 2).map((q, i) => (
+              <button
+                key={i}
+                onClick={() => setInput(q)}
+                className="text-xs px-2.5 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors truncate max-w-full"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ScrollArea className="flex-1 mt-4 pr-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.length === 0 ? (
+            <div className="space-y-4">
+              <div className="text-center py-4 text-muted-foreground">
+                <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="text-sm">Ask anything about your organization</p>
+                <p className="text-xs mt-1">I can search Wiki, Team directory, and Chat.</p>
+              </div>
+
+              {/* Recent Questions */}
+              {recentQuestions.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <History className="h-3.5 w-3.5" />
+                    <span className="font-medium">Recent questions</span>
+                  </div>
+                  {recentQuestions.map((record, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setInput(record.question)}
+                      className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors truncate"
+                    >
+                      {record.question}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Try Asking */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
+                {smartSuggestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setInput(q)}
+                    className="block w-full text-left text-sm px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Follow-up suggestions after response */}
+              {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && (
+                <div className="pt-2 space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Follow up:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {smartSuggestions.slice(0, 3).map((q, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setInput(q)}
+                        className="text-xs px-2.5 py-1 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg px-3 py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="flex gap-2 mt-4 pt-4 border-t">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question..."
+          disabled={isLoading || !organizationId}
+          className="h-12"
+        />
+        <Button size="icon" className="h-12 w-12" onClick={handleSend} disabled={isLoading || !input.trim() || !organizationId}>
+          <Send className="h-5 w-5" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Mobile fullscreen mode
+  if (isMobileFullscreen) {
+    return (
+      <div className="flex flex-col h-full safe-area-top safe-area-bottom">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-lg font-semibold">Ask AI</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-10 w-10"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex-1 px-4 py-4 overflow-hidden">
+          {renderContent()}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop sheet mode
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip>
@@ -322,140 +491,8 @@ export const GlobalAskAI = ({ organizationId }: GlobalAskAIProps) => {
             Ask AI
           </SheetTitle>
         </SheetHeader>
-
-        <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground mt-2">
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          <span>Answers are based on your GlobalyOS data (Wiki, Team, Chat).</span>
-        </div>
-
-        {/* Smart Suggestions Bar */}
-        {messages.length === 0 && smartSuggestions.length > 0 && (
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Lightbulb className="h-3.5 w-3.5" />
-              <span className="font-medium">Suggested for you</span>
-              {conversationHistory.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  Based on your history
-                </Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {smartSuggestions.slice(0, 2).map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => setInput(q)}
-                  className="text-xs px-2.5 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors truncate max-w-full"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <ScrollArea className="flex-1 mt-4 pr-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.length === 0 ? (
-              <div className="space-y-4">
-                <div className="text-center py-4 text-muted-foreground">
-                  <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p className="text-sm">Ask anything about your organization</p>
-                  <p className="text-xs mt-1">I can search Wiki, Team directory, and Chat.</p>
-                </div>
-
-                {/* Recent Questions */}
-                {recentQuestions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <History className="h-3.5 w-3.5" />
-                      <span className="font-medium">Recent questions</span>
-                    </div>
-                    {recentQuestions.map((record, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setInput(record.question)}
-                        className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors truncate"
-                      >
-                        {record.question}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Try Asking */}
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
-                  {smartSuggestions.map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setInput(q)}
-                      className="block w-full text-left text-sm px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Follow-up suggestions after response */}
-                {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && (
-                  <div className="pt-2 space-y-1.5">
-                    <p className="text-xs text-muted-foreground">Follow up:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {smartSuggestions.slice(0, 3).map((q, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setInput(q)}
-                          className="text-xs px-2.5 py-1 rounded-full bg-muted hover:bg-muted/80 transition-colors"
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-3 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="flex gap-2 mt-4 pt-4 border-t">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask a question..."
-            disabled={isLoading || !organizationId}
-          />
-          <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim() || !organizationId}>
-            <Send className="h-4 w-4" />
-          </Button>
+        <div className="flex-1 mt-2 overflow-hidden">
+          {renderContent()}
         </div>
       </SheetContent>
     </Sheet>

@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-react';
+import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
@@ -21,6 +20,7 @@ import { SubNav } from "./SubNav";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import { GlobalAskAI } from "./GlobalAskAI";
+import { MobileSearch } from "./MobileSearch";
 
 interface UserProfile {
   fullName: string;
@@ -50,6 +50,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
   const { playNotificationSound } = useNotificationSound();
@@ -525,52 +526,87 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </TooltipProvider>
           </div>
 
-          {/* Mobile Header - Show active menu */}
+          {/* Mobile Header - Left Quick Actions + Right User Actions */}
           <div className="flex flex-1 items-center justify-between md:hidden">
-            {(() => {
-              const location = useLocation();
-              const menuItems = [
-                { name: "Team", href: "/", icon: Users, match: (p: string) => p === "/" || p.startsWith("/team") || p === "/kpi-dashboard" || p === "/calendar" },
-                { name: "Chat", href: "/chat", icon: MessageSquare, match: (p: string) => p === "/chat" },
-                { name: "Wiki", href: "/wiki", icon: BookOpen, match: (p: string) => p === "/wiki" },
-                { name: "Tasks", href: "/tasks", icon: CheckSquare, match: (p: string) => p === "/tasks" },
-                { name: "CRM", href: "/crm", icon: Briefcase, match: (p: string) => p === "/crm" },
-              ];
-              const activeMenu = menuItems.find(item => item.match(location.pathname)) || menuItems[0];
-              const Icon = activeMenu.icon;
-              return (
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark">
-                    <Icon className="h-4 w-4 text-primary-foreground" />
-                  </div>
-                  <span className="text-sm font-semibold">{activeMenu.name}</span>
-                </div>
-              );
-            })()}
-            
-            <div className="flex items-center gap-2">
+            {/* Left Side - Org Logo + Quick Access Icons */}
+            <div className="flex items-center gap-1.5">
+              {/* Org Logo */}
+              <button 
+                onClick={() => navigateOrg("/")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark"
+              >
+                <Users className="h-4 w-4 text-primary-foreground" />
+              </button>
+              
+              {/* Calendar */}
+              <button
+                onClick={() => navigateOrg("/calendar")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </button>
+              
+              {/* Wiki */}
+              <button
+                onClick={() => navigateOrg("/wiki")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </button>
+              
+              {/* KPI */}
+              <button
+                onClick={() => navigateOrg("/kpi-dashboard")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {/* Elapsed Time indicator */}
               {elapsedTime && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium">
+                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium ml-1">
                   <Clock className="h-3 w-3" />
                   <span>{elapsedTime}</span>
-                  {sessionCount > 0 && (
-                    <span className="text-green-600 dark:text-green-500">#{sessionCount}</span>
-                  )}
                 </div>
               )}
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-9 w-9 relative"
-                onClick={() => navigate("/notifications")}
+            </div>
+
+            {/* Right Side - Search, Notifications, Profile */}
+            <div className="flex items-center gap-1.5">
+              {/* Search */}
+              <button
+                onClick={() => setMobileSearchOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
               >
-                <Bell className="h-5 w-5" />
+                <Search className="h-4 w-4 text-muted-foreground" />
+              </button>
+              
+              {/* Notifications */}
+              <button 
+                onClick={() => navigateOrg('/notifications')}
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <Bell className="h-4 w-4 text-muted-foreground" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
-              </Button>
+              </button>
+              
+              {/* Profile */}
+              <button
+                onClick={handleViewProfile}
+                disabled={!userProfile?.employeeId}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors overflow-hidden"
+              >
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
+                    {userProfile?.fullName ? getInitials(userProfile.fullName) : "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
             </div>
           </div>
         </div>
@@ -582,7 +618,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       <main className="container px-4 pt-2 pb-24 md:pb-8 md:px-8 overflow-x-hidden">{children}</main>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
+      <MobileBottomNav userProfile={userProfile} />
+
+      {/* Mobile Search */}
+      <MobileSearch open={mobileSearchOpen} onOpenChange={setMobileSearchOpen} />
 
       {userProfile?.employeeId && (
         <>
