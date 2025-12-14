@@ -5,8 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap, Award, UserPlus } from "lucide-react";
 // Feature showcase mockup components
-const PeopleManagementMockup = () => (
-  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+const PeopleManagementMockup = () => <div className="bg-background/80 rounded-xl p-4 border border-border/50">
     <div className="flex items-center gap-4 mb-4">
       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl font-bold text-primary">SC</div>
       <div>
@@ -29,11 +28,8 @@ const PeopleManagementMockup = () => (
         <div className="text-xs text-muted-foreground">Kudos</div>
       </div>
     </div>
-  </div>
-);
-
-const LeaveAttendanceMockup = () => (
-  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+  </div>;
+const LeaveAttendanceMockup = () => <div className="bg-background/80 rounded-xl p-4 border border-border/50">
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -72,11 +68,8 @@ const LeaveAttendanceMockup = () => (
         </div>
       </div>
     </div>
-  </div>
-);
-
-const WikiMockup = () => (
-  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+  </div>;
+const WikiMockup = () => <div className="bg-background/80 rounded-xl p-4 border border-border/50">
     <div className="flex items-center gap-2 mb-4">
       <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
         <BookOpen className="w-4 h-4 text-amber-600" />
@@ -84,13 +77,23 @@ const WikiMockup = () => (
       <span className="font-medium text-foreground text-sm">Knowledge Base</span>
     </div>
     <div className="space-y-2">
-      {[
-        { icon: "📁", name: "Getting Started", items: 5 },
-        { icon: "📁", name: "Company Policies", items: 12 },
-        { icon: "📄", name: "Employee Handbook", updated: "2d ago" },
-        { icon: "📄", name: "Leave Policy", updated: "1w ago" },
-      ].map((item, i) => (
-        <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+      {[{
+      icon: "📁",
+      name: "Getting Started",
+      items: 5
+    }, {
+      icon: "📁",
+      name: "Company Policies",
+      items: 12
+    }, {
+      icon: "📄",
+      name: "Employee Handbook",
+      updated: "2d ago"
+    }, {
+      icon: "📄",
+      name: "Leave Policy",
+      updated: "1w ago"
+    }].map((item, i) => <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-2">
             <span>{item.icon}</span>
             <span className="text-sm text-foreground">{item.name}</span>
@@ -98,14 +101,10 @@ const WikiMockup = () => (
           <span className="text-xs text-muted-foreground">
             {item.items ? `${item.items} items` : item.updated}
           </span>
-        </div>
-      ))}
+        </div>)}
     </div>
-  </div>
-);
-
-const KPIMockup = () => (
-  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+  </div>;
+const KPIMockup = () => <div className="bg-background/80 rounded-xl p-4 border border-border/50">
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
@@ -120,45 +119,40 @@ const KPIMockup = () => (
       <div className="text-sm text-muted-foreground">Revenue Target</div>
     </div>
     <div className="flex items-end gap-1 h-16">
-      {[40, 55, 45, 70, 60, 80, 75, 90, 85, 95, 88, 92].map((h, i) => (
-        <div key={i} className="flex-1 bg-primary/20 rounded-t" style={{ height: `${h}%` }}>
-          <div className="w-full bg-primary rounded-t" style={{ height: `${h * 0.7}%` }} />
-        </div>
-      ))}
+      {[40, 55, 45, 70, 60, 80, 75, 90, 85, 95, 88, 92].map((h, i) => <div key={i} className="flex-1 bg-primary/20 rounded-t" style={{
+      height: `${h}%`
+    }}>
+          <div className="w-full bg-primary rounded-t" style={{
+        height: `${h * 0.7}%`
+      }} />
+        </div>)}
     </div>
     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
       <span>Jan</span>
       <span>Dec</span>
     </div>
-  </div>
-);
-
-const featureShowcases = [
-  {
-    title: "People Management",
-    description: "Complete employee profiles, org charts, and team directory. Everything about your people in one place.",
-    Mockup: PeopleManagementMockup,
-    gradient: "from-blue-500/10 via-cyan-400/5 to-blue-500/10"
-  },
-  {
-    title: "Leave & Attendance",
-    description: "QR check-in, leave requests, balance tracking, and automated overtime calculations.",
-    Mockup: LeaveAttendanceMockup,
-    gradient: "from-emerald-500/10 via-teal-400/5 to-emerald-500/10"
-  },
-  {
-    title: "Team Wiki",
-    description: "Centralized knowledge base for policies, processes, and documentation your team can actually find.",
-    Mockup: WikiMockup,
-    gradient: "from-amber-500/10 via-orange-400/5 to-amber-500/10"
-  },
-  {
-    title: "KPIs & Performance",
-    description: "Track goals, measure performance, and run reviews with AI-powered insights and suggestions.",
-    Mockup: KPIMockup,
-    gradient: "from-violet-500/10 via-purple-400/5 to-violet-500/10"
-  }
-];
+  </div>;
+const featureShowcases = [{
+  title: "People Management",
+  description: "Complete employee profiles, org charts, and team directory. Everything about your people in one place.",
+  Mockup: PeopleManagementMockup,
+  gradient: "from-blue-500/10 via-cyan-400/5 to-blue-500/10"
+}, {
+  title: "Leave & Attendance",
+  description: "QR check-in, leave requests, balance tracking, and automated overtime calculations.",
+  Mockup: LeaveAttendanceMockup,
+  gradient: "from-emerald-500/10 via-teal-400/5 to-emerald-500/10"
+}, {
+  title: "Team Wiki",
+  description: "Centralized knowledge base for policies, processes, and documentation your team can actually find.",
+  Mockup: WikiMockup,
+  gradient: "from-amber-500/10 via-orange-400/5 to-amber-500/10"
+}, {
+  title: "KPIs & Performance",
+  description: "Track goals, measure performance, and run reviews with AI-powered insights and suggestions.",
+  Mockup: KPIMockup,
+  gradient: "from-violet-500/10 via-purple-400/5 to-violet-500/10"
+}];
 const testimonials = [{
   quote: "GlobalyOS replaced 4 different tools for us. Now everything from leave requests to team docs is in one place.",
   author: "Sarah Chen",
@@ -279,7 +273,7 @@ export default function Landing() {
       <WebsiteHeader />
 
       {/* Hero */}
-      <section className="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
+      <section className="pt-32 px-4 sm:px-6 lg:px-8 pb-[60px]">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
             <Sparkles className="w-4 h-4" />
@@ -385,24 +379,19 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground">GlobalyOS brings everything together so you can focus on what matters — your people.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            {featureShowcases.map((feature, i) => (
-              <div 
-                key={i} 
-                className={`group bg-gradient-to-br ${feature.gradient} rounded-2xl border border-border p-6 
+            {featureShowcases.map((feature, i) => <div key={i} className={`group bg-gradient-to-br ${feature.gradient} rounded-2xl border border-border p-6 
                   transition-all duration-500 ease-out
                   hover:-translate-y-2 
                   hover:shadow-2xl 
                   hover:border-primary/30
                   hover:bg-[length:200%_200%]
-                  hover:animate-gradient-shift`}
-              >
+                  hover:animate-gradient-shift`}>
                 <div className="mb-5">
                   <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
                   <p className="text-sm text-muted-foreground">{feature.description}</p>
                 </div>
                 <feature.Mockup />
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -420,23 +409,12 @@ export default function Landing() {
             {/* Scrolling suggested questions */}
             <div className="h-40 overflow-hidden relative">
               <div className="space-y-3">
-                {[
-                  "Who's on leave next week?",
-                  "What's our parental leave policy?",
-                  "Show me team performance trends",
-                  "Who has their anniversary this month?",
-                  "What are our company holidays?",
-                  "How many sick days do I have left?",
-                ].map((question, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 animate-scroll-up"
-                    style={{ animationDelay: `${i * 5}s` }}
-                  >
+                {["Who's on leave next week?", "What's our parental leave policy?", "Show me team performance trends", "Who has their anniversary this month?", "What are our company holidays?", "How many sick days do I have left?"].map((question, i) => <div key={i} className="flex items-center gap-3 animate-scroll-up" style={{
+                animationDelay: `${i * 5}s`
+              }}>
                     <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     <span className="text-foreground">"{question}"</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </div>
           </div>
@@ -445,23 +423,16 @@ export default function Landing() {
           <div className="relative">
             {/* Floating sparkle particles */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(12)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute animate-float-particle"
-                  style={{
-                    left: `${10 + (i % 4) * 25}%`,
-                    top: `${10 + Math.floor(i / 4) * 30}%`,
-                    animationDelay: `${i * 0.3}s`,
-                    animationDuration: `${2 + (i % 3)}s`,
-                  }}
-                >
-                  <Sparkles 
-                    className="w-4 h-4 text-primary/40 animate-twinkle" 
-                    style={{ animationDelay: `${i * 0.2}s` }} 
-                  />
-                </div>
-              ))}
+              {[...Array(12)].map((_, i) => <div key={i} className="absolute animate-float-particle" style={{
+              left: `${10 + i % 4 * 25}%`,
+              top: `${10 + Math.floor(i / 4) * 30}%`,
+              animationDelay: `${i * 0.3}s`,
+              animationDuration: `${2 + i % 3}s`
+            }}>
+                  <Sparkles className="w-4 h-4 text-primary/40 animate-twinkle" style={{
+                animationDelay: `${i * 0.2}s`
+              }} />
+                </div>)}
             </div>
             
             {/* 3px Animated gradient border wrapper */}
