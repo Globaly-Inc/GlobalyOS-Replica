@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
@@ -44,7 +44,11 @@ const getRoleConfig = (role?: string | null) => {
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  
+  // Detect full-height pages that need no padding
+  const isFullHeightPage = location.pathname.includes('/wiki') || location.pathname.includes('/chat');
   const { navigateOrg } = useOrgNavigation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -593,7 +597,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Sub Navigation for Team section */}
       <SubNav />
 
-      <main className="container px-4 pt-2 pb-24 md:pb-8 md:px-8 overflow-x-hidden">{children}</main>
+      <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>{children}</main>
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav userProfile={userProfile} isOnline={isOnline} />

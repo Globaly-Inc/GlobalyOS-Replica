@@ -437,7 +437,7 @@ const Wiki = () => {
   // Mobile view rendering
   if (isMobile) {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col">
+      <div className="h-full flex flex-col">
         {/* Mobile search header only */}
         <div className="bg-card border-b px-4 py-3">
           <WikiSearch
@@ -494,7 +494,7 @@ const Wiki = () => {
   // Desktop view rendering
   return (
     <>
-      <div className="h-[calc(100vh-4rem)] flex flex-col">
+      <div className="h-full flex flex-col">
         {/* Header */}
         <div className="bg-card border-b px-4 py-3 flex items-center gap-4">
           <WikiSearch
