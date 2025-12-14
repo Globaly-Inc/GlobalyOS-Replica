@@ -185,16 +185,14 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
         onOpenChange={setQrScannerOpen}
       />
 
-      {/* Ask AI Sheet - triggered by bottom nav */}
+      {/* Ask AI - integrated between top bar and bottom nav */}
       {askAiOpen && (
-        <div className="fixed inset-0 z-[100] bg-background animate-in slide-in-from-bottom duration-300 md:hidden">
-          <div className="h-full">
-            <GlobalAskAI 
-              organizationId={currentOrg?.id} 
-              isMobileFullscreen
-              onClose={() => setAskAiOpen(false)}
-            />
-          </div>
+        <div className="fixed inset-x-0 top-16 bottom-20 z-[90] bg-background animate-in slide-in-from-bottom duration-300 md:hidden">
+          <GlobalAskAI 
+            organizationId={currentOrg?.id} 
+            isMobileFullscreen
+            onClose={() => setAskAiOpen(false)}
+          />
         </div>
       )}
       
