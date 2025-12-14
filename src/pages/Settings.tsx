@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { FieldsSettings } from "@/components/FieldsSettings";
 import { AttendanceSettings } from "@/components/AttendanceSettings";
 import { AIKnowledgeSettings } from "@/components/AIKnowledgeSettings";
+import BillingSettings from "@/components/BillingSettings";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -295,55 +296,7 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Subscription Plan
-              </CardTitle>
-              <CardDescription>
-                Manage your organization's subscription and billing
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-lg border border-border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {currentOrg?.plan === "free" ? "Free" : currentOrg?.plan?.charAt(0).toUpperCase() + currentOrg?.plan?.slice(1)} Plan
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {currentOrg?.plan === "free" 
-                        ? "Limited to 10 team members" 
-                        : "Unlimited team members"}
-                    </p>
-                  </div>
-                  <Badge className={getPlanBadgeClass(currentOrg?.plan || "free")}>
-                    Current Plan
-                  </Badge>
-                </div>
-
-                {currentOrg?.plan === "free" && (
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Upgrade to Pro for unlimited team members, advanced analytics, and more.
-                    </p>
-                    <Button variant="default">
-                      Upgrade to Pro
-                    </Button>
-                  </div>
-                )}
-
-                {currentOrg?.plan !== "free" && (
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground">
-                      To manage your subscription, contact your account administrator.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <BillingSettings />
         </TabsContent>
       </Tabs>
     </>
