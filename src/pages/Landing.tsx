@@ -269,64 +269,51 @@ const trustedLogosRow2 = [{
 
 // Dashboard Spotlight component with mouse-following reveal effect
 const DashboardSpotlight = () => {
-  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+  const [mousePos, setMousePos] = useState({
+    x: 50,
+    y: 50
+  });
   const [isHovering, setIsHovering] = useState(false);
-
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setMousePos({ x, y });
+    const x = (e.clientX - rect.left) / rect.width * 100;
+    const y = (e.clientY - rect.top) / rect.height * 100;
+    setMousePos({
+      x,
+      y
+    });
   };
-
-  return (
-    <div 
-      className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card relative cursor-none"
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
+  return <div className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card relative cursor-none" onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
       {/* Clear image (bottom layer) */}
-      <img 
-        alt="GlobalyOS Team Overview Dashboard" 
-        className="w-full h-auto" 
-        src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" 
-      />
+      <img alt="GlobalyOS Team Overview Dashboard" className="w-full h-auto" src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" />
       
       {/* Blurred overlay with spotlight hole */}
-      <div 
-        className="absolute inset-0 backdrop-blur-[3px] bg-white/5 dark:bg-black/10 pointer-events-none transition-opacity duration-300"
-        style={{
-          maskImage: isHovering 
-            ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
-            : 'none',
-          WebkitMaskImage: isHovering 
-            ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
-            : 'none',
-        }}
-      />
-    </div>
-  );
+      <div className="absolute inset-0 backdrop-blur-[3px] bg-white/5 dark:bg-black/10 pointer-events-none transition-opacity duration-300" style={{
+      maskImage: isHovering ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)` : 'none',
+      WebkitMaskImage: isHovering ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)` : 'none'
+    }} />
+    </div>;
 };
-
 const teamWords = ['Growing Teams', 'Modern Teams', 'Remote Teams', 'Ambitious Teams', 'Global Teams'];
-
 export default function Landing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  const { displayText: teamText } = useTypewriter({
+  const {
+    user
+  } = useAuth();
+  const {
+    displayText: teamText
+  } = useTypewriter({
     words: teamWords,
     typingSpeed: 100,
     deletingSpeed: 60,
-    pauseDuration: 2000,
+    pauseDuration: 2000
   });
   return <div className="min-h-screen bg-background">
       <WebsiteHeader />
 
       {/* Hero */}
       <section className="pt-32 px-4 sm:px-6 lg:px-8 pb-[60px]">
-        <div className="max-w-7xl mx-auto text-center">
+        <div className="max-w-7xl mx-auto text-center pl-0 pt-[50px]">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-sm font-medium mb-6">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="bg-gradient-to-r from-purple-500 via-red-500 to-green-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
