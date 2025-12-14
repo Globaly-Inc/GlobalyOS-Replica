@@ -1,80 +1,90 @@
 import { useState, useEffect, useCallback } from "react";
 import Joyride, { CallBackProps, STATUS, EVENTS, Step } from "react-joyride";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
 
+// Map each step target to the route it requires
+interface TourStep extends Step {
+  requiredRoute?: string; // Route prefix where this element exists
+}
+
 // Tour step configurations for different roles
-const ownerTourSteps: Step[] = [
+const getOwnerTourSteps = (orgCode: string): TourStep[] => [
+  {
+    target: ".tour-quick-actions",
+    title: "Quick Actions",
+    content: "Use these buttons to check-in, post updates, request leave, and access notifications quickly.",
+    placement: "bottom",
+    disableBeacon: true,
+    requiredRoute: `/org/${orgCode}`,
+  },
   {
     target: ".tour-settings-menu",
     title: "Company Settings",
-    content: "Start by configuring your company settings - add your logo, set timezone, and customize your workspace.",
+    content: "Configure your company settings - add your logo, set timezone, and customize your workspace.",
     placement: "bottom",
-    disableBeacon: true,
+    requiredRoute: `/org/${orgCode}/settings`,
   },
   {
     target: ".tour-offices-manage",
     title: "Office Setup",
     content: "Add your office locations and configure attendance tracking with QR codes for each location.",
     placement: "bottom",
-  },
-  {
-    target: ".tour-leave-settings",
-    title: "Leave Policies",
-    content: "Set up leave types, default allocations, and approval workflows for your organization.",
-    placement: "bottom",
+    requiredRoute: `/org/${orgCode}/settings`,
   },
   {
     target: ".tour-add-team-member",
     title: "Invite Your Team",
     content: "Add team members individually or import them in bulk using CSV. They'll receive welcome emails automatically.",
     placement: "bottom",
+    requiredRoute: `/org/${orgCode}/team`,
   },
   {
     target: ".tour-feature-overview",
     title: "Explore Features",
     content: "Discover Wiki for documentation, Chat for team communication, KPIs for performance tracking, and AI-powered insights!",
     placement: "center",
+    requiredRoute: `/org/${orgCode}`,
   },
 ];
 
-const adminHrTourSteps: Step[] = [
+const getAdminHrTourSteps = (orgCode: string): TourStep[] => [
   {
     target: ".tour-profile-avatar",
-    title: "Complete Your Profile",
-    content: "Add your photo, contact details, and superpowers to help your team know you better.",
+    title: "Your Profile",
+    content: "Click here to view and complete your profile. Add your photo and superpowers to help your team know you better.",
     placement: "bottom",
     disableBeacon: true,
-  },
-  {
-    target: ".tour-team-directory",
-    title: "Team Directory",
-    content: "View and manage your team members. As an admin, you can edit profiles, manage leave, and track attendance.",
-    placement: "bottom",
+    requiredRoute: `/org/${orgCode}`,
   },
   {
     target: ".tour-quick-actions",
     title: "Quick Actions",
     content: "Use these buttons to check-in, post updates, request leave, and access AI assistant quickly.",
     placement: "bottom",
+    requiredRoute: `/org/${orgCode}`,
   },
 ];
 
-const memberTourSteps: Step[] = [
+const getMemberTourSteps = (orgCode: string): TourStep[] => [
   {
     target: ".tour-profile-avatar",
     title: "Your Profile",
     content: "Click here to view and complete your profile. Add your photo and superpowers!",
     placement: "bottom",
     disableBeacon: true,
+    requiredRoute: `/org/${orgCode}`,
   },
   {
     target: ".tour-check-in",
     title: "Daily Check-In",
     content: "Scan the QR code to check in/out. Your work hours will be tracked automatically.",
     placement: "bottom",
+    requiredRoute: `/org/${orgCode}`,
   },
 ];
 
@@ -87,24 +97,32 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
   const { user } = useAuth();
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
+  const { orgCode } = useOrgNavigation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const [steps, setSteps] = useState<Step[]>([]);
+  const [steps, setSteps] = useState<TourStep[]>([]);
   const [loading, setLoading] = useState(true);
+  const [surveyCompleted, setSurveyCompleted] = useState(false);
+  const [waitingForNavigation, setWaitingForNavigation] = useState(false);
 
-  // Determine which tour steps to use based on role
-  // Owner is determined by being both admin and having created the org (first admin)
+  // Owner is determined by being admin
   const isOwnerRole = isAdmin;
   
+  // Set up steps based on role
   useEffect(() => {
+    if (!orgCode) return;
+    
     if (isOwnerRole) {
-      setSteps(ownerTourSteps);
+      setSteps(getOwnerTourSteps(orgCode));
     } else if (isAdmin || isHR) {
-      setSteps(adminHrTourSteps);
+      setSteps(getAdminHrTourSteps(orgCode));
     } else {
-      setSteps(memberTourSteps);
+      setSteps(getMemberTourSteps(orgCode));
     }
-  }, [isOwnerRole, isAdmin, isHR]);
+  }, [isOwnerRole, isAdmin, isHR, orgCode]);
 
   // Check onboarding progress and determine if tour should run
   useEffect(() => {
@@ -134,21 +152,57 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
           completed_steps: [],
           is_completed: false,
           tour_completed: false,
+          survey_completed: false,
         });
         
-        // Start tour for new users after a delay for UI to load
-        setTimeout(() => setRun(true), 1500);
-      } else if (!progress.tour_completed) {
-        // Resume from where user left off
-        setStepIndex(progress.current_step || 0);
-        setTimeout(() => setRun(true), 1500);
+        // Don't start tour yet - wait for survey
+        setSurveyCompleted(false);
+      } else {
+        setSurveyCompleted(progress.survey_completed === true);
+        
+        // Only start tour if survey is completed and tour is not completed
+        if (progress.survey_completed && !progress.tour_completed) {
+          setStepIndex(progress.current_step || 0);
+          // Delay to let UI settle
+          setTimeout(() => setRun(true), 1000);
+        }
       }
       
       setLoading(false);
     };
 
     checkOnboardingProgress();
-  }, [user?.id, currentOrg?.id, isOwnerRole, isAdmin, isHR]);
+  }, [user?.id, currentOrg?.id, isOwnerRole, isHR]);
+
+  // Watch for survey completion changes
+  useEffect(() => {
+    if (!user?.id || !currentOrg?.id) return;
+
+    const channel = supabase
+      .channel("onboarding-survey-status")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "onboarding_progress",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newData = payload.new as { survey_completed?: boolean; tour_completed?: boolean };
+          if (newData.survey_completed && !newData.tour_completed) {
+            setSurveyCompleted(true);
+            // Start tour after survey completes
+            setTimeout(() => setRun(true), 1000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, currentOrg?.id]);
 
   // Handle external run prop
   useEffect(() => {
@@ -159,6 +213,26 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
       }
     }
   }, [externalRun]);
+
+  // When navigation completes, continue the tour
+  useEffect(() => {
+    if (!waitingForNavigation || !run) return;
+    
+    const currentStep = steps[stepIndex];
+    if (!currentStep?.requiredRoute) {
+      setWaitingForNavigation(false);
+      return;
+    }
+
+    // Check if we're now on the correct route
+    if (location.pathname.startsWith(currentStep.requiredRoute)) {
+      // Wait for DOM to settle
+      const timer = setTimeout(() => {
+        setWaitingForNavigation(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname, waitingForNavigation, run, stepIndex, steps]);
 
   // Persist progress to database
   const saveProgress = useCallback(async (step: number, completed: boolean) => {
@@ -191,6 +265,18 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
       .eq("organization_id", currentOrg.id);
   }, [user?.id, currentOrg?.id, steps]);
 
+  // Navigate to required route for step
+  const navigateToStepRoute = useCallback((step: TourStep) => {
+    if (!step.requiredRoute) return false;
+    
+    if (!location.pathname.startsWith(step.requiredRoute)) {
+      setWaitingForNavigation(true);
+      navigate(step.requiredRoute);
+      return true;
+    }
+    return false;
+  }, [location.pathname, navigate]);
+
   // Handle tour callbacks
   const handleCallback = useCallback((data: CallBackProps) => {
     const { status, type, index, action } = data;
@@ -200,9 +286,28 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
       setRun(false);
       saveProgress(index, true);
       onComplete?.();
+    } else if (type === EVENTS.STEP_BEFORE) {
+      // Before showing a step, check if we need to navigate
+      const step = steps[index] as TourStep;
+      if (step && navigateToStepRoute(step)) {
+        // We're navigating, pause the tour temporarily
+        return;
+      }
     } else if (type === EVENTS.STEP_AFTER) {
       // Save progress after each step
       const nextIndex = action === "prev" ? index - 1 : index + 1;
+      
+      if (nextIndex >= 0 && nextIndex < steps.length) {
+        const nextStep = steps[nextIndex] as TourStep;
+        // Check if next step requires navigation
+        if (nextStep?.requiredRoute && !location.pathname.startsWith(nextStep.requiredRoute)) {
+          setStepIndex(nextIndex);
+          saveProgress(nextIndex, false);
+          navigateToStepRoute(nextStep);
+          return;
+        }
+      }
+      
       setStepIndex(nextIndex);
       saveProgress(nextIndex, false);
     } else if (type === EVENTS.TARGET_NOT_FOUND) {
@@ -210,11 +315,17 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
       const nextIndex = index + 1;
       if (nextIndex < steps.length) {
         setStepIndex(nextIndex);
+      } else {
+        // End tour if no more steps
+        setRun(false);
+        saveProgress(index, true);
+        onComplete?.();
       }
     }
-  }, [saveProgress, onComplete, steps.length]);
+  }, [saveProgress, onComplete, steps, navigateToStepRoute, location.pathname]);
 
-  if (loading || steps.length === 0) return null;
+  // Don't render if loading, no steps, waiting for navigation, or survey not completed
+  if (loading || steps.length === 0 || waitingForNavigation || !surveyCompleted) return null;
 
   return (
     <Joyride
