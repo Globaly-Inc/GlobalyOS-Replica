@@ -57,6 +57,7 @@ const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers')
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
 const SuperAdminBlog = lazy(() => import('./pages/super-admin/SuperAdminBlog'));
 const SuperAdminPayments = lazy(() => import('./pages/super-admin/SuperAdminPayments'));
+const SuperAdminPlanEditor = lazy(() => import('./pages/super-admin/SuperAdminPlanEditor'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
 
 const queryClient = new QueryClient();
@@ -156,6 +157,16 @@ const App = () => (
                 <Route path="/super-admin/blog" element={
                   <SuperAdminProtectedRoute>
                     <SuperAdminBlog />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/plans/new" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminPlanEditor />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/plans/:planId/edit" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminPlanEditor />
                   </SuperAdminProtectedRoute>
                 } />
                 
