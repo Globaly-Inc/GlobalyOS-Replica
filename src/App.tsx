@@ -25,6 +25,7 @@ const ServiceWorkerUpdater = () => {
 // Lazy load pages for code splitting
 const Home = lazy(() => import('./pages/Home'));
 const Team = lazy(() => import('./pages/Team'));
+const PendingApproval = lazy(() => import('./pages/PendingApproval'));
 const TeamMemberProfile = lazy(() => import('./pages/TeamMemberProfile'));
 const BulkImport = lazy(() => import('./pages/BulkImport'));
 const OrgChart = lazy(() => import('./pages/OrgChart'));
@@ -89,6 +90,7 @@ const App = () => (
                 {/* Auth routes */}
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/pending-approval" element={<PendingApproval />} />
                 <Route path="/join" element={<Join />} />
                 <Route path="/install" element={<Install />} />
                 
