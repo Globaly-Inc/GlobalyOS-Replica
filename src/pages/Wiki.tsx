@@ -5,7 +5,7 @@ import { WikiSidebar } from '@/components/wiki/WikiSidebar';
 import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
 import { WikiFolderView } from "@/components/wiki/WikiFolderView";
 import { WikiSearch } from "@/components/wiki/WikiSearch";
-
+import { WikiMobileLanding } from "@/components/wiki/WikiMobileLanding";
 import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { WikiUploadDialog } from "@/components/wiki/WikiUploadDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +13,11 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWikiFavorites } from "@/hooks/useWikiFavorites";
 import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, ChevronDown, FileText, Folder } from "lucide-react";
+import { Plus, ChevronDown, FileText, Folder, ArrowLeft } from "lucide-react";
 
 interface WikiFolder {
   id: string;
@@ -66,6 +67,7 @@ interface WikiPageVersion {
 }
 
 type ViewMode = "home" | "folder" | "page";
+type MobileViewMode = "landing" | "folder" | "page";
 
 interface PendingNavigation {
   type: 'page' | 'folder' | 'home';
@@ -74,6 +76,7 @@ interface PendingNavigation {
 
 const Wiki = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
@@ -82,6 +85,7 @@ const Wiki = () => {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("home");
+  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>("landing");
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   const [creatingItem, setCreatingItem] = useState<{ type: "folder" | "page" } | null>(null);
   
@@ -160,7 +164,42 @@ const Wiki = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // Fetch pages list
+  // Mobile navigation handlers (placed after folders query)
+  const handleMobileBack = useCallback(() => {
+    if (mobileViewMode === "page") {
+      setSelectedPageId(null);
+      setMobileViewMode(selectedFolderId ? "folder" : "landing");
+    } else if (mobileViewMode === "folder") {
+      // Go to parent folder or landing
+      if (selectedFolderId) {
+        const currentFolder = folders.find(f => f.id === selectedFolderId);
+        if (currentFolder?.parent_id) {
+          setSelectedFolderId(currentFolder.parent_id);
+        } else {
+          setSelectedFolderId(null);
+          setMobileViewMode("landing");
+        }
+      } else {
+        setMobileViewMode("landing");
+      }
+    }
+  }, [mobileViewMode, selectedFolderId, folders]);
+
+  const handleMobileSelectPage = useCallback((pageId: string) => {
+    setSelectedPageId(pageId);
+    setMobileViewMode("page");
+  }, []);
+
+  const handleMobileSelectFolder = useCallback((folderId: string) => {
+    setSelectedFolderId(folderId);
+    setMobileViewMode("folder");
+  }, []);
+
+  const handleMobileGoToFolderView = useCallback(() => {
+    setSelectedFolderId(null);
+    setMobileViewMode("folder");
+  }, []);
+
   const { data: pagesList = [] } = useQuery({
     queryKey: ["wiki-pages-list", currentOrg?.id],
     queryFn: async () => {
@@ -395,6 +434,64 @@ const Wiki = () => {
     return null;
   }, [viewMode, selectedFolderId, selectedPageId, pagesList]);
 
+  // Mobile view rendering
+  if (isMobile) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex flex-col">
+        {/* Mobile search header only */}
+        <div className="bg-card border-b px-4 py-3">
+          <WikiSearch
+            folders={folders}
+            pages={pagesList}
+            onSelectPage={handleMobileSelectPage}
+          />
+        </div>
+
+        {/* Mobile views */}
+        {mobileViewMode === "landing" && (
+          <WikiMobileLanding
+            folders={folders}
+            pages={pagesList}
+            onSelectPage={handleMobileSelectPage}
+            onSelectFolder={handleMobileSelectFolder}
+            onGoToFolderView={handleMobileGoToFolderView}
+            isFavorite={isFavorite}
+            recentItems={recentItems}
+          />
+        )}
+        
+        {mobileViewMode === "folder" && (
+          <WikiFolderView
+            folders={folders}
+            pages={pagesList}
+            currentFolderId={selectedFolderId}
+            onSelectFolder={handleMobileSelectFolder}
+            onSelectPage={handleMobileSelectPage}
+            canEdit={false}
+            organizationId={currentOrg?.id}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onBack={handleMobileBack}
+          />
+        )}
+        
+        {mobileViewMode === "page" && (
+          <WikiContent
+            ref={wikiContentRef}
+            page={selectedPage || null}
+            versions={pageVersions}
+            onSave={async () => {}}
+            canEdit={false}
+            isLoading={isLoadingPage}
+            organizationId={currentOrg?.id}
+            onBack={handleMobileBack}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Desktop view rendering
   return (
     <>
       <div className="h-[calc(100vh-4rem)] flex flex-col">

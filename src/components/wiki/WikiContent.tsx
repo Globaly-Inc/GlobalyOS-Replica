@@ -1,11 +1,12 @@
 import { useState, useImperativeHandle, forwardRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
 
@@ -55,6 +56,7 @@ interface WikiContentProps {
   pendingNavigation?: { type: 'page' | 'folder' | 'home'; id?: string } | null;
   onNavigationConfirm?: () => void;
   onNavigationCancel?: () => void;
+  onBack?: () => void;
 }
 
 // Expose methods to parent via ref
@@ -67,8 +69,10 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   versions, 
   canEdit, 
   isLoading,
+  onBack,
 }, ref) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
 
@@ -106,14 +110,21 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
       {/* Header */}
       <div className="border-b bg-card p-4">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{page.title}</h1>
-            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            {/* Mobile back button */}
+            {isMobile && onBack && (
+              <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 -ml-2">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+            )}
+            <h1 className={`font-bold truncate ${isMobile ? 'text-xl' : 'text-2xl'}`}>{page.title}</h1>
+            <div className={`flex items-center gap-4 mt-2 text-sm text-muted-foreground ${isMobile ? 'flex-wrap gap-2' : ''}`}>
               <div className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
-                <span>Updated {formatDateTime(page.updated_at)}</span>
+                <span className="truncate">Updated {formatDateTime(page.updated_at)}</span>
               </div>
-              {page.updated_by && (
+              {page.updated_by && !isMobile && (
                 <div className="flex items-center gap-1">
                   <User className="h-3.5 w-3.5" />
                   <span>by {page.updated_by.profiles.full_name}</span>
@@ -121,50 +132,53 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {versions.length > 0 && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <History className="h-4 w-4 mr-1" />
-                    History
-                  </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Version History</SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="h-[calc(100vh-100px)] mt-4">
-                    <div className="space-y-4">
-                      {versions.map((version) => (
-                        <div key={version.id} className="border rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {version.edited_by.profiles.full_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
+          {/* Only show edit and history on desktop */}
+          {!isMobile && (
+            <div className="flex items-center gap-2">
+              {versions.length > 0 && (
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent>
+                    <SheetHeader>
+                      <SheetTitle>Version History</SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+                      <div className="space-y-4">
+                        {versions.map((version) => (
+                          <div key={version.id} className="border rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {version.edited_by.profiles.full_name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {formatDateTime(version.created_at)}
+                            </p>
+                            <p className="text-sm font-medium">{version.title}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {formatDateTime(version.created_at)}
-                          </p>
-                          <p className="text-sm font-medium">{version.title}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
-            )}
-            {canEdit && (
-              <Button size="sm" onClick={handleStartEdit}>
-                <Pencil className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-            )}
-          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </SheetContent>
+                </Sheet>
+              )}
+              {canEdit && (
+                <Button size="sm" onClick={handleStartEdit}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

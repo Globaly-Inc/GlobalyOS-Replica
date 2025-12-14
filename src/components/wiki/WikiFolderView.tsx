@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File, ArrowLeft } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -86,6 +87,7 @@ interface WikiFolderViewProps {
   onToggleFavorite?: (itemType: "folder" | "page", itemId: string) => void;
   creatingItem?: { type: "folder" | "page" } | null;
   onCreatingItemComplete?: () => void;
+  onBack?: () => void;
 }
 
 export const WikiFolderView = ({
@@ -106,7 +108,9 @@ export const WikiFolderView = ({
   onToggleFavorite,
   creatingItem,
   onCreatingItemComplete,
+  onBack,
 }: WikiFolderViewProps) => {
+  const isMobile = useIsMobile();
   const [creatingName, setCreatingName] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -354,77 +358,97 @@ export const WikiFolderView = ({
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Breadcrumb navigation and sort controls */}
-      <div className="border-b bg-card px-6 py-4">
+      <div className={cn("border-b bg-card", isMobile ? "px-4 py-3" : "px-6 py-4")}>
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1 text-sm">
-            {breadcrumbs.map((crumb, index) => (
-              <div key={crumb.id ?? "home"} className="flex items-center">
-                {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
-                <button
-                  onClick={() => onSelectFolder(crumb.id)}
-                  className={cn(
-                    "hover:text-primary transition-colors",
-                    index === breadcrumbs.length - 1
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground hover:underline"
-                  )}
-                >
-                  {crumb.name}
-                </button>
-              </div>
-            ))}
+          <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
+            {/* Mobile back button */}
+            {isMobile && onBack && (
+              <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mr-1 shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            {/* Breadcrumbs - simplified on mobile */}
+            {isMobile ? (
+              <span className="font-semibold truncate">
+                {breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 1].name : "Wiki Home"}
+              </span>
+            ) : (
+              breadcrumbs.map((crumb, index) => (
+                <div key={crumb.id ?? "home"} className="flex items-center">
+                  {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
+                  <button
+                    onClick={() => onSelectFolder(crumb.id)}
+                    className={cn(
+                      "hover:text-primary transition-colors",
+                      index === breadcrumbs.length - 1
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:underline"
+                    )}
+                  >
+                    {crumb.name}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
           
-          {/* Sort controls */}
-          <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">
-                  <div className="flex items-center gap-2">
-                    <ArrowDownAZ className="h-3 w-3" />
-                    Name
-                  </div>
-                </SelectItem>
-                <SelectItem value="created">
-                  <div className="flex items-center gap-2">
-                    <CalendarPlus className="h-3 w-3" />
-                    Created
-                  </div>
-                </SelectItem>
-                <SelectItem value="modified">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3 w-3" />
-                    Modified
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={toggleSortDirection}
-              title={sortDirection === "asc" ? "Ascending" : "Descending"}
-            >
-              <ArrowUpDown className={cn("h-4 w-4", sortDirection === "desc" && "rotate-180")} />
-            </Button>
-          </div>
+          {/* Sort controls - hide on mobile */}
+          {!isMobile && (
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">
+                    <div className="flex items-center gap-2">
+                      <ArrowDownAZ className="h-3 w-3" />
+                      Name
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="created">
+                    <div className="flex items-center gap-2">
+                      <CalendarPlus className="h-3 w-3" />
+                      Created
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="modified">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3 w-3" />
+                      Modified
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={toggleSortDirection}
+                title={sortDirection === "asc" ? "Ascending" : "Descending"}
+              >
+                <ArrowUpDown className={cn("h-4 w-4", sortDirection === "desc" && "rotate-180")} />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Content grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className={cn("flex-1 overflow-y-auto", isMobile ? "p-4" : "p-6")}>
         {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <Folder className="h-16 w-16 mb-4 opacity-20" />
             <p className="text-lg">This folder is empty</p>
-            <p className="text-sm mt-1">Create a new folder or page from the sidebar</p>
+            <p className="text-sm mt-1">{isMobile ? "No content here yet" : "Create a new folder or page from the sidebar"}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className={cn(
+            "grid gap-4",
+            isMobile 
+              ? "grid-cols-2" 
+              : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+          )}>
             {/* Creating new item card - always at top front */}
             {creatingItem && (
               <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
@@ -483,8 +507,8 @@ export const WikiFolderView = ({
                   )}
                   onClick={() => !isEditing && onSelectFolder(folder.id)}
                 >
-                  {/* Three-dot menu */}
-                  {canEdit && !isEditing && (
+                  {/* Three-dot menu - hide on mobile */}
+                  {canEdit && !isEditing && !isMobile && (
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -611,8 +635,8 @@ export const WikiFolderView = ({
                     </div>
                   )}
 
-                  {/* Three-dot menu */}
-                  {canEdit && !isEditing && (
+                  {/* Three-dot menu - hide on mobile */}
+                  {canEdit && !isEditing && !isMobile && (
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
