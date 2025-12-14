@@ -297,10 +297,10 @@ const DashboardSpotlight = () => {
         className="absolute inset-0 backdrop-blur-[3px] bg-white/5 dark:bg-black/10 pointer-events-none transition-opacity duration-300"
         style={{
           maskImage: isHovering 
-            ? `radial-gradient(circle 120px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
+            ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
             : 'none',
           WebkitMaskImage: isHovering 
-            ? `radial-gradient(circle 120px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
+            ? `radial-gradient(circle 200px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
             : 'none',
         }}
       />
