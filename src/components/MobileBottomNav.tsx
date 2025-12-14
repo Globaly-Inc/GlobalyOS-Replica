@@ -1,5 +1,5 @@
-import { Home, Users, ScanLine, User, Calendar } from 'lucide-react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Home, MessageSquare, ScanLine, Sparkles, Menu } from 'lucide-react';
+import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { QRScannerDialog } from './dialogs/QRScannerDialog';
-import { AddLeaveRequestDialog } from './dialogs/AddLeaveRequestDialog';
+import { GlobalAskAI } from './GlobalAskAI';
+import { MobileMoreMenu } from './MobileMoreMenu';
 
 interface NavItem {
   icon: React.ElementType;
@@ -18,22 +19,31 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Overview', href: '/' },
-  { icon: Users, label: 'Directory', href: '/team' },
+  { icon: MessageSquare, label: 'Chat', href: '/chat' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
-  { icon: Calendar, label: 'Cal', href: '/calendar' },
-  { icon: User, label: 'Profile', action: 'profile' },
+  { icon: Sparkles, label: 'Ask AI', action: 'ai' },
+  { icon: Menu, label: 'More', action: 'more' },
 ];
 
-export const MobileBottomNav = () => {
+interface MobileBottomNavProps {
+  userProfile?: {
+    fullName: string;
+    position: string;
+    avatarUrl: string | null;
+    employeeId: string | null;
+  } | null;
+}
+
+export const MobileBottomNav = ({ userProfile }: MobileBottomNavProps) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { orgCode } = useParams<{ orgCode: string }>();
-  const { navigateOrg, buildOrgPath } = useOrgNavigation();
+  const { navigateOrg } = useOrgNavigation();
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [askAiOpen, setAskAiOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -74,10 +84,10 @@ export const MobileBottomNav = () => {
       navigateOrg(item.href);
     } else if (item.action === 'scan') {
       setQrScannerOpen(true);
-    } else if (item.action === 'leave') {
-      setLeaveDialogOpen(true);
-    } else if (item.action === 'profile' && employeeId) {
-      navigateOrg(`/team/${employeeId}`);
+    } else if (item.action === 'ai') {
+      setAskAiOpen(true);
+    } else if (item.action === 'more') {
+      setMoreMenuOpen(true);
     }
   };
 
@@ -87,12 +97,14 @@ export const MobileBottomNav = () => {
     if (item.href) {
       const fullPath = item.href === '/' ? basePath : `${basePath}${item.href}`;
       if (item.href === '/') {
-        return location.pathname === basePath || location.pathname === `${basePath}/`;
+        // Overview is active for home, team, calendar, kpi routes
+        return location.pathname === basePath || 
+               location.pathname === `${basePath}/` ||
+               location.pathname.startsWith(`${basePath}/team`) ||
+               location.pathname.startsWith(`${basePath}/calendar`) ||
+               location.pathname.startsWith(`${basePath}/kpi`);
       }
       return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
-    }
-    if (item.action === 'profile') {
-      return location.pathname.includes(`/team/${employeeId}`);
     }
     return false;
   };
@@ -109,7 +121,6 @@ export const MobileBottomNav = () => {
               <button
                 key={item.label}
                 onClick={() => handleNavClick(item)}
-                disabled={item.action === 'leave' && !employeeId}
                 className={cn(
                   'flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative',
                   active && 'text-primary',
@@ -119,9 +130,9 @@ export const MobileBottomNav = () => {
               >
                 {isScan ? (
                   <div className={cn(
-                    'flex items-center justify-center w-12 h-12 -mt-6 rounded-full shadow-lg transition-all',
+                    'flex items-center justify-center w-14 h-14 -mt-7 rounded-full shadow-lg transition-all border-4 border-background',
                     checkInTime 
-                      ? 'bg-green-500 text-white animate-pulse' 
+                      ? 'bg-green-500 text-white' 
                       : 'bg-primary text-primary-foreground'
                   )}>
                     <item.icon className="h-6 w-6" />
@@ -131,7 +142,7 @@ export const MobileBottomNav = () => {
                 )}
                 <span className={cn(
                   'text-[10px] font-medium',
-                  isScan && 'mt-1'
+                  isScan && 'mt-1.5'
                 )}>
                   {isScan && checkInTime ? 'Check Out' : item.label}
                 </span>
@@ -148,14 +159,25 @@ export const MobileBottomNav = () => {
         open={qrScannerOpen}
         onOpenChange={setQrScannerOpen}
       />
-      
-      {employeeId && (
-        <AddLeaveRequestDialog
-          employeeId={employeeId}
-          open={leaveDialogOpen}
-          onOpenChange={setLeaveDialogOpen}
-        />
+
+      {/* Ask AI Sheet - triggered by bottom nav */}
+      {askAiOpen && (
+        <div className="fixed inset-0 z-[100] bg-background animate-in slide-in-from-bottom duration-300 md:hidden">
+          <div className="h-full">
+            <GlobalAskAI 
+              organizationId={currentOrg?.id} 
+              isMobileFullscreen
+              onClose={() => setAskAiOpen(false)}
+            />
+          </div>
+        </div>
       )}
+      
+      <MobileMoreMenu
+        open={moreMenuOpen}
+        onOpenChange={setMoreMenuOpen}
+        userProfile={userProfile}
+      />
     </>
   );
 };
