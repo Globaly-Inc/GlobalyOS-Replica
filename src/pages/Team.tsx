@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -77,7 +77,7 @@ const Team = () => {
   const [recoverDialogOpen, setRecoverDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
 
   useEffect(() => {
     if (currentOrg) {
@@ -258,7 +258,7 @@ const Team = () => {
     
     return (
       <Card
-        onClick={() => navigate(`/team/${employee.id}`)}
+        onClick={() => navigateOrg(`/team/${employee.id}`)}
         className={cn(
           "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] max-w-[200px] rounded-xl",
           isExternal && "border-dashed"
@@ -343,7 +343,7 @@ const Team = () => {
                 <Settings className="h-4 w-4" />
                 Manage Offices
               </Button>
-              <Button variant="outline" onClick={() => navigate('/team/bulk-import')} className="hidden sm:inline-flex gap-2">
+              <Button variant="outline" onClick={() => navigateOrg('/team/bulk-import')} className="hidden sm:inline-flex gap-2">
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>

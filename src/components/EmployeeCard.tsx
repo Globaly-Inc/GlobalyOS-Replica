@@ -4,12 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Mail, Calendar, Send, MapPin, Building2, Users } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getCountryFlag } from "@/lib/countryFlags";
 import { formatMonthYear } from "@/lib/utils";
+import { OrgLink } from "./OrgLink";
 import {
   Tooltip,
   TooltipContent,
@@ -87,7 +87,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
   };
 
   return (
-    <Link to={`/team/${employee.id}`}>
+    <OrgLink to={`/team/${employee.id}`}>
       <Card className="group overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer h-full">
         <div className="p-6 relative">
           {showResendInvite && employee.status === 'invited' && (
@@ -178,6 +178,6 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role }: Emplo
           </div>
         </div>
       </Card>
-    </Link>
+    </OrgLink>
   );
 };
