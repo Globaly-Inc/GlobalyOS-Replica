@@ -59,22 +59,6 @@ const painPoints = [{
   title: "Zero Team Visibility",
   description: "No idea who's on leave, what goals look like, or how the team is really doing."
 }];
-const trustedLogos = [{
-  name: "TechStart",
-  initial: "T"
-}, {
-  name: "GrowthCo",
-  initial: "G"
-}, {
-  name: "Elevate",
-  initial: "E"
-}, {
-  name: "Innovate",
-  initial: "I"
-}, {
-  name: "Synergy",
-  initial: "S"
-}];
 export default function Landing() {
   const navigate = useNavigate();
   const {
@@ -112,27 +96,14 @@ export default function Landing() {
       <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Wide gradient card with dashboard floating on top */}
-          <div className="relative">
-            {/* Background gradient card */}
+          <div className="relative pb-12">
+            {/* Background gradient card - extends below dashboard for floating effect */}
             <div className="absolute inset-x-0 top-24 bottom-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 rounded-3xl" />
             
             {/* Dashboard screenshot - floating above */}
-            <div className="relative z-10 px-4 sm:px-8">
+            <div className="relative z-10 px-4 sm:px-8 mb-8">
               <div className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card">
                 <img alt="GlobalyOS Team Overview Dashboard" className="w-full h-auto" src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" />
-              </div>
-            </div>
-
-            {/* Trusted by logos - positioned on the gradient card */}
-            <div className="relative z-10 pt-12 pb-8">
-              <p className="text-center text-sm text-muted-foreground mb-6">Join our community of 120,000+ businesses</p>
-              <div className="flex flex-wrap items-center justify-center gap-8 px-4">
-                {trustedLogos.map((logo, i) => <div key={i} className="flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur-sm rounded-full border border-border/50 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
-                      {logo.initial}
-                    </div>
-                    <span className="text-foreground font-medium">{logo.name}</span>
-                  </div>)}
               </div>
             </div>
           </div>
