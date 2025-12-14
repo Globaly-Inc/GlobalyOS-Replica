@@ -294,7 +294,7 @@ const DashboardSpotlight = () => {
       
       {/* Blurred overlay with spotlight hole */}
       <div 
-        className="absolute inset-0 backdrop-blur-md bg-white/20 dark:bg-black/30 pointer-events-none transition-opacity duration-300"
+        className="absolute inset-0 backdrop-blur-sm bg-white/10 dark:bg-black/20 pointer-events-none transition-opacity duration-300"
         style={{
           maskImage: isHovering 
             ? `radial-gradient(circle 120px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
