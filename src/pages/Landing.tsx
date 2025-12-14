@@ -4,32 +4,161 @@ import { WebsiteHeader, WebsiteFooter, FeatureCard, TestimonialCard } from "@/co
 import { useAuth } from "@/hooks/useAuth";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap } from "lucide-react";
-const features = [{
-  icon: Users,
-  title: "People Management",
-  description: "Complete employee profiles, org charts, and team directory. Everything about your people in one place."
-}, {
-  icon: Calendar,
-  title: "Leave & Attendance",
-  description: "QR check-in, leave requests, balance tracking, and automated overtime calculations."
-}, {
-  icon: BookOpen,
-  title: "Team Wiki",
-  description: "Centralized knowledge base for policies, processes, and documentation your team can actually find."
-}, {
-  icon: Brain,
-  title: "AI Assistant",
-  description: "Ask anything about your team, policies, or data. Get instant answers from your organization's knowledge."
-}, {
-  icon: BarChart3,
-  title: "KPIs & Reviews",
-  description: "Track goals, measure performance, and run reviews with AI-powered insights and suggestions."
-}, {
-  icon: Smartphone,
-  title: "Mobile App",
-  description: "Full-featured PWA works on any device. Check in, request leave, and stay connected on the go.",
-  highlighted: true
-}];
+// Feature showcase mockup components
+const PeopleManagementMockup = () => (
+  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+    <div className="flex items-center gap-4 mb-4">
+      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl font-bold text-primary">SC</div>
+      <div>
+        <div className="font-semibold text-foreground">Sarah Chen</div>
+        <div className="text-sm text-muted-foreground">Product Designer</div>
+      </div>
+      <div className="ml-auto px-2 py-1 rounded-full bg-success/10 text-success text-xs font-medium">Active</div>
+    </div>
+    <div className="grid grid-cols-3 gap-3 text-center">
+      <div className="bg-muted/50 rounded-lg p-2">
+        <div className="text-lg font-bold text-foreground">8</div>
+        <div className="text-xs text-muted-foreground">Direct Reports</div>
+      </div>
+      <div className="bg-muted/50 rounded-lg p-2">
+        <div className="text-lg font-bold text-foreground">4.2y</div>
+        <div className="text-xs text-muted-foreground">Tenure</div>
+      </div>
+      <div className="bg-muted/50 rounded-lg p-2">
+        <div className="text-lg font-bold text-foreground">12</div>
+        <div className="text-xs text-muted-foreground">Kudos</div>
+      </div>
+    </div>
+  </div>
+);
+
+const LeaveAttendanceMockup = () => (
+  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Calendar className="w-4 h-4 text-primary" />
+        </div>
+        <span className="font-medium text-foreground text-sm">Leave Balances</span>
+      </div>
+      <span className="text-xs text-muted-foreground">2024</span>
+    </div>
+    <div className="space-y-3">
+      <div>
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-muted-foreground">Annual Leave</span>
+          <span className="font-medium text-foreground">18 days</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-full w-3/4 bg-primary rounded-full" />
+        </div>
+      </div>
+      <div>
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-muted-foreground">Sick Leave</span>
+          <span className="font-medium text-foreground">10 days</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-full w-full bg-success rounded-full" />
+        </div>
+      </div>
+      <div>
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-muted-foreground">Day in Lieu</span>
+          <span className="font-medium text-foreground">3 days</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-full w-1/2 bg-accent rounded-full" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const WikiMockup = () => (
+  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+    <div className="flex items-center gap-2 mb-4">
+      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+        <BookOpen className="w-4 h-4 text-amber-600" />
+      </div>
+      <span className="font-medium text-foreground text-sm">Knowledge Base</span>
+    </div>
+    <div className="space-y-2">
+      {[
+        { icon: "📁", name: "Getting Started", items: 5 },
+        { icon: "📁", name: "Company Policies", items: 12 },
+        { icon: "📄", name: "Employee Handbook", updated: "2d ago" },
+        { icon: "📄", name: "Leave Policy", updated: "1w ago" },
+      ].map((item, i) => (
+        <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+          <div className="flex items-center gap-2">
+            <span>{item.icon}</span>
+            <span className="text-sm text-foreground">{item.name}</span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {item.items ? `${item.items} items` : item.updated}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const KPIMockup = () => (
+  <div className="bg-background/80 rounded-xl p-4 border border-border/50">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+          <BarChart3 className="w-4 h-4 text-violet-600" />
+        </div>
+        <span className="font-medium text-foreground text-sm">Q4 Performance</span>
+      </div>
+      <span className="px-2 py-1 rounded-full bg-success/10 text-success text-xs font-medium">On Track</span>
+    </div>
+    <div className="mb-4">
+      <div className="text-2xl font-bold text-foreground">$172,340</div>
+      <div className="text-sm text-muted-foreground">Revenue Target</div>
+    </div>
+    <div className="flex items-end gap-1 h-16">
+      {[40, 55, 45, 70, 60, 80, 75, 90, 85, 95, 88, 92].map((h, i) => (
+        <div key={i} className="flex-1 bg-primary/20 rounded-t" style={{ height: `${h}%` }}>
+          <div className="w-full bg-primary rounded-t" style={{ height: `${h * 0.7}%` }} />
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+      <span>Jan</span>
+      <span>Dec</span>
+    </div>
+  </div>
+);
+
+const featureShowcases = [
+  {
+    title: "People Management",
+    description: "Complete employee profiles, org charts, and team directory. Everything about your people in one place.",
+    Mockup: PeopleManagementMockup,
+    gradient: "from-blue-500/5 to-cyan-500/5"
+  },
+  {
+    title: "Leave & Attendance",
+    description: "QR check-in, leave requests, balance tracking, and automated overtime calculations.",
+    Mockup: LeaveAttendanceMockup,
+    gradient: "from-emerald-500/5 to-teal-500/5"
+  },
+  {
+    title: "Team Wiki",
+    description: "Centralized knowledge base for policies, processes, and documentation your team can actually find.",
+    Mockup: WikiMockup,
+    gradient: "from-amber-500/5 to-orange-500/5"
+  },
+  {
+    title: "KPIs & Performance",
+    description: "Track goals, measure performance, and run reviews with AI-powered insights and suggestions.",
+    Mockup: KPIMockup,
+    gradient: "from-violet-500/5 to-purple-500/5"
+  }
+];
 const testimonials = [{
   quote: "GlobalyOS replaced 4 different tools for us. Now everything from leave requests to team docs is in one place.",
   author: "Sarah Chen",
@@ -236,15 +365,48 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features - Bento Grid */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">One platform. Complete clarity.</h2>
             <p className="text-lg text-muted-foreground">GlobalyOS brings everything together so you can focus on what matters — your people.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => <FeatureCard key={i} icon={f.icon} title={f.title} description={f.description} highlighted={f.highlighted} />)}
+          <div className="grid md:grid-cols-2 gap-6">
+            {featureShowcases.map((feature, i) => (
+              <div 
+                key={i} 
+                className={`group bg-gradient-to-br ${feature.gradient} rounded-2xl border border-border p-6 hover:shadow-lg transition-all duration-300`}
+              >
+                <div className="mb-5">
+                  <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                </div>
+                <feature.Mockup />
+              </div>
+            ))}
+          </div>
+          
+          {/* Additional feature highlights */}
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl border border-border p-6 flex items-center gap-6">
+              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Brain className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">AI Assistant</h3>
+                <p className="text-sm text-muted-foreground">Ask anything about your team, policies, or data. Get instant answers from your organization's knowledge.</p>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-2xl border border-border p-6 flex items-center gap-6">
+              <div className="w-14 h-14 rounded-xl bg-pink-500/10 flex items-center justify-center shrink-0">
+                <Smartphone className="w-7 h-7 text-pink-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Mobile App</h3>
+                <p className="text-sm text-muted-foreground">Full-featured PWA works on any device. Check in, request leave, and stay connected on the go.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
