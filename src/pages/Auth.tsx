@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Users, Mail, AlertCircle, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { GoogleAuthButton, SecurityBadges } from "@/components/onboarding";
 
 const otpEmailSchema = z.object({
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
@@ -306,29 +308,49 @@ const Auth = () => {
         </div>
 
         {!otpSent ? (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <div className="text-center mb-4">
-              <Mail className="h-10 w-10 mx-auto text-primary mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Sign in with a 6-digit code sent to your email
-              </p>
+          <div className="space-y-4">
+            {/* Google SSO Button */}
+            <GoogleAuthButton mode="signin" className="w-full" />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="otp-email">Email</Label>
-              <Input
-                id="otp-email"
-                type="email"
-                placeholder="you@example.com"
-                value={otpEmail}
-                onChange={(e) => setOtpEmail(e.target.value)}
-                required
-              />
-              {errors.otpEmail && <p className="text-sm text-destructive">{errors.otpEmail}</p>}
+
+            <form onSubmit={handleSendOtp} className="space-y-4">
+              <div className="text-center mb-4">
+                <Mail className="h-10 w-10 mx-auto text-primary mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Sign in with a 6-digit code sent to your email
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="otp-email">Email</Label>
+                <Input
+                  id="otp-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={otpEmail}
+                  onChange={(e) => setOtpEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+                {errors.otpEmail && <p className="text-sm text-destructive">{errors.otpEmail}</p>}
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending..." : "Send OTP"}
+              </Button>
+            </form>
+
+            {/* Security badges */}
+            <div className="pt-4">
+              <SecurityBadges />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending..." : "Send OTP"}
-            </Button>
-          </form>
+          </div>
         ) : accountNotFound ? (
           <AccountNotFoundMessage />
         ) : (

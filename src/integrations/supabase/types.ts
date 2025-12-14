@@ -2621,6 +2621,7 @@ export type Database = {
       }
       onboarding_progress: {
         Row: {
+          checklist_items: Json | null
           completed_at: string | null
           completed_steps: Json | null
           current_step: number | null
@@ -2629,10 +2630,12 @@ export type Database = {
           organization_id: string
           role: string
           started_at: string
+          survey_completed: boolean | null
           tour_completed: boolean | null
           user_id: string
         }
         Insert: {
+          checklist_items?: Json | null
           completed_at?: string | null
           completed_steps?: Json | null
           current_step?: number | null
@@ -2641,10 +2644,12 @@ export type Database = {
           organization_id: string
           role: string
           started_at?: string
+          survey_completed?: boolean | null
           tour_completed?: boolean | null
           user_id: string
         }
         Update: {
+          checklist_items?: Json | null
           completed_at?: string | null
           completed_steps?: Json | null
           current_step?: number | null
@@ -2653,6 +2658,7 @@ export type Database = {
           organization_id?: string
           role?: string
           started_at?: string
+          survey_completed?: boolean | null
           tour_completed?: boolean | null
           user_id?: string
         }
@@ -3507,6 +3513,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      welcome_survey_responses: {
+        Row: {
+          completed_at: string
+          created_at: string
+          how_heard_about_us: string | null
+          id: string
+          organization_id: string
+          primary_goal: string | null
+          priority_features: string[] | null
+          team_size: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          how_heard_about_us?: string | null
+          id?: string
+          organization_id: string
+          primary_goal?: string | null
+          priority_features?: string[] | null
+          team_size?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          how_heard_about_us?: string | null
+          id?: string
+          organization_id?: string
+          primary_goal?: string | null
+          priority_features?: string[] | null
+          team_size?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welcome_survey_responses_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
