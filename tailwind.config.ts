@@ -111,6 +111,25 @@ export default {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        "scroll-up": {
+          "0%": { transform: "translateY(0)", opacity: "1" },
+          "16%": { transform: "translateY(0)", opacity: "1" },
+          "20%": { transform: "translateY(-100%)", opacity: "0" },
+          "100%": { transform: "translateY(-100%)", opacity: "0" },
+        },
+        "border-rotate": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+        "float-particle": {
+          "0%, 100%": { transform: "translateY(0) scale(1)", opacity: "0.4" },
+          "50%": { transform: "translateY(-20px) scale(1.2)", opacity: "0.8" },
+        },
+        "twinkle": {
+          "0%, 100%": { opacity: "0.2", transform: "scale(0.8)" },
+          "50%": { opacity: "1", transform: "scale(1.2)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -119,6 +138,10 @@ export default {
         "marquee": "marquee 30s linear infinite",
         "marquee-reverse": "marquee-reverse 30s linear infinite",
         "gradient-shift": "gradient-shift 3s ease-in-out infinite",
+        "scroll-up": "scroll-up 5s ease-in-out infinite",
+        "border-rotate": "border-rotate 3s linear infinite",
+        "float-particle": "float-particle 3s ease-in-out infinite",
+        "twinkle": "twinkle 2s ease-in-out infinite",
       },
     },
   },

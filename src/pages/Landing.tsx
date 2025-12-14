@@ -408,7 +408,7 @@ export default function Landing() {
       </section>
 
       {/* AI */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary/5 to-accent/5">
+      <section className="py-28 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
@@ -416,43 +416,84 @@ export default function Landing() {
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Meet your AI-powered HR assistant</h2>
             <p className="text-lg text-muted-foreground mb-6">Stop digging through docs and spreadsheets. Just ask.</p>
-            <ul className="space-y-3">
-              {["Who's on leave next week?", "What's our parental leave policy?", "Show me team performance trends"].map((ex, i) => <li key={i} className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                  <span className="text-foreground">"{ex}"</span>
-                </li>)}
-            </ul>
-          </div>
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+            
+            {/* Scrolling suggested questions */}
+            <div className="h-40 overflow-hidden relative">
+              <div className="space-y-3">
+                {[
+                  "Who's on leave next week?",
+                  "What's our parental leave policy?",
+                  "Show me team performance trends",
+                  "Who has their anniversary this month?",
+                  "What are our company holidays?",
+                  "How many sick days do I have left?",
+                ].map((question, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 animate-scroll-up"
+                    style={{ animationDelay: `${i * 5}s` }}
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                    <span className="text-foreground">"{question}"</span>
+                  </div>
+                ))}
               </div>
-              <div><p className="font-semibold text-foreground">Ask AI</p><p className="text-sm text-muted-foreground">Powered by your organization data</p></div>
             </div>
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-3 text-sm"><p className="text-muted-foreground">You asked:</p><p className="text-foreground font-medium">Who has their work anniversary this month?</p></div>
-              <div className="bg-primary/5 rounded-lg p-3 text-sm border border-primary/10">
-                <p className="text-foreground">3 team members have work anniversaries in December:</p>
-                <ul className="mt-2 space-y-1 text-muted-foreground"><li>• Sarah Chen - 3 years (Dec 5)</li><li>• Marcus Johnson - 1 year (Dec 12)</li><li>• Priya Patel - 5 years (Dec 18)</li></ul>
+          </div>
+          
+          {/* AI Card with animated gradient border and floating particles */}
+          <div className="relative">
+            {/* Floating sparkle particles */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute animate-float-particle"
+                  style={{
+                    left: `${10 + (i % 4) * 25}%`,
+                    top: `${10 + Math.floor(i / 4) * 30}%`,
+                    animationDelay: `${i * 0.3}s`,
+                    animationDuration: `${2 + (i % 3)}s`,
+                  }}
+                >
+                  <Sparkles 
+                    className="w-4 h-4 text-primary/40 animate-twinkle" 
+                    style={{ animationDelay: `${i * 0.2}s` }} 
+                  />
+                </div>
+              ))}
+            </div>
+            
+            {/* 3px Animated gradient border wrapper */}
+            <div className="relative p-[3px] rounded-2xl bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_200%] animate-border-rotate shadow-[0_0_40px_hsl(var(--primary)/0.3)]">
+              {/* Inner card */}
+              <div className="bg-card rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Ask AI</p>
+                    <p className="text-sm text-muted-foreground">Powered by your organization data</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                    <p className="text-muted-foreground">You asked:</p>
+                    <p className="text-foreground font-medium">Who has their work anniversary this month?</p>
+                  </div>
+                  <div className="bg-primary/5 rounded-lg p-3 text-sm border border-primary/10">
+                    <p className="text-foreground">3 team members have work anniversaries in December:</p>
+                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                      <li>• Sarah Chen - 3 years (Dec 5)</li>
+                      <li>• Marcus Johnson - 1 year (Dec 12)</li>
+                      <li>• Priya Patel - 5 years (Dec 18)</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Pricing Preview */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Simple pricing that scales with you</h2>
-          <p className="text-lg text-muted-foreground mb-4">Unlimited users on every plan. No per-seat surprises.</p>
-          <div className="inline-block bg-success/10 text-success px-4 py-2 rounded-full text-sm font-medium mb-8">💡 A 50-person team on competitors costs $750-1,500/mo. With us? Just $299.</div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="p-6 rounded-2xl bg-card border border-border"><h3 className="text-lg font-semibold mb-2">Starter</h3><p className="text-3xl font-bold mb-4">$149<span className="text-base font-normal text-muted-foreground">/mo</span></p><p className="text-sm text-muted-foreground">For small teams getting organized</p></div>
-            <div className="p-6 rounded-2xl bg-gradient-to-b from-primary/5 to-accent/5 border-2 border-primary relative"><span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-primary to-accent text-white">Most Popular</span><h3 className="text-lg font-semibold mb-2">Growth</h3><p className="text-3xl font-bold mb-4">$299<span className="text-base font-normal text-muted-foreground">/mo</span></p><p className="text-sm text-muted-foreground">For growing teams that need everything</p></div>
-            <div className="p-6 rounded-2xl bg-card border border-border"><h3 className="text-lg font-semibold mb-2">Enterprise</h3><p className="text-3xl font-bold mb-4">Custom</p><p className="text-sm text-muted-foreground">For larger organizations</p></div>
-          </div>
-          <Button variant="link" className="mt-6 text-primary" onClick={() => navigate("/pricing")}>View full pricing details <ArrowRight className="w-4 h-4 ml-1" /></Button>
         </div>
       </section>
 
