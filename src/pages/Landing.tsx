@@ -319,9 +319,11 @@ export default function Landing() {
       {/* Hero */}
       <section className="pt-32 px-4 sm:px-6 lg:px-8 pb-[60px]">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4" />
-            Now with AI-powered insights
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="bg-gradient-to-r from-purple-500 via-red-500 to-green-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
+              Now with AI-powered insights
+            </span>
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
             The All-in-One Platform for{" "}
