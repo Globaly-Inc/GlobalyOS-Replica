@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -29,14 +30,27 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Search, MoreHorizontal, Eye, Power, Trash2, Loader2, Building2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { 
+  Search, MoreHorizontal, Eye, Power, Trash2, Loader2, Building2, 
+  CheckCircle, XCircle, Clock, Users, Calendar as CalendarIcon 
+} from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 
 interface Organization {
@@ -46,6 +60,13 @@ interface Organization {
   plan: string;
   created_at: string;
   logo_url: string | null;
+  approval_status: string | null;
+  owner_email: string | null;
+  owner_name: string | null;
+  company_size: string | null;
+  industry: string | null;
+  billing_cycle: string | null;
+  trial_ends_at: string | null;
   userCount?: number;
   primaryAdmin?: string;
 }
@@ -61,12 +82,18 @@ const SuperAdminOrganisations = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [selectedOrg, setSelectedOrg] = useState<OrganizationDetails | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orgToDelete, setOrgToDelete] = useState<Organization | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Review dialog state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [orgToReview, setOrgToReview] = useState<Organization | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     fetchOrganizations();
@@ -98,14 +125,14 @@ const SuperAdminOrganisations = () => {
             .limit(1)
             .maybeSingle();
 
-          let primaryAdmin = 'N/A';
+          let primaryAdmin = org.owner_name || org.owner_email || 'N/A';
           if (adminData) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('full_name, email')
               .eq('id', adminData.user_id)
               .maybeSingle();
-            primaryAdmin = profile?.full_name || profile?.email || 'N/A';
+            primaryAdmin = profile?.full_name || profile?.email || primaryAdmin;
           }
 
           return {
@@ -127,25 +154,21 @@ const SuperAdminOrganisations = () => {
 
   const fetchOrgDetails = async (org: Organization) => {
     try {
-      // Fetch wiki pages count
       const { count: wikiCount } = await supabase
         .from('wiki_pages')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', org.id);
 
-      // Fetch calendar events count
       const { count: calendarCount } = await supabase
         .from('calendar_events')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', org.id);
 
-      // Fetch employee count
       const { count: empCount } = await supabase
         .from('employees')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', org.id);
 
-      // Get last activity (most recent update in any table)
       const { data: lastUpdate } = await supabase
         .from('updates')
         .select('created_at')
@@ -209,16 +232,100 @@ const SuperAdminOrganisations = () => {
     }
   };
 
-  const filteredOrgs = organizations.filter((org) => {
-    const matchesSearch =
+  const handleApprove = async () => {
+    if (!orgToReview) return;
+
+    setProcessing(true);
+    try {
+      const { error } = await supabase.functions.invoke('approve-organization', {
+        body: { organizationId: orgToReview.id },
+      });
+
+      if (error) throw error;
+
+      toast.success('Organization approved successfully');
+      setReviewDialogOpen(false);
+      setOrgToReview(null);
+      fetchOrganizations();
+    } catch (error: any) {
+      console.error('Error approving organization:', error);
+      toast.error(error.message || 'Failed to approve organization');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!orgToReview || !rejectionReason.trim()) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const { error } = await supabase.functions.invoke('reject-organization', {
+        body: { 
+          organizationId: orgToReview.id,
+          reason: rejectionReason.trim(),
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Organization rejected');
+      setReviewDialogOpen(false);
+      setOrgToReview(null);
+      setRejectionReason("");
+      fetchOrganizations();
+    } catch (error: any) {
+      console.error('Error rejecting organization:', error);
+      toast.error(error.message || 'Failed to reject organization');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getStatusBadge = (org: Organization) => {
+    const status = org.approval_status || 'approved';
+    
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Pending</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
+      case 'approved':
+        if (org.plan === 'inactive') {
+          return <Badge variant="secondary">Inactive</Badge>;
+        }
+        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const filterOrganizations = (orgs: Organization[], tab: string) => {
+    let filtered = orgs.filter((org) =>
       org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      org.slug.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && org.plan !== "inactive") ||
-      (statusFilter === "inactive" && org.plan === "inactive");
-    return matchesSearch && matchesStatus;
-  });
+      org.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.owner_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.owner_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    switch (tab) {
+      case 'pending':
+        return filtered.filter(org => org.approval_status === 'pending');
+      case 'active':
+        return filtered.filter(org => org.approval_status === 'approved' && org.plan !== 'inactive');
+      case 'inactive':
+        return filtered.filter(org => org.plan === 'inactive' || org.approval_status === 'rejected');
+      default:
+        return filtered;
+    }
+  };
+
+  const pendingCount = organizations.filter(org => org.approval_status === 'pending').length;
+  const activeCount = organizations.filter(org => org.approval_status === 'approved' && org.plan !== 'inactive').length;
+  const inactiveCount = organizations.filter(org => org.plan === 'inactive' || org.approval_status === 'rejected').length;
 
   if (loading) {
     return (
@@ -240,134 +347,225 @@ const SuperAdminOrganisations = () => {
           </p>
         </div>
 
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{organizations.length}</p>
+                  <p className="text-sm text-muted-foreground">Total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-100">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{pendingCount}</p>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-100">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{activeCount}</p>
+                  <p className="text-sm text-muted-foreground">Active</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <XCircle className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{inactiveCount}</p>
+                  <p className="text-sm text-muted-foreground">Inactive</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4 justify-between">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                >
-                  All
-                </Button>
-                <Button
-                  variant={statusFilter === "active" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("active")}
-                >
-                  Active
-                </Button>
-                <Button
-                  variant={statusFilter === "inactive" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("inactive")}
-                >
-                  Inactive
-                </Button>
-              </div>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                  <TabsList>
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    <TabsTrigger value="pending" className="relative">
+                      Pending
+                      {pendingCount > 0 && (
+                        <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="active">Active</TabsTrigger>
+                    <TabsTrigger value="inactive">Inactive</TabsTrigger>
+                  </TabsList>
+                  <div className="relative w-full sm:w-auto sm:min-w-[280px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, code, or owner..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <TabsContent value="all" className="mt-4">
+                  <OrganizationsTable 
+                    organizations={filterOrganizations(organizations, 'all')}
+                    onViewDetails={fetchOrgDetails}
+                    onToggleStatus={toggleOrgStatus}
+                    onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
+                    onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
+                    getStatusBadge={getStatusBadge}
+                  />
+                </TabsContent>
+                <TabsContent value="pending" className="mt-4">
+                  <PendingOrganizationsTable 
+                    organizations={filterOrganizations(organizations, 'pending')}
+                    onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
+                    onViewDetails={fetchOrgDetails}
+                  />
+                </TabsContent>
+                <TabsContent value="active" className="mt-4">
+                  <OrganizationsTable 
+                    organizations={filterOrganizations(organizations, 'active')}
+                    onViewDetails={fetchOrgDetails}
+                    onToggleStatus={toggleOrgStatus}
+                    onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
+                    onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
+                    getStatusBadge={getStatusBadge}
+                  />
+                </TabsContent>
+                <TabsContent value="inactive" className="mt-4">
+                  <OrganizationsTable 
+                    organizations={filterOrganizations(organizations, 'inactive')}
+                    onViewDetails={fetchOrgDetails}
+                    onToggleStatus={toggleOrgStatus}
+                    onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
+                    onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
+                    getStatusBadge={getStatusBadge}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organisation</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Users</TableHead>
-                  <TableHead>Primary Admin</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrgs.map((org) => (
-                  <TableRow key={org.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {org.logo_url ? (
-                          <img
-                            src={org.logo_url}
-                            alt={org.name}
-                            className="h-8 w-8 rounded object-cover"
-                          />
-                        ) : (
-                          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-                            <Building2 className="h-4 w-4 text-primary" />
-                          </div>
-                        )}
-                        <span className="font-medium">{org.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {org.slug}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={org.plan === "inactive" ? "secondary" : "default"}
-                      >
-                        {org.plan === "inactive" ? "Inactive" : "Active"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{org.userCount}</TableCell>
-                    <TableCell>{org.primaryAdmin}</TableCell>
-                    <TableCell>
-                      {format(new Date(org.created_at), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => fetchOrgDetails(org)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleOrgStatus(org)}>
-                            <Power className="h-4 w-4 mr-2" />
-                            {org.plan === "inactive" ? "Activate" : "Deactivate"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              setOrgToDelete(org);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredOrgs.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No organisations found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
         </Card>
+
+        {/* Review Dialog */}
+        <Dialog open={reviewDialogOpen} onOpenChange={(open) => {
+          setReviewDialogOpen(open);
+          if (!open) {
+            setRejectionReason("");
+            setOrgToReview(null);
+          }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Review Organisation Application</DialogTitle>
+              <DialogDescription>
+                Review the details below and approve or reject this organisation.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {orgToReview && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Organisation</p>
+                    <p className="font-medium">{orgToReview.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Code</p>
+                    <code className="text-sm bg-muted px-2 py-0.5 rounded">{orgToReview.slug}</code>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Owner</p>
+                    <p className="font-medium">{orgToReview.owner_name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium text-sm">{orgToReview.owner_email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Plan</p>
+                    <p className="font-medium capitalize">{orgToReview.plan} ({orgToReview.billing_cycle || 'monthly'})</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Company Size</p>
+                    <p className="font-medium">{orgToReview.company_size || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Industry</p>
+                    <p className="font-medium">{orgToReview.industry || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Requested</p>
+                    <p className="font-medium">{formatDistanceToNow(new Date(orgToReview.created_at), { addSuffix: true })}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="rejection-reason">Rejection Reason (required for rejection)</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    placeholder="Enter reason for rejection..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setReviewDialogOpen(false)}
+                disabled={processing}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={processing || !rejectionReason.trim()}
+              >
+                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+                Reject
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={processing}
+              >
+                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Approve
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Details Sheet */}
         <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -399,15 +597,31 @@ const SuperAdminOrganisations = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge
-                      variant={selectedOrg.plan === "inactive" ? "secondary" : "default"}
-                    >
-                      {selectedOrg.plan === "inactive" ? "Inactive" : "Active"}
-                    </Badge>
+                    {getStatusBadge(selectedOrg)}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Plan</p>
                     <p className="font-medium capitalize">{selectedOrg.plan}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Billing</p>
+                    <p className="font-medium capitalize">{selectedOrg.billing_cycle || 'monthly'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Owner</p>
+                    <p className="font-medium">{selectedOrg.owner_name || selectedOrg.primaryAdmin}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium text-sm">{selectedOrg.owner_email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Company Size</p>
+                    <p className="font-medium">{selectedOrg.company_size || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Industry</p>
+                    <p className="font-medium">{selectedOrg.industry || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Created</p>
@@ -415,6 +629,14 @@ const SuperAdminOrganisations = () => {
                       {format(new Date(selectedOrg.created_at), "dd MMM yyyy")}
                     </p>
                   </div>
+                  {selectedOrg.trial_ends_at && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Trial Ends</p>
+                      <p className="font-medium">
+                        {format(new Date(selectedOrg.trial_ends_at), "dd MMM yyyy")}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4">
@@ -474,9 +696,6 @@ const SuperAdminOrganisations = () => {
                   wiki pages, calendar events, attendance records, etc.) will be 
                   permanently deleted.
                 </p>
-                <p>
-                  User accounts will be preserved but removed from this organisation.
-                </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -492,7 +711,7 @@ const SuperAdminOrganisations = () => {
                     Deleting...
                   </>
                 ) : (
-                  "Delete Organisation"
+                  "Delete"
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -502,5 +721,185 @@ const SuperAdminOrganisations = () => {
     </SuperAdminLayout>
   );
 };
+
+// Standard organizations table
+interface OrganizationsTableProps {
+  organizations: Organization[];
+  onViewDetails: (org: Organization) => void;
+  onToggleStatus: (org: Organization) => void;
+  onDelete: (org: Organization) => void;
+  onReview: (org: Organization) => void;
+  getStatusBadge: (org: Organization) => JSX.Element;
+}
+
+const OrganizationsTable = ({ 
+  organizations, 
+  onViewDetails, 
+  onToggleStatus, 
+  onDelete,
+  onReview,
+  getStatusBadge 
+}: OrganizationsTableProps) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Organisation</TableHead>
+        <TableHead>Code</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Plan</TableHead>
+        <TableHead>Users</TableHead>
+        <TableHead>Owner</TableHead>
+        <TableHead>Created</TableHead>
+        <TableHead className="w-12"></TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {organizations.map((org) => (
+        <TableRow key={org.id}>
+          <TableCell>
+            <div className="flex items-center gap-3">
+              {org.logo_url ? (
+                <img
+                  src={org.logo_url}
+                  alt={org.name}
+                  className="h-8 w-8 rounded object-cover"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
+                  <Building2 className="h-4 w-4 text-primary" />
+                </div>
+              )}
+              <span className="font-medium">{org.name}</span>
+            </div>
+          </TableCell>
+          <TableCell>
+            <code className="text-sm bg-muted px-2 py-1 rounded">
+              {org.slug}
+            </code>
+          </TableCell>
+          <TableCell>{getStatusBadge(org)}</TableCell>
+          <TableCell className="capitalize">{org.plan}</TableCell>
+          <TableCell>{org.userCount}</TableCell>
+          <TableCell className="max-w-[150px] truncate">{org.primaryAdmin}</TableCell>
+          <TableCell>
+            {format(new Date(org.created_at), "dd MMM yyyy")}
+          </TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onViewDetails(org)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
+                </DropdownMenuItem>
+                {org.approval_status === 'pending' && (
+                  <DropdownMenuItem onClick={() => onReview(org)}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Review
+                  </DropdownMenuItem>
+                )}
+                {org.approval_status !== 'pending' && (
+                  <DropdownMenuItem onClick={() => onToggleStatus(org)}>
+                    <Power className="h-4 w-4 mr-2" />
+                    {org.plan === "inactive" ? "Activate" : "Deactivate"}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onDelete(org)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+      ))}
+      {organizations.length === 0 && (
+        <TableRow>
+          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+            No organisations found
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  </Table>
+);
+
+// Pending organizations table with different columns
+interface PendingOrganizationsTableProps {
+  organizations: Organization[];
+  onReview: (org: Organization) => void;
+  onViewDetails: (org: Organization) => void;
+}
+
+const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: PendingOrganizationsTableProps) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Organisation</TableHead>
+        <TableHead>Owner</TableHead>
+        <TableHead>Email</TableHead>
+        <TableHead>Plan</TableHead>
+        <TableHead>Size</TableHead>
+        <TableHead>Industry</TableHead>
+        <TableHead>Requested</TableHead>
+        <TableHead className="w-24">Actions</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {organizations.map((org) => (
+        <TableRow key={org.id}>
+          <TableCell>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded bg-amber-100 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <span className="font-medium">{org.name}</span>
+                <p className="text-xs text-muted-foreground">{org.slug}</p>
+              </div>
+            </div>
+          </TableCell>
+          <TableCell>{org.owner_name || 'N/A'}</TableCell>
+          <TableCell className="max-w-[180px] truncate">{org.owner_email || 'N/A'}</TableCell>
+          <TableCell>
+            <Badge variant="outline" className="capitalize">
+              {org.plan} ({org.billing_cycle || 'monthly'})
+            </Badge>
+          </TableCell>
+          <TableCell>{org.company_size || 'N/A'}</TableCell>
+          <TableCell>{org.industry || 'N/A'}</TableCell>
+          <TableCell>{formatDistanceToNow(new Date(org.created_at), { addSuffix: true })}</TableCell>
+          <TableCell>
+            <div className="flex gap-1">
+              <Button size="sm" onClick={() => onReview(org)}>
+                Review
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => onViewDetails(org)}>
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
+          </TableCell>
+        </TableRow>
+      ))}
+      {organizations.length === 0 && (
+        <TableRow>
+          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle className="h-8 w-8 text-emerald-500" />
+              <p>No pending applications</p>
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  </Table>
+);
 
 export default SuperAdminOrganisations;
