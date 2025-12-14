@@ -39,6 +39,7 @@ const PerformanceReviews = lazy(() => import('./pages/PerformanceReviews'));
 const TeamKPIDashboard = lazy(() => import('./pages/TeamKPIDashboard'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Wiki = lazy(() => import('./pages/Wiki'));
+const AskAI = lazy(() => import('./pages/AskAI'));
 const WikiEditPage = lazy(() => import('./pages/WikiEditPage'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
@@ -109,6 +110,7 @@ const App = () => (
                   <Route path="chat" element={<OrgProtectedRoute><Chat /></OrgProtectedRoute>} />
                   <Route path="wiki" element={<OrgProtectedRoute><Wiki /></OrgProtectedRoute>} />
                   <Route path="wiki/edit/:pageId" element={<OrgProtectedRoute><WikiEditPage /></OrgProtectedRoute>} />
+                  <Route path="ask-ai" element={<OrgProtectedRoute><AskAI /></OrgProtectedRoute>} />
                   <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
                   <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
                 </Route>
