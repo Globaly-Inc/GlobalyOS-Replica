@@ -132,7 +132,8 @@ const App = () => (
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}
-                <Route path="/super-admin" element={
+                <Route path="/super-admin" element={<Navigate to="/super-admin/analytics" replace />} />
+                <Route path="/super-admin/analytics" element={
                   <SuperAdminProtectedRoute>
                     <SuperAdminAnalytics />
                   </SuperAdminProtectedRoute>
@@ -145,11 +146,6 @@ const App = () => (
                 <Route path="/super-admin/users" element={
                   <SuperAdminProtectedRoute>
                     <SuperAdminUsers />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/analytics" element={
-                  <SuperAdminProtectedRoute>
-                    <SuperAdminAnalytics />
                   </SuperAdminProtectedRoute>
                 } />
                 <Route path="/super-admin/payments" element={

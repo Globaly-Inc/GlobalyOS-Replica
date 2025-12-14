@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import {
   DollarSign,
   CreditCard,
@@ -210,11 +212,12 @@ export default function SuperAdminPayments() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Payments & Subscriptions</h1>
-        <p className="text-muted-foreground">Manage billing across all organizations</p>
-      </div>
+    <SuperAdminLayout>
+      <div className="space-y-6">
+        <SuperAdminPageHeader 
+          title="Payments & Subscriptions" 
+          description="Manage billing across all organizations" 
+        />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -540,6 +543,7 @@ export default function SuperAdminPayments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </SuperAdminLayout>
   );
 }
