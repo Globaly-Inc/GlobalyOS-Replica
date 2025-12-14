@@ -1,4 +1,4 @@
-import { Home, MessageSquare, ScanLine, Sparkles } from 'lucide-react';
+import { Home, BookOpen, ScanLine, Sparkles } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { QRScannerDialog } from './dialogs/QRScannerDialog';
-import { GlobalAskAI } from './GlobalAskAI';
 import { MobileMoreMenu } from './MobileMoreMenu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
@@ -20,10 +19,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Overview', href: '/' },
-  { icon: MessageSquare, label: 'Chat', href: '/chat' },
+  { icon: BookOpen, label: 'Wiki', href: '/wiki' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
-  { icon: Sparkles, label: 'Ask AI', action: 'ai' },
-  { icon: null, label: 'Profile', action: 'more' }, // Profile with avatar replaces More
+  { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
+  { icon: null, label: 'Profile', action: 'more' },
 ];
 
 interface MobileBottomNavProps {
@@ -44,7 +43,6 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const { currentOrg } = useOrganization();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const [askAiOpen, setAskAiOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
 
@@ -86,8 +84,6 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
       navigateOrg(item.href);
     } else if (item.action === 'scan') {
       setQrScannerOpen(true);
-    } else if (item.action === 'ai') {
-      setAskAiOpen(true);
     } else if (item.action === 'more') {
       setMoreMenuOpen(true);
     }
@@ -136,42 +132,33 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
                 className={cn(
                   'flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative',
                   active && 'text-primary',
-                  !active && 'text-muted-foreground',
-                  isScan && 'relative'
+                  !active && 'text-muted-foreground'
                 )}
               >
-                {isScan ? (
-                  <div className={cn(
-                    'flex items-center justify-center w-14 h-14 -mt-7 rounded-full shadow-lg transition-all border-4 border-background',
-                    checkInTime 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-primary text-primary-foreground'
-                  )}>
-                    <ScanLine className="h-6 w-6" />
-                  </div>
-                ) : isProfile ? (
+                {isProfile ? (
                   // Profile avatar with online status
                   <div className="relative">
-                    <Avatar className="h-7 w-7 border-2 border-border">
+                    <Avatar className="h-6 w-6 border border-border">
                       <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-[10px]">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-[9px]">
                         {userProfile?.fullName ? getInitials(userProfile.fullName) : "U"}
                       </AvatarFallback>
                     </Avatar>
                     {isOnline && (
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border border-card" />
                     )}
                   </div>
                 ) : item.icon ? (
-                  <item.icon className={cn('h-5 w-5', active && 'scale-110')} />
+                  <item.icon className={cn(
+                    'h-5 w-5',
+                    active && 'scale-110',
+                    isScan && checkInTime && 'text-green-500'
+                  )} />
                 ) : null}
-                <span className={cn(
-                  'text-[10px] font-medium',
-                  isScan && 'mt-1.5'
-                )}>
+                <span className="text-[10px] font-medium">
                   {isScan && checkInTime ? 'Check Out' : item.label}
                 </span>
-                {active && !isScan && !isProfile && (
+                {active && !isProfile && (
                   <div className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
                 )}
               </button>
@@ -184,17 +171,6 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
         open={qrScannerOpen}
         onOpenChange={setQrScannerOpen}
       />
-
-      {/* Ask AI - integrated between top bar and bottom nav */}
-      {askAiOpen && (
-        <div className="fixed inset-x-0 top-16 bottom-20 z-[90] bg-background animate-in slide-in-from-bottom duration-300 md:hidden">
-          <GlobalAskAI 
-            organizationId={currentOrg?.id} 
-            isMobileFullscreen
-            onClose={() => setAskAiOpen(false)}
-          />
-        </div>
-      )}
       
       <MobileMoreMenu
         open={moreMenuOpen}
