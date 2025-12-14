@@ -73,7 +73,7 @@ const usageAddons = [
   { activity: "Leave requests", starter: "50/mo", growth: "Unlimited", overage: "—" },
   { activity: "Attendance scans", starter: "500/mo", growth: "Unlimited", overage: "—" },
   { activity: "Performance reviews", starter: "—", growth: "4/employee/year", overage: "$2/additional" },
-  { activity: "Document storage", starter: "5 GB", growth: "10 GB", overage: "$5/10 GB/mo" },
+  { activity: "Document storage", starter: "5 GB", growth: "50 GB", overage: "$0.50/GB/mo" },
 ];
 
 const aiPricing = [
