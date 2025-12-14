@@ -35,9 +35,10 @@ interface ChecklistItem {
 
 interface OnboardingChecklistProps {
   userRole: string | null;
+  variant?: 'floating' | 'inline';
 }
 
-export const OnboardingChecklist = ({ userRole }: OnboardingChecklistProps) => {
+export const OnboardingChecklist = ({ userRole, variant = 'floating' }: OnboardingChecklistProps) => {
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
   const { navigateOrg } = useOrgNavigation();
@@ -224,8 +225,15 @@ export const OnboardingChecklist = ({ userRole }: OnboardingChecklistProps) => {
 
   if (loading || isDismissed || items.length === 0) return null;
 
+  const isInline = variant === 'inline';
+
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg border z-40 overflow-hidden">
+    <Card className={cn(
+      "shadow-lg border overflow-hidden",
+      isInline 
+        ? "w-full mb-4" 
+        : "fixed bottom-4 right-4 w-80 z-40"
+    )}>
       {/* Header */}
       <div 
         className="flex items-center justify-between p-3 bg-gradient-to-r from-primary/10 to-accent/10 cursor-pointer"
@@ -264,7 +272,7 @@ export const OnboardingChecklist = ({ userRole }: OnboardingChecklistProps) => {
 
       {/* Items */}
       {isExpanded && (
-        <div className="p-2 max-h-64 overflow-y-auto">
+        <div className={cn("p-2 overflow-y-auto", isInline ? "max-h-none" : "max-h-64")}>
           <div className="space-y-1">
             {items.map((item) => {
               const Icon = item.icon;
