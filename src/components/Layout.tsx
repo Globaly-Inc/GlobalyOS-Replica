@@ -52,6 +52,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   
   // Detect full-height pages that need no padding
   const isFullHeightPage = location.pathname.includes('/wiki') || location.pathname.includes('/chat');
+  const isHomePage = location.pathname === `/org/${orgCode}` || location.pathname === `/org/${orgCode}/`;
   const { navigateOrg } = useOrgNavigation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -663,8 +664,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         onComplete={() => setShowWelcomeSurvey(false)} 
       />
 
-      {/* Onboarding Checklist */}
-      <OnboardingChecklist userRole={userProfile?.role || null} />
+      {/* Onboarding Checklist - only show floating version on non-home pages */}
+      {!isHomePage && <OnboardingChecklist userRole={userProfile?.role || null} />}
     </div>
   );
 };

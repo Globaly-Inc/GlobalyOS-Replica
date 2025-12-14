@@ -15,6 +15,7 @@ import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialo
 import { AdminSetup } from "@/components/AdminSetup";
 import { QRCodeGenerator } from "@/components/QRCodeGenerator";
 import { useUserRole } from "@/hooks/useUserRole";
+import { OnboardingChecklist } from "@/components/onboarding";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { OrgLink } from "@/components/OrgLink";
@@ -869,6 +870,9 @@ const Home = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
+            {/* Onboarding Checklist - inline at top of feed */}
+            <OnboardingChecklist userRole={isAdmin ? 'admin' : isHR ? 'hr' : 'member'} variant="inline" />
+            
             <Tabs defaultValue="all" className="space-y-6">
               <div className="flex flex-row items-center justify-between gap-1 sm:gap-4">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
