@@ -6,7 +6,8 @@ import {
   Users, 
   BarChart3,
   ArrowLeft,
-  FileText 
+  FileText,
+  CreditCard 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ const navItems = [
   { path: "/super-admin", label: "Analytics", icon: BarChart3, exact: true },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
+  { path: "/super-admin/payments", label: "Payments", icon: CreditCard },
   { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
 
