@@ -5,7 +5,8 @@ import {
   Building2, 
   Users, 
   BarChart3,
-  ArrowLeft 
+  ArrowLeft,
+  FileText 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +18,7 @@ const navItems = [
   { path: "/super-admin", label: "Analytics", icon: BarChart3, exact: true },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
+  { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
 
 const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
