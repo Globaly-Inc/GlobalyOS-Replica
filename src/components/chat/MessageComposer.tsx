@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import UploadProgress, { UploadingFile } from "./UploadProgress";
 import MentionAutocomplete from "./MentionAutocomplete";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const EMOJI_LIST = ["👍", "❤️", "😊", "😂", "🎉", "👏", "🔥", "💯", "✨", "🙌", "👀", "🤔"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -90,6 +91,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const saveMentions = useSaveMentions();
   const { currentOrg } = useOrganization();
   const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
+  const isMobile = useIsMobile();
 
   // Expose addFiles method to parent component
   useImperativeHandle(ref, () => ({
@@ -395,25 +397,25 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   };
 
   return (
-    <div className="border-t border-border bg-card">
+    <div className="border-t border-border bg-card flex-shrink-0">
       {/* Upload Progress */}
       <UploadProgress files={uploadingFiles} />
       
-      <div className="p-3">
+      <div className="p-2 md:p-3">
       {/* Selected files preview */}
       {selectedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
+        <div className="flex flex-wrap gap-2 mb-2 p-2 bg-muted/50 rounded-lg">
           {selectedFiles.map((sf, index) => (
             <div key={index} className="relative group">
               {sf.preview ? (
                 <img 
                   src={sf.preview} 
                   alt={sf.file.name} 
-                  className="h-16 w-16 object-cover rounded-md border border-border"
+                  className="h-12 w-12 md:h-16 md:w-16 object-cover rounded-md border border-border"
                 />
               ) : (
-                <div className="h-16 w-16 flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1">
-                  <FileIcon className="h-6 w-6 text-muted-foreground" />
+                <div className="h-12 w-12 md:h-16 md:w-16 flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1">
+                  <FileIcon className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                   <span className="text-[10px] text-muted-foreground truncate w-full text-center">
                     {sf.file.name.split('.').pop()?.toUpperCase()}
                   </span>
@@ -421,7 +423,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               )}
               <button
                 onClick={() => removeFile(index)}
-                className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -430,8 +432,8 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         </div>
       )}
 
-      {/* Formatting toolbar */}
-      {showFormatting && (
+      {/* Formatting toolbar - hidden on mobile */}
+      {!isMobile && showFormatting && (
         <div className="flex items-center gap-1 mb-2 pb-2 border-b border-border">
           <Button 
             variant="ghost" 
@@ -467,7 +469,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-1.5 md:gap-2">
         {/* Attachment button */}
         <Popover>
           <PopoverTrigger asChild>
@@ -507,24 +509,44 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           
           <Textarea
             ref={textareaRef}
-            placeholder="Type a message... Use @ to mention"
+            placeholder={isMobile ? "Message" : "Type a message... Use @ to mention"}
             value={message}
             onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
-            className="min-h-[40px] max-h-[200px] resize-none pr-24"
+            className={`min-h-[40px] max-h-[120px] md:max-h-[200px] resize-none ${isMobile ? 'pr-20 text-base' : 'pr-24'}`}
             rows={1}
           />
           
-          {/* Input actions */}
-          <div className="absolute right-2 bottom-1.5 flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7"
-              onClick={() => setShowFormatting(!showFormatting)}
-            >
-              <Bold className="h-4 w-4" />
-            </Button>
+          {/* Input actions - compact on mobile */}
+          <div className="absolute right-1.5 md:right-2 bottom-1.5 flex items-center gap-0.5 md:gap-1">
+            {/* Hide formatting toggle on mobile */}
+            {!isMobile && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={() => setShowFormatting(!showFormatting)}
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {/* @ mention button on mobile */}
+            {isMobile && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={() => {
+                  const cursorPosition = textareaRef.current?.selectionStart || message.length;
+                  setMessage(prev => prev.slice(0, cursorPosition) + '@' + prev.slice(cursorPosition));
+                  setShowMentions(true);
+                  textareaRef.current?.focus();
+                }}
+              >
+                <AtSign className="h-4 w-4" />
+              </Button>
+            )}
             
             <Popover>
               <PopoverTrigger asChild>
@@ -562,11 +584,13 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         </Button>
       </div>
 
-      {/* History indicator */}
-      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-        <History className="h-3 w-3" />
-        <span>History is on</span>
-      </div>
+      {/* History indicator - hidden on mobile */}
+      {!isMobile && (
+        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+          <History className="h-3 w-3" />
+          <span>History is on</span>
+        </div>
+      )}
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

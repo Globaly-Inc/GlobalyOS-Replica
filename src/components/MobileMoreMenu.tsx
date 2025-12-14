@@ -2,14 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   X, User, Users, Clock, Palmtree, Calendar, BookOpen, 
-  Settings, LogOut, BarChart3, ChevronRight 
+  Settings, LogOut, BarChart3, ChevronRight, Moon, Sun 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
 interface MobileMoreMenuProps {
@@ -37,6 +39,7 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
   const { signOut } = useAuth();
   const { navigateOrg } = useOrgNavigation();
   const { isAdmin, isHR } = useUserRole();
+  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
@@ -157,6 +160,23 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
               </div>
             </>
           )}
+
+          {/* Theme Toggle */}
+          <Separator className="my-4" />
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              {theme === 'dark' ? (
+                <Moon className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <Sun className="h-5 w-5 text-muted-foreground" />
+              )}
+              <span className="font-medium">Dark Mode</span>
+            </div>
+            <Switch 
+              checked={theme === 'dark'} 
+              onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+            />
+          </div>
 
           {/* Logout */}
           <Separator className="my-4" />

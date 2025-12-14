@@ -439,11 +439,11 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
     </div>
   );
 
-  // Mobile fullscreen mode
+  // Mobile fullscreen mode - now fits between top and bottom nav
   if (isMobileFullscreen) {
     return (
-      <div className="flex flex-col h-full safe-area-top safe-area-bottom">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card flex-shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <span className="text-lg font-semibold">Ask AI</span>
@@ -452,12 +452,12 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-10 w-10"
+            className="h-9 w-9"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="flex-1 px-4 py-4 overflow-hidden">
+        <div className="flex-1 px-4 py-3 overflow-hidden">
           {renderContent()}
         </div>
       </div>

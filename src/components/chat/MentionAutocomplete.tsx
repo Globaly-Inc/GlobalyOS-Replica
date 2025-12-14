@@ -99,7 +99,7 @@ const MentionAutocomplete = ({
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex((prev) => (prev - 1 + members.length) % members.length);
-      } else if (e.key === 'Enter' && members[selectedIndex]) {
+      } else if ((e.key === 'Enter' || e.key === 'Tab') && members[selectedIndex]) {
         e.preventDefault();
         onSelect(members[selectedIndex]);
       } else if (e.key === 'Escape') {
