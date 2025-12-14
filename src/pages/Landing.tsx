@@ -138,25 +138,25 @@ const featureShowcases = [
     title: "People Management",
     description: "Complete employee profiles, org charts, and team directory. Everything about your people in one place.",
     Mockup: PeopleManagementMockup,
-    gradient: "from-blue-500/5 to-cyan-500/5"
+    gradient: "from-blue-500/10 via-cyan-400/5 to-blue-500/10"
   },
   {
     title: "Leave & Attendance",
     description: "QR check-in, leave requests, balance tracking, and automated overtime calculations.",
     Mockup: LeaveAttendanceMockup,
-    gradient: "from-emerald-500/5 to-teal-500/5"
+    gradient: "from-emerald-500/10 via-teal-400/5 to-emerald-500/10"
   },
   {
     title: "Team Wiki",
     description: "Centralized knowledge base for policies, processes, and documentation your team can actually find.",
     Mockup: WikiMockup,
-    gradient: "from-amber-500/5 to-orange-500/5"
+    gradient: "from-amber-500/10 via-orange-400/5 to-amber-500/10"
   },
   {
     title: "KPIs & Performance",
     description: "Track goals, measure performance, and run reviews with AI-powered insights and suggestions.",
     Mockup: KPIMockup,
-    gradient: "from-violet-500/5 to-purple-500/5"
+    gradient: "from-violet-500/10 via-purple-400/5 to-violet-500/10"
   }
 ];
 const testimonials = [{
@@ -376,7 +376,13 @@ export default function Landing() {
             {featureShowcases.map((feature, i) => (
               <div 
                 key={i} 
-                className={`group bg-gradient-to-br ${feature.gradient} rounded-2xl border border-border p-6 hover:shadow-lg transition-all duration-300`}
+                className={`group bg-gradient-to-br ${feature.gradient} rounded-2xl border border-border p-6 
+                  transition-all duration-500 ease-out
+                  hover:-translate-y-2 
+                  hover:shadow-2xl 
+                  hover:border-primary/30
+                  hover:bg-[length:200%_200%]
+                  hover:animate-gradient-shift`}
               >
                 <div className="mb-5">
                   <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
