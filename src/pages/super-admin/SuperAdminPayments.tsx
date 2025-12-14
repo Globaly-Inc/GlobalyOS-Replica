@@ -215,7 +215,7 @@ export default function SuperAdminPayments() {
     <SuperAdminLayout>
       <div className="space-y-6">
         <SuperAdminPageHeader 
-          title="Payments & Subscriptions" 
+          title="Subscription Management" 
           description="Manage billing across all organizations" 
         />
 

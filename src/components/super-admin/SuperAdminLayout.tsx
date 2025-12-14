@@ -19,7 +19,7 @@ const navItems = [
   { path: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
-  { path: "/super-admin/payments", label: "Payments", icon: CreditCard },
+  { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
   { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
 
