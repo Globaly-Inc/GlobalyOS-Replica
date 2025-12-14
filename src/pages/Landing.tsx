@@ -61,14 +61,25 @@ const painPoints = [{
 }];
 
 const trustedLogos = [
-  { name: "TechStart", icon: "🚀" },
-  { name: "GrowthCo", icon: "📈" },
-  { name: "Elevate", icon: "⬆️" },
-  { name: "Innovate", icon: "💡" },
-  { name: "Synergy", icon: "🔗" },
-  { name: "Nexus", icon: "🌐" },
-  { name: "Vertex", icon: "📊" },
-  { name: "Pulse", icon: "💫" },
+  { name: "Stripe" },
+  { name: "Notion" },
+  { name: "Slack" },
+  { name: "Figma" },
+  { name: "Linear" },
+  { name: "Vercel" },
+  { name: "Supabase" },
+  { name: "Raycast" },
+];
+
+const trustedLogosRow2 = [
+  { name: "Loom" },
+  { name: "Pitch" },
+  { name: "Craft" },
+  { name: "Miro" },
+  { name: "Airtable" },
+  { name: "Webflow" },
+  { name: "Framer" },
+  { name: "Descript" },
 ];
 export default function Landing() {
   const navigate = useNavigate();
@@ -122,28 +133,40 @@ export default function Landing() {
       </section>
 
       {/* Logo Marquee - Trusted By */}
-      <section className="py-12 overflow-hidden">
-        <div className="text-center mb-8">
+      <section className="py-16 overflow-hidden">
+        <div className="text-center mb-10">
           <p className="text-muted-foreground text-sm font-medium">
             Trusted by 120,000+ businesses worldwide
           </p>
         </div>
         
-        <div className="relative">
-          {/* Left fade gradient */}
-          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-background to-transparent z-10" />
-          
-          {/* Right fade gradient */}
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-background to-transparent z-10" />
-          
-          {/* Scrolling logos - duplicated for seamless loop */}
-          <div className="flex animate-marquee whitespace-nowrap">
-            {[...trustedLogos, ...trustedLogos, ...trustedLogos, ...trustedLogos].map((logo, i) => (
-              <div key={i} className="flex items-center gap-2 px-5 py-2.5 mx-3 rounded-full bg-card border border-border shadow-sm shrink-0">
-                <span className="text-lg">{logo.icon}</span>
-                <span className="font-medium text-sm text-foreground">{logo.name}</span>
-              </div>
-            ))}
+        <div className="space-y-4">
+          {/* Row 1 - Left to Right */}
+          <div className="relative">
+            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10" />
+            
+            <div className="flex animate-marquee whitespace-nowrap">
+              {[...trustedLogos, ...trustedLogos, ...trustedLogos, ...trustedLogos].map((logo, i) => (
+                <div key={i} className="flex items-center justify-center px-8 py-4 mx-2 rounded-lg bg-card border border-border shadow-sm shrink-0 min-w-[140px]">
+                  <span className="font-semibold text-base text-foreground tracking-tight">{logo.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 2 - Right to Left */}
+          <div className="relative">
+            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10" />
+            
+            <div className="flex animate-marquee-reverse whitespace-nowrap">
+              {[...trustedLogosRow2, ...trustedLogosRow2, ...trustedLogosRow2, ...trustedLogosRow2].map((logo, i) => (
+                <div key={i} className="flex items-center justify-center px-8 py-4 mx-2 rounded-lg bg-card border border-border shadow-sm shrink-0 min-w-[140px]">
+                  <span className="font-semibold text-base text-foreground tracking-tight">{logo.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
