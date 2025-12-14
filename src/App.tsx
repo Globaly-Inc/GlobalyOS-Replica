@@ -10,6 +10,12 @@ import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 
+// Lazy load public website pages
+const Features = lazy(() => import('./pages/Features'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
+
 // Component to handle SW updates
 const ServiceWorkerUpdater = () => {
   useServiceWorkerUpdate();
@@ -48,6 +54,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
+const SuperAdminBlog = lazy(() => import('./pages/super-admin/SuperAdminBlog'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
 
 const queryClient = new QueryClient();
@@ -72,8 +79,14 @@ const App = () => (
           <OrganizationProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                {/* Public routes - no org prefix */}
+                {/* Public website routes */}
                 <Route path="/landing" element={<Landing />} />
+                <Route path="/features" element={<Features />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
+                
+                {/* Auth routes */}
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/join" element={<Join />} />
@@ -134,6 +147,11 @@ const App = () => (
                 <Route path="/super-admin/analytics" element={
                   <SuperAdminProtectedRoute>
                     <SuperAdminAnalytics />
+                  </SuperAdminProtectedRoute>
+                } />
+                <Route path="/super-admin/blog" element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminBlog />
                   </SuperAdminProtectedRoute>
                 } />
                 
