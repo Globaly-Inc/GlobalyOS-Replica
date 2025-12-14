@@ -21,6 +21,8 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import { GlobalAskAI } from "./GlobalAskAI";
 import { MobileSearch } from "./MobileSearch";
+import TrialBanner from "./TrialBanner";
+import GuidedTour from "./GuidedTour";
 
 interface UserProfile {
   fullName: string;
@@ -366,12 +368,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Guided Tour for Onboarding */}
+      <GuidedTour />
+      
       {/* Pull to Refresh Indicator for Mobile */}
       <PullToRefreshIndicator
         pullDistance={pullDistance}
         isRefreshing={isRefreshing}
         isPastThreshold={isPastThreshold}
       />
+      
+      {/* Trial Banner */}
+      <TrialBanner />
+      
       {/* Desktop Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-area-top">
         <div className="container flex h-16 items-center px-4 md:px-8">
