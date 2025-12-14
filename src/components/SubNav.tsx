@@ -32,7 +32,7 @@ export const SubNav = () => {
   if (!isTeamSection) return null;
 
   return (
-    <div className="hidden md:block border-b border-border bg-card/50">
+    <div className="hidden md:block sticky top-16 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container px-4 md:px-8">
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
           {teamSubNavItems.map((item) => {

@@ -1,18 +1,22 @@
-import { AtSign } from "lucide-react";
+import { ArrowLeft, AtSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useMentionedMessages } from "@/services/useChat";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { ActiveChat } from "@/types/chat";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MentionsViewProps {
   onNavigateToChat: (chat: ActiveChat) => void;
+  onBack?: () => void;
 }
 
-const MentionsView = ({ onNavigateToChat }: MentionsViewProps) => {
+const MentionsView = ({ onNavigateToChat, onBack }: MentionsViewProps) => {
   const { data: messages = [], isLoading } = useMentionedMessages();
+  const isMobile = useIsMobile();
 
   const handleMessageClick = (message: any) => {
     if (message.conversation_id && message.conversation) {
@@ -54,6 +58,11 @@ const MentionsView = ({ onNavigateToChat }: MentionsViewProps) => {
     <div className="flex flex-col h-full bg-card">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border">
+        {isMobile && onBack && (
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 text-primary">
           <AtSign className="h-5 w-5" />
         </div>

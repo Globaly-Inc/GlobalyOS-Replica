@@ -1,18 +1,22 @@
-import { Star } from "lucide-react";
+import { ArrowLeft, Star } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useStarredMessages } from "@/services/useChat";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { ActiveChat } from "@/types/chat";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface StarredViewProps {
   onNavigateToChat: (chat: ActiveChat) => void;
+  onBack?: () => void;
 }
 
-const StarredView = ({ onNavigateToChat }: StarredViewProps) => {
+const StarredView = ({ onNavigateToChat, onBack }: StarredViewProps) => {
   const { data: messages = [], isLoading } = useStarredMessages();
+  const isMobile = useIsMobile();
 
   const handleMessageClick = (message: any) => {
     if (message.conversation_id && message.conversation) {
@@ -54,6 +58,11 @@ const StarredView = ({ onNavigateToChat }: StarredViewProps) => {
     <div className="flex flex-col h-full bg-card">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border">
+        {isMobile && onBack && (
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-amber-500/10 text-amber-500">
           <Star className="h-5 w-5" />
         </div>

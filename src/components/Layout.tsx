@@ -528,16 +528,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
           {/* Mobile Header - Left Quick Actions + Right User Actions */}
           <div className="flex flex-1 items-center justify-between md:hidden">
-            {/* Left Side - Org Logo + Quick Access Icons */}
+            {/* Left Side - Quick Access Icons (no org logo) */}
             <div className="flex items-center gap-1.5">
-              {/* Org Logo */}
-              <button 
-                onClick={() => navigateOrg("/")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark"
-              >
-                <Users className="h-4 w-4 text-primary-foreground" />
-              </button>
-              
               {/* Calendar */}
               <button
                 onClick={() => navigateOrg("/calendar")}
@@ -571,7 +563,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               )}
             </div>
 
-            {/* Right Side - Search, Notifications, Profile */}
+            {/* Right Side - Search, Notifications (no profile - moved to bottom nav) */}
             <div className="flex items-center gap-1.5">
               {/* Search */}
               <button
@@ -593,20 +585,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </span>
                 )}
               </button>
-              
-              {/* Profile */}
-              <button
-                onClick={handleViewProfile}
-                disabled={!userProfile?.employeeId}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors overflow-hidden"
-              >
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
-                    {userProfile?.fullName ? getInitials(userProfile.fullName) : "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
             </div>
           </div>
         </div>
@@ -618,7 +596,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       <main className="container px-4 pt-2 pb-24 md:pb-8 md:px-8 overflow-x-hidden">{children}</main>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav userProfile={userProfile} />
+      <MobileBottomNav userProfile={userProfile} isOnline={isOnline} />
 
       {/* Mobile Search */}
       <MobileSearch open={mobileSearchOpen} onOpenChange={setMobileSearchOpen} />
