@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { WebsiteHeader, WebsiteFooter, FeatureCard, TestimonialCard } from "@/components/website";
 import { useAuth } from "@/hooks/useAuth";
 import dashboardPreview from "@/assets/dashboard-preview.png";
-import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap } from "lucide-react";
+import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap, Award, UserPlus } from "lucide-react";
 // Feature showcase mockup components
 const PeopleManagementMockup = () => (
   <div className="bg-background/80 rounded-xl p-4 border border-border/50">
@@ -187,6 +187,18 @@ const painPoints = [{
   icon: Shield,
   title: "Zero Team Visibility",
   description: "No idea who's on leave, what goals look like, or how the team is really doing."
+}, {
+  icon: Award,
+  title: "Recognition Gets Forgotten",
+  description: "Team wins go unnoticed, achievements aren't celebrated, and great work disappears into the void."
+}, {
+  icon: BarChart3,
+  title: "Performance Reviews Are a Nightmare",
+  description: "Scrambling to remember what happened last quarter, writing reviews from scratch with no data."
+}, {
+  icon: UserPlus,
+  title: "Onboarding Takes Forever",
+  description: "New hires wait weeks for access to policies, org charts, and essential documentation they need."
 }];
 
 // Simple monochrome SVG icons
@@ -353,7 +365,7 @@ export default function Landing() {
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Managing a growing team shouldn't feel like chaos</h2>
             <p className="text-lg text-muted-foreground">Sound familiar? You're not alone.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {painPoints.map((p, i) => <div key={i} className="p-6 rounded-2xl bg-card border border-border text-center">
                 <div className="w-14 h-14 rounded-xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
                   <p.icon className="w-7 h-7 text-destructive" />
