@@ -7,6 +7,7 @@ import NewChatDialog from "@/components/chat/NewChatDialog";
 import CreateSpaceDialog from "@/components/chat/CreateSpaceDialog";
 import MentionsView from "@/components/chat/MentionsView";
 import StarredView from "@/components/chat/StarredView";
+import MobileChatHome from "@/components/chat/MobileChatHome";
 import type { ActiveChat } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -38,29 +39,29 @@ const Chat = () => {
   };
 
   const renderMainContent = () => {
-    if (!activeChat) {
+    if (activeChat?.type === 'mentions') {
+      return <MentionsView onNavigateToChat={handleSelectChat} />;
+    }
+
+    if (activeChat?.type === 'starred') {
+      return <StarredView onNavigateToChat={handleSelectChat} />;
+    }
+
+    if (activeChat) {
       return (
-        <ChatEmptyState 
-          onNewChat={() => setNewChatOpen(true)} 
-          onNewSpace={() => setCreateSpaceOpen(true)}
+        <ConversationView
+          activeChat={activeChat}
+          onBack={handleBack}
+          onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+          highlightMessageId={highlightMessageId}
         />
       );
     }
 
-    if (activeChat.type === 'mentions') {
-      return <MentionsView onNavigateToChat={handleSelectChat} />;
-    }
-
-    if (activeChat.type === 'starred') {
-      return <StarredView onNavigateToChat={handleSelectChat} />;
-    }
-
     return (
-      <ConversationView
-        activeChat={activeChat}
-        onBack={handleBack}
-        onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-        highlightMessageId={highlightMessageId}
+      <ChatEmptyState 
+        onNewChat={() => setNewChatOpen(true)} 
+        onNewSpace={() => setCreateSpaceOpen(true)}
       />
     );
   };
@@ -71,13 +72,53 @@ const Chat = () => {
     showRightPanel && 
     !isMobile;
 
+  // Mobile view
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden bg-background">
+        {!activeChat ? (
+          <MobileChatHome
+            onSelectChat={handleSelectChat}
+            onNewChat={() => setNewChatOpen(true)}
+            onNewSpace={() => setCreateSpaceOpen(true)}
+          />
+        ) : activeChat.type === 'mentions' ? (
+          <div className="flex-1 overflow-hidden">
+            <MentionsView onNavigateToChat={handleSelectChat} onBack={handleBack} />
+          </div>
+        ) : activeChat.type === 'starred' ? (
+          <div className="flex-1 overflow-hidden">
+            <StarredView onNavigateToChat={handleSelectChat} onBack={handleBack} />
+          </div>
+        ) : (
+          <ConversationView
+            activeChat={activeChat}
+            onBack={handleBack}
+            onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+            highlightMessageId={highlightMessageId}
+          />
+        )}
+
+        {/* Dialogs */}
+        <NewChatDialog
+          open={newChatOpen}
+          onOpenChange={setNewChatOpen}
+          onChatCreated={handleChatCreated}
+        />
+        <CreateSpaceDialog
+          open={createSpaceOpen}
+          onOpenChange={setCreateSpaceOpen}
+          onSpaceCreated={handleChatCreated}
+        />
+      </div>
+    );
+  }
+
+  // Desktop view
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
-      {/* Left Sidebar - hide on mobile when chat is active */}
-      <div className={cn(
-        "w-72 flex-shrink-0 border-r border-border",
-        isMobile && activeChat && "hidden"
-      )}>
+      {/* Left Sidebar */}
+      <div className="w-72 flex-shrink-0 border-r border-border h-full overflow-hidden">
         <ChatSidebar
           activeChat={activeChat}
           onSelectChat={handleSelectChat}
@@ -87,16 +128,13 @@ const Chat = () => {
       </div>
 
       {/* Center - Main Content View */}
-      <div className={cn(
-        "flex-1 min-w-0 h-full",
-        isMobile && !activeChat && "hidden"
-      )}>
+      <div className="flex-1 min-w-0 h-full overflow-hidden">
         {renderMainContent()}
       </div>
 
       {/* Right Panel - Pinned messages/resources */}
       {showRightPanelCondition && (
-        <div className="w-80 flex-shrink-0 border-l border-border">
+        <div className="w-80 flex-shrink-0 border-l border-border h-full overflow-hidden">
           <ChatRightPanel
             activeChat={activeChat}
             onClose={() => setShowRightPanel(false)}

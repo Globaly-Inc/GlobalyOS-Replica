@@ -1,4 +1,4 @@
-import { Home, MessageSquare, ScanLine, Sparkles, Menu } from 'lucide-react';
+import { Home, MessageSquare, ScanLine, Sparkles } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -9,9 +9,10 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { QRScannerDialog } from './dialogs/QRScannerDialog';
 import { GlobalAskAI } from './GlobalAskAI';
 import { MobileMoreMenu } from './MobileMoreMenu';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 interface NavItem {
-  icon: React.ElementType;
+  icon: React.ElementType | null;
   label: string;
   href?: string;
   action?: string;
@@ -22,7 +23,7 @@ const navItems: NavItem[] = [
   { icon: MessageSquare, label: 'Chat', href: '/chat' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
   { icon: Sparkles, label: 'Ask AI', action: 'ai' },
-  { icon: Menu, label: 'More', action: 'more' },
+  { icon: null, label: 'Profile', action: 'more' }, // Profile with avatar replaces More
 ];
 
 interface MobileBottomNavProps {
@@ -32,9 +33,10 @@ interface MobileBottomNavProps {
     avatarUrl: string | null;
     employeeId: string | null;
   } | null;
+  isOnline?: boolean;
 }
 
-export const MobileBottomNav = ({ userProfile }: MobileBottomNavProps) => {
+export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomNavProps) => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
   const { navigateOrg } = useOrgNavigation();
@@ -109,6 +111,15 @@ export const MobileBottomNav = ({ userProfile }: MobileBottomNavProps) => {
     return false;
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
@@ -116,6 +127,7 @@ export const MobileBottomNav = ({ userProfile }: MobileBottomNavProps) => {
           {navItems.map((item) => {
             const active = isActive(item);
             const isScan = item.action === 'scan';
+            const isProfile = item.action === 'more';
             
             return (
               <button
@@ -135,18 +147,31 @@ export const MobileBottomNav = ({ userProfile }: MobileBottomNavProps) => {
                       ? 'bg-green-500 text-white' 
                       : 'bg-primary text-primary-foreground'
                   )}>
-                    <item.icon className="h-6 w-6" />
+                    <ScanLine className="h-6 w-6" />
                   </div>
-                ) : (
+                ) : isProfile ? (
+                  // Profile avatar with online status
+                  <div className="relative">
+                    <Avatar className="h-7 w-7 border-2 border-border">
+                      <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-[10px]">
+                        {userProfile?.fullName ? getInitials(userProfile.fullName) : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {isOnline && (
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+                    )}
+                  </div>
+                ) : item.icon ? (
                   <item.icon className={cn('h-5 w-5', active && 'scale-110')} />
-                )}
+                ) : null}
                 <span className={cn(
                   'text-[10px] font-medium',
                   isScan && 'mt-1.5'
                 )}>
                   {isScan && checkInTime ? 'Check Out' : item.label}
                 </span>
-                {active && !isScan && (
+                {active && !isScan && !isProfile && (
                   <div className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
                 )}
               </button>

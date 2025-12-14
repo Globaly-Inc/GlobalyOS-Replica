@@ -82,7 +82,7 @@ const MessageBubble = ({
         </Avatar>
       )}
 
-      <div className={cn("flex flex-col max-w-[70%]", isOwn && "items-end")}>
+      <div className={cn("flex flex-col max-w-[85%] md:max-w-[70%]", isOwn && "items-end")}>
         {/* Sender name - only show for first message in group */}
         {!isOwn && !isGrouped && (
           <span className="text-xs font-medium text-muted-foreground mb-1">
