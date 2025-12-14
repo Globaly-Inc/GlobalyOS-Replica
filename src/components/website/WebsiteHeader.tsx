@@ -19,25 +19,27 @@ export const WebsiteHeader = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/landing" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-white font-bold text-sm">G</span>
-            </div>
-            <span className="font-bold text-xl text-foreground">GlobalyOS</span>
-          </Link>
+          {/* Logo + Nav Links */}
+          <div className="flex items-center gap-8">
+            <Link to="/landing" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <span className="text-white font-bold text-sm">G</span>
+              </div>
+              <span className="font-bold text-xl text-foreground">GlobalyOS</span>
+            </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.href}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {link.name}
-              </Link>
-            ))}
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center gap-6">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </div>
           </div>
 
           {/* CTA Buttons */}
