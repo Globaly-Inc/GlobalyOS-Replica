@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { OrgLink } from "./OrgLink";
 import { formatDateTime } from "@/lib/utils";
 import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { FeedReactions } from "@/components/FeedReactions";
@@ -48,7 +48,7 @@ const WinCard = ({ win }: WinCardProps) => {
               <span className="text-xs text-muted-foreground">with</span>
               <div className="flex items-center">
                 {win.taggedMembers.map((member, index) => (
-                  <Link 
+                  <OrgLink 
                     key={member.id} 
                     to={`/team/${member.id}`} 
                     className={`hover:z-20 hover:scale-110 transition-transform ${index > 0 ? '-ml-1.5' : ''}`}
@@ -62,7 +62,7 @@ const WinCard = ({ win }: WinCardProps) => {
                         {member.name?.split(" ").map((n: string) => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
-                  </Link>
+                  </OrgLink>
                 ))}
               </div>
             </div>

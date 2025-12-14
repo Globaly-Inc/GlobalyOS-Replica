@@ -19,7 +19,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Link } from "react-router-dom";
+import { OrgLink } from "./OrgLink";
 
 interface PendingLeaveRequest {
   id: string;
@@ -507,22 +507,22 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
               className="rounded-lg bg-background p-4 shadow-sm border"
             >
               <div className="flex items-start gap-3">
-                <Link to={`/team/${request.employee.id}`}>
+                <OrgLink to={`/team/${request.employee.id}`}>
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
                     <AvatarFallback>
                       {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
-                </Link>
+                </OrgLink>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link 
+                    <OrgLink 
                       to={`/team/${request.employee.id}`}
                       className="text-sm font-medium text-foreground hover:underline"
                     >
                       {request.employee.profiles.full_name}
-                    </Link>
+                    </OrgLink>
                     {request.isHRBackup && (
                       <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
                         {request.managerName === "No manager assigned" 

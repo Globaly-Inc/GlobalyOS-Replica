@@ -1,5 +1,5 @@
 import { useState, useImperativeHandle, forwardRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -71,7 +71,7 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   isLoading,
   onBack,
 }, ref) => {
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
   const [showToc, setShowToc] = useState(true);
   const { formatDateTime } = useFormattedDate();
@@ -83,7 +83,7 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
 
   const handleStartEdit = () => {
     if (page) {
-      navigate(`/wiki/edit/${page.id}`);
+      navigateOrg(`/wiki/edit/${page.id}`);
     }
   };
 

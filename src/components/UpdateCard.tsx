@@ -5,7 +5,7 @@ import { Trophy, Megaphone, Pencil, Trash2 } from "lucide-react";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { FeedReactions } from "./FeedReactions";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
+import { OrgLink } from "./OrgLink";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -120,7 +120,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
         <div className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <Link to={`/team/${update.employeeId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <OrgLink to={`/team/${update.employeeId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Avatar className="h-10 w-10 border border-border/50">
                 <AvatarImage src={update.avatar} alt={update.employeeName} />
                 <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
@@ -134,7 +134,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
                   {formatDateTime(update.date, true)}
                 </p>
               </div>
-            </Link>
+            </OrgLink>
             
             {/* Post type icon on right with hover actions */}
             <div 
@@ -179,7 +179,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
             <div className="flex flex-wrap items-center gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
               <span className="text-xs text-muted-foreground">with</span>
               {update.mentions.map((mention, index) => (
-                <Link
+                <OrgLink
                   key={mention.id}
                   to={`/team/${mention.employeeId}`}
                   className="flex items-center gap-1 hover:underline"
@@ -194,7 +194,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
                     {mention.employeeName.split(" ")[0]}
                     {index < update.mentions!.length - 1 && ","}
                   </span>
-                </Link>
+                </OrgLink>
               ))}
             </div>
           )}

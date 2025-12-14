@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Link } from "react-router-dom";
+import { OrgLink } from "@/components/OrgLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -547,11 +547,11 @@ const TeamKPIDashboard = () => {
                           </Badge>
                         )}
                       </div>
-                      <Link to={`/team/${member.id}`}>
+                      <OrgLink to={`/team/${member.id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <ChevronRight className="h-4 w-4" />
                         </Button>
-                      </Link>
+                      </OrgLink>
                     </div>
                   ))}
                 </div>
