@@ -148,7 +148,7 @@ export default function Landing() {
             The All-in-One Platform for{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Growing Teams</span>
           </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto sm:text-lg font-light">
             Stop juggling spreadsheets, scattered docs, and endless email threads. 
             GlobalyOS brings HR, knowledge, and team collaboration into one beautiful platform.
           </p>
