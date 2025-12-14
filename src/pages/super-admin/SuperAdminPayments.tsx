@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
+import { PlanManagement } from "@/components/super-admin/PlanManagement";
 import {
   DollarSign,
   CreditCard,
@@ -45,11 +46,12 @@ import {
   XCircle,
   Clock,
   Banknote,
+  Package,
 } from "lucide-react";
 
 export default function SuperAdminPayments() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("subscriptions");
+  const [activeTab, setActiveTab] = useState("plans");
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState({
@@ -261,10 +263,18 @@ export default function SuperAdminPayments() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="plans" className="gap-2">
+            <Package className="h-4 w-4" />
+            Plans
+          </TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="plans" className="mt-4">
+          <PlanManagement />
+        </TabsContent>
 
         <TabsContent value="subscriptions" className="mt-4">
           <Card>
