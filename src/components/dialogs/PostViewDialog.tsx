@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { OrgLink } from "@/components/OrgLink";
 import { formatDateTime } from "@/lib/utils";
 import { RichTextContent } from "@/components/ui/rich-text-editor";
 import { FeedReactions } from "@/components/FeedReactions";
@@ -67,7 +67,7 @@ const PostViewDialog = ({ open, onOpenChange, post }: PostViewDialogProps) => {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">with</span>
               {post.taggedMembers.map((member) => (
-                <Link 
+                <OrgLink 
                   key={member.id} 
                   to={`/team/${member.id}`} 
                   className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
@@ -80,7 +80,7 @@ const PostViewDialog = ({ open, onOpenChange, post }: PostViewDialogProps) => {
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm text-foreground">{member.name}</span>
-                </Link>
+                </OrgLink>
               ))}
             </div>
           )}

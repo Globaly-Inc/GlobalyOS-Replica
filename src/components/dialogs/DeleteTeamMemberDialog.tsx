@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,7 @@ export const DeleteTeamMemberDialog = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
 
   const handleDelete = async () => {
     setLoading(true);
@@ -59,7 +59,7 @@ export const DeleteTeamMemberDialog = ({
       });
 
       setOpen(false);
-      navigate("/team");
+      navigateOrg("/team");
     } catch (error: any) {
       console.error("Error deleting team member:", error);
       toast({

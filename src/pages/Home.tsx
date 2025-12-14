@@ -17,7 +17,7 @@ import { QRCodeGenerator } from "@/components/QRCodeGenerator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
-import { Link } from "react-router-dom";
+import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
 type DateFilter = "all" | "today" | "week" | "month";
 interface FeedItem {
@@ -849,14 +849,14 @@ const Home = () => {
             {peopleOnLeave.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {peopleOnLeave.map(leave => (
-                  <Link key={leave.id} to={`/team/${leave.employee.id}`}>
+                  <OrgLink key={leave.id} to={`/team/${leave.employee.id}`}>
                     <Avatar className="h-8 w-8 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
                       <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
                         {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
-                  </Link>
+                  </OrgLink>
                 ))}
               </div>
             ) : (
@@ -1039,14 +1039,14 @@ const Home = () => {
               {peopleOnLeave.length > 0 ? <div className="flex flex-wrap gap-2">
                   {peopleOnLeave.map(leave => <HoverCard key={leave.id}>
                       <HoverCardTrigger asChild>
-                        <Link to={`/team/${leave.employee.id}`}>
+                        <OrgLink to={`/team/${leave.employee.id}`}>
                           <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
                             <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
                             <AvatarFallback className="text-xs bg-primary/10 text-primary">
                               {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
-                        </Link>
+                        </OrgLink>
                       </HoverCardTrigger>
                       <HoverCardContent className="w-64" side="top">
                         <div className="flex gap-3">
@@ -1088,7 +1088,7 @@ const Home = () => {
                     const isMultiDay = leave.start_date !== leave.end_date;
                     const daysLabel = leave.days_count === 1 ? "1 day" : `${leave.days_count} days`;
                     const dateRange = isMultiDay ? `${format(parseISO(leave.start_date), "d MMM")} - ${format(parseISO(leave.end_date), "d MMM yyyy")}` : format(parseISO(leave.start_date), "d MMM yyyy");
-                    return <Link key={leave.id} to={`/team/${leave.employee.id}`} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors">
+                    return <OrgLink key={leave.id} to={`/team/${leave.employee.id}`} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors">
                             <Avatar className="h-6 w-6 flex-shrink-0">
                               <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
                               <AvatarFallback className="text-xs bg-primary/10 text-primary">
@@ -1101,7 +1101,7 @@ const Home = () => {
                             <span className="text-xs text-muted-foreground truncate">
                               {leave.leave_type} · {daysLabel} · {dateRange}
                             </span>
-                          </Link>;
+                          </OrgLink>;
                   })}
                     </div>
                   </div>
@@ -1111,10 +1111,10 @@ const Home = () => {
             {/* Upcoming Events */}
             {upcomingCalendarEvents.length > 0 && (
               <Card className="p-6">
-                <Link to="/calendar" className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors">
+                <OrgLink to="/calendar" className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors">
                   <CalendarPlus className="h-5 w-5 text-primary" />
                   Upcoming Events
-                </Link>
+                </OrgLink>
                 <div className="space-y-3">
                   {upcomingCalendarEvents.map(event => {
                     const isMultiDay = event.start_date !== event.end_date;
@@ -1152,7 +1152,7 @@ const Home = () => {
                 Upcoming Birthdays
               </h3>
               {upcomingBirthdays.length > 0 ? <div className="space-y-3">
-                  {upcomingBirthdays.map(birthday => <Link key={birthday.id} to={`/team/${birthday.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
+                  {upcomingBirthdays.map(birthday => <OrgLink key={birthday.id} to={`/team/${birthday.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={birthday.profiles.avatar_url || undefined} />
                         <AvatarFallback className="text-xs">
@@ -1167,7 +1167,7 @@ const Home = () => {
                           {birthday.daysUntil === 0 ? "Today! 🎉" : birthday.daysUntil === 1 ? "Tomorrow" : `In ${birthday.daysUntil} days`}
                         </p>
                       </div>
-                    </Link>)}
+                    </OrgLink>)}
                 </div> : <p className="text-sm text-muted-foreground">No upcoming birthdays</p>}
             </Card>
 
@@ -1178,7 +1178,7 @@ const Home = () => {
                 Work Anniversaries
               </h3>
               {upcomingAnniversaries.length > 0 ? <div className="space-y-3">
-                  {upcomingAnniversaries.map(anniversary => <Link key={anniversary.id} to={`/team/${anniversary.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
+                  {upcomingAnniversaries.map(anniversary => <OrgLink key={anniversary.id} to={`/team/${anniversary.id}`} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={anniversary.profiles.avatar_url || undefined} />
                         <AvatarFallback className="text-xs">
@@ -1193,7 +1193,7 @@ const Home = () => {
                           {anniversary.yearsCount} {anniversary.yearsCount === 1 ? "year" : "years"} · {anniversary.daysUntil === 0 ? "Today! 🎉" : anniversary.daysUntil === 1 ? "Tomorrow" : `In ${anniversary.daysUntil} days`}
                         </p>
                       </div>
-                    </Link>)}
+                    </OrgLink>)}
                 </div> : <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>}
             </Card>
           </div>

@@ -4,7 +4,7 @@ import { RichTextContent } from "./ui/rich-text-editor";
 import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 import { Heart, Pencil, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { OrgLink } from "./OrgLink";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -104,7 +104,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
         <div className="p-4 flex-1">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <Link to={`/team/${kudos.givenById}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <OrgLink to={`/team/${kudos.givenById}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Avatar className="h-10 w-10 border border-border/50">
                 {kudos.givenByAvatar && <AvatarImage src={kudos.givenByAvatar} />}
                 <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
@@ -118,7 +118,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
                   {formatDateTime(kudos.date)}
                 </p>
               </div>
-            </Link>
+            </OrgLink>
             
             {/* Post type icon on right with hover actions */}
             <div 

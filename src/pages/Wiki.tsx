@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { WikiSidebar } from '@/components/wiki/WikiSidebar';
 import { WikiContent, WikiContentHandle } from "@/components/wiki/WikiContent";
 import { WikiFolderView } from "@/components/wiki/WikiFolderView";
@@ -75,7 +75,7 @@ interface PendingNavigation {
 }
 
 const Wiki = () => {
-  const navigate = useNavigate();
+  const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR } = useUserRole();
@@ -321,7 +321,7 @@ const Wiki = () => {
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
       toast.success("Page created");
       // Navigate to edit page for new pages
-      navigate(`/wiki/edit/${data.id}`);
+      navigateOrg(`/wiki/edit/${data.id}`);
     },
     onError: () => toast.error("Failed to create page"),
   });
