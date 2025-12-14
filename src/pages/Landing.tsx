@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { WebsiteHeader, WebsiteFooter, FeatureCard, TestimonialCard } from "@/components/website";
 import { useAuth } from "@/hooks/useAuth";
+import dashboardPreview from "@/assets/dashboard-preview.png";
 import {
   Users, Calendar, BookOpen, Brain, BarChart3, Smartphone,
   CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap,
@@ -28,6 +29,14 @@ const painPoints = [
   { icon: Shield, title: "Zero Team Visibility", description: "No idea who's on leave, what goals look like, or how the team is really doing." },
 ];
 
+const trustedLogos = [
+  { name: "TechStart", initial: "T" },
+  { name: "GrowthCo", initial: "G" },
+  { name: "Elevate", initial: "E" },
+  { name: "Innovate", initial: "I" },
+  { name: "Synergy", initial: "S" },
+];
+
 export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,7 +46,7 @@ export default function Landing() {
       <WebsiteHeader />
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
             <Sparkles className="w-4 h-4" />
@@ -58,6 +67,43 @@ export default function Landing() {
             <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => navigate("/features")}>See All Features</Button>
           </div>
           <p className="text-sm text-muted-foreground mt-4">No credit card required • Unlimited users • Setup in minutes</p>
+        </div>
+      </section>
+
+      {/* Dashboard Preview with Floating Card */}
+      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Wide gradient card with dashboard floating on top */}
+          <div className="relative">
+            {/* Background gradient card */}
+            <div className="absolute inset-x-0 top-24 bottom-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 rounded-3xl" />
+            
+            {/* Dashboard screenshot - floating above */}
+            <div className="relative z-10 px-4 sm:px-8">
+              <div className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card">
+                <img 
+                  src={dashboardPreview} 
+                  alt="GlobalyOS Team Overview Dashboard" 
+                  className="w-full h-auto"
+                />
+              </div>
+            </div>
+
+            {/* Trusted by logos - positioned on the gradient card */}
+            <div className="relative z-10 pt-12 pb-8">
+              <p className="text-center text-sm text-muted-foreground mb-6">Join our community of 120,000+ businesses</p>
+              <div className="flex flex-wrap items-center justify-center gap-8 px-4">
+                {trustedLogos.map((logo, i) => (
+                  <div key={i} className="flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur-sm rounded-full border border-border/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
+                      {logo.initial}
+                    </div>
+                    <span className="text-foreground font-medium">{logo.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
