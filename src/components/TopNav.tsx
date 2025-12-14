@@ -9,8 +9,8 @@ interface TopNavProps {
 
 const mainNavItems = [
   { name: 'Team', href: '/', icon: Users, adminOnly: false },
-  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: true }, // Admin only
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
+  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: true }, // Admin only
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: true, isStatic: true },
   { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: true, isStatic: true },
 ];
