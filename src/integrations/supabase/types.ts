@@ -2991,29 +2991,41 @@ export type Database = {
         Row: {
           created_at: string
           feature: string
+          feature_description: string | null
+          feature_name: string | null
           id: string
           is_active: boolean | null
           monthly_limit: number | null
           overage_rate: number | null
           plan: string
+          sort_order: number | null
+          unit: string | null
         }
         Insert: {
           created_at?: string
           feature: string
+          feature_description?: string | null
+          feature_name?: string | null
           id?: string
           is_active?: boolean | null
           monthly_limit?: number | null
           overage_rate?: number | null
           plan: string
+          sort_order?: number | null
+          unit?: string | null
         }
         Update: {
           created_at?: string
           feature?: string
+          feature_description?: string | null
+          feature_name?: string | null
           id?: string
           is_active?: boolean | null
           monthly_limit?: number | null
           overage_rate?: number | null
           plan?: string
+          sort_order?: number | null
+          unit?: string | null
         }
         Relationships: []
       }
@@ -3277,6 +3289,69 @@ export type Database = {
           p256dh?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          annual_price: number
+          created_at: string | null
+          currency: string
+          description: string | null
+          feature_highlights: Json | null
+          id: string
+          is_active: boolean | null
+          is_popular: boolean | null
+          is_public: boolean | null
+          monthly_price: number
+          name: string
+          slug: string
+          sort_order: number | null
+          stripe_annual_price_id: string | null
+          stripe_monthly_price_id: string | null
+          tagline: string | null
+          trial_days: number
+          updated_at: string | null
+        }
+        Insert: {
+          annual_price?: number
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          feature_highlights?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          is_public?: boolean | null
+          monthly_price?: number
+          name: string
+          slug: string
+          sort_order?: number | null
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          tagline?: string | null
+          trial_days?: number
+          updated_at?: string | null
+        }
+        Update: {
+          annual_price?: number
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          feature_highlights?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          is_public?: boolean | null
+          monthly_price?: number
+          name?: string
+          slug?: string
+          sort_order?: number | null
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          tagline?: string | null
+          trial_days?: number
+          updated_at?: string | null
         }
         Relationships: []
       }
