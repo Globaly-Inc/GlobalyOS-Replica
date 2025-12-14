@@ -98,7 +98,7 @@ const Chat = () => {
   // Mobile view
   if (isMobile) {
     return (
-      <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden bg-background">
+      <div className="flex flex-col h-full overflow-hidden bg-background">
         {!activeChat ? (
           <MobileChatHome
             onSelectChat={handleSelectChat}
@@ -139,7 +139,7 @@ const Chat = () => {
 
   // Desktop view
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
+    <div className="flex h-full overflow-hidden bg-background">
       {/* Left Sidebar */}
       <div className="w-72 flex-shrink-0 border-r border-border h-full overflow-hidden">
         <ChatSidebar
