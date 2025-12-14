@@ -386,28 +386,6 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          
-          {/* Additional feature highlights */}
-          <div className="grid md:grid-cols-2 gap-6 mt-6">
-            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl border border-border p-6 flex items-center gap-6">
-              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Brain className="w-7 h-7 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">AI Assistant</h3>
-                <p className="text-sm text-muted-foreground">Ask anything about your team, policies, or data. Get instant answers from your organization's knowledge.</p>
-              </div>
-            </div>
-            <div className="bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-2xl border border-border p-6 flex items-center gap-6">
-              <div className="w-14 h-14 rounded-xl bg-pink-500/10 flex items-center justify-center shrink-0">
-                <Smartphone className="w-7 h-7 text-pink-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Mobile App</h3>
-                <p className="text-sm text-muted-foreground">Full-featured PWA works on any device. Check in, request leave, and stay connected on the go.</p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
