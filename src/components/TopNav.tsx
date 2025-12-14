@@ -38,7 +38,7 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
   };
 
   return (
-    <nav className="flex items-center space-x-1">
+    <nav className="flex items-center space-x-1 tour-feature-overview">
       {visibleItems.map((item) => (
         <OrgLink
           key={item.name}
@@ -46,7 +46,10 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
           className={cn(
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
             item.isStatic && 'opacity-70',
-            isActive(item.href) && 'bg-secondary text-foreground'
+            isActive(item.href) && 'bg-secondary text-foreground',
+            item.name === 'Team' && 'tour-team-directory',
+            item.name === 'Wiki' && 'tour-wiki-nav',
+            item.name === 'Chat' && 'tour-chat-nav'
           )}
         >
           <item.icon className="h-4 w-4" />

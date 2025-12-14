@@ -23,6 +23,7 @@ import { GlobalAskAI } from "./GlobalAskAI";
 import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import GuidedTour from "./GuidedTour";
+import { SpotlightTour } from "./SpotlightTour";
 
 interface UserProfile {
   fullName: string;
@@ -370,6 +371,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-background">
       {/* Guided Tour for Onboarding */}
       <GuidedTour />
+      <SpotlightTour />
       
       {/* Pull to Refresh Indicator for Mobile */}
       <PullToRefreshIndicator
@@ -403,7 +405,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <TopNav isAdmin={userProfile?.role === 'admin'} />
           </div>
 
-          <div className="hidden md:flex md:items-center md:gap-2">
+          <div className="hidden md:flex md:items-center md:gap-2 tour-quick-actions">
             {elapsedTime && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium">
                 <Clock className="h-4 w-4" />
@@ -416,7 +418,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Button 
                   variant="outline" 
                   size="icon"
-                  className="h-10 w-10"
+                  className="h-10 w-10 tour-check-in"
                   onClick={() => setQrScannerOpen(true)}
                   disabled={!userProfile?.employeeId}
                 >
@@ -485,7 +487,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   <Button 
                     variant="outline" 
                     size="icon"
-                    className="h-10 w-10"
+                    className="h-10 w-10 tour-settings-menu"
                     onClick={() => navigateOrg('/settings')}
                   >
                     <Settings className="h-4 w-4" />
@@ -501,7 +503,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Button 
                   variant="outline" 
                   size="icon"
-                  className="h-10 w-10 relative"
+                  className="h-10 w-10 relative tour-profile-avatar"
                   onClick={handleViewProfile}
                   disabled={!userProfile?.employeeId}
                 >
