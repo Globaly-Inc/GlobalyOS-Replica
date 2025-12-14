@@ -56,118 +56,192 @@ serve(async (req) => {
       });
     }
 
+    // Fetch AI knowledge settings
+    const { data: aiSettings } = await supabase
+      .from("ai_knowledge_settings")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    // Default all to enabled if no settings exist
+    const settings = aiSettings || {
+      wiki_enabled: true,
+      chat_enabled: true,
+      team_directory_enabled: true,
+      announcements_enabled: true,
+      kpis_enabled: true,
+      calendar_enabled: true,
+      leave_enabled: true,
+      attendance_enabled: true,
+    };
+
+    // Build enabled content types array
+    const enabledTypes: string[] = [];
+    if (settings.wiki_enabled) enabledTypes.push("wiki");
+    if (settings.chat_enabled) enabledTypes.push("chat");
+    if (settings.team_directory_enabled) enabledTypes.push("employee");
+    if (settings.announcements_enabled) enabledTypes.push("announcement", "win");
+    if (settings.kpis_enabled) enabledTypes.push("kpi");
+    if (settings.calendar_enabled) enabledTypes.push("calendar");
+    if (settings.leave_enabled) enabledTypes.push("leave");
+    if (settings.attendance_enabled) enabledTypes.push("attendance");
+
     // Fetch accessible AI content using the security definer function
     const { data: indexedContent, error: contentError } = await supabase
       .rpc("get_accessible_ai_content", {
         _user_id: user.id,
         _organization_id: organizationId,
-        _content_types: null,
-        _limit: 150
+        _content_types: enabledTypes.length > 0 ? enabledTypes : null,
+        _limit: 200
       });
 
     if (contentError) {
       console.error("Error fetching indexed content:", contentError);
     }
 
-    // Also fetch real-time wiki pages for latest content
-    const { data: wikiPages } = await supabase
-      .from("wiki_pages")
-      .select("title, content, access_scope")
-      .eq("organization_id", organizationId);
-
-    // Fetch employee directory for team queries (public info only)
-    const { data: employees } = await supabase
-      .from("employees")
-      .select(`
-        id, position, department, 
-        profiles!inner(full_name),
-        offices(name)
-      `)
-      .eq("organization_id", organizationId)
-      .eq("status", "active");
-
-    // Fetch announcements and wins (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const { data: updates } = await supabase
-      .from("updates")
-      .select("type, content, created_at")
-      .eq("organization_id", organizationId)
-      .in("type", ["announcement", "win"])
-      .gte("created_at", thirtyDaysAgo.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    // Build context sections
+    // Also fetch real-time data for latest content (respecting settings)
     let wikiContext = "";
-    if (wikiPages && wikiPages.length > 0) {
-      wikiContext = wikiPages
-        .map((page) => {
-          const plainContent = page.content?.replace(/<[^>]*>/g, "") || "";
-          return `### ${page.title}\n${plainContent.substring(0, 2000)}`;
-        })
-        .join("\n\n");
+    if (settings.wiki_enabled) {
+      const { data: wikiPages } = await supabase
+        .from("wiki_pages")
+        .select("title, content, access_scope")
+        .eq("organization_id", organizationId);
+
+      if (wikiPages && wikiPages.length > 0) {
+        wikiContext = wikiPages
+          .map((page) => {
+            const plainContent = page.content?.replace(/<[^>]*>/g, "") || "";
+            return `### ${page.title}\n${plainContent.substring(0, 2000)}`;
+          })
+          .join("\n\n");
+      }
     }
 
     let teamContext = "";
-    if (employees && employees.length > 0) {
-      teamContext = employees
-        .map((emp: any) => {
-          const name = emp.profiles?.full_name || "Unknown";
-          const office = emp.offices?.name || "";
-          return `- ${name}: ${emp.position} (${emp.department})${office ? ` - ${office}` : ""}`;
-        })
-        .join("\n");
+    if (settings.team_directory_enabled) {
+      const { data: employees } = await supabase
+        .from("employees")
+        .select(`
+          id, position, department, 
+          profiles!inner(full_name),
+          offices(name)
+        `)
+        .eq("organization_id", organizationId)
+        .eq("status", "active");
+
+      if (employees && employees.length > 0) {
+        teamContext = employees
+          .map((emp: any) => {
+            const name = emp.profiles?.full_name || "Unknown";
+            const office = emp.offices?.name || "";
+            return `- ${name}: ${emp.position} (${emp.department})${office ? ` - ${office}` : ""}`;
+          })
+          .join("\n");
+      }
     }
 
     let announcementsContext = "";
-    if (updates && updates.length > 0) {
-      announcementsContext = updates
-        .map((u) => {
-          const plainContent = u.content?.replace(/<[^>]*>/g, "") || "";
-          const date = new Date(u.created_at).toLocaleDateString();
-          return `[${u.type.toUpperCase()} - ${date}] ${plainContent.substring(0, 500)}`;
-        })
-        .join("\n\n");
+    if (settings.announcements_enabled) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: updates } = await supabase
+        .from("updates")
+        .select("type, content, created_at")
+        .eq("organization_id", organizationId)
+        .in("type", ["announcement", "win"])
+        .gte("created_at", thirtyDaysAgo.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (updates && updates.length > 0) {
+        announcementsContext = updates
+          .map((u) => {
+            const plainContent = u.content?.replace(/<[^>]*>/g, "") || "";
+            const date = new Date(u.created_at).toLocaleDateString();
+            return `[${u.type.toUpperCase()} - ${date}] ${plainContent.substring(0, 500)}`;
+          })
+          .join("\n\n");
+      }
     }
 
+    let calendarContext = "";
+    if (settings.calendar_enabled) {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: events } = await supabase
+        .from("calendar_events")
+        .select("title, start_date, end_date, event_type")
+        .eq("organization_id", organizationId)
+        .gte("end_date", today)
+        .order("start_date", { ascending: true })
+        .limit(20);
+
+      if (events && events.length > 0) {
+        calendarContext = events
+          .map((e) => `- ${e.event_type}: ${e.title} (${e.start_date} to ${e.end_date})`)
+          .join("\n");
+      }
+    }
+
+    // Build indexed content context
     let indexedContext = "";
     if (indexedContent && indexedContent.length > 0) {
-      indexedContext = indexedContent
-        .map((item: any) => {
-          return `[${item.content_type.toUpperCase()}${item.title ? `: ${item.title}` : ""}]\n${item.content?.substring(0, 1000) || ""}`;
-        })
-        .join("\n\n");
+      // Group by content type for better organization
+      const grouped: Record<string, any[]> = {};
+      for (const item of indexedContent) {
+        if (!grouped[item.content_type]) {
+          grouped[item.content_type] = [];
+        }
+        grouped[item.content_type].push(item);
+      }
+
+      const sections: string[] = [];
+      for (const [type, items] of Object.entries(grouped)) {
+        const typeLabel = type.toUpperCase();
+        const content = items
+          .slice(0, 20) // Limit per type
+          .map((item: any) => `${item.title ? `**${item.title}**: ` : ""}${item.content?.substring(0, 500) || ""}`)
+          .join("\n");
+        sections.push(`### ${typeLabel}\n${content}`);
+      }
+      indexedContext = sections.join("\n\n");
     }
 
     const systemPrompt = `You are the GlobalyOS AI Assistant for this organization's internal knowledge base.
 
-You have access to the organization's:
-- Wiki documentation and knowledge base
-- Team directory (public information: names, positions, departments, offices)
-- Recent announcements and wins
-- Chat conversations (only those the user participates in)
+You have access to the organization's data based on enabled settings and user permissions:
+${settings.wiki_enabled ? "- Wiki documentation and knowledge base" : ""}
+${settings.team_directory_enabled ? "- Team directory (public information: names, positions, departments, offices)" : ""}
+${settings.announcements_enabled ? "- Recent announcements and wins" : ""}
+${settings.chat_enabled ? "- Chat conversations (only those the user participates in)" : ""}
+${settings.kpis_enabled ? "- KPIs and performance data (own and direct reports for managers)" : ""}
+${settings.calendar_enabled ? "- Calendar events and holidays" : ""}
+${settings.leave_enabled ? "- Leave information (own and direct reports for managers)" : ""}
+${settings.attendance_enabled ? "- Attendance data (own and direct reports for managers)" : ""}
 
 IMPORTANT ACCESS & PRIVACY RULES:
 - Only reference information the user has access to based on their role
 - NEVER reveal salary, personal contact details, banking, tax, or sensitive HR data
 - For team questions, provide only public directory info (name, position, department, office)
 - For chat references, only cite conversations the user is part of
+- For KPIs, leave, and attendance: regular users only see their own data; managers see direct reports
 - If asked about something not in the knowledge base, say so clearly
 
-Be helpful, concise, and professional. When referencing information, mention the source (Wiki, Team Directory, Announcement, etc.).
+Be helpful, concise, and professional. When referencing information, mention the source (Wiki, Team Directory, Calendar, KPI, etc.).
 
 --- WIKI KNOWLEDGE BASE ---
-${wikiContext || "No wiki content available."}
+${wikiContext || "No wiki content available or disabled."}
 
 --- TEAM DIRECTORY ---
-${teamContext || "No team data available."}
+${teamContext || "No team data available or disabled."}
 
 --- RECENT ANNOUNCEMENTS & WINS ---
-${announcementsContext || "No recent announcements."}
+${announcementsContext || "No recent announcements or disabled."}
 
---- INDEXED CONTENT (Chat, KPIs, etc.) ---
+--- UPCOMING CALENDAR EVENTS ---
+${calendarContext || "No upcoming events or disabled."}
+
+--- INDEXED CONTENT (KPIs, Leave, Attendance, Chat, etc.) ---
 ${indexedContext || "No additional indexed content."}
 ---`;
 

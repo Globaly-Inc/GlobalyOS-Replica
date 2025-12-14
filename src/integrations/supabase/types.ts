@@ -166,6 +166,59 @@ export type Database = {
           },
         ]
       }
+      ai_knowledge_settings: {
+        Row: {
+          announcements_enabled: boolean
+          attendance_enabled: boolean
+          calendar_enabled: boolean
+          chat_enabled: boolean
+          created_at: string | null
+          id: string
+          kpis_enabled: boolean
+          leave_enabled: boolean
+          organization_id: string
+          team_directory_enabled: boolean
+          updated_at: string | null
+          wiki_enabled: boolean
+        }
+        Insert: {
+          announcements_enabled?: boolean
+          attendance_enabled?: boolean
+          calendar_enabled?: boolean
+          chat_enabled?: boolean
+          created_at?: string | null
+          id?: string
+          kpis_enabled?: boolean
+          leave_enabled?: boolean
+          organization_id: string
+          team_directory_enabled?: boolean
+          updated_at?: string | null
+          wiki_enabled?: boolean
+        }
+        Update: {
+          announcements_enabled?: boolean
+          attendance_enabled?: boolean
+          calendar_enabled?: boolean
+          chat_enabled?: boolean
+          created_at?: string | null
+          id?: string
+          kpis_enabled?: boolean
+          leave_enabled?: boolean
+          organization_id?: string
+          team_directory_enabled?: boolean
+          updated_at?: string | null
+          wiki_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_hour_balances: {
         Row: {
           created_at: string
