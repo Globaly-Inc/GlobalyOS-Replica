@@ -1651,6 +1651,78 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          billing_period_end: string | null
+          billing_period_start: string | null
+          created_at: string
+          currency: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          line_items: Json | null
+          notes: string | null
+          organization_id: string
+          paid_at: string | null
+          status: string
+          stripe_invoice_id: string | null
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          line_items?: Json | null
+          notes?: string | null
+          organization_id: string
+          paid_at?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          line_items?: Json | null
+          notes?: string | null
+          organization_id?: string
+          paid_at?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_ai_insights: {
         Row: {
           employee_id: string
@@ -2547,6 +2619,60 @@ export type Database = {
           },
         ]
       }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          completed_steps: Json | null
+          current_step: number | null
+          id: string
+          is_completed: boolean | null
+          organization_id: string
+          role: string
+          started_at: string
+          tour_completed: boolean | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_steps?: Json | null
+          current_step?: number | null
+          id?: string
+          is_completed?: boolean | null
+          organization_id: string
+          role: string
+          started_at?: string
+          tour_completed?: boolean | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_steps?: Json | null
+          current_step?: number | null
+          id?: string
+          is_completed?: boolean | null
+          organization_id?: string
+          role?: string
+          started_at?: string
+          tour_completed?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -2581,42 +2707,83 @@ export type Database = {
       }
       organizations: {
         Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           auto_attendance_adjustments_enabled: boolean
+          billing_cycle: string | null
+          company_size: string | null
           created_at: string
           id: string
+          industry: string | null
           logo_url: string | null
           max_day_in_lieu_days: number | null
           name: string
+          owner_email: string | null
+          owner_name: string | null
           plan: string
+          rejected_at: string | null
+          rejection_reason: string | null
           slug: string
+          trial_ends_at: string | null
           updated_at: string
           workday_hours: number
         }
         Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           auto_attendance_adjustments_enabled?: boolean
+          billing_cycle?: string | null
+          company_size?: string | null
           created_at?: string
           id?: string
+          industry?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
           name: string
+          owner_email?: string | null
+          owner_name?: string | null
           plan?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
           slug: string
+          trial_ends_at?: string | null
           updated_at?: string
           workday_hours?: number
         }
         Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           auto_attendance_adjustments_enabled?: boolean
+          billing_cycle?: string | null
+          company_size?: string | null
           created_at?: string
           id?: string
+          industry?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
           name?: string
+          owner_email?: string | null
+          owner_name?: string | null
           plan?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
           slug?: string
+          trial_ends_at?: string | null
           updated_at?: string
           workday_hours?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       otp_codes: {
         Row: {
@@ -2650,6 +2817,76 @@ export type Database = {
           verified?: boolean
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          organization_id: string
+          payment_method: string
+          processed_at: string | null
+          processed_by: string | null
+          reference_number: string | null
+          status: string
+          stripe_payment_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          organization_id: string
+          payment_method: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reference_number?: string | null
+          status?: string
+          stripe_payment_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          organization_id?: string
+          payment_method?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reference_number?: string | null
+          status?: string
+          stripe_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       performance_reviews: {
         Row: {
@@ -2743,6 +2980,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plan_limits: {
+        Row: {
+          created_at: string
+          feature: string
+          id: string
+          is_active: boolean | null
+          monthly_limit: number | null
+          overage_rate: number | null
+          plan: string
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: string
+          is_active?: boolean | null
+          monthly_limit?: number | null
+          overage_rate?: number | null
+          plan: string
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: string
+          is_active?: boolean | null
+          monthly_limit?: number | null
+          overage_rate?: number | null
+          plan?: string
+        }
+        Relationships: []
       }
       position_history: {
         Row: {
@@ -3007,6 +3274,71 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          billing_cycle: string
+          cancel_at_period_end: boolean | null
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          organization_id: string
+          payment_method_type: string | null
+          plan: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          trial_starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_cycle?: string
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id: string
+          payment_method_type?: string | null
+          plan: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_cycle?: string
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id?: string
+          payment_method_type?: string | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       update_mentions: {
         Row: {
           created_at: string
@@ -3105,6 +3437,44 @@ export type Database = {
           },
           {
             foreignKeyName: "updates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_records: {
+        Row: {
+          billing_period: string
+          feature: string
+          id: string
+          metadata: Json | null
+          organization_id: string
+          quantity: number
+          recorded_at: string
+        }
+        Insert: {
+          billing_period: string
+          feature: string
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          quantity?: number
+          recorded_at?: string
+        }
+        Update: {
+          billing_period?: string
+          feature?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          quantity?: number
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_records_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -3881,6 +4251,7 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      generate_invoice_number: { Args: never; Returns: string }
       get_accessible_ai_content: {
         Args: {
           _content_types?: string[]
