@@ -409,9 +409,7 @@ export default function Landing() {
             {/* Scrolling suggested questions */}
             <div className="h-40 overflow-hidden relative">
               <div className="space-y-3">
-                {["Who's on leave next week?", "What's our parental leave policy?", "Show me team performance trends", "Who has their anniversary this month?", "What are our company holidays?", "How many sick days do I have left?"].map((question, i) => <div key={i} className="flex items-center gap-3 animate-scroll-up" style={{
-                animationDelay: `${i * 5}s`
-              }}>
+                {["Who's on leave next week?", "What's our parental leave policy?", "Show me team performance trends", "Who has their anniversary this month?", "What are our company holidays?", "How many sick days do I have left?"].map((question, i) => <div key={i} className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     <span className="text-foreground">"{question}"</span>
                   </div>)}
