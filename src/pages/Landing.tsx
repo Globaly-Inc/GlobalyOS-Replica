@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { WebsiteHeader, WebsiteFooter, FeatureCard, TestimonialCard } from "@/components/website";
@@ -264,6 +265,49 @@ const trustedLogosRow2 = [{
   name: "Descript",
   Icon: LogoIcons.Descript
 }];
+
+// Dashboard Spotlight component with mouse-following reveal effect
+const DashboardSpotlight = () => {
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setMousePos({ x, y });
+  };
+
+  return (
+    <div 
+      className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card relative cursor-none"
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {/* Clear image (bottom layer) */}
+      <img 
+        alt="GlobalyOS Team Overview Dashboard" 
+        className="w-full h-auto" 
+        src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" 
+      />
+      
+      {/* Blurred overlay with spotlight hole */}
+      <div 
+        className="absolute inset-0 backdrop-blur-md bg-white/20 dark:bg-black/30 pointer-events-none transition-opacity duration-300"
+        style={{
+          maskImage: isHovering 
+            ? `radial-gradient(circle 120px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
+            : 'none',
+          WebkitMaskImage: isHovering 
+            ? `radial-gradient(circle 120px at ${mousePos.x}% ${mousePos.y}%, transparent 0%, transparent 50%, black 100%)`
+            : 'none',
+        }}
+      />
+    </div>
+  );
+};
+
 export default function Landing() {
   const navigate = useNavigate();
   const {
@@ -305,11 +349,9 @@ export default function Landing() {
             {/* Background gradient card - extends below dashboard for floating effect */}
             <div className="absolute inset-x-0 top-24 bottom-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 rounded-3xl" />
             
-            {/* Dashboard screenshot - floating above */}
+            {/* Dashboard screenshot - floating above with spotlight reveal effect */}
             <div className="relative z-10 px-4 sm:px-8 mb-8">
-              <div className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card">
-                <img alt="GlobalyOS Team Overview Dashboard" className="w-full h-auto" src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" />
-              </div>
+              <DashboardSpotlight />
             </div>
           </div>
         </div>
