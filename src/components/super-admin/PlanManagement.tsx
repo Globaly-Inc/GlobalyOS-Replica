@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Star, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
-import { PlanEditorDialog } from './PlanEditorDialog';
 
 export interface SubscriptionPlan {
   id: string;
@@ -45,9 +44,8 @@ export interface PlanLimit {
 }
 
 export function PlanManagement() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['subscription-plans'],
@@ -120,18 +118,11 @@ export function PlanManagement() {
   };
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
-    setEditingPlan(plan);
-    setIsDialogOpen(true);
+    navigate(`/super-admin/plans/${plan.id}/edit`);
   };
 
   const handleAddPlan = () => {
-    setEditingPlan(null);
-    setIsDialogOpen(true);
-  };
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    setEditingPlan(null);
+    navigate('/super-admin/plans/new');
   };
 
   if (isLoading) {
@@ -152,134 +143,125 @@ export function PlanManagement() {
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Subscription Plans</CardTitle>
-          <Button onClick={handleAddPlan} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Plan
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50px]"></TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Monthly</TableHead>
-                <TableHead>Annual</TableHead>
-                <TableHead>Trial</TableHead>
-                <TableHead>Features</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead>Public</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {plans?.map((plan) => {
-                const limits = planLimits?.filter(l => l.plan === plan.slug) || [];
-                
-                return (
-                  <TableRow key={plan.id}>
-                    <TableCell>
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {plan.name}
-                            {plan.is_popular && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Star className="h-3 w-3 mr-1 fill-current" />
-                                Popular
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{plan.tagline}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {plan.monthly_price > 0 ? (
-                        <span className="font-medium">{formatCurrency(plan.monthly_price, plan.currency)}/mo</span>
-                      ) : (
-                        <span className="text-muted-foreground">Custom</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {plan.annual_price > 0 ? (
-                        <div>
-                          <span className="font-medium">{formatCurrency(plan.annual_price, plan.currency)}/yr</span>
-                          {plan.monthly_price > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              {Math.round((1 - plan.annual_price / (plan.monthly_price * 12)) * 100)}% off
-                            </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Subscription Plans</CardTitle>
+        <Button onClick={handleAddPlan} size="sm">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Plan
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]"></TableHead>
+              <TableHead>Plan</TableHead>
+              <TableHead>Monthly</TableHead>
+              <TableHead>Annual</TableHead>
+              <TableHead>Trial</TableHead>
+              <TableHead>Features</TableHead>
+              <TableHead>Active</TableHead>
+              <TableHead>Public</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plans?.map((plan) => {
+              const limits = planLimits?.filter(l => l.plan === plan.slug) || [];
+              
+              return (
+                <TableRow key={plan.id}>
+                  <TableCell>
+                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="font-medium flex items-center gap-2">
+                          {plan.name}
+                          {plan.is_popular && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Star className="h-3 w-3 mr-1 fill-current" />
+                              Popular
+                            </Badge>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">Custom</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{plan.trial_days} days</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">
-                        {limits.length > 0 ? (
-                          <span>{limits.length} limits configured</span>
-                        ) : (
-                          <span>No limits</span>
+                        <div className="text-sm text-muted-foreground">{plan.tagline}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {plan.monthly_price > 0 ? (
+                      <span className="font-medium">{formatCurrency(plan.monthly_price, plan.currency)}/mo</span>
+                    ) : (
+                      <span className="text-muted-foreground">Custom</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {plan.annual_price > 0 ? (
+                      <div>
+                        <span className="font-medium">{formatCurrency(plan.annual_price, plan.currency)}/yr</span>
+                        {plan.monthly_price > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            {Math.round((1 - plan.annual_price / (plan.monthly_price * 12)) * 100)}% off
+                          </div>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={plan.is_active}
-                        onCheckedChange={(checked) => 
-                          toggleActiveMutation.mutate({ id: plan.id, is_active: checked })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => 
-                          togglePublicMutation.mutate({ id: plan.id, is_public: !plan.is_public })
-                        }
-                      >
-                        {plan.is_public ? (
-                          <Eye className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditPlan(plan)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <PlanEditorDialog
-        open={isDialogOpen}
-        onOpenChange={handleDialogClose}
-        plan={editingPlan}
-        planLimits={planLimits?.filter(l => editingPlan ? l.plan === editingPlan.slug : false) || []}
-      />
-    </>
+                    ) : (
+                      <span className="text-muted-foreground">Custom</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{plan.trial_days} days</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-muted-foreground">
+                      {limits.length > 0 ? (
+                        <span>{limits.length} limits configured</span>
+                      ) : (
+                        <span>No limits</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={plan.is_active}
+                      onCheckedChange={(checked) => 
+                        toggleActiveMutation.mutate({ id: plan.id, is_active: checked })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => 
+                        togglePublicMutation.mutate({ id: plan.id, is_public: !plan.is_public })
+                      }
+                    >
+                      {plan.is_public ? (
+                        <Eye className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditPlan(plan)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
