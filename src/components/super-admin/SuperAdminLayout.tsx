@@ -16,7 +16,7 @@ interface SuperAdminLayoutProps {
 }
 
 const navItems = [
-  { path: "/super-admin", label: "Analytics", icon: BarChart3, exact: true },
+  { path: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
   { path: "/super-admin/payments", label: "Payments", icon: CreditCard },
@@ -26,11 +26,8 @@ const navItems = [
 const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
   const location = useLocation();
 
-  const isActive = (path: string, exact?: boolean) => {
-    if (exact) {
-      return location.pathname === path;
-    }
-    return location.pathname.startsWith(path);
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
@@ -65,7 +62,7 @@ const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
                 to={item.path}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive(item.path, item.exact)
+                  isActive(item.path)
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}

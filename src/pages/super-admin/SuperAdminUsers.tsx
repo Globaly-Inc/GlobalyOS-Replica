@@ -22,6 +22,7 @@ import {
 import { Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 
 interface User {
   id: string;
@@ -144,12 +145,10 @@ const SuperAdminUsers = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Users</h2>
-          <p className="text-muted-foreground">
-            All users across all organisations
-          </p>
-        </div>
+        <SuperAdminPageHeader 
+          title="Users" 
+          description="All users across all organisations" 
+        />
 
         <Card>
           <CardHeader>

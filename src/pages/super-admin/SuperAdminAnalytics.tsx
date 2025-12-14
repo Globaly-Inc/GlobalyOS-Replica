@@ -57,6 +57,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import { format, subDays, subMonths, startOfDay, endOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -462,14 +463,10 @@ const SuperAdminAnalytics = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Analytics</h2>
-            <p className="text-muted-foreground">
-              Platform-wide usage statistics and trends
-            </p>
-          </div>
-        </div>
+        <SuperAdminPageHeader 
+          title="Analytics" 
+          description="Platform-wide usage statistics and trends" 
+        />
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>

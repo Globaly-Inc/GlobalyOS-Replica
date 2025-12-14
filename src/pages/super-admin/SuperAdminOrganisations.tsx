@@ -52,6 +52,7 @@ import {
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 
 interface Organization {
   id: string;
@@ -340,12 +341,10 @@ const SuperAdminOrganisations = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Organisations</h2>
-          <p className="text-muted-foreground">
-            Manage all tenant organisations
-          </p>
-        </div>
+        <SuperAdminPageHeader 
+          title="Organisations" 
+          description="Manage all tenant organisations" 
+        />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

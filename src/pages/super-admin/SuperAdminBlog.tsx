@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
+import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -146,70 +147,70 @@ export default function SuperAdminBlog() {
 
   return (
     <SuperAdminLayout>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Blog Management</h1>
-            <p className="text-muted-foreground">Create and manage blog posts</p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" />New Post</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingPost ? "Edit Post" : "Create New Post"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input value={formData.title} onChange={(e) => { setFormData({ ...formData, title: e.target.value, slug: generateSlug(e.target.value) }); }} required />
+      <div className="space-y-6">
+        <SuperAdminPageHeader 
+          title="Blog Management" 
+          description="Create and manage blog posts"
+          actions={
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
+              <DialogTrigger asChild>
+                <Button><Plus className="w-4 h-4 mr-2" />New Post</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingPost ? "Edit Post" : "Create New Post"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Title</Label>
+                      <Input value={formData.title} onChange={(e) => { setFormData({ ...formData, title: e.target.value, slug: generateSlug(e.target.value) }); }} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Slug</Label>
+                      <Input value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} required />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Author Name</Label>
+                      <Input value={formData.author_name} onChange={(e) => setFormData({ ...formData, author_name: e.target.value })} required />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Slug</Label>
-                    <Input value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} required />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label>Cover Image URL</Label>
+                    <Input value={formData.cover_image_url} onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })} placeholder="https://..." />
                   </div>
                   <div className="space-y-2">
-                    <Label>Author Name</Label>
-                    <Input value={formData.author_name} onChange={(e) => setFormData({ ...formData, author_name: e.target.value })} required />
+                    <Label>Excerpt</Label>
+                    <Textarea value={formData.excerpt} onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })} rows={2} />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Cover Image URL</Label>
-                  <Input value={formData.cover_image_url} onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })} placeholder="https://..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>Excerpt</Label>
-                  <Textarea value={formData.excerpt} onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })} rows={2} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Content (HTML)</Label>
-                  <Textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} rows={10} required />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={formData.is_published} onCheckedChange={(c) => setFormData({ ...formData, is_published: c })} />
-                  <Label>Published</Label>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
-                  <Button type="submit">{editingPost ? "Update" : "Create"}</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <div className="space-y-2">
+                    <Label>Content (HTML)</Label>
+                    <Textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} rows={10} required />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={formData.is_published} onCheckedChange={(c) => setFormData({ ...formData, is_published: c })} />
+                    <Label>Published</Label>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                    <Button type="submit">{editingPost ? "Update" : "Create"}</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <div className="grid gap-4">
           {isLoading ? (
