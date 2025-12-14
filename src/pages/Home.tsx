@@ -724,20 +724,20 @@ const Home = () => {
         {(() => {
         const hour = new Date().getHours();
         let greeting = "Good evening";
-        let gradientClass = "from-slate-700 via-gray-600 to-slate-800"; // Evening
+        let gradientClass = "from-primary/80 via-accent to-primary"; // Evening
         let TimeIcon = Moon;
         if (hour < 12) {
           greeting = "Good morning";
-          gradientClass = "from-gray-500 via-slate-500 to-gray-600"; // Morning
+          gradientClass = "from-primary/70 via-primary to-accent"; // Morning
           TimeIcon = Sunrise;
         } else if (hour < 17) {
           greeting = "Good afternoon";
-          gradientClass = "from-slate-600 via-gray-500 to-slate-600"; // Afternoon
+          gradientClass = "from-accent via-primary/80 to-primary"; // Afternoon
           TimeIcon = Sun;
         }
-        return <div className={`relative overflow-hidden rounded-xl p-6 shadow-md bg-gradient-to-r ${gradientClass} animate-fade-in`} style={{
+        return <div className={`relative overflow-hidden rounded-xl p-6 shadow-lg bg-gradient-to-r ${gradientClass} animate-fade-in`} style={{
           backgroundSize: '200% 200%',
-          animation: 'gradient-shift 8s ease infinite, fade-in 0.3s ease-out'
+          animation: 'gradient-shift 6s ease infinite, fade-in 0.3s ease-out'
         }}>
               <style>{`
                 @keyframes gradient-shift {
