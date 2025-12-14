@@ -22,7 +22,6 @@ import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import { GlobalAskAI } from "./GlobalAskAI";
 import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
-import GuidedTour from "./GuidedTour";
 import { SpotlightTour } from "./SpotlightTour";
 import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
 
@@ -393,8 +392,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Guided Tour for Onboarding */}
-      <GuidedTour />
+      {/* Spotlight Tour for Onboarding - starts after WelcomeSurvey completes */}
       <SpotlightTour />
       
       {/* Pull to Refresh Indicator for Mobile */}

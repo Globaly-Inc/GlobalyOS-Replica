@@ -165,11 +165,11 @@ const Settings = () => {
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
-          <TabsTrigger value="fields" className="gap-2 tour-leave-settings">
+          <TabsTrigger value="fields" className="gap-2">
             <List className="h-4 w-4" />
             Fields
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2 tour-offices-manage">
+          <TabsTrigger value="attendance" className="gap-2 tour-offices-manage tour-settings-menu">
             <Clock className="h-4 w-4" />
             Attendance
           </TabsTrigger>
