@@ -108,8 +108,8 @@ export default {
           },
         },
         "gradient-shift": {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
+          "0%": { backgroundPosition: "0% 50%" },
+          "100%": { backgroundPosition: "100% 50%" },
         },
         "scroll-up": {
           "0%": { transform: "translateY(0)", opacity: "1" },
