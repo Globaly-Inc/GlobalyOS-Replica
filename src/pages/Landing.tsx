@@ -309,26 +309,17 @@ const DashboardSpotlight = () => {
   );
 };
 
-const platformWords = ['All-in-One', 'Smart', 'Powerful', 'Simple', 'Beautiful'];
 const teamWords = ['Growing Teams', 'Modern Teams', 'Remote Teams', 'Ambitious Teams', 'Global Teams'];
 
 export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const { displayText: platformText } = useTypewriter({
-    words: platformWords,
-    typingSpeed: 100,
-    deletingSpeed: 60,
-    pauseDuration: 2000,
-  });
-  
   const { displayText: teamText } = useTypewriter({
     words: teamWords,
     typingSpeed: 100,
     deletingSpeed: 60,
     pauseDuration: 2000,
-    startDelay: 1000,
   });
   return <div className="min-h-screen bg-background">
       <WebsiteHeader />
@@ -343,12 +334,7 @@ export default function Landing() {
             </span>
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-            The{" "}
-            <span className="inline-block transition-all duration-300 ease-in-out">
-              {platformText}
-              <span className="animate-pulse text-primary">|</span>
-            </span>{" "}
-            Platform for{" "}
+            The Smart Platform for{" "}
             <span className="inline-block transition-all duration-300 ease-in-out bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               {teamText}
               <span className="animate-pulse">|</span>
