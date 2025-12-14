@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { 
   Select, 
   SelectContent, 
@@ -28,6 +29,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { 
+  GoogleAuthButton, 
+  TrustedBySection, 
+  SecurityBadges, 
+  CustomerCount 
+} from "@/components/onboarding";
 
 // Validation schemas
 const businessInfoSchema = z.object({
@@ -398,6 +405,13 @@ const Signup = () => {
               {selectedPlan === 'enterprise' ? 'Contact Sales' : 'Continue'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+
+            {/* Social Proof */}
+            <div className="pt-6 space-y-6">
+              <Separator />
+              <CustomerCount />
+              <SecurityBadges />
+            </div>
           </div>
         )}
 
