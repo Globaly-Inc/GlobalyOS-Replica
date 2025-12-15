@@ -859,6 +859,8 @@ const SuperAdminTesting = () => {
         return <AlertTriangle className="h-4 w-4 text-warning" />;
       case 'running':
         return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-warning" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
