@@ -72,13 +72,15 @@ export const BlogAIGenerateDialog = ({ open, onOpenChange }: BlogAIGenerateDialo
 
     setIsGenerating(true);
     try {
-      await generateBlogPosts({
+      const result = await generateBlogPosts({
         keywords: selectedKeywords,
         audience,
         tone,
         wordCount,
+        count: selectedKeywords.length, // Generate one post per keyword
       });
-      toast.success('5 blog posts generated! Review them in the Pending Review tab.');
+      const postCount = result?.posts?.length || 0;
+      toast.success(`${postCount} blog post${postCount !== 1 ? 's' : ''} generated! Review them in the Pending Review tab.`);
       queryClient.invalidateQueries({ queryKey: ['blog-posts'] });
       onOpenChange(false);
       setSelectedKeywords([]);

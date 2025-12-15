@@ -423,12 +423,20 @@ export const generateBlogPosts = async (params: {
   audience: string;
   tone: string;
   wordCount: string;
+  count?: number;
 }) => {
   const { data, error } = await supabase.functions.invoke('generate-blog-posts', {
-    body: params,
+    body: {
+      ...params,
+      count: params.count || 1, // Default to 1 post
+    },
   });
 
   if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  if (data?.posts?.length === 0) {
+    throw new Error('AI failed to generate posts. Please try again.');
+  }
   return data;
 };
 
