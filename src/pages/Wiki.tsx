@@ -635,43 +635,6 @@ const Wiki = () => {
   return (
     <>
       <div className="h-full flex flex-col">
-        {/* Header */}
-        <div className="bg-card border-b px-4 py-3 flex items-center gap-4">
-          <WikiSearch
-            folders={folders}
-            pages={pagesList}
-            onSelectPage={handleSelectPage}
-          />
-          
-          <div className="flex-1" />
-          
-          {canEditCurrentFolder && (
-            <>
-              <WikiUploadDialog
-                organizationId={currentOrg?.id}
-                employeeId={currentEmployee?.id}
-                currentFolderId={getCurrentFolderId()}
-                onUploadComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-                }}
-                open={uploadDialogOpen}
-                onOpenChange={setUploadDialogOpen}
-              />
-              <WikiImportDialog
-                organizationId={currentOrg?.id}
-                employeeId={currentEmployee?.id}
-                existingFolders={folders}
-                onImportComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
-                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-                }}
-                open={importDialogOpen}
-                onOpenChange={setImportDialogOpen}
-              />
-            </>
-          )}
-        </div>
-
         {/* Main content */}
         <div className="flex-1 flex min-h-0">
           {/* Sidebar */}
@@ -749,11 +712,36 @@ const Wiki = () => {
                 onToggleFavorite={toggleFavorite}
                 creatingItem={creatingItem}
                 onCreatingItemComplete={() => setCreatingItem(null)}
+                searchFolders={folders}
+                searchPages={pagesList}
               />
             )}
           </div>
         </div>
       </div>
+      
+      {/* Dialogs */}
+      <WikiUploadDialog
+        organizationId={currentOrg?.id}
+        employeeId={currentEmployee?.id}
+        currentFolderId={getCurrentFolderId()}
+        onUploadComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+        }}
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+      />
+      <WikiImportDialog
+        organizationId={currentOrg?.id}
+        employeeId={currentEmployee?.id}
+        existingFolders={folders}
+        onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+          queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+        }}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };
