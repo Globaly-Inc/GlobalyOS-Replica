@@ -491,16 +491,9 @@ export const WikiShareDialog = ({
       return;
     }
 
-    const distinctGroupTypes = Array.from(new Set(groupSelections.map(s => s.type)));
-    if (distinctGroupTypes.length > 1) {
-      toast.error('Please add one access type at a time (e.g. Offices or Departments).');
-      return;
-    }
-
-    const groupType = distinctGroupTypes[0];
-    const ids = groupSelections.map(s => s.id);
-
-    if (groupType === 'everyone') {
+    // Check for "everyone" selection
+    const hasEveryone = groupSelections.some(s => s.type === 'everyone');
+    if (hasEveryone) {
       await applyGroupAccess({
         scope: 'company',
         permission,
@@ -511,41 +504,37 @@ export const WikiShareDialog = ({
       return;
     }
 
-    // For group types, merge with existing selections instead of replacing
-    if (groupType === 'office') {
-      const mergedOffices = [...new Set([...selectedOffices, ...ids])];
-      await applyGroupAccess({
-        scope: 'offices',
-        permission,
-        officeIds: mergedOffices,
-        departments: selectedDepartments,
-        projectIds: selectedProjects,
-      });
-      return;
+    // Merge all group types together
+    const officeSelections = groupSelections.filter(s => s.type === 'office').map(s => s.id);
+    const departmentSelections = groupSelections.filter(s => s.type === 'department').map(s => s.id);
+    const projectSelections = groupSelections.filter(s => s.type === 'project').map(s => s.id);
+
+    const mergedOffices = [...new Set([...selectedOffices, ...officeSelections])];
+    const mergedDepartments = [...new Set([...selectedDepartments, ...departmentSelections])];
+    const mergedProjects = [...new Set([...selectedProjects, ...projectSelections])];
+
+    // Determine the scope based on what was added - prioritize the most specific
+    let scope: WikiAccessScope = accessScope;
+    if (mergedOffices.length > 0 && mergedDepartments.length === 0 && mergedProjects.length === 0) {
+      scope = 'offices';
+    } else if (mergedDepartments.length > 0 && mergedOffices.length === 0 && mergedProjects.length === 0) {
+      scope = 'departments';
+    } else if (mergedProjects.length > 0 && mergedOffices.length === 0 && mergedDepartments.length === 0) {
+      scope = 'projects';
+    } else if (mergedOffices.length > 0 || mergedDepartments.length > 0 || mergedProjects.length > 0) {
+      // Mixed groups - use a combined scope, defaulting to the first added type
+      if (officeSelections.length > 0) scope = 'offices';
+      else if (departmentSelections.length > 0) scope = 'departments';
+      else if (projectSelections.length > 0) scope = 'projects';
     }
 
-    if (groupType === 'department') {
-      const mergedDepts = [...new Set([...selectedDepartments, ...ids])];
-      await applyGroupAccess({
-        scope: 'departments',
-        permission,
-        officeIds: selectedOffices,
-        departments: mergedDepts,
-        projectIds: selectedProjects,
-      });
-      return;
-    }
-
-    if (groupType === 'project') {
-      const mergedProjects = [...new Set([...selectedProjects, ...ids])];
-      await applyGroupAccess({
-        scope: 'projects',
-        permission,
-        officeIds: selectedOffices,
-        departments: selectedDepartments,
-        projectIds: mergedProjects,
-      });
-    }
+    await applyGroupAccess({
+      scope,
+      permission,
+      officeIds: mergedOffices,
+      departments: mergedDepartments,
+      projectIds: mergedProjects,
+    });
   };
 
   const handleUpdateMemberPermission = async (employeeId: string, permission: 'view' | 'edit') => {
