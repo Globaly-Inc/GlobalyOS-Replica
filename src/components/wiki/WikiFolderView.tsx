@@ -459,41 +459,23 @@ export const WikiFolderView = ({
         )}
         
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
-            {/* Mobile back button */}
-            {isMobile && onBack && (
-              <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mr-1 shrink-0">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            {/* Breadcrumbs - simplified on mobile */}
-            {isMobile ? (
+          {/* Mobile back button and title */}
+          {isMobile && (
+            <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
+              {onBack && (
+                <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mr-1 shrink-0">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
               <span className="font-semibold truncate">
                 {breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 1].name : "Wiki Home"}
               </span>
-            ) : (
-              breadcrumbs.map((crumb, index) => (
-                <div key={crumb.id ?? "home"} className="flex items-center">
-                  {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
-                  <button
-                    onClick={() => onSelectFolder(crumb.id)}
-                    className={cn(
-                      "hover:text-primary transition-colors",
-                      index === breadcrumbs.length - 1
-                        ? "font-semibold text-foreground"
-                        : "text-muted-foreground hover:underline"
-                    )}
-                  >
-                    {crumb.name}
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+            </div>
+          )}
           
           {/* View toggle and sort controls - hide on mobile */}
           {!isMobile && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               {/* View toggle */}
               <div className="flex items-center border rounded-lg overflow-hidden">
                 <Button
@@ -555,6 +537,28 @@ export const WikiFolderView = ({
 
       {/* Content */}
       <div className={cn("flex-1 overflow-y-auto", isMobile ? "p-4" : "p-6")}>
+        {/* Breadcrumb navigation - desktop only, above folders */}
+        {!isMobile && (
+          <div className="flex items-center gap-1 text-sm mb-4">
+            {breadcrumbs.map((crumb, index) => (
+              <div key={crumb.id ?? "home"} className="flex items-center">
+                {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />}
+                <button
+                  onClick={() => onSelectFolder(crumb.id)}
+                  className={cn(
+                    "hover:text-primary transition-colors",
+                    index === breadcrumbs.length - 1
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground hover:underline"
+                  )}
+                >
+                  {crumb.name}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
         {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
           <WikiEmptyState
             type={currentFolderId ? "folder" : "wiki"}
