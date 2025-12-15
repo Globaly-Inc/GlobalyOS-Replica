@@ -12,8 +12,11 @@ const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Search for stock images on Pexels
-async function searchPexelsImage(query: string): Promise<{ url: string; attribution: string; photographerUrl: string } | null> {
+// Track used Pexels image IDs to prevent duplicates across blog posts
+const usedImageIds = new Set<number>();
+
+// Search for stock images on Pexels, avoiding already-used images
+async function searchPexelsImage(query: string): Promise<{ url: string; attribution: string; photographerUrl: string; photoId: number } | null> {
   if (!PEXELS_API_KEY) {
     console.log('Pexels API key not configured');
     return null;
@@ -21,7 +24,7 @@ async function searchPexelsImage(query: string): Promise<{ url: string; attribut
 
   try {
     const response = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape`,
       { headers: { Authorization: PEXELS_API_KEY } }
     );
 
@@ -32,13 +35,29 @@ async function searchPexelsImage(query: string): Promise<{ url: string; attribut
 
     const data = await response.json();
     if (data.photos?.length > 0) {
-      const photo = data.photos[0];
+      // Find first photo not already used
+      const availablePhoto = data.photos.find((p: any) => !usedImageIds.has(p.id));
+      
+      if (!availablePhoto) {
+        console.log('All Pexels results already used, using first result');
+        const photo = data.photos[0];
+        return {
+          url: photo.src.large,
+          attribution: `Photo by ${photo.photographer} on Pexels`,
+          photographerUrl: photo.photographer_url || 'https://www.pexels.com',
+          photoId: photo.id
+        };
+      }
+      
+      // Mark this image as used
+      usedImageIds.add(availablePhoto.id);
+      
       // Use 'large' size (max 940x627) to stay well under 1920x1280 limit
-      // Pexels sizes: original (full), large2x (max 1880), large (max 940), medium, small
       return {
-        url: photo.src.large,
-        attribution: `Photo by ${photo.photographer} on Pexels`,
-        photographerUrl: photo.photographer_url || 'https://www.pexels.com'
+        url: availablePhoto.src.large,
+        attribution: `Photo by ${availablePhoto.photographer} on Pexels`,
+        photographerUrl: availablePhoto.photographer_url || 'https://www.pexels.com',
+        photoId: availablePhoto.id
       };
     }
   } catch (error) {
@@ -127,10 +146,11 @@ Word count: ${wordCount || '1000-1500'} words minimum
    - Make it compelling and click-worthy
    - Character count must be between 30-60
 
-2. META DESCRIPTION (120-160 characters):
+2. META DESCRIPTION (STRICT 160 characters max):
    - MUST include "${keyword}" in first half
    - Compelling call-to-action
-   - Exactly 120-160 characters (not more, not less)
+   - MUST be exactly 140-160 characters (strict maximum 160)
+   - Count characters carefully - this is critical for SEO
 
 3. INTRODUCTION (first 300 characters):
    - MUST include "${keyword}" within the first 2 sentences
@@ -166,8 +186,8 @@ Word count: ${wordCount || '1000-1500'} words minimum
 === OUTPUT FORMAT (JSON only, no code blocks) ===
 {
   "title": "SEO-optimized title with keyword (30-60 chars)",
+  "meta_description": "CRITICAL: Must be 140-160 chars exactly, keyword in first half",
   "slug": "keyword-in-url-slug",
-  "meta_description": "Keyword in first half, compelling, 120-160 chars exactly",
   "excerpt": "2-3 sentence summary with keyword for previews",
   "content": "<article>Full HTML content with h2/h3 headings, paragraphs, lists, image placeholders with data-image-query</article>",
   "category": "HR Technology|Employee Management|Workplace Culture|Remote Work|Leadership|Performance",
@@ -209,6 +229,12 @@ Word count: ${wordCount || '1000-1500'} words minimum
         const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
         const jsonStr = jsonMatch ? jsonMatch[1].trim() : aiContent.trim();
         postData = JSON.parse(jsonStr);
+        
+        // Enforce meta_description max 160 characters
+        if (postData.meta_description && postData.meta_description.length > 160) {
+          console.log(`Meta description too long (${postData.meta_description.length} chars), truncating to 160`);
+          postData.meta_description = postData.meta_description.substring(0, 157) + '...';
+        }
       } catch (parseError) {
         console.error(`Failed to parse AI response for post ${i + 1}:`, parseError);
         continue;
