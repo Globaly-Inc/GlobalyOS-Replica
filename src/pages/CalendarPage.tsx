@@ -865,10 +865,293 @@ const CalendarPage = () => {
     </div>
   );
 
+  // Mobile: Render selected date events in bottom panel
+  const renderMobileBottomPanel = () => {
+    if (!selectedDate) return null;
+    
+    const dayItems = getDayItems(selectedDate);
+    
+    return (
+      <div className="fixed bottom-16 md:hidden left-0 right-0 bg-background border-t border-border max-h-[50vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-200">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-sm">{format(selectedDate, "d MMMM yyyy")}</h3>
+            <p className="text-xs text-muted-foreground">
+              {dayItems.length} event{dayItems.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 text-xs"
+            onClick={() => setSelectedDate(null)}
+          >
+            Close
+          </Button>
+        </div>
+        <ScrollArea className="flex-1 pb-safe">
+          <div className="p-3 space-y-2">
+            {dayItems.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-xs">No events on this day</p>
+              </div>
+            ) : (
+              dayItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-xl border bg-card p-3 shadow-sm"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className={cn("p-1.5 rounded-lg shrink-0", getTypeBadgeVariant(item.type))}>
+                      {getTypeIcon(item.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.type === "anniversary" || item.type === "birthday" 
+                          ? item.title 
+                          : item.employeeName 
+                            ? `${item.title} – ${item.employeeName}` 
+                            : item.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {item.startTime && (
+                          <>{format(new Date(`2000-01-01T${item.startTime}`), "h:mm a")}</>
+                        )}
+                        {item.endDate && !isSameDay(item.date, item.endDate) && (
+                          <> - {format(item.endDate, "d MMM")}</>
+                        )}
+                        {item.subtitle && <> · {item.subtitle}</>}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  };
+
   return (
     <>
-      <div className="flex flex-col lg:flex-row min-h-0 lg:h-[calc(100vh-5rem)] overflow-hidden">
-        {/* Left Sidebar - Upcoming Events (desktop only) */}
+      {/* Mobile Layout */}
+      <div className="md:hidden min-h-screen pb-40">
+        <div className="px-4 py-4">
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">Calendar</h1>
+            </div>
+            {canManageEvents && (
+              <Button size="sm" className="h-8" onClick={() => setIsAddEventOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Mobile Navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium min-w-[100px] text-center">
+                {format(currentDate, "MMMM yyyy")}
+              </span>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleToday}>
+              Today
+            </Button>
+          </div>
+
+          {/* Mobile Filter Pills - Scrollable */}
+          <div className="overflow-x-auto -mx-4 px-4 mb-4">
+            <div className="flex items-center gap-1.5 min-w-max pb-1">
+              {[
+                { type: "leave" as const, label: "Leave" },
+                { type: "holiday" as const, label: "Holiday" },
+                { type: "event" as const, label: "Event" },
+                { type: "birthday" as const, label: "Birthday" },
+                { type: "anniversary" as const, label: "Anniv" },
+                { type: "review" as const, label: "Review" },
+              ].map((item) => {
+                const isActive = activeFilters.has(item.type);
+                const count = typeCounts[item.type];
+                return (
+                  <button
+                    key={item.type}
+                    onClick={() => toggleFilter(item.type)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted hover:bg-muted/80"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-2 w-2 rounded-full shrink-0",
+                      isActive ? "bg-primary-foreground/80" : getTypeColor(item.type)
+                    )} />
+                    <span>{item.label}</span>
+                    {count > 0 && <span className="text-[10px] opacity-70">{count}</span>}
+                  </button>
+                );
+              })}
+              {activeFilters.size > 0 && (
+                <button
+                  onClick={() => setActiveFilters(new Set())}
+                  className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Month Calendar */}
+          <div className="rounded-xl border border-border overflow-hidden bg-card">
+            {/* Day headers */}
+            <div className="grid grid-cols-7 bg-muted/50">
+              {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
+                <div
+                  key={`${day}-${index}`}
+                  className="py-2 text-center text-[10px] font-medium text-muted-foreground"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar days */}
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, index) => {
+                const dayItems = getDayItems(day);
+                const isToday = isSameDay(day, new Date());
+                const isSelected = selectedDate && isSameDay(day, selectedDate);
+                const isCurrentMonth = isSameMonth(day, currentDate);
+
+                return (
+                  <button
+                    key={day.toISOString()}
+                    onClick={() => handleDayClick(day)}
+                    className={cn(
+                      "aspect-square p-1 flex flex-col items-center justify-center relative transition-all",
+                      !isCurrentMonth && "opacity-30",
+                      isSelected && "bg-primary/10",
+                      "active:bg-accent/50"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
+                        isToday && "bg-primary text-primary-foreground",
+                        isSelected && !isToday && "bg-primary/20 text-primary font-semibold"
+                      )}
+                    >
+                      {format(day, "d")}
+                    </span>
+                    
+                    {/* Event dots */}
+                    {dayItems.length > 0 && (
+                      <div className="flex gap-0.5 mt-0.5">
+                        {dayItems.slice(0, 3).map((item, i) => (
+                          <div
+                            key={i}
+                            className={cn("h-1 w-1 rounded-full", getTypeColor(item.type))}
+                          />
+                        ))}
+                        {dayItems.length > 3 && (
+                          <span className="text-[6px] text-muted-foreground ml-0.5">+</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Upcoming Events Section (when no date selected) */}
+          {!selectedDate && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-sm">Upcoming Events</h2>
+                <Select value={dateRangeFilter} onValueChange={(v) => setDateRangeFilter(v as DateRangeFilter)}>
+                  <SelectTrigger className="w-auto h-7 text-[10px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7days">Next 7 days</SelectItem>
+                    <SelectItem value="14days">Next 14 days</SelectItem>
+                    <SelectItem value="30days">Next 30 days</SelectItem>
+                    <SelectItem value="thisMonth">This month</SelectItem>
+                    <SelectItem value="all">All upcoming</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No upcoming events</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredItems.slice(0, showAllMobileEvents ? undefined : 5).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleDayClick(item.date)}
+                      className="w-full text-left rounded-xl border bg-card p-3 hover:bg-accent/50 transition-all"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={cn("p-1.5 rounded-lg shrink-0", getTypeBadgeVariant(item.type))}>
+                          {getTypeIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {item.type === "anniversary" || item.type === "birthday" 
+                              ? item.title 
+                              : item.employeeName 
+                                ? `${item.title} – ${item.employeeName}` 
+                                : item.title}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {format(item.date, "EEE, d MMM")}
+                            {item.startTime && (
+                              <> · {format(new Date(`2000-01-01T${item.startTime}`), "h:mm a")}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredItems.length > 5 && (
+                    <button 
+                      className="w-full text-center text-xs text-primary py-2 hover:underline"
+                      onClick={() => setShowAllMobileEvents(!showAllMobileEvents)}
+                    >
+                      {showAllMobileEvents ? "Show less" : `Show ${filteredItems.length - 5} more`}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Bottom Panel for Selected Date */}
+        {renderMobileBottomPanel()}
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:flex flex-col lg:flex-row min-h-0 lg:h-[calc(100vh-5rem)] overflow-hidden">
+        {/* Left Sidebar - Upcoming Events */}
         <div className="hidden lg:flex w-[320px] xl:w-[360px] border-r border-border bg-card/50 flex-col shrink-0">
           {renderEventsList(false)}
         </div>
@@ -878,7 +1161,7 @@ const CalendarPage = () => {
           {/* Calendar Header */}
           <div className="p-3 lg:p-6 border-b border-border">
             <div className="flex items-center justify-between gap-2">
-              {/* Month Navigation - always visible */}
+              {/* Month Navigation */}
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
                   <ChevronLeft className="h-4 w-4" />
@@ -895,8 +1178,8 @@ const CalendarPage = () => {
               </div>
 
               <div className="flex items-center gap-1 lg:gap-2">
-                {/* View Mode Tabs - hidden on mobile */}
-                <div className="hidden sm:flex bg-muted rounded-lg p-1">
+                {/* View Mode Tabs */}
+                <div className="flex bg-muted rounded-lg p-1">
                   {(["month", "week", "day"] as ViewMode[]).map((mode) => (
                     <button
                       key={mode}
@@ -927,7 +1210,7 @@ const CalendarPage = () => {
             </div>
           </div>
 
-          {/* Filter Tabs - horizontal scroll on mobile */}
+          {/* Filter Tabs */}
           <div className="px-3 lg:px-6 py-2 bg-muted/30 border-b border-border/50 overflow-x-auto">
             <div className="flex items-center gap-1 min-w-max">
               {[
@@ -971,7 +1254,7 @@ const CalendarPage = () => {
             </div>
           </div>
 
-          {/* World Clock Cards - hidden on mobile */}
+          {/* World Clock Cards */}
           <div className="hidden lg:block mt-4">
             <WorldClockCards 
               officeCountries={offices.map(o => o.country).filter(Boolean) as string[]} 
@@ -991,8 +1274,7 @@ const CalendarPage = () => {
                       index < 6 && "border-r border-border"
                     )}
                   >
-                    <span className="hidden sm:inline">{day}</span>
-                    <span className="sm:hidden">{day.charAt(0)}</span>
+                    {day}
                   </div>
                 ))}
 
@@ -1012,7 +1294,7 @@ const CalendarPage = () => {
                       key={day.toISOString()}
                       onClick={() => handleDayClick(day)}
                       className={cn(
-                        "bg-card p-1 lg:p-2 text-left transition-all duration-200 cursor-pointer group min-h-[60px] lg:min-h-[100px]",
+                        "bg-card p-2 text-left transition-all duration-200 cursor-pointer group min-h-[100px]",
                         !isCurrentMonth && "opacity-40",
                         isSelected && "ring-2 ring-primary ring-inset bg-primary/5",
                         "hover:bg-accent/50",
@@ -1021,10 +1303,10 @@ const CalendarPage = () => {
                       )}
                     >
                       <div className="flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-0.5 lg:mb-2">
+                        <div className="flex items-center justify-between mb-2">
                           <span
                             className={cn(
-                              "text-xs lg:text-sm font-medium w-5 h-5 lg:w-7 lg:h-7 flex items-center justify-center rounded-full transition-colors",
+                              "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
                               isToday && "bg-primary text-primary-foreground",
                               isSelected && !isToday && "bg-primary/20 text-primary"
                             )}
@@ -1032,14 +1314,14 @@ const CalendarPage = () => {
                             {format(day, "d")}
                           </span>
                           {dayItems.length > 3 && (
-                            <span className="hidden lg:inline text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground">
                               +{dayItems.length - 3}
                             </span>
                           )}
                         </div>
 
-                        {/* Events in cell - hidden on mobile, show dots instead */}
-                        <div className="hidden lg:flex flex-col gap-0.5 overflow-hidden">
+                        {/* Events in cell */}
+                        <div className="flex flex-col gap-0.5 overflow-hidden">
                           {dayItems.slice(0, 3).map((item) => (
                             <div
                               key={item.id}
@@ -1056,21 +1338,6 @@ const CalendarPage = () => {
                             </div>
                           ))}
                         </div>
-
-                        {/* Dots for mobile */}
-                        {dayItems.length > 0 && (
-                          <div className="flex flex-wrap gap-0.5 mt-auto pt-0.5 lg:hidden">
-                            {dayItems.slice(0, 4).map((item) => (
-                              <div
-                                key={item.id}
-                                className={cn("h-1.5 w-1.5 rounded-full", getTypeColor(item.type))}
-                              />
-                            ))}
-                            {dayItems.length > 4 && (
-                              <span className="text-[8px] text-muted-foreground">+{dayItems.length - 4}</span>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </button>
                   );
@@ -1082,7 +1349,7 @@ const CalendarPage = () => {
               <div className="bg-border rounded-xl overflow-hidden">
                 {/* Week header */}
                 <div className="grid grid-cols-8 gap-px">
-                  <div className="bg-muted/50 p-3" /> {/* Empty corner */}
+                  <div className="bg-muted/50 p-3" />
                   {calendarDays.map((day) => {
                     const isToday = isSameDay(day, new Date());
                     const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -1224,13 +1491,7 @@ const CalendarPage = () => {
                 </div>
               </div>
             )}
-
           </div>
-        </div>
-        
-        {/* Mobile Upcoming Events - shown at bottom on mobile */}
-        <div className="lg:hidden shrink-0 mt-2">
-          {renderEventsList(true)}
         </div>
       </div>
 
