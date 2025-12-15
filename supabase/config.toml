@@ -74,3 +74,6 @@ verify_jwt = true
 
 [functions.index-ai-content]
 verify_jwt = false
+
+[functions.fix-test-with-ai]
+verify_jwt = false
