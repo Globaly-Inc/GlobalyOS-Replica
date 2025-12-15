@@ -44,6 +44,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { 
   Search, MoreHorizontal, Eye, Power, Trash2, Loader2, Building2, 
@@ -587,105 +588,107 @@ const SuperAdminOrganisations = () => {
               </SheetTitle>
             </SheetHeader>
             {selectedOrg && (
-              <div className="mt-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Code</p>
-                    <code className="text-sm bg-muted px-2 py-1 rounded">
-                      {selectedOrg.slug}
-                    </code>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    {getStatusBadge(selectedOrg)}
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Plan</p>
-                    <p className="font-medium capitalize">{selectedOrg.plan}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Billing</p>
-                    <p className="font-medium capitalize">{selectedOrg.billing_cycle || 'monthly'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Owner</p>
-                    <p className="font-medium">{selectedOrg.owner_name || selectedOrg.primaryAdmin}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium text-sm">{selectedOrg.owner_email || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Company Size</p>
-                    <p className="font-medium">{selectedOrg.company_size || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Industry</p>
-                    <p className="font-medium">{selectedOrg.industry || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Created</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedOrg.created_at), "dd MMM yyyy")}
-                    </p>
-                  </div>
-                  {selectedOrg.trial_ends_at && (
+              <ScrollArea className="h-[calc(100vh-120px)] pr-4">
+                <div className="mt-6 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Trial Ends</p>
+                      <p className="text-sm text-muted-foreground">Code</p>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">
+                        {selectedOrg.slug}
+                      </code>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      {getStatusBadge(selectedOrg)}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Plan</p>
+                      <p className="font-medium capitalize">{selectedOrg.plan}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Billing</p>
+                      <p className="font-medium capitalize">{selectedOrg.billing_cycle || 'monthly'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Owner</p>
+                      <p className="font-medium">{selectedOrg.owner_name || selectedOrg.primaryAdmin}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium text-sm">{selectedOrg.owner_email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company Size</p>
+                      <p className="font-medium">{selectedOrg.company_size || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Industry</p>
+                      <p className="font-medium">{selectedOrg.industry || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Created</p>
                       <p className="font-medium">
-                        {format(new Date(selectedOrg.trial_ends_at), "dd MMM yyyy")}
+                        {format(new Date(selectedOrg.created_at), "dd MMM yyyy")}
+                      </p>
+                    </div>
+                    {selectedOrg.trial_ends_at && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Trial Ends</p>
+                        <p className="font-medium">
+                          {format(new Date(selectedOrg.trial_ends_at), "dd MMM yyyy")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Usage Statistics</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card>
+                        <CardContent className="pt-4">
+                          <p className="text-2xl font-bold">{selectedOrg.userCount}</p>
+                          <p className="text-sm text-muted-foreground">Users</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <p className="text-2xl font-bold">{selectedOrg.employeeCount}</p>
+                          <p className="text-sm text-muted-foreground">Employees</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <p className="text-2xl font-bold">{selectedOrg.wikiPageCount}</p>
+                          <p className="text-sm text-muted-foreground">Wiki Pages</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <p className="text-2xl font-bold">{selectedOrg.calendarEventCount}</p>
+                          <p className="text-sm text-muted-foreground">Calendar Events</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {selectedOrg.lastActivityDate && (
+                    <div className="border-t pt-4">
+                      <p className="text-sm text-muted-foreground">Last Activity</p>
+                      <p className="font-medium">
+                        {format(new Date(selectedOrg.lastActivityDate), "dd MMM yyyy 'at' HH:mm")}
                       </p>
                     </div>
                   )}
-                </div>
 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Usage Statistics</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card>
-                      <CardContent className="pt-4">
-                        <p className="text-2xl font-bold">{selectedOrg.userCount}</p>
-                        <p className="text-sm text-muted-foreground">Users</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4">
-                        <p className="text-2xl font-bold">{selectedOrg.employeeCount}</p>
-                        <p className="text-sm text-muted-foreground">Employees</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4">
-                        <p className="text-2xl font-bold">{selectedOrg.wikiPageCount}</p>
-                        <p className="text-sm text-muted-foreground">Wiki Pages</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4">
-                        <p className="text-2xl font-bold">{selectedOrg.calendarEventCount}</p>
-                        <p className="text-sm text-muted-foreground">Calendar Events</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {selectedOrg.lastActivityDate && (
+                  {/* Feature Flags Management */}
                   <div className="border-t pt-4">
-                    <p className="text-sm text-muted-foreground">Last Activity</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedOrg.lastActivityDate), "dd MMM yyyy 'at' HH:mm")}
-                    </p>
+                    <OrganizationFeaturesManager 
+                      organizationId={selectedOrg.id} 
+                      organizationName={selectedOrg.name} 
+                    />
                   </div>
-                )}
-
-                {/* Feature Flags Management */}
-                <div className="border-t pt-4">
-                  <OrganizationFeaturesManager 
-                    organizationId={selectedOrg.id} 
-                    organizationName={selectedOrg.name} 
-                  />
                 </div>
-              </div>
+              </ScrollArea>
             )}
           </SheetContent>
         </Sheet>
