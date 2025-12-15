@@ -92,17 +92,33 @@ export const WikiMembersWithAccess = ({
   const getMemberCountForDepartment = (dept: string) => 
     employees.filter(e => e.department === dept).length;
 
-  // Render company-wide access
-  if (accessScope === 'company') {
+  // Check if we have any group access or members to show
+  const hasGroupAccess = accessScope === 'company' || 
+    (accessScope === 'offices' && selectedOffices.length > 0) ||
+    (accessScope === 'departments' && selectedDepartments.length > 0) ||
+    (accessScope === 'projects' && selectedProjects.length > 0);
+
+  const hasMembers = members.length > 0;
+
+  if (!hasGroupAccess && !hasMembers) {
     return (
-      <div className="space-y-1">
+      <div className="py-4 text-center text-sm text-muted-foreground">
+        No one has been added yet
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {/* Company-wide access */}
+      {accessScope === 'company' && (
         <div className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <Globe className="h-5 w-5 text-emerald-600" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Company wide</span>
+              <span className="text-sm font-medium">Everyone</span>
               <span className="text-xs text-muted-foreground">{employees.length} members</span>
             </div>
           </div>
@@ -111,113 +127,91 @@ export const WikiMembersWithAccess = ({
             <span>can view</span>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // Render office-based access
-  if (accessScope === 'offices' && selectedOffices.length > 0) {
-    const selectedOfficeData = offices.filter(o => selectedOffices.includes(o.id));
-    
-    return (
-      <div className="space-y-1">
-        {selectedOfficeData.map(office => (
-          <div
-            key={office.id}
-            className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-blue-600" />
+      {/* Office-based access */}
+      {accessScope === 'offices' && selectedOffices.length > 0 && (
+        <>
+          {offices.filter(o => selectedOffices.includes(o.id)).map(office => (
+            <div
+              key={office.id}
+              className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{office.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {getMemberCountForOffice(office.id)} members
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{office.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {getMemberCountForOffice(office.id)} members
-                </span>
+              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                <Globe className="h-3.5 w-3.5" />
+                <span>can view</span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-              <Globe className="h-3.5 w-3.5" />
-              <span>can view</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+          ))}
+        </>
+      )}
 
-  // Render department-based access
-  if (accessScope === 'departments' && selectedDepartments.length > 0) {
-    return (
-      <div className="space-y-1">
-        {selectedDepartments.map(dept => (
-          <div
-            key={dept}
-            className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-purple-600" />
+      {/* Department-based access */}
+      {accessScope === 'departments' && selectedDepartments.length > 0 && (
+        <>
+          {selectedDepartments.map(dept => (
+            <div
+              key={dept}
+              className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{dept}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {getMemberCountForDepartment(dept)} members
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{dept}</span>
-                <span className="text-xs text-muted-foreground">
-                  {getMemberCountForDepartment(dept)} members
-                </span>
+              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                <Globe className="h-3.5 w-3.5" />
+                <span>can view</span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-              <Globe className="h-3.5 w-3.5" />
-              <span>can view</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+          ))}
+        </>
+      )}
 
-  // Render project-based access
-  if (accessScope === 'projects' && selectedProjects.length > 0) {
-    const selectedProjectData = projects.filter(p => selectedProjects.includes(p.id));
-    
-    return (
-      <div className="space-y-1">
-        {selectedProjectData.map(project => (
-          <div
-            key={project.id}
-            className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <FolderKanban className="h-5 w-5 text-amber-600" />
+      {/* Project-based access */}
+      {accessScope === 'projects' && selectedProjects.length > 0 && (
+        <>
+          {projects.filter(p => selectedProjects.includes(p.id)).map(project => (
+            <div
+              key={project.id}
+              className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <FolderKanban className="h-5 w-5 text-amber-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{project.name}</span>
+                  <span className="text-xs text-muted-foreground">Project</span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{project.name}</span>
-                <span className="text-xs text-muted-foreground">Project</span>
+              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                <Globe className="h-3.5 w-3.5" />
+                <span>can view</span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-              <Globe className="h-3.5 w-3.5" />
-              <span>can view</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+          ))}
+        </>
+      )}
 
-  // Default: render individual members
-  if (members.length === 0) {
-    return (
-      <div className="py-4 text-center text-sm text-muted-foreground">
-        No members have been added yet
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
+      {/* Individual members - always show if present */}
       {members.map((member) => (
         <div
           key={member.employee_id}
