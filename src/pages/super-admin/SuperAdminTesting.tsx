@@ -103,6 +103,16 @@ interface AIFixResponse {
   affectedFiles: string[];
 }
 
+interface TestProgress {
+  type: string;
+  message?: string;
+  progress?: number;
+  test?: string;
+  status?: string;
+  suite?: string;
+  file?: string;
+}
+
 const SuperAdminTesting = () => {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState('overview');
@@ -111,6 +121,8 @@ const SuperAdminTesting = () => {
   const [aiFixDialogOpen, setAiFixDialogOpen] = useState(false);
   const [aiFixResponse, setAiFixResponse] = useState<AIFixResponse | null>(null);
   const [isFixingTest, setIsFixingTest] = useState(false);
+  const [testProgress, setTestProgress] = useState<TestProgress | null>(null);
+  const [securityProgress, setSecurityProgress] = useState<TestProgress | null>(null);
 
   // Fetch test runs
   const { data: testRuns, isLoading: loadingRuns } = useQuery({
@@ -230,95 +242,150 @@ const SuperAdminTesting = () => {
     }
   };
 
-  // Run tests mutation (simulated - actual test running would be via edge function)
+  // Run tests mutation with real edge function and streaming
   const runTestsMutation = useMutation({
     mutationFn: async (type: TestType) => {
-      // In a real implementation, this would call an edge function to run tests
-      const { data, error } = await supabase
-        .from('test_runs')
-        .insert({
-          test_type: type,
-          status: 'running',
-          total_tests: 0,
-          passed_tests: 0,
-          failed_tests: 0,
-          skipped_tests: 0,
-        })
-        .select()
-        .single();
+      setTestProgress({ type: 'starting', message: 'Initializing test run...', progress: 0 });
       
-      if (error) throw error;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      // Simulate test completion after 3 seconds
-      setTimeout(async () => {
-        await supabase
-          .from('test_runs')
-          .update({
-            status: 'passed',
-            completed_at: new Date().toISOString(),
-            total_tests: 156,
-            passed_tests: 152,
-            failed_tests: 4,
-            skipped_tests: 0,
-            duration_ms: 12400,
-          })
-          .eq('id', data.id);
-        
-        queryClient.invalidateQueries({ queryKey: ['test-runs'] });
-      }, 3000);
-      
-      return data;
+      const response = await fetch(`${supabaseUrl}/functions/v1/run-tests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ test_type: type }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to start tests');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              setTestProgress(data);
+              
+              if (data.type === 'complete') {
+                return data;
+              }
+            } catch (e) {
+              // Ignore parse errors for partial data
+            }
+          }
+        }
+      }
+
+      return { type: 'complete' };
     },
-    onSuccess: () => {
-      toast.success('Test run started');
+    onSuccess: (data) => {
+      setTestProgress(null);
+      if (data?.status === 'passed') {
+        toast.success(`All ${data.totalTests} tests passed!`);
+      } else if (data?.failedTests > 0) {
+        toast.error(`${data.failedTests} of ${data.totalTests} tests failed`);
+      } else {
+        toast.success('Test run completed');
+      }
       queryClient.invalidateQueries({ queryKey: ['test-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['test-results'] });
     },
     onError: (error) => {
-      toast.error('Failed to start test run');
+      setTestProgress(null);
+      toast.error(error instanceof Error ? error.message : 'Failed to run tests');
       console.error(error);
     },
   });
 
-  // Run security tests mutation
+  // Run security tests mutation with real edge function and streaming
   const runSecurityTestsMutation = useMutation({
     mutationFn: async (type: SecurityTestType) => {
-      const { data, error } = await supabase
-        .from('security_test_runs')
-        .insert({
-          test_type: type,
-          status: 'running',
-          total_tests: 0,
-          passed_tests: 0,
-          failed_tests: 0,
-          critical_failures: 0,
-        })
-        .select()
-        .single();
+      setSecurityProgress({ type: 'starting', message: 'Initializing security scans...', progress: 0 });
       
-      if (error) throw error;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      // Simulate test completion
-      setTimeout(async () => {
-        await supabase
-          .from('security_test_runs')
-          .update({
-            status: 'passed',
-            completed_at: new Date().toISOString(),
-            total_tests: 78,
-            passed_tests: 76,
-            failed_tests: 2,
-            critical_failures: 0,
-          })
-          .eq('id', data.id);
-        
-        queryClient.invalidateQueries({ queryKey: ['security-test-runs'] });
-      }, 5000);
-      
-      return data;
+      const response = await fetch(`${supabaseUrl}/functions/v1/run-security-tests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ test_type: type }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to start security tests');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              setSecurityProgress(data);
+              
+              if (data.type === 'complete') {
+                return data;
+              }
+            } catch (e) {
+              // Ignore parse errors for partial data
+            }
+          }
+        }
+      }
+
+      return { type: 'complete' };
     },
-    onSuccess: () => {
-      toast.success('Security test run started');
+    onSuccess: (data) => {
+      setSecurityProgress(null);
+      if (data?.criticalFailures > 0) {
+        toast.error(`${data.criticalFailures} critical security issues found!`);
+      } else if (data?.failedTests > 0) {
+        toast.warning(`${data.failedTests} security issues found`);
+      } else {
+        toast.success(`Security scan passed (${data?.securityScore || 100}% score)`);
+      }
       queryClient.invalidateQueries({ queryKey: ['security-test-runs'] });
+    },
+    onError: (error) => {
+      setSecurityProgress(null);
+      toast.error(error instanceof Error ? error.message : 'Failed to run security tests');
+      console.error(error);
     },
   });
 
@@ -380,7 +447,7 @@ const SuperAdminTesting = () => {
       <div className="flex flex-wrap gap-2 mb-6">
         <Button
           onClick={() => runTestsMutation.mutate('all')}
-          disabled={runTestsMutation.isPending}
+          disabled={runTestsMutation.isPending || runSecurityTestsMutation.isPending}
           className="gap-2"
         >
           {runTestsMutation.isPending ? (
@@ -393,7 +460,7 @@ const SuperAdminTesting = () => {
         <Button
           variant="outline"
           onClick={() => runTestsMutation.mutate('unit')}
-          disabled={runTestsMutation.isPending}
+          disabled={runTestsMutation.isPending || runSecurityTestsMutation.isPending}
           className="gap-2"
         >
           <FileCode className="h-4 w-4" />
@@ -402,7 +469,7 @@ const SuperAdminTesting = () => {
         <Button
           variant="outline"
           onClick={() => runSecurityTestsMutation.mutate('all')}
-          disabled={runSecurityTestsMutation.isPending}
+          disabled={runTestsMutation.isPending || runSecurityTestsMutation.isPending}
           className="gap-2"
         >
           <Shield className="h-4 w-4" />
@@ -411,13 +478,43 @@ const SuperAdminTesting = () => {
         <Button
           variant="outline"
           onClick={() => runTestsMutation.mutate('e2e')}
-          disabled={runTestsMutation.isPending}
+          disabled={runTestsMutation.isPending || runSecurityTestsMutation.isPending}
           className="gap-2"
         >
           <Eye className="h-4 w-4" />
           E2E Tests
         </Button>
       </div>
+
+      {/* Progress Banner */}
+      {(testProgress || securityProgress) && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-4">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="flex-1">
+                <div className="font-medium text-sm">
+                  {testProgress ? 'Running Tests' : 'Running Security Scan'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {testProgress?.message || securityProgress?.message || 
+                   testProgress?.suite || securityProgress?.test ||
+                   'Processing...'}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-bold text-primary">
+                  {testProgress?.progress || securityProgress?.progress || 0}%
+                </div>
+              </div>
+            </div>
+            <Progress 
+              value={testProgress?.progress || securityProgress?.progress || 0} 
+              className="mt-3 h-2" 
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

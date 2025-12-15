@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.fix-test-with-ai]
 verify_jwt = false
+
+[functions.run-tests]
+verify_jwt = false
+
+[functions.run-security-tests]
+verify_jwt = false
