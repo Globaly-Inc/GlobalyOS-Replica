@@ -17,9 +17,7 @@ import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, ChevronDown, FileText, Folder, ArrowLeft, Upload, FileDown } from "lucide-react";
-import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ArrowLeft } from "lucide-react";
 
 interface WikiFolder {
   id: string;
@@ -649,50 +647,6 @@ const Wiki = () => {
           
           {canEditCurrentFolder && (
             <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Create
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    onSelect={() => {
-                      if (viewMode === "page") {
-                        setSelectedPageId(null);
-                        setViewMode(selectedFolderId ? "folder" : "home");
-                      }
-                      setCreatingItem({ type: "page" });
-                    }}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    New Page
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onSelect={() => {
-                      if (viewMode === "page") {
-                        setSelectedPageId(null);
-                        setViewMode(selectedFolderId ? "folder" : "home");
-                      }
-                      setCreatingItem({ type: "folder" });
-                    }}
-                  >
-                    <Folder className="h-4 w-4 mr-2" />
-                    New Folder
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setUploadDialogOpen(true)}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload File
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setImportDialogOpen(true)}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Import
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <WikiUploadDialog
                 organizationId={currentOrg?.id}
                 employeeId={currentEmployee?.id}
@@ -731,11 +685,19 @@ const Wiki = () => {
               onSelectPage={handleSelectPage}
               onSelectFolder={handleSelectFolder}
               onSelectHome={handleSelectHome}
-              onStartCreating={(type) => setCreatingItem({ type })}
+              onStartCreating={(type) => {
+                if (viewMode === "page") {
+                  setSelectedPageId(null);
+                  setViewMode(selectedFolderId ? "folder" : "home");
+                }
+                setCreatingItem({ type });
+              }}
               canEdit={canEditCurrentFolder}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
               recentItems={recentItems}
+              onOpenUploadDialog={() => setUploadDialogOpen(true)}
+              onOpenImportDialog={() => setImportDialogOpen(true)}
             />
           </div>
 
