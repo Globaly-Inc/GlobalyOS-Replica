@@ -477,16 +477,20 @@ export const useRestoreWikiPageVersion = () => {
 // Transfer ownership
 export const useTransferWikiOwnership = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
       itemType, 
       itemId, 
-      newOwnerId 
+      newOwnerId,
+      itemName 
     }: { 
       itemType: 'folder' | 'page'; 
       itemId: string; 
       newOwnerId: string;
+      itemName?: string;
     }) => {
       const { data, error } = await supabase.rpc('transfer_wiki_ownership', {
         _item_type: itemType,
@@ -495,6 +499,40 @@ export const useTransferWikiOwnership = () => {
       });
 
       if (error) throw error;
+      
+      // Create notification for the new owner
+      if (currentOrg?.id && currentEmployee?.id) {
+        // Get the new owner's user_id
+        const { data: newOwnerData } = await supabase
+          .from('employees')
+          .select('user_id')
+          .eq('id', newOwnerId)
+          .single();
+        
+        if (newOwnerData?.user_id) {
+          // Get current user's name for the notification message
+          const { data: currentUserProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', currentEmployee.user_id)
+            .single();
+          
+          const senderName = currentUserProfile?.full_name || 'Someone';
+          const itemTypeName = itemType === 'folder' ? 'folder' : 'page';
+          
+          await supabase.from('notifications').insert({
+            user_id: newOwnerData.user_id,
+            organization_id: currentOrg.id,
+            type: 'wiki_transfer',
+            title: `You are now the owner of a wiki ${itemTypeName}`,
+            message: `${senderName} transferred ownership of "${itemName || 'Untitled'}" to you`,
+            reference_type: `wiki_${itemType}`,
+            reference_id: itemId,
+            actor_id: currentEmployee.id,
+          });
+        }
+      }
+      
       return data;
     },
     onSuccess: (_, variables) => {
