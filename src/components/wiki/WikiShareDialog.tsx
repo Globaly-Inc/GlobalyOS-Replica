@@ -543,9 +543,9 @@ export const WikiShareDialog = ({
                 isInviting={isInviting}
               />
 
-              {/* Members with Access Section */}
+              {/* Who has access Section */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium">Members with access</Label>
+                <Label className="text-sm font-medium">Who has access</Label>
                 <WikiMembersWithAccess
                   members={membersWithAccess}
                   isLoading={isMembersLoading}
