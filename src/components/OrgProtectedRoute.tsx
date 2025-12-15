@@ -56,6 +56,7 @@ export const OrgProtectedRoute = ({
     }
   }, [orgCode, currentOrg, organizations, orgLoading, switchOrganization]);
 
+  // Show loading while auth or org data is being fetched
   if (loading || orgLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -72,9 +73,22 @@ export const OrgProtectedRoute = ({
     return <Navigate to="/landing" replace />;
   }
 
-  // No organizations - but ensure we're not in a race condition
-  // Only redirect if we've confirmed no orgs exist (not just empty from loading)
-  if (organizations.length === 0) {
+  // Ensure we have a valid current organization before proceeding
+  // This prevents queries with undefined org IDs
+  if (!currentOrg?.id) {
+    // If we have organizations but no current one selected, auto-select first
+    if (organizations.length > 0) {
+      // The switchOrganization should handle this, but show loading while it processes
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Setting up organization...</p>
+          </div>
+        </div>
+      );
+    }
+    // No organizations at all - redirect to signup
     console.warn('[OrgProtectedRoute] No organizations found for authenticated user');
     return <Navigate to="/signup" replace />;
   }

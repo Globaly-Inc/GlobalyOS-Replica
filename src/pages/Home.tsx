@@ -164,7 +164,7 @@ const Home = () => {
     currentOrg
   } = useOrganization();
   useEffect(() => {
-    if (currentOrg) {
+    if (currentOrg?.id) {
       checkEmployeeProfile();
       loadFeed();
       loadLeaveData();
@@ -173,11 +173,12 @@ const Home = () => {
       loadWeather();
 
       // Set up real-time subscriptions for auto-refresh
+      const orgId = currentOrg.id;
       const updatesChannel = supabase.channel('home-updates').on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'updates',
-        filter: `organization_id=eq.${currentOrg.id}`
+        filter: `organization_id=eq.${orgId}`
       }, () => {
         loadFeed();
       }).subscribe();
@@ -185,7 +186,7 @@ const Home = () => {
         event: '*',
         schema: 'public',
         table: 'kudos',
-        filter: `organization_id=eq.${currentOrg.id}`
+        filter: `organization_id=eq.${orgId}`
       }, () => {
         loadFeed();
       }).subscribe();
@@ -193,7 +194,7 @@ const Home = () => {
         event: '*',
         schema: 'public',
         table: 'leave_requests',
-        filter: `organization_id=eq.${currentOrg.id}`
+        filter: `organization_id=eq.${orgId}`
       }, () => {
         loadLeaveData();
       }).subscribe();
@@ -204,6 +205,9 @@ const Home = () => {
         supabase.removeChannel(kudosChannel);
         supabase.removeChannel(leaveChannel);
       };
+    } else {
+      // No org yet - set loading to false to show empty state
+      setLoading(false);
     }
   }, [currentOrg?.id]);
   const loadWeather = async () => {
@@ -276,7 +280,7 @@ const Home = () => {
     }
   };
   const checkEmployeeProfile = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg?.id) return;
     const {
       data: {
         user
@@ -299,7 +303,7 @@ const Home = () => {
     setCurrentEmployeeId(data?.id || null);
   };
   const loadUpcomingEvents = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg?.id) return;
     const today = new Date();
     const nextDays = 30; // Look ahead 30 days
 
@@ -375,7 +379,7 @@ const Home = () => {
   };
   
   const loadUpcomingCalendarEvents = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg?.id) return;
     const today = format(new Date(), "yyyy-MM-dd");
     const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
     
@@ -398,7 +402,7 @@ const Home = () => {
     }
   };
   const loadLeaveData = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg?.id) return;
     const {
       data: {
         user
@@ -481,7 +485,7 @@ const Home = () => {
     }
   };
   const loadFeed = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg?.id) return;
     setLoading(true);
 
     // Load updates
