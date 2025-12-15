@@ -39,34 +39,16 @@ serve(async (req) => {
 
     console.log(`Analyzing failed test: ${test_name} in ${test_file}`);
 
-    const prompt = `You are a senior software engineer helping to fix a failing test in a React/TypeScript application.
+    // Streamlined prompt for faster AI response
+    const stackPreview = stack_trace ? stack_trace.split('\n').slice(0, 5).join('\n') : '';
+    const prompt = `Fix this failing ${test_category} test:
 
-TEST DETAILS:
-- Test Name: ${test_name}
-- Test File: ${test_file}
-${test_suite ? `- Test Suite: ${test_suite}` : ''}
-- Category: ${test_category}
+File: ${test_file}
+Test: ${test_name}
+Error: ${error_message}
+${stackPreview ? `Stack (first 5 lines):\n${stackPreview}` : ''}
 
-ERROR MESSAGE:
-${error_message}
-
-${stack_trace ? `STACK TRACE:
-${stack_trace}` : ''}
-
-Please analyze this test failure and provide a solution. Consider:
-1. Common causes for this type of error
-2. The file path and test context
-3. Potential fixes based on the error message and stack trace
-
-Respond with a JSON object containing:
-{
-  "explanation": "A clear 2-3 sentence explanation of why the test is failing",
-  "suggestedFix": "The code fix with file path and line references if determinable. Use diff format (- for removed lines, + for added lines)",
-  "confidence": "High, Medium, or Low based on how certain you are about the fix",
-  "affectedFiles": ["array", "of", "affected", "files"]
-}
-
-IMPORTANT: Return ONLY valid JSON, no markdown code blocks or extra text.`;
+Return JSON only: {"explanation":"2 sentences max","suggestedFix":"diff format code fix","confidence":"High|Medium|Low","affectedFiles":["file paths"]}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -75,11 +57,12 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or extra text.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite", // Faster model for quick analysis
         messages: [
-          { role: "system", content: "You are an expert software engineer specializing in debugging and fixing test failures. Always respond with valid JSON only." },
+          { role: "system", content: "Expert test debugger. JSON only, no markdown." },
           { role: "user", content: prompt }
         ],
+        max_tokens: 800, // Limit response size for speed
       }),
     });
 

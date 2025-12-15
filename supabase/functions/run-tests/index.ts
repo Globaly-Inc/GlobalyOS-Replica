@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface TestRunRequest {
   test_type: 'all' | 'unit' | 'integration' | 'security' | 'e2e';
+  files?: string[]; // Optional: specific files to run (for retest failed)
 }
 
 interface TestCase {
@@ -96,13 +97,19 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { test_type }: TestRunRequest = await req.json();
-    console.log(`Starting test run for type: ${test_type}`);
+    const { test_type, files }: TestRunRequest = await req.json();
+    console.log(`Starting test run for type: ${test_type}${files?.length ? `, files: ${files.join(', ')}` : ''}`);
 
     // Determine which test suites to run
-    const suitesToRun = test_type === 'all' 
+    let suitesToRun = test_type === 'all' 
       ? [...TEST_SUITES.unit, ...TEST_SUITES.integration, ...TEST_SUITES.security, ...TEST_SUITES.e2e]
       : TEST_SUITES[test_type] || [];
+
+    // Filter to specific files if provided (for retest failed functionality)
+    if (files && files.length > 0) {
+      suitesToRun = suitesToRun.filter(suite => files.includes(suite.file));
+      console.log(`Filtered to ${suitesToRun.length} suites matching provided files`);
+    }
 
     // Create the test run record
     const { data: testRun, error: runError } = await supabase
