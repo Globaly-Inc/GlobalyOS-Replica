@@ -8,8 +8,82 @@ const corsHeaders = {
 };
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Search for stock images on Pexels
+async function searchPexelsImage(query: string): Promise<{ url: string; attribution: string; photographerUrl: string } | null> {
+  if (!PEXELS_API_KEY) {
+    console.log('Pexels API key not configured');
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape`,
+      { headers: { Authorization: PEXELS_API_KEY } }
+    );
+
+    if (!response.ok) {
+      console.error('Pexels API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.photos?.length > 0) {
+      const photo = data.photos[0];
+      return {
+        url: photo.src.large2x || photo.src.large || photo.src.original,
+        attribution: `Photo by ${photo.photographer} on Pexels`,
+        photographerUrl: photo.photographer_url || 'https://www.pexels.com'
+      };
+    }
+  } catch (error) {
+    console.error('Pexels search error:', error);
+  }
+
+  return null;
+}
+
+// Download image from URL and upload to Supabase storage
+async function downloadAndUploadImage(
+  supabase: any,
+  imageUrl: string,
+  fileName: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const extension = contentType.includes('png') ? 'png' : 'jpg';
+    const finalFileName = `${fileName}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('blog-images')
+      .upload(finalFileName, buffer, {
+        contentType,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('blog-images')
+      .getPublicUrl(finalFileName);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Download/upload error:', error);
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -73,10 +147,11 @@ Word count: ${wordCount || '1000-1500'} words minimum
    - Short paragraphs (2-4 sentences max)
    - Include at least 2 bullet or numbered lists
 
-6. IMAGES (placeholders):
-   - Include 2-3 image placeholders with this format:
-     <figure><img src="[IMAGE_PLACEHOLDER]" alt="descriptive alt text with ${keyword}" /><figcaption>Caption here</figcaption></figure>
-   - Alt text MUST describe image AND include keyword naturally
+6. IMAGES (with search queries for stock photos):
+   - Include 2-3 image placeholders using this EXACT format:
+     <figure data-image-query="specific search query for stock photo"><img src="[STOCK_IMAGE]" alt="descriptive alt text" /><figcaption>Caption describing the image</figcaption></figure>
+   - The data-image-query should be specific (e.g., "team meeting office", "employee onboarding laptop", "performance review discussion")
+   - Alt text MUST describe the expected image AND include keyword naturally
 
 7. INTERNAL LINKING (suggestions):
    - Add 2-3 internal link placeholders: [INTERNAL_LINK: suggested topic]
@@ -92,10 +167,11 @@ Word count: ${wordCount || '1000-1500'} words minimum
   "slug": "keyword-in-url-slug",
   "meta_description": "Keyword in first half, compelling, 120-160 chars exactly",
   "excerpt": "2-3 sentence summary with keyword for previews",
-  "content": "<article>Full HTML content with h2/h3 headings, paragraphs, lists, image placeholders</article>",
+  "content": "<article>Full HTML content with h2/h3 headings, paragraphs, lists, image placeholders with data-image-query</article>",
   "category": "HR Technology|Employee Management|Workplace Culture|Remote Work|Leadership|Performance",
   "focus_keyword": "${keyword}",
-  "reading_time_minutes": estimated_reading_time_number
+  "reading_time_minutes": estimated_reading_time_number,
+  "cover_image_query": "specific search query for cover image related to the topic"
 }`;
 
       console.log(`Generating blog post ${i + 1}/${count} for keyword: ${keyword}`);
@@ -136,50 +212,95 @@ Word count: ${wordCount || '1000-1500'} words minimum
         continue;
       }
 
-      // Generate featured image using AI
+      // Search for cover image on Pexels
       let coverImageUrl = null;
-      try {
-        const imagePrompt = `Professional blog header image for article about "${postData.title}". Modern, clean design with subtle tech/business elements. Abstract, professional, suitable for HRMS/business software blog. No text overlay.`;
-        
-        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-3-pro-image-preview',
-            prompt: imagePrompt,
-            size: '1792x1024',
-          }),
-        });
+      let imageAttribution: { cover?: string; content?: { query: string; attribution: string }[] } = {};
+      
+      const coverQuery = postData.cover_image_query || keyword;
+      console.log(`Searching Pexels for cover image: "${coverQuery}"`);
+      
+      const coverImage = await searchPexelsImage(coverQuery);
+      if (coverImage) {
+        const fileName = `${postData.slug}-cover-${Date.now()}`;
+        const uploadedUrl = await downloadAndUploadImage(supabase, coverImage.url, fileName);
+        if (uploadedUrl) {
+          coverImageUrl = uploadedUrl;
+          imageAttribution.cover = coverImage.attribution;
+          console.log(`Cover image uploaded: ${coverImage.attribution}`);
+        }
+      }
 
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          if (imageData.data?.[0]?.url) {
-            // Download and upload to Supabase storage
-            const imgFetch = await fetch(imageData.data[0].url);
-            const imgBlob = await imgFetch.blob();
-            const imgBuffer = await imgBlob.arrayBuffer();
-            
-            const fileName = `${postData.slug}-${Date.now()}.png`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('blog-images')
-              .upload(fileName, imgBuffer, {
-                contentType: 'image/png',
-                upsert: true
-              });
+      // If Pexels fails, fallback to AI-generated image
+      if (!coverImageUrl) {
+        console.log('Pexels cover image failed, falling back to AI generation');
+        try {
+          const imagePrompt = `Professional blog header image for article about "${postData.title}". Modern, clean design with subtle tech/business elements. Abstract, professional, suitable for HRMS/business software blog. No text overlay.`;
+          
+          const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/images/generations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-3-pro-image-preview',
+              prompt: imagePrompt,
+              size: '1792x1024',
+            }),
+          });
 
-            if (!uploadError) {
-              const { data: urlData } = supabase.storage
-                .from('blog-images')
-                .getPublicUrl(fileName);
-              coverImageUrl = urlData.publicUrl;
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            if (imageData.data?.[0]?.url) {
+              const fileName = `${postData.slug}-cover-ai-${Date.now()}`;
+              const uploadedUrl = await downloadAndUploadImage(supabase, imageData.data[0].url, fileName);
+              if (uploadedUrl) {
+                coverImageUrl = uploadedUrl;
+                imageAttribution.cover = 'AI Generated';
+              }
             }
           }
+        } catch (imgError) {
+          console.error(`Failed to generate AI image for post ${i + 1}:`, imgError);
         }
-      } catch (imgError) {
-        console.error(`Failed to generate image for post ${i + 1}:`, imgError);
+      }
+
+      // Process content images - find all data-image-query placeholders
+      let processedContent = postData.content;
+      const imageQueryRegex = /<figure\s+data-image-query="([^"]+)"[^>]*>\s*<img\s+src="\[STOCK_IMAGE\]"([^>]*)\/?>(\s*<figcaption>([^<]*)<\/figcaption>)?\s*<\/figure>/gi;
+      const contentImageMatches = [...postData.content.matchAll(imageQueryRegex)];
+      
+      imageAttribution.content = [];
+      
+      for (const match of contentImageMatches) {
+        const [fullMatch, query, imgAttrs, captionBlock, captionText] = match;
+        console.log(`Searching Pexels for content image: "${query}"`);
+        
+        const stockImage = await searchPexelsImage(query);
+        if (stockImage) {
+          const fileName = `${postData.slug}-content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const uploadedUrl = await downloadAndUploadImage(supabase, stockImage.url, fileName);
+          
+          if (uploadedUrl) {
+            const newCaption = captionText 
+              ? `${captionText} (${stockImage.attribution})`
+              : stockImage.attribution;
+            
+            const replacement = `<figure><img src="${uploadedUrl}"${imgAttrs}/><figcaption>${newCaption}</figcaption></figure>`;
+            processedContent = processedContent.replace(fullMatch, replacement);
+            
+            imageAttribution.content.push({
+              query,
+              attribution: stockImage.attribution
+            });
+            console.log(`Content image uploaded: ${stockImage.attribution}`);
+          }
+        } else {
+          // Remove the placeholder if no image found
+          const fallbackCaption = captionText || 'Image';
+          const replacement = `<figure><figcaption>${fallbackCaption}</figcaption></figure>`;
+          processedContent = processedContent.replace(fullMatch, replacement);
+        }
       }
 
       // Insert post into database
@@ -191,7 +312,7 @@ Word count: ${wordCount || '1000-1500'} words minimum
           meta_title: postData.title,
           meta_description: postData.meta_description,
           excerpt: postData.excerpt,
-          content: postData.content,
+          content: processedContent,
           category: postData.category || 'general',
           focus_keyword: postData.focus_keyword || keyword,
           reading_time_minutes: postData.reading_time_minutes || Math.ceil(postData.content.split(/\s+/).length / 200),
@@ -205,7 +326,8 @@ Word count: ${wordCount || '1000-1500'} words minimum
             audience,
             tone,
             wordCount,
-            generated_at: new Date().toISOString()
+            generated_at: new Date().toISOString(),
+            image_attribution: imageAttribution
           },
           is_published: false,
           seo_score: 0, // Will be calculated when editing
