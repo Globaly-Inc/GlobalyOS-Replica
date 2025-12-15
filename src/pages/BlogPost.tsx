@@ -226,8 +226,37 @@ export default function BlogPost() {
             />
           )}
 
+          <style>{`
+            .blog-content p {
+              margin-bottom: 1.5rem !important;
+              line-height: 1.8 !important;
+            }
+            .blog-content h2 {
+              margin-top: 2.5rem !important;
+              margin-bottom: 1rem !important;
+              font-size: 1.5rem !important;
+              font-weight: 700 !important;
+            }
+            .blog-content h3 {
+              margin-top: 2rem !important;
+              margin-bottom: 0.75rem !important;
+              font-size: 1.25rem !important;
+              font-weight: 600 !important;
+            }
+            .blog-content ul, .blog-content ol {
+              margin-top: 1.5rem !important;
+              margin-bottom: 1.5rem !important;
+            }
+            .blog-content li {
+              margin-bottom: 0.5rem !important;
+            }
+            .blog-content figure {
+              margin-top: 2rem !important;
+              margin-bottom: 2rem !important;
+            }
+          `}</style>
           <div 
-            className="prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-headings:mt-8 prose-headings:mb-4 prose-p:text-muted-foreground prose-p:mb-6 prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-figure:my-8"
+            className="blog-content prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         </div>
