@@ -1,4 +1,4 @@
-import { Home, BookOpen, ScanLine, Sparkles } from 'lucide-react';
+import { Home, CalendarDays, ScanLine, Sparkles } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -19,7 +19,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Overview', href: '/' },
-  { icon: BookOpen, label: 'Wiki', href: '/wiki' },
+  { icon: CalendarDays, label: 'Leave', href: '/leave' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
   { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
   { icon: null, label: 'Profile', action: 'more' },
