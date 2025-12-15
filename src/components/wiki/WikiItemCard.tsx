@@ -169,11 +169,18 @@ export const WikiItemCard = ({
       )}
       onClick={handleCardClick}
     >
-      {/* Checkbox - visible on hover or in selection mode (all users can select) */}
+      {/* Favorite indicator - top left */}
+      {isFavorite && !isEditing && (
+        <div className="absolute top-2 left-2 z-20">
+          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+        </div>
+      )}
+
+      {/* Checkbox - top right, visible on hover or in selection mode */}
       {!isEditing && (
         <div 
           className={cn(
-            "absolute top-2 left-2 z-20 transition-opacity",
+            "absolute top-2 right-2 z-20 transition-opacity",
             isSelectionMode || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}
           onClick={handleCheckboxClick}
@@ -185,19 +192,9 @@ export const WikiItemCard = ({
         </div>
       )}
 
-      {/* Favorite indicator */}
-      {isFavorite && !isEditing && (
-        <div className={cn(
-          "absolute z-20",
-          "top-2 left-9"
-        )}>
-          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-        </div>
-      )}
-
-      {/* Three-dot menu - show for any user (favorites always available) */}
+      {/* Three-dot menu - below checkbox, show for any user */}
       {!isEditing && !isMobile && !isSelectionMode && (
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+        <div className="absolute top-9 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-7 w-7 bg-background/80 hover:bg-background">
