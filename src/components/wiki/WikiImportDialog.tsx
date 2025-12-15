@@ -7,7 +7,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +25,8 @@ interface WikiImportDialogProps {
   employeeId: string | undefined;
   existingFolders: { id: string; name: string; parent_id: string | null }[];
   onImportComplete: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const WikiImportDialog = ({
@@ -33,8 +34,12 @@ export const WikiImportDialog = ({
   employeeId,
   existingFolders,
   onImportComplete,
+  open: controlledOpen,
+  onOpenChange,
 }: WikiImportDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen ?? internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
   const [isImporting, setIsImporting] = useState(false);
   const [previewData, setPreviewData] = useState<ImportedPage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -499,12 +504,6 @@ export const WikiImportDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => (open ? setIsOpen(true) : handleClose())}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Upload className="h-4 w-4" />
-          Import
-        </Button>
-      </DialogTrigger>
       <DialogContent className="w-[90vw] max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
