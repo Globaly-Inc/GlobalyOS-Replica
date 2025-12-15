@@ -196,19 +196,23 @@ const TeamMemberProfile = () => {
     if (!id) return;
     const { data: employeeData } = await supabase
       .from("employees")
-      .select("user_id")
+      .select("user_id, organization_id")
       .eq("id", id)
       .single();
     
-    if (!employeeData?.user_id) return;
+    if (!employeeData?.user_id || !employeeData?.organization_id) return;
     
+    // Query user_roles for this organization, preferring higher-privilege roles
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", employeeData.user_id)
+      .eq("organization_id", employeeData.organization_id)
+      .order("role", { ascending: true }) // owner comes before user alphabetically
+      .limit(1)
       .maybeSingle();
     
-    setUserRole(roleData?.role || null);
+    setUserRole(roleData?.role || 'user');
   };
 
   const loadEmployeeProjects = async () => {
@@ -688,8 +692,11 @@ const TeamMemberProfile = () => {
                     </span>
                   )}
                   <span className="text-muted-foreground">·</span>
-                  <Badge variant={userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
-                    {userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'User'}
+                  <Badge 
+                    variant={userRole === 'owner' ? 'default' : userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} 
+                    className="text-xs"
+                  >
+                    {userRole === 'owner' ? 'Owner' : userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'User'}
                   </Badge>
                   {isAdminOrHR && (
                     <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
