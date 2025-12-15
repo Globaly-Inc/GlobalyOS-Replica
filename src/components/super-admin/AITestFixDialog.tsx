@@ -196,7 +196,11 @@ const AITestFixDialog = ({
                   </Button>
                 </div>
                 <pre className="p-4 text-xs font-mono overflow-x-auto bg-card whitespace-pre-wrap">
-                  {fixResponse.suggestedFix || 'No specific code fix suggested.'}
+                  {typeof fixResponse.suggestedFix === 'string' 
+                    ? fixResponse.suggestedFix 
+                    : typeof fixResponse.suggestedFix === 'object' && fixResponse.suggestedFix !== null
+                      ? JSON.stringify(fixResponse.suggestedFix, null, 2)
+                      : 'No specific code fix suggested.'}
                 </pre>
               </div>
 
