@@ -150,17 +150,24 @@ const SuperAdminTesting = () => {
   // Load security findings from latest test runs
   useEffect(() => {
     const loadSecurityFindings = async () => {
-      const { data: latestRuns } = await supabase
-        .from('security_test_runs')
-        .select('*')
-        .eq('status', 'passed')
-        .order('completed_at', { ascending: false })
-        .limit(3);
-      
+      const {
+        data: latestRuns
+      } = await supabase.from('security_test_runs').select('*').eq('status', 'passed').order('completed_at', {
+        ascending: false
+      }).limit(3);
       if (latestRuns) {
         const allFindings: typeof securityFindings = [];
         latestRuns.forEach((run, runIndex) => {
-          const summary = run.summary as { findings?: Array<{ severity: string; title: string; description: string; remediation: string; table?: string; policy?: string }> };
+          const summary = run.summary as {
+            findings?: Array<{
+              severity: string;
+              title: string;
+              description: string;
+              remediation: string;
+              table?: string;
+              policy?: string;
+            }>;
+          };
           if (summary?.findings && Array.isArray(summary.findings)) {
             summary.findings.forEach((finding, findingIndex) => {
               allFindings.push({
@@ -223,21 +230,16 @@ const SuperAdminTesting = () => {
   // Security trend data calculated from actual security_test_runs history
   const securityTrendData = useMemo(() => {
     if (!securityRuns?.length) return [];
-    
+
     // Convert to array sorted by date
-    const sortedRuns = [...securityRuns]
-      .filter(r => r.completed_at)
-      .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime())
-      .slice(-14);
-    
+    const sortedRuns = [...securityRuns].filter(r => r.completed_at).sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime()).slice(-14);
     let previousOpenIssues = 0;
     return sortedRuns.map(run => {
       const total = run.total_tests || 1;
-      const score = Math.round((run.passed_tests / total) * 100);
+      const score = Math.round(run.passed_tests / total * 100);
       const openIssues = run.failed_tests;
       const resolvedIssues = Math.max(0, previousOpenIssues - openIssues);
       previousOpenIssues = openIssues;
-      
       return {
         date: format(new Date(run.completed_at!), 'MMM d'),
         score,
@@ -247,7 +249,6 @@ const SuperAdminTesting = () => {
       };
     });
   }, [securityRuns]);
-
   const {
     data: coverageReport,
     isLoading: loadingCoverage
@@ -512,9 +513,14 @@ const SuperAdminTesting = () => {
       const decoder = new TextDecoder();
       let buffer = '';
       while (true) {
-        const { done, value } = await reader.read();
+        const {
+          done,
+          value
+        } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, {
+          stream: true
+        });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
         for (const line of lines) {
@@ -531,7 +537,9 @@ const SuperAdminTesting = () => {
           }
         }
       }
-      return { type: 'complete' };
+      return {
+        type: 'complete'
+      };
     },
     onSuccess: data => {
       setTestProgress(null);
@@ -540,8 +548,12 @@ const SuperAdminTesting = () => {
       } else if (data?.failedTests > 0) {
         toast.error(`${data.failedTests} test(s) still failing`);
       }
-      queryClient.invalidateQueries({ queryKey: ['test-runs'] });
-      queryClient.invalidateQueries({ queryKey: ['test-results'] });
+      queryClient.invalidateQueries({
+        queryKey: ['test-runs']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['test-results']
+      });
     },
     onError: error => {
       setTestProgress(null);
@@ -832,7 +844,7 @@ const SuperAdminTesting = () => {
     return 'text-destructive';
   };
   return <SuperAdminLayout>
-      <SuperAdminPageHeader title="Testing Dashboard" description="Run and monitor automated tests, security scans, and code coverage" />
+      <SuperAdminPageHeader title="Testing Dashboard" description="Run and monitor automated tests, security scans, and code coverage" className="pb-[20px]" />
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -972,39 +984,18 @@ const SuperAdminTesting = () => {
               </CardHeader>
               <CardContent>
                 {(() => {
-                  const passRate = getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1);
-                  const failedCount = latestRun?.failed_tests ?? 0;
-                  const circumference = 2 * Math.PI * 56; // radius = 56
-                  const passedOffset = circumference - (passRate / 100) * circumference;
-                  
-                  return (
-                    <>
+                const passRate = getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1);
+                const failedCount = latestRun?.failed_tests ?? 0;
+                const circumference = 2 * Math.PI * 56; // radius = 56
+                const passedOffset = circumference - passRate / 100 * circumference;
+                return <>
                       <div className="flex items-center justify-center py-8">
                         <div className="relative w-32 h-32">
                           <svg className="w-32 h-32 transform -rotate-90">
                             {/* Background circle */}
-                            <circle
-                              cx="64"
-                              cy="64"
-                              r="56"
-                              stroke="currentColor"
-                              strokeWidth="8"
-                              fill="none"
-                              className="text-muted"
-                            />
+                            <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                             {/* Progress circle */}
-                            <circle
-                              cx="64"
-                              cy="64"
-                              r="56"
-                              stroke="currentColor"
-                              strokeWidth="8"
-                              fill="none"
-                              strokeDasharray={circumference}
-                              strokeDashoffset={passedOffset}
-                              strokeLinecap="round"
-                              className={passRate === 100 ? "text-success" : "text-success"}
-                            />
+                            <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={passedOffset} strokeLinecap="round" className={passRate === 100 ? "text-success" : "text-success"} />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-3xl font-bold">{passRate}%</span>
@@ -1016,16 +1007,13 @@ const SuperAdminTesting = () => {
                           <div className="w-3 h-3 rounded-full bg-success" />
                           Passed ({latestRun?.passed_tests ?? 0})
                         </div>
-                        {failedCount > 0 && (
-                          <div className="flex items-center gap-2">
+                        {failedCount > 0 && <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full bg-destructive" />
                             Failed ({failedCount})
-                          </div>
-                        )}
+                          </div>}
                       </div>
-                    </>
-                  );
-                })()}
+                    </>;
+              })()}
               </CardContent>
             </Card>
 
