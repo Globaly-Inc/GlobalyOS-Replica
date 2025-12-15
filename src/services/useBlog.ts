@@ -69,6 +69,7 @@ export interface UpdateBlogPostInput extends Partial<CreateBlogPostInput> {
   generation_status?: 'pending_review' | 'approved' | 'rejected';
   reviewed_by?: string;
   reviewed_at?: string;
+  published_at?: string;
   generation_metadata?: Record<string, any>;
   ai_generated?: boolean;
 }
