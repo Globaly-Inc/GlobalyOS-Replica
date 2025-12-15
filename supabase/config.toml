@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.suggest-coverage-improvements]
 verify_jwt = false
+
+[functions.generate-blog-posts]
+verify_jwt = false
+
+[functions.research-blog-keywords]
+verify_jwt = false

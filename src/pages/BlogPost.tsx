@@ -6,25 +6,33 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, CalendarDays, User } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 
 interface BlogPost {
   id: string;
   title: string;
   slug: string;
   content: string;
+  excerpt: string | null;
   cover_image_url: string | null;
+  og_image_url: string | null;
   category: string;
   author_name: string;
   author_avatar_url: string | null;
   published_at: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  focus_keyword: string | null;
+  canonical_url: string | null;
+  reading_time_minutes: number | null;
 }
 
 export default function BlogPost() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
-  const { data: post, isLoading, error } = useQuery({
+  const { data: post, isLoading } = useQuery({
     queryKey: ["blog-post", slug],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -39,6 +47,41 @@ export default function BlogPost() {
     },
     enabled: !!slug,
   });
+
+  const siteUrl = window.location.origin;
+  const postUrl = `${siteUrl}/blog/${slug}`;
+  const ogImage = post?.og_image_url || post?.cover_image_url || `${siteUrl}/og-image.png`;
+
+  // JSON-LD structured data for SEO
+  const jsonLd = post ? {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.title,
+    "description": post.meta_description || post.excerpt,
+    "image": ogImage,
+    "author": {
+      "@type": "Person",
+      "name": post.author_name,
+      "image": post.author_avatar_url
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "GlobalyOS",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${siteUrl}/favicon.png`
+      }
+    },
+    "datePublished": post.published_at,
+    "dateModified": post.published_at,
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": postUrl
+    },
+    "keywords": post.focus_keyword,
+    "wordCount": post.content?.split(/\s+/).length || 0,
+    "timeRequired": post.reading_time_minutes ? `PT${post.reading_time_minutes}M` : undefined
+  } : null;
 
   if (isLoading) {
     return (
@@ -65,6 +108,10 @@ export default function BlogPost() {
   if (!post) {
     return (
       <div className="min-h-screen bg-background">
+        <Helmet>
+          <title>Post Not Found | GlobalyOS Blog</title>
+          <meta name="robots" content="noindex" />
+        </Helmet>
         <WebsiteHeader />
         <div className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
@@ -85,6 +132,41 @@ export default function BlogPost() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        {/* Primary Meta Tags */}
+        <title>{post.meta_title || post.title} | GlobalyOS Blog</title>
+        <meta name="title" content={post.meta_title || post.title} />
+        <meta name="description" content={post.meta_description || post.excerpt || ""} />
+        {post.focus_keyword && <meta name="keywords" content={post.focus_keyword} />}
+        {post.canonical_url && <link rel="canonical" href={post.canonical_url} />}
+        {!post.canonical_url && <link rel="canonical" href={postUrl} />}
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={postUrl} />
+        <meta property="og:title" content={post.meta_title || post.title} />
+        <meta property="og:description" content={post.meta_description || post.excerpt || ""} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:site_name" content="GlobalyOS" />
+        <meta property="article:published_time" content={post.published_at || ""} />
+        <meta property="article:author" content={post.author_name} />
+        <meta property="article:section" content={post.category} />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={postUrl} />
+        <meta property="twitter:title" content={post.meta_title || post.title} />
+        <meta property="twitter:description" content={post.meta_description || post.excerpt || ""} />
+        <meta property="twitter:image" content={ogImage} />
+
+        {/* JSON-LD Structured Data */}
+        {jsonLd && (
+          <script type="application/ld+json">
+            {JSON.stringify(jsonLd)}
+          </script>
+        )}
+      </Helmet>
+
       <WebsiteHeader />
 
       <article className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
@@ -105,7 +187,7 @@ export default function BlogPost() {
             {post.title}
           </h1>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8 flex-wrap">
             <div className="flex items-center gap-2">
               {post.author_avatar_url ? (
                 <img
@@ -128,6 +210,12 @@ export default function BlogPost() {
                 <span>{format(new Date(post.published_at), "MMMM d, yyyy")}</span>
               </div>
             )}
+            {post.reading_time_minutes && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                <span>{post.reading_time_minutes} min read</span>
+              </div>
+            )}
           </div>
 
           {post.cover_image_url && (
@@ -139,7 +227,7 @@ export default function BlogPost() {
           )}
 
           <div 
-            className="prose prose-lg max-w-none text-foreground"
+            className="prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-p:text-muted-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         </div>
