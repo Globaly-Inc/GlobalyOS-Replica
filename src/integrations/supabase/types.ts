@@ -4190,6 +4190,7 @@ export type Database = {
       }
       wiki_folder_members: {
         Row: {
+          added_by: string | null
           created_at: string | null
           employee_id: string
           folder_id: string
@@ -4198,6 +4199,7 @@ export type Database = {
           permission: string | null
         }
         Insert: {
+          added_by?: string | null
           created_at?: string | null
           employee_id: string
           folder_id: string
@@ -4206,6 +4208,7 @@ export type Database = {
           permission?: string | null
         }
         Update: {
+          added_by?: string | null
           created_at?: string | null
           employee_id?: string
           folder_id?: string
@@ -4214,6 +4217,20 @@ export type Database = {
           permission?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wiki_folder_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_folder_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wiki_folder_members_employee_id_fkey"
             columns: ["employee_id"]
@@ -4514,6 +4531,7 @@ export type Database = {
       }
       wiki_page_members: {
         Row: {
+          added_by: string | null
           created_at: string | null
           employee_id: string
           id: string
@@ -4522,6 +4540,7 @@ export type Database = {
           permission: string | null
         }
         Insert: {
+          added_by?: string | null
           created_at?: string | null
           employee_id: string
           id?: string
@@ -4530,6 +4549,7 @@ export type Database = {
           permission?: string | null
         }
         Update: {
+          added_by?: string | null
           created_at?: string | null
           employee_id?: string
           id?: string
@@ -4538,6 +4558,20 @@ export type Database = {
           permission?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wiki_page_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wiki_page_members_employee_id_fkey"
             columns: ["employee_id"]
@@ -4915,11 +4949,19 @@ export type Database = {
     }
     Functions: {
       admin_exists: { Args: never; Returns: boolean }
+      can_edit_wiki_item: {
+        Args: { _item_id: string; _item_type: string; _user_id?: string }
+        Returns: boolean
+      }
       can_view_employee_sensitive_data: {
         Args: { _employee_id: string }
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      can_view_wiki_item: {
+        Args: { _item_id: string; _item_type: string; _user_id?: string }
+        Returns: boolean
+      }
       check_feature_limit: {
         Args: {
           _feature: string
@@ -5010,6 +5052,19 @@ export type Database = {
         }[]
       }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
+      get_wiki_item_members: {
+        Args: { _item_id: string; _item_type: string }
+        Returns: {
+          added_at: string
+          added_by_name: string
+          avatar_url: string
+          email: string
+          employee_id: string
+          full_name: string
+          permission: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
