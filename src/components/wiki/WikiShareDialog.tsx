@@ -114,6 +114,7 @@ export const WikiShareDialog = ({
   const [departments, setDepartments] = useState<string[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeProjects, setEmployeeProjects] = useState<{ employee_id: string; project_id: string }[]>([]);
 
   // Load available options and current permissions
   useEffect(() => {
@@ -158,6 +159,13 @@ export const WikiShareDialog = ({
         .eq('status', 'active')
         .order('profiles(full_name)');
       setEmployees(empsData as Employee[] || []);
+
+      // Load employee_projects junction for project member resolution
+      const { data: empProjectsData } = await supabase
+        .from('employee_projects')
+        .select('employee_id, project_id')
+        .eq('organization_id', organizationId);
+      setEmployeeProjects(empProjectsData || []);
     } catch (error) {
       console.error('Error loading options:', error);
     }
@@ -529,6 +537,7 @@ export const WikiShareDialog = ({
                 offices={offices}
                 departments={departments}
                 projects={projects}
+                employeeProjects={employeeProjects}
                 excludedEmployeeIds={excludedEmployeeIds}
                 onInvite={handleInviteMembers}
                 isInviting={isInviting}

@@ -67,6 +67,7 @@ interface WikiInviteMemberProps {
   offices: Office[];
   departments: string[];
   projects: Project[];
+  employeeProjects: { employee_id: string; project_id: string }[];
   excludedEmployeeIds: string[];
   onInvite: (employeeIds: string[], permission: 'view' | 'edit') => void;
   isInviting: boolean;
@@ -77,6 +78,7 @@ export const WikiInviteMember = ({
   offices,
   departments,
   projects,
+  employeeProjects,
   excludedEmployeeIds,
   onInvite,
   isInviting,
@@ -106,6 +108,14 @@ export const WikiInviteMember = ({
     });
     return counts;
   }, [employees]);
+
+  const employeeCountByProject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    employeeProjects.forEach(ep => {
+      counts[ep.project_id] = (counts[ep.project_id] || 0) + 1;
+    });
+    return counts;
+  }, [employeeProjects]);
 
   const availableEmployees = useMemo(() => {
     return employees.filter(
@@ -184,8 +194,10 @@ export const WikiInviteMember = ({
             .forEach(emp => employeeIds.add(emp.id));
           break;
         case 'project':
-          // Projects need to be resolved via employee_projects junction - for now add all
-          // This would need a lookup table in real implementation
+          // Resolve project members via employee_projects junction table
+          employeeProjects
+            .filter(ep => ep.project_id === selection.id && !excludedEmployeeIds.includes(ep.employee_id))
+            .forEach(ep => employeeIds.add(ep.employee_id));
           break;
         case 'member':
           if (!excludedEmployeeIds.includes(selection.id)) {
@@ -400,7 +412,12 @@ export const WikiInviteMember = ({
                             <div className="h-7 w-7 rounded-full bg-amber-500/10 flex items-center justify-center">
                               <FolderKanban className="h-4 w-4 text-amber-600" />
                             </div>
-                            <span className="text-sm">{project.name}</span>
+                            <div className="flex flex-col">
+                              <span className="text-sm">{project.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {employeeCountByProject[project.id] || 0} members
+                              </span>
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>
