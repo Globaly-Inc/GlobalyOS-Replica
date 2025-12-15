@@ -316,12 +316,7 @@ export const WikiInviteMember = ({
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <Command shouldFilter={false}>
-                <CommandInput 
-                  placeholder="Search..." 
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                />
-                <CommandList className="max-h-[300px]">
+                <CommandList className="max-h-[300px] overflow-y-auto">
                   {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
                   
                   {/* Quick Actions - Everyone */}

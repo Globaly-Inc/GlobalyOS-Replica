@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -507,30 +507,30 @@ export const WikiShareDialog = ({
   const excludedEmployeeIds = membersWithAccess.map(m => m.employee_id);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md w-full flex flex-col p-0">
         {/* Header */}
-        <DialogHeader className="p-6 pb-4">
+        <SheetHeader className="p-6 pb-4 border-b">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
               <UserPlus className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <DialogTitle className="text-lg">Share "{itemName}"</DialogTitle>
-              <DialogDescription>
+              <SheetTitle className="text-lg">Share "{itemName}"</SheetTitle>
+              <SheetDescription>
                 Collaborate with members on this {itemType}.
-              </DialogDescription>
+              </SheetDescription>
             </div>
           </div>
-        </DialogHeader>
+        </SheetHeader>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 overflow-y-auto px-6" style={{ maxHeight: 'calc(85vh - 180px)' }}>
-            <div className="space-y-6 pb-6">
+          <ScrollArea className="flex-1 overflow-y-auto px-6">
+            <div className="space-y-6 py-6">
               {/* Invite Members Section */}
               <WikiInviteMember
                 employees={employees}
@@ -552,9 +552,16 @@ export const WikiShareDialog = ({
                   onUpdatePermission={handleUpdateMemberPermission}
                   onRemoveMember={handleRemoveMember}
                   isUpdating={updatingMemberId}
+                  accessScope={accessScope}
+                  offices={offices}
+                  departments={departments}
+                  projects={projects}
+                  selectedOffices={selectedOffices}
+                  selectedDepartments={selectedDepartments}
+                  selectedProjects={selectedProjects}
+                  employees={employees}
                 />
               </div>
-
 
               <Separator />
 
@@ -599,7 +606,7 @@ export const WikiShareDialog = ({
             </div>
           </ScrollArea>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };
