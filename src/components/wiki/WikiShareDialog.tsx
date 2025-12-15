@@ -242,14 +242,27 @@ export const WikiShareDialog = ({
         .order('name');
       setProjects(projectsData || []);
 
-      // Load employees for member selection with email, office, department
+      // Load employees from employee_directory view (accessible to all org members)
       const { data: empsData } = await supabase
-        .from('employees')
-        .select('id, user_id, office_id, department, profiles(full_name, avatar_url, email)')
+        .from('employee_directory')
+        .select('id, user_id, office_id, department, full_name, avatar_url, email')
         .eq('organization_id', organizationId)
         .eq('status', 'active')
-        .order('profiles(full_name)');
-      setEmployees(empsData as Employee[] || []);
+        .order('full_name');
+      
+      // Transform data to match Employee interface
+      const transformedEmps = (empsData || []).map(emp => ({
+        id: emp.id,
+        user_id: emp.user_id,
+        office_id: emp.office_id,
+        department: emp.department,
+        profiles: {
+          full_name: emp.full_name || '',
+          avatar_url: emp.avatar_url,
+          email: emp.email,
+        }
+      }));
+      setEmployees(transformedEmps);
 
       // Load employee_projects junction for project member resolution
       const { data: empProjectsData } = await supabase
@@ -1015,6 +1028,7 @@ export const WikiShareDialog = ({
               itemType,
               itemId,
               newOwnerId,
+              itemName,
             });
             setTransferDialogOpen(false);
             loadOwner(); // Reload owner info
