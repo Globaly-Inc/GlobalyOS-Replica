@@ -18,55 +18,58 @@ const getFileTypeIcon = (fileType?: string, title?: string, fileUrl?: string) =>
   const titleExt = title?.split('.').pop()?.toLowerCase() || '';
   const urlExt = fileUrl?.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
   const ext = titleExt.length <= 5 && titleExt !== title?.toLowerCase() ? titleExt : urlExt;
-  
-  // Image files - check both extension and fileType
+
+  // Helpers: keep all colors theme-safe via semantic tokens
+  const badge = (icon: string, cls: string) => ({ icon, badgeClass: cls });
+
   if (fileType === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
-    const displayExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext) 
-      ? ext.toUpperCase().slice(0, 4) 
+    const displayExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)
+      ? ext.toUpperCase().slice(0, 4)
       : 'IMG';
-    return { icon: displayExt, color: 'bg-purple-500', textColor: 'text-purple-500' };
+    return badge(displayExt, 'bg-primary text-primary-foreground');
   }
-  // PDF
+
   if (fileType === 'pdf' || ext === 'pdf') {
-    return { icon: 'PDF', color: 'bg-red-500', textColor: 'text-red-500' };
+    return badge('PDF', 'bg-destructive text-destructive-foreground');
   }
-  // Word documents
+
   if (fileType === 'document' || ['doc', 'docx'].includes(ext)) {
-    return { icon: ['doc', 'docx'].includes(ext) ? ext.toUpperCase() : 'DOC', color: 'bg-blue-500', textColor: 'text-blue-500' };
+    return badge(['doc', 'docx'].includes(ext) ? ext.toUpperCase() : 'DOC', 'bg-secondary text-secondary-foreground');
   }
-  // Excel files
+
   if (['xls', 'xlsx', 'csv'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-green-500', textColor: 'text-green-500' };
+    return badge(ext.toUpperCase(), 'bg-success text-success-foreground');
   }
-  // PowerPoint
+
   if (['ppt', 'pptx'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-orange-500', textColor: 'text-orange-500' };
+    return badge(ext.toUpperCase(), 'bg-warning text-warning-foreground');
   }
-  // Text and markdown
+
   if (['txt', 'md', 'rtf'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-gray-500', textColor: 'text-gray-500' };
+    return badge(ext.toUpperCase(), 'bg-muted text-muted-foreground');
   }
-  // Code files
+
   if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'html', 'css', 'json', 'xml'].includes(ext)) {
-    return { icon: ext.toUpperCase().slice(0, 4), color: 'bg-cyan-500', textColor: 'text-cyan-500' };
+    return badge(ext.toUpperCase().slice(0, 4), 'bg-accent text-accent-foreground');
   }
-  // Archive files
+
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-yellow-600', textColor: 'text-yellow-600' };
+    return badge(ext.toUpperCase(), 'bg-secondary text-secondary-foreground');
   }
-  // Audio files
+
   if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-pink-500', textColor: 'text-pink-500' };
+    return badge(ext.toUpperCase(), 'bg-accent text-accent-foreground');
   }
-  // Video files
+
   if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)) {
-    return { icon: ext.toUpperCase(), color: 'bg-indigo-500', textColor: 'text-indigo-500' };
+    return badge(ext.toUpperCase(), 'bg-primary text-primary-foreground');
   }
-  // Default file - show extension if exists
+
   if (ext && ext.length <= 4) {
-    return { icon: ext.toUpperCase(), color: 'bg-slate-500', textColor: 'text-slate-500' };
+    return badge(ext.toUpperCase(), 'bg-muted text-muted-foreground');
   }
-  return { icon: 'FILE', color: 'bg-slate-500', textColor: 'text-slate-500' };
+
+  return badge('FILE', 'bg-muted text-muted-foreground');
 };
 
 interface WikiFolder {
@@ -86,7 +89,7 @@ interface WikiPage {
   created_at: string;
   updated_at: string;
   is_file?: boolean;
-  file_type?: 'image' | 'pdf' | 'document';
+  file_type?: string;
   file_url?: string;
   thumbnail_url?: string;
 }
@@ -155,12 +158,17 @@ export const WikiItemCard = ({
   const page = !isFolder ? (item as WikiPage) : null;
   
   const name = isFolder ? folder!.name : page!.title;
+
+  const isUploadedFile = !!page && (page.is_file || !!page.file_url || !!page.file_type || !!page.thumbnail_url);
+
   // Only show image preview if there's actually a thumbnail URL
-  const hasImagePreview = page?.is_file && page?.file_type === 'image' && page?.thumbnail_url;
+  const hasImagePreview = isUploadedFile && page?.file_type === 'image' && !!page?.thumbnail_url;
+
   // Get file type info for all uploaded files
-  const fileTypeInfo = page?.is_file ? getFileTypeIcon(page.file_type, page.title, page.file_url) : null;
+  const fileTypeInfo = isUploadedFile ? getFileTypeIcon(page?.file_type, page?.title, page?.file_url) : null;
+
   // Show file badge for any uploaded file that doesn't have an image preview
-  const showFileBadge = page?.is_file && !hasImagePreview;
+  const showFileBadge = isUploadedFile && !hasImagePreview;
 
   // Determine effective permissions - canDelete and canMove default to canEdit if not specified
   const effectiveCanDelete = canDelete ?? canEdit;
@@ -324,8 +332,8 @@ export const WikiItemCard = ({
       {showFileBadge && fileTypeInfo && (
         <>
           <div className="relative mb-2 mt-1">
-            <div className={cn("w-14 h-14 rounded-lg flex items-center justify-center", fileTypeInfo.color)}>
-              <span className="text-white font-bold text-xs">{fileTypeInfo.icon}</span>
+            <div className={cn("w-14 h-14 rounded-lg flex items-center justify-center", fileTypeInfo.badgeClass)}>
+              <span className="font-bold text-xs">{fileTypeInfo.icon}</span>
             </div>
           </div>
           <span className="text-sm font-medium text-center line-clamp-1 group-hover:text-primary transition-colors px-2">
@@ -395,7 +403,7 @@ export const WikiItemCard = ({
       )}
 
       {/* Regular page (non-file) content */}
-      {!isFolder && !page?.is_file && (
+      {!isFolder && !isUploadedFile && (
         <>
           <div className="relative mb-2 mt-1">
             <FileText className="h-14 w-14 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />

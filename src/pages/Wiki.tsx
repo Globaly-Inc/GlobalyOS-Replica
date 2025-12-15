@@ -217,7 +217,7 @@ const Wiki = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("wiki_pages")
-        .select("id, folder_id, title, content, sort_order, created_at, updated_at, created_by")
+        .select("id, folder_id, title, content, sort_order, created_at, updated_at, created_by, is_file, file_type, file_url, thumbnail_url")
         .eq("organization_id", currentOrg.id)
         .order("sort_order");
       if (error) throw error;

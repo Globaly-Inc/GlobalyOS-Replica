@@ -59,7 +59,7 @@ interface WikiPage {
   created_at: string;
   updated_at: string;
   is_file?: boolean;
-  file_type?: 'image' | 'pdf' | 'document';
+  file_type?: string;
   file_url?: string;
   thumbnail_url?: string;
   access_scope?: string;
