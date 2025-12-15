@@ -1,18 +1,19 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PlanLimit } from './PlanManagement';
 
 interface FeatureLimitsEditorProps {
   planSlug: string;
   limits: PlanLimit[];
+  isLoading?: boolean;
 }
 
 const DEFAULT_FEATURES = [
@@ -35,14 +36,17 @@ interface EditableLimit {
   isNew?: boolean;
 }
 
-export function FeatureLimitsEditor({ planSlug, limits }: FeatureLimitsEditorProps) {
+export function FeatureLimitsEditor({ planSlug, limits, isLoading }: FeatureLimitsEditorProps) {
   const queryClient = useQueryClient();
   const [editableLimits, setEditableLimits] = useState<EditableLimit[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize editable limits from props or defaults
-  useState(() => {
-    if (limits.length > 0) {
+  // Properly sync limits prop to state using useEffect
+  useEffect(() => {
+    if (isLoading) return; // Wait for loading to complete
+    
+    if (limits && limits.length > 0) {
       setEditableLimits(limits.map(l => ({
         id: l.id,
         feature: l.feature,
@@ -52,8 +56,10 @@ export function FeatureLimitsEditor({ planSlug, limits }: FeatureLimitsEditorPro
         unit: l.unit || 'count',
         is_active: l.is_active,
       })));
-    } else if (planSlug) {
-      // Initialize with default features for new plans
+      setHasChanges(false);
+      setInitialized(true);
+    } else if (planSlug && !initialized) {
+      // Initialize with default features for new plans only if not already initialized
       setEditableLimits(DEFAULT_FEATURES.map(f => ({
         feature: f.feature,
         feature_name: f.feature_name,
@@ -63,8 +69,9 @@ export function FeatureLimitsEditor({ planSlug, limits }: FeatureLimitsEditorPro
         is_active: true,
         isNew: true,
       })));
+      setInitialized(true);
     }
-  });
+  }, [limits, planSlug, isLoading, initialized]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -145,6 +152,15 @@ export function FeatureLimitsEditor({ planSlug, limits }: FeatureLimitsEditorPro
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p>Save the plan first to configure feature limits</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading feature limits...</span>
       </div>
     );
   }
