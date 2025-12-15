@@ -1,10 +1,47 @@
 import { useState } from "react";
-import { Folder, FileText, Plus, BookOpen, Star, Clock, ChevronDown, ChevronRight, Upload, FileDown } from "lucide-react";
+import { Folder, FileText, Plus, BookOpen, Star, Clock, ChevronDown, ChevronRight, Upload, FileDown, Image, FileSpreadsheet, Presentation, FileCode, Archive, Music, Video, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { WikiFolderTree } from "./WikiFolderTree";
+
+// Get icon component based on file type/extension
+const getFileIcon = (title?: string, fileType?: string, fileUrl?: string) => {
+  const titleExt = title?.split('.').pop()?.toLowerCase() || '';
+  const urlExt = fileUrl?.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
+  const ext = titleExt.length <= 5 && titleExt !== title?.toLowerCase() ? titleExt : urlExt;
+
+  if (fileType === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
+    return <Image className="h-4 w-4 text-blue-500" />;
+  }
+  if (fileType === 'pdf' || ext === 'pdf') {
+    return <FileText className="h-4 w-4 text-red-500" />;
+  }
+  if (fileType === 'document' || ['doc', 'docx'].includes(ext)) {
+    return <FileText className="h-4 w-4 text-blue-600" />;
+  }
+  if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+  }
+  if (['ppt', 'pptx'].includes(ext)) {
+    return <Presentation className="h-4 w-4 text-orange-500" />;
+  }
+  if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'html', 'css', 'json', 'xml', 'txt', 'md', 'rtf'].includes(ext)) {
+    return <FileCode className="h-4 w-4 text-purple-500" />;
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return <Archive className="h-4 w-4 text-amber-600" />;
+  }
+  if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
+    return <Music className="h-4 w-4 text-pink-500" />;
+  }
+  if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)) {
+    return <Video className="h-4 w-4 text-indigo-500" />;
+  }
+  return <FileText className="h-4 w-4 text-muted-foreground" />;
+};
+
 interface WikiFolder {
   id: string;
   name: string;
@@ -16,12 +53,18 @@ interface WikiPage {
   folder_id: string | null;
   title: string;
   sort_order: number;
+  is_file?: boolean;
+  file_type?: string;
+  file_url?: string;
 }
 interface RecentItem {
   id: string;
   type: "folder" | "page";
   name: string;
   viewedAt: number;
+  is_file?: boolean;
+  file_type?: string;
+  file_url?: string;
 }
 interface WikiSidebarProps {
   folders: WikiFolder[];
@@ -117,7 +160,7 @@ export const WikiSidebar = ({
                       <span className="text-sm truncate flex-1">{folder.name}</span>
                     </div>)}
                   {favoritePages.map(page => <div key={page.id} className={cn("group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer", selectedPageId === page.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50")} onClick={() => onSelectPage(page.id)}>
-                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      {page.is_file ? getFileIcon(page.title, page.file_type, page.file_url) : <FileText className="h-4 w-4 text-muted-foreground" />}
                       <span className="text-sm truncate flex-1">{page.title}</span>
                     </div>)}
                 </div>}
@@ -132,7 +175,7 @@ export const WikiSidebar = ({
               </button>
               {showRecent && <div className="mt-1 space-y-0.5">
                   {recentItems.map(item => <div key={`${item.type}-${item.id}`} className={cn("group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer min-w-0", selectedPageId === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50")} onClick={() => onSelectPage(item.id)} title={item.name}>
-                      <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      {item.type === "folder" ? <Folder className="h-4 w-4 flex-shrink-0 text-primary" /> : item.is_file ? getFileIcon(item.name, item.file_type, item.file_url) : <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />}
                       <span className="text-sm truncate">{item.name}</span>
                     </div>)}
                 </div>}
