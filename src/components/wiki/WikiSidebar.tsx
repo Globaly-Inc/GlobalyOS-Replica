@@ -176,15 +176,16 @@ export const WikiSidebar = ({
                     <div
                       key={`${item.type}-${item.id}`}
                       className={cn(
-                        "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer",
+                        "group flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer min-w-0",
                         selectedPageId === item.id
                           ? "bg-primary/10 text-primary" 
                           : "hover:bg-muted/50"
                       )}
                       onClick={() => onSelectPage(item.id)}
+                      title={item.name}
                     >
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm truncate flex-1">{item.name}</span>
+                      <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <span className="text-sm truncate">{item.name}</span>
                     </div>
                   ))}
                 </div>
