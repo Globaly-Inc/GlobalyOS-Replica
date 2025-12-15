@@ -7,7 +7,8 @@ import {
   BarChart3,
   ArrowLeft,
   FileText,
-  CreditCard 
+  CreditCard,
+  FlaskConical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +21,7 @@ const navItems = [
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
   { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
+  { path: "/super-admin/testing", label: "Testing", icon: FlaskConical },
   { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
 

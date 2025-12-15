@@ -1281,6 +1281,53 @@ export type Database = {
           },
         ]
       }
+      coverage_reports: {
+        Row: {
+          created_at: string | null
+          file_coverage: Json
+          generated_at: string | null
+          id: string
+          meets_thresholds: boolean | null
+          summary: Json
+          test_run_id: string | null
+          thresholds: Json | null
+          trend_data: Json | null
+          uncovered_lines: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_coverage: Json
+          generated_at?: string | null
+          id?: string
+          meets_thresholds?: boolean | null
+          summary: Json
+          test_run_id?: string | null
+          thresholds?: Json | null
+          trend_data?: Json | null
+          uncovered_lines?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          file_coverage?: Json
+          generated_at?: string | null
+          id?: string
+          meets_thresholds?: boolean | null
+          summary?: Json
+          test_run_id?: string | null
+          thresholds?: Json | null
+          trend_data?: Json | null
+          uncovered_lines?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coverage_reports_test_run_id_fkey"
+            columns: ["test_run_id"]
+            isOneToOne: false
+            referencedRelation: "test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_documents: {
         Row: {
           created_at: string
@@ -3292,6 +3339,116 @@ export type Database = {
         }
         Relationships: []
       }
+      security_test_results: {
+        Row: {
+          actual_result: string | null
+          attack_vector: string | null
+          created_at: string | null
+          details: Json | null
+          duration_ms: number | null
+          error_message: string | null
+          expected_result: string | null
+          id: string
+          policy_name: string | null
+          recommendation: string | null
+          run_id: string
+          severity: string | null
+          status: string
+          table_name: string | null
+          test_category: string
+          test_name: string
+        }
+        Insert: {
+          actual_result?: string | null
+          attack_vector?: string | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          expected_result?: string | null
+          id?: string
+          policy_name?: string | null
+          recommendation?: string | null
+          run_id: string
+          severity?: string | null
+          status: string
+          table_name?: string | null
+          test_category: string
+          test_name: string
+        }
+        Update: {
+          actual_result?: string | null
+          attack_vector?: string | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          expected_result?: string | null
+          id?: string
+          policy_name?: string | null
+          recommendation?: string | null
+          run_id?: string
+          severity?: string | null
+          status?: string
+          table_name?: string | null
+          test_category?: string
+          test_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_test_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "security_test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_test_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          critical_failures: number | null
+          failed_tests: number | null
+          id: string
+          passed_tests: number | null
+          started_at: string | null
+          status: string | null
+          summary: Json | null
+          test_type: string
+          total_tests: number | null
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          critical_failures?: number | null
+          failed_tests?: number | null
+          id?: string
+          passed_tests?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+          test_type: string
+          total_tests?: number | null
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          critical_failures?: number | null
+          failed_tests?: number | null
+          id?: string
+          passed_tests?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+          test_type?: string
+          total_tests?: number | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           annual_price: number
@@ -3419,6 +3576,119 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      test_results: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          retry_count: number | null
+          run_id: string
+          stack_trace: string | null
+          status: string
+          test_category: string
+          test_file: string
+          test_name: string
+          test_suite: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          retry_count?: number | null
+          run_id: string
+          stack_trace?: string | null
+          status: string
+          test_category: string
+          test_file: string
+          test_name: string
+          test_suite?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          retry_count?: number | null
+          run_id?: string
+          stack_trace?: string | null
+          status?: string
+          test_category?: string
+          test_file?: string
+          test_name?: string
+          test_suite?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          duration_ms: number | null
+          environment: string | null
+          failed_tests: number | null
+          git_branch: string | null
+          git_commit: string | null
+          id: string
+          passed_tests: number | null
+          skipped_tests: number | null
+          started_at: string | null
+          status: string | null
+          summary: Json | null
+          test_type: string
+          total_tests: number | null
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          environment?: string | null
+          failed_tests?: number | null
+          git_branch?: string | null
+          git_commit?: string | null
+          id?: string
+          passed_tests?: number | null
+          skipped_tests?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+          test_type: string
+          total_tests?: number | null
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          environment?: string | null
+          failed_tests?: number | null
+          git_branch?: string | null
+          git_commit?: string | null
+          id?: string
+          passed_tests?: number | null
+          skipped_tests?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+          test_type?: string
+          total_tests?: number | null
+          triggered_by?: string | null
+        }
+        Relationships: []
       }
       update_mentions: {
         Row: {
@@ -3591,6 +3861,65 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visual_snapshots: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          baseline_image_path: string | null
+          browser: string | null
+          created_at: string | null
+          current_image_path: string | null
+          diff_image_path: string | null
+          diff_percentage: number | null
+          id: string
+          page_name: string
+          page_path: string
+          status: string | null
+          test_run_id: string | null
+          viewport: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          baseline_image_path?: string | null
+          browser?: string | null
+          created_at?: string | null
+          current_image_path?: string | null
+          diff_image_path?: string | null
+          diff_percentage?: number | null
+          id?: string
+          page_name: string
+          page_path: string
+          status?: string | null
+          test_run_id?: string | null
+          viewport?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          baseline_image_path?: string | null
+          browser?: string | null
+          created_at?: string | null
+          current_image_path?: string | null
+          diff_image_path?: string | null
+          diff_percentage?: number | null
+          id?: string
+          page_name?: string
+          page_path?: string
+          status?: string | null
+          test_run_id?: string | null
+          viewport?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_snapshots_test_run_id_fkey"
+            columns: ["test_run_id"]
+            isOneToOne: false
+            referencedRelation: "test_runs"
             referencedColumns: ["id"]
           },
         ]
