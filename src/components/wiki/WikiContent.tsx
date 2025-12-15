@@ -10,6 +10,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
 import { WikiVersionDiff } from "./WikiVersionDiff";
+import { WikiBreadcrumb } from "./WikiBreadcrumb";
+import { WikiEmptyState } from "./WikiEmptyState";
+import { WikiLoadingSkeleton } from "./WikiLoadingSkeleton";
 
 interface WikiPage {
   id: string;
@@ -47,9 +50,16 @@ interface WikiPageVersion {
   };
 }
 
+interface WikiFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+}
+
 interface WikiContentProps {
   page: WikiPage | null;
   versions: WikiPageVersion[];
+  folders?: WikiFolder[];
   onSave: (pageId: string, title: string, content: string) => Promise<void>;
   canEdit: boolean;
   isLoading: boolean;
@@ -60,6 +70,8 @@ interface WikiContentProps {
   onBack?: () => void;
   onRestoreVersion?: (pageId: string, versionTitle: string, versionContent: string | null) => void;
   isRestoring?: boolean;
+  onSelectFolder?: (folderId: string | null) => void;
+  onSelectHome?: () => void;
 }
 
 // Expose methods to parent via ref
@@ -69,12 +81,15 @@ export interface WikiContentHandle {
 
 export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({ 
   page, 
-  versions, 
+  versions,
+  folders = [],
   canEdit, 
   isLoading,
   onBack,
   onRestoreVersion,
   isRestoring = false,
+  onSelectFolder,
+  onSelectHome,
 }, ref) => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
@@ -101,25 +116,31 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <WikiLoadingSkeleton type="page" />;
   }
 
   if (!page) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-        <FileText className="h-16 w-16 mb-4 opacity-20" />
-        <p className="text-lg">Select a page to view</p>
-        <p className="text-sm mt-1">Or create a new page from the sidebar</p>
-      </div>
-    );
+    return <WikiEmptyState type="page" />;
   }
+
+  // Get the folder ID for the current page to show in breadcrumb
+  const currentFolderId = (page as WikiPage & { folder_id?: string | null }).folder_id || null;
 
   return (
     <div className="h-full flex flex-col">
+      {/* Breadcrumb - desktop only */}
+      {!isMobile && onSelectFolder && onSelectHome && folders.length > 0 && (
+        <div className="px-4 py-2 border-b bg-muted/30">
+          <WikiBreadcrumb
+            folders={folders}
+            currentFolderId={currentFolderId}
+            pageTitle={page.title}
+            onSelectFolder={onSelectFolder}
+            onSelectHome={onSelectHome}
+          />
+        </div>
+      )}
+      
       {/* Header */}
       <div className="border-b bg-card p-4">
         <div className="flex items-start justify-between gap-4">

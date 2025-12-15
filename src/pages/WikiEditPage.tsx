@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { WikiRichEditor } from "@/components/wiki/WikiRichEditor";
+import { useWikiKeyboardShortcuts } from "@/hooks/useWikiKeyboardShortcuts";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -190,6 +191,14 @@ const WikiEditPage = () => {
   const handleContentChange = useCallback((value: string) => {
     setEditContent(value);
   }, []);
+
+  // Keyboard shortcuts
+  useWikiKeyboardShortcuts({
+    onSave: handleSave,
+    onEscape: handleClose,
+    isEditing: true,
+    enabled: !!page && canEdit,
+  });
 
   // Redirect if user can't edit (only after role has loaded)
   useEffect(() => {

@@ -3,6 +3,8 @@ import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, F
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
+import { WikiEmptyState } from "./WikiEmptyState";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -118,6 +120,7 @@ export const WikiFolderView = ({
   onBack,
 }: WikiFolderViewProps) => {
   const isMobile = useIsMobile();
+  const { getShortRelativeTime } = useRelativeTime();
   const [creatingName, setCreatingName] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -447,11 +450,12 @@ export const WikiFolderView = ({
       {/* Content grid */}
       <div className={cn("flex-1 overflow-y-auto", isMobile ? "p-4" : "p-6")}>
         {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <Folder className="h-16 w-16 mb-4 opacity-20" />
-            <p className="text-lg">This folder is empty</p>
-            <p className="text-sm mt-1">{isMobile ? "No content here yet" : "Create a new folder or page from the sidebar"}</p>
-          </div>
+          <WikiEmptyState
+            type={currentFolderId ? "folder" : "wiki"}
+            canEdit={canEdit}
+            onCreateFolder={() => onCreateFolder?.("New Folder", currentFolderId)}
+            onCreatePage={() => onCreatePage?.("New Page", currentFolderId)}
+          />
         ) : (
           <div className={cn(
             "grid gap-4",
@@ -591,7 +595,11 @@ export const WikiFolderView = ({
                       {folder.name}
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground mt-1">
+                  <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {getShortRelativeTime(folder.updated_at)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
                     {subfolderCount > 0 && `${subfolderCount} folder${subfolderCount > 1 ? "s" : ""}`}
                     {subfolderCount > 0 && folderPageCount > 0 && ", "}
                     {folderPageCount > 0 && `${folderPageCount} page${folderPageCount > 1 ? "s" : ""}`}
@@ -721,7 +729,10 @@ export const WikiFolderView = ({
                           {page.title}
                         </span>
                       )}
-                      <span className="text-xs text-muted-foreground mt-1">Page</span>
+                      <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {getShortRelativeTime(page.updated_at)}
+                      </span>
                     </>
                   )}
                 </div>
