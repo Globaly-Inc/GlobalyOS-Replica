@@ -324,13 +324,28 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
     }
   }, [saveProgress, onComplete, steps, navigateToStepRoute, location.pathname]);
 
-  // Don't render if loading, no steps, waiting for navigation, or survey not completed
+  // Check if current step's target element exists
+  const currentStep = steps[stepIndex];
+  const targetExists = currentStep?.target 
+    ? document.querySelector(currentStep.target as string) !== null 
+    : false;
+  
+  // Check if we're on the correct route for the current step
+  const onCorrectRoute = currentStep?.requiredRoute 
+    ? location.pathname.startsWith(currentStep.requiredRoute) 
+    : true;
+
+  // Don't render if loading, no steps, waiting for navigation, survey not completed, 
+  // or if target doesn't exist when we're on the correct route
   if (loading || steps.length === 0 || waitingForNavigation || !surveyCompleted) return null;
+  
+  // Only run the tour if we're on the correct route and target exists
+  const shouldRun = run && onCorrectRoute && targetExists;
 
   return (
     <Joyride
       steps={steps}
-      run={run}
+      run={shouldRun}
       stepIndex={stepIndex}
       continuous
       showProgress
