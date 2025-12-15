@@ -4970,6 +4970,10 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_wiki_folder_recursive: {
+        Args: { _folder_id: string }
+        Returns: boolean
+      }
       generate_invoice_number: { Args: never; Returns: string }
       get_accessible_ai_content: {
         Args: {
@@ -5052,6 +5056,14 @@ export type Database = {
         }[]
       }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
+      get_wiki_folder_contents_count: {
+        Args: { _folder_id: string }
+        Returns: {
+          file_count: number
+          folder_count: number
+          page_count: number
+        }[]
+      }
       get_wiki_item_members: {
         Args: { _item_id: string; _item_type: string }
         Returns: {

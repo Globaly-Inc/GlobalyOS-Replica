@@ -7,6 +7,7 @@ import { WikiEmptyState } from "./WikiEmptyState";
 import { WikiSearch } from "./WikiSearch";
 import { WikiItemCard } from "./WikiItemCard";
 import { WikiBulkActionsBar } from "./WikiBulkActionsBar";
+import { WikiDeleteFolderDialog } from "./WikiDeleteFolderDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -768,31 +769,39 @@ export const WikiFolderView = ({
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete {deleteDialog?.type === "folder" ? "Folder" : "Page"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteDialog?.type === "folder" 
-                ? `Are you sure you want to delete "${deleteDialog?.name}" and all its contents? This action cannot be undone.`
-                : `Are you sure you want to delete "${deleteDialog?.name}"? This action cannot be undone.`
-              }
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Folder Confirmation Dialog */}
+      {deleteDialog?.type === "folder" && (
+        <WikiDeleteFolderDialog
+          open={!!deleteDialog}
+          onOpenChange={(open) => !open && setDeleteDialog(null)}
+          folderId={deleteDialog.id}
+          folderName={deleteDialog.name}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
+
+      {/* Delete Page Confirmation Dialog */}
+      {deleteDialog?.type === "page" && (
+        <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Page</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{deleteDialog?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
