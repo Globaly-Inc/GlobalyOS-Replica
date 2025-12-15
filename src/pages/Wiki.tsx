@@ -81,7 +81,7 @@ const Wiki = () => {
   const { currentOrg } = useOrganization();
   const { isAdmin, isHR, isOwner } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
-  const { recentItems, addRecentItem } = useWikiRecentlyViewed();
+  const { recentItems, addRecentItem, removeRecentItem } = useWikiRecentlyViewed();
   const { hasGlobalEditAccess, checkCanEditFolder, currentEmployeeId } = useWikiPermissions();
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -368,10 +368,12 @@ const Wiki = () => {
     mutationFn: async (folderId: string) => {
       const { error } = await supabase.from("wiki_folders").delete().eq("id", folderId);
       if (error) throw error;
+      return folderId;
     },
-    onSuccess: () => {
+    onSuccess: (folderId) => {
       queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      removeRecentItem(folderId, "folder");
       toast.success("Folder deleted");
     },
     onError: () => toast.error("Failed to delete folder"),
@@ -382,9 +384,11 @@ const Wiki = () => {
     mutationFn: async (pageId: string) => {
       const { error } = await supabase.from("wiki_pages").delete().eq("id", pageId);
       if (error) throw error;
+      return pageId;
     },
-    onSuccess: (_, pageId) => {
+    onSuccess: (pageId) => {
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      removeRecentItem(pageId, "page");
       if (selectedPageId === pageId) {
         setSelectedPageId(null);
       }
