@@ -7,6 +7,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { WikiSharedAvatars, SharedMember, SharedGroup } from "./WikiSharedAvatars";
 
 interface WikiFolder {
   id: string;
@@ -20,6 +21,10 @@ interface WikiBreadcrumbProps {
   pageTitle?: string;
   onSelectFolder: (folderId: string | null) => void;
   onSelectHome: () => void;
+  // Shared access props
+  sharedMembers?: SharedMember[];
+  sharedGroups?: SharedGroup[];
+  onShareClick?: () => void;
 }
 
 export const WikiBreadcrumb = ({
@@ -28,6 +33,9 @@ export const WikiBreadcrumb = ({
   pageTitle,
   onSelectFolder,
   onSelectHome,
+  sharedMembers = [],
+  sharedGroups = [],
+  onShareClick,
 }: WikiBreadcrumbProps) => {
   // Build breadcrumb path
   const getBreadcrumbPath = () => {
@@ -49,48 +57,62 @@ export const WikiBreadcrumb = ({
 
   const breadcrumbPath = getBreadcrumbPath();
 
+  const hasSharedAccess = sharedMembers.length > 0 || sharedGroups.length > 0;
+
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink 
-            onClick={onSelectHome}
-            className="cursor-pointer flex items-center gap-1 hover:text-primary"
-          >
-            <Home className="h-3.5 w-3.5" />
-            <span>Wiki</span>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-
-        {breadcrumbPath.map((folder) => (
-          <BreadcrumbItem key={folder.id}>
-            <BreadcrumbSeparator>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </BreadcrumbSeparator>
-            {pageTitle || folder.id !== currentFolderId ? (
-              <BreadcrumbLink
-                onClick={() => onSelectFolder(folder.id)}
-                className="cursor-pointer hover:text-primary"
-              >
-                {folder.name}
-              </BreadcrumbLink>
-            ) : (
-              <BreadcrumbPage>{folder.name}</BreadcrumbPage>
-            )}
-          </BreadcrumbItem>
-        ))}
-
-        {pageTitle && (
+    <div className="flex items-center justify-between w-full">
+      <Breadcrumb>
+        <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbSeparator>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </BreadcrumbSeparator>
-            <BreadcrumbPage className="max-w-[200px] truncate">
-              {pageTitle}
-            </BreadcrumbPage>
+            <BreadcrumbLink 
+              onClick={onSelectHome}
+              className="cursor-pointer flex items-center gap-1 hover:text-primary"
+            >
+              <Home className="h-3.5 w-3.5" />
+              <span>Wiki</span>
+            </BreadcrumbLink>
           </BreadcrumbItem>
-        )}
-      </BreadcrumbList>
-    </Breadcrumb>
+
+          {breadcrumbPath.map((folder) => (
+            <BreadcrumbItem key={folder.id}>
+              <BreadcrumbSeparator>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </BreadcrumbSeparator>
+              {pageTitle || folder.id !== currentFolderId ? (
+                <BreadcrumbLink
+                  onClick={() => onSelectFolder(folder.id)}
+                  className="cursor-pointer hover:text-primary"
+                >
+                  {folder.name}
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>{folder.name}</BreadcrumbPage>
+              )}
+            </BreadcrumbItem>
+          ))}
+
+          {pageTitle && (
+            <BreadcrumbItem>
+              <BreadcrumbSeparator>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </BreadcrumbSeparator>
+              <BreadcrumbPage className="max-w-[200px] truncate">
+                {pageTitle}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Shared avatars on the right */}
+      {hasSharedAccess && (
+        <WikiSharedAvatars
+          members={sharedMembers}
+          groups={sharedGroups}
+          size="sm"
+          onClick={onShareClick}
+        />
+      )}
+    </div>
   );
 };

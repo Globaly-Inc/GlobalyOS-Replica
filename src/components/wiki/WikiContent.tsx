@@ -14,6 +14,7 @@ import { WikiBreadcrumb } from "./WikiBreadcrumb";
 import { WikiEmptyState } from "./WikiEmptyState";
 import { WikiLoadingSkeleton } from "./WikiLoadingSkeleton";
 import { WikiExportMenu } from "./WikiExportMenu";
+import { WikiSharedAvatars, SharedMember, SharedGroup } from "./WikiSharedAvatars";
 
 
 interface WikiPage {
@@ -75,6 +76,10 @@ interface WikiContentProps {
   onSelectFolder?: (folderId: string | null) => void;
   onSelectHome?: () => void;
   currentEmployeeId?: string;
+  // Shared access props
+  sharedMembers?: SharedMember[];
+  sharedGroups?: SharedGroup[];
+  onShareClick?: () => void;
 }
 
 // Expose methods to parent via ref
@@ -94,6 +99,9 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   onSelectFolder,
   onSelectHome,
   currentEmployeeId,
+  sharedMembers = [],
+  sharedGroups = [],
+  onShareClick,
 }, ref) => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
@@ -141,6 +149,9 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             pageTitle={page.title}
             onSelectFolder={onSelectFolder}
             onSelectHome={onSelectHome}
+            sharedMembers={sharedMembers}
+            sharedGroups={sharedGroups}
+            onShareClick={onShareClick}
           />
         </div>
       )}
@@ -171,6 +182,16 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Shared avatars in header for mobile */}
+            {isMobile && (sharedMembers.length > 0 || sharedGroups.length > 0) && (
+              <WikiSharedAvatars
+                members={sharedMembers}
+                groups={sharedGroups}
+                size="sm"
+                onClick={onShareClick}
+                className="mr-2"
+              />
+            )}
             {/* Export menu */}
             <WikiExportMenu pageTitle={page.title} pageContent={page.content} isMobile={isMobile} />
             {versions.length > 0 && (

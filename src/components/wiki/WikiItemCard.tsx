@@ -320,12 +320,16 @@ export const WikiItemCard = ({
         </div>
       )}
 
-      {/* Image file preview background */}
+      {/* Image file preview background with white overlay */}
       {hasImagePreview && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${page!.thumbnail_url})` }}
-        />
+        <>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${page!.thumbnail_url})` }}
+          />
+          {/* White overlay for better icon visibility */}
+          <div className="absolute inset-0 bg-white/50" />
+        </>
       )}
 
       {/* File type badge for uploaded files (non-image or no preview) */}
