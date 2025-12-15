@@ -233,24 +233,24 @@ const AskAI = () => {
   const recentQuestions = conversationHistory.slice(-3).reverse();
 
   return (
-    <div className="container mx-auto px-4 py-6 pb-24 max-w-lg flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)]">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="h-5 w-5 text-primary" />
-        <PageHeader title="Ask AI" />
-      </div>
+    <div className="min-h-screen pb-40 md:pb-24">
+      <div className="px-4 py-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <PageHeader title="Ask AI" />
+        </div>
 
-      {/* Info Card */}
-      <Card className="mb-4 flex-shrink-0">
-        <CardContent className="py-3 px-4">
-          <p className="text-xs text-muted-foreground">
-            Get answers based on your organization data — Wiki, Team directory, and Chat.
-          </p>
-        </CardContent>
-      </Card>
+        {/* Info Card */}
+        <Card className="mb-4">
+          <CardContent className="py-3 px-4">
+            <p className="text-xs text-muted-foreground">
+              Get answers based on your organization data — Wiki, Team directory, and Chat.
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-hidden mb-4">
-        <ScrollArea className="h-full pr-2" ref={scrollRef}>
+        {/* Messages Area */}
+        <div className="space-y-4">
           {messages.length === 0 ? (
             <div className="space-y-4">
               {/* Empty State */}
@@ -346,27 +346,30 @@ const AskAI = () => {
               )}
             </div>
           )}
-        </ScrollArea>
+          <div ref={scrollRef} />
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="flex gap-2 pt-3 border-t border-border flex-shrink-0">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a question..."
-          disabled={isLoading || !currentOrg?.id}
-          className="h-12 rounded-full px-4"
-        />
-        <Button 
-          size="icon" 
-          className="h-12 w-12 rounded-full shrink-0" 
-          onClick={handleSend} 
-          disabled={isLoading || !input.trim() || !currentOrg?.id}
-        >
-          <Send className="h-5 w-5" />
-        </Button>
+      {/* Fixed Input Area */}
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-safe">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a question..."
+            disabled={isLoading || !currentOrg?.id}
+            className="h-12 rounded-full px-4"
+          />
+          <Button 
+            size="icon" 
+            className="h-12 w-12 rounded-full shrink-0" 
+            onClick={handleSend} 
+            disabled={isLoading || !input.trim() || !currentOrg?.id}
+          >
+            <Send className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
