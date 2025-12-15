@@ -266,6 +266,7 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}
+      </div>
 
       {/* Version Diff Dialog */}
       {selectedVersion && (
