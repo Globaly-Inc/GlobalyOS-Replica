@@ -1,6 +1,5 @@
-import { Trash2, Move, Star, Download, X } from "lucide-react";
+import { Trash2, Move, Star, Download, X, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface SelectedItem {
@@ -33,7 +32,6 @@ export const WikiBulkActionsBar = ({
 }: WikiBulkActionsBarProps) => {
   const selectedCount = selectedItems.length;
   const allSelected = selectedCount === totalItems && totalItems > 0;
-  const someSelected = selectedCount > 0 && selectedCount < totalItems;
 
   const folderCount = selectedItems.filter(i => i.type === 'folder').length;
   const pageCount = selectedItems.filter(i => i.type === 'page').length;
@@ -46,31 +44,47 @@ export const WikiBulkActionsBar = ({
     if (pageCount > 0) {
       parts.push(`${pageCount} file${pageCount > 1 ? 's' : ''}`);
     }
-    return parts.join(', ') + ' selected';
+    return parts.join(', ');
   };
 
   return (
     <div className={cn(
       "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
       "bg-card border shadow-xl rounded-xl px-4 py-3",
-      "flex items-center gap-4",
+      "flex items-center gap-3",
       "animate-in slide-in-from-bottom-4 duration-200",
       className
     )}>
-      {/* Select all checkbox */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          checked={allSelected}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              onSelectAll();
-            } else {
-              onDeselectAll();
-            }
-          }}
-          className={cn(someSelected && "data-[state=checked]:bg-primary/50")}
-        />
-        <span className="text-sm font-medium text-muted-foreground">
+      {/* Selection info and Select All button */}
+      <div className="flex items-center gap-3">
+        {/* Selection count badge */}
+        <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg">
+          <span className="text-sm font-semibold">{selectedCount}</span>
+          <span className="text-xs text-primary/80">of {totalItems}</span>
+        </div>
+
+        {/* Select All / Deselect All button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={allSelected ? onDeselectAll : onSelectAll}
+          className="gap-2 h-8"
+        >
+          {allSelected ? (
+            <>
+              <Square className="h-4 w-4" />
+              Deselect All
+            </>
+          ) : (
+            <>
+              <CheckSquare className="h-4 w-4" />
+              Select All
+            </>
+          )}
+        </Button>
+
+        {/* Selection details */}
+        <span className="text-xs text-muted-foreground hidden sm:inline">
           {getSelectionText()}
         </span>
       </div>
@@ -83,7 +97,7 @@ export const WikiBulkActionsBar = ({
           variant="ghost"
           size="sm"
           onClick={onMove}
-          className="gap-2"
+          className="gap-2 h-8"
         >
           <Move className="h-4 w-4" />
           <span className="hidden sm:inline">Move</span>
@@ -92,7 +106,7 @@ export const WikiBulkActionsBar = ({
           variant="ghost"
           size="sm"
           onClick={onFavorite}
-          className="gap-2"
+          className="gap-2 h-8"
         >
           <Star className="h-4 w-4" />
           <span className="hidden sm:inline">Favorite</span>
@@ -102,7 +116,7 @@ export const WikiBulkActionsBar = ({
             variant="ghost"
             size="sm"
             onClick={onDownload}
-            className="gap-2"
+            className="gap-2 h-8"
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Download</span>
@@ -112,7 +126,7 @@ export const WikiBulkActionsBar = ({
           variant="ghost"
           size="sm"
           onClick={onDelete}
-          className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="gap-2 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-4 w-4" />
           <span className="hidden sm:inline">Delete</span>
@@ -124,12 +138,12 @@ export const WikiBulkActionsBar = ({
       {/* Cancel button */}
       <Button
         variant="ghost"
-        size="sm"
+        size="icon"
         onClick={onDeselectAll}
-        className="gap-1"
+        className="h-8 w-8"
+        title="Cancel selection"
       >
         <X className="h-4 w-4" />
-        <span className="hidden sm:inline">Cancel</span>
       </Button>
     </div>
   );
