@@ -1,6 +1,6 @@
 import { useState, useImperativeHandle, forwardRef } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen, ArrowLeft, RotateCcw } from "lucide-react";
+import { Pencil, Clock, User, History, PanelRightClose, PanelRightOpen, ArrowLeft, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,8 @@ import { WikiVersionDiff } from "./WikiVersionDiff";
 import { WikiBreadcrumb } from "./WikiBreadcrumb";
 import { WikiEmptyState } from "./WikiEmptyState";
 import { WikiLoadingSkeleton } from "./WikiLoadingSkeleton";
+import { WikiExportMenu } from "./WikiExportMenu";
+import { WikiComments } from "./WikiComments";
 
 interface WikiPage {
   id: string;
@@ -72,6 +74,7 @@ interface WikiContentProps {
   isRestoring?: boolean;
   onSelectFolder?: (folderId: string | null) => void;
   onSelectHome?: () => void;
+  currentEmployeeId?: string;
 }
 
 // Expose methods to parent via ref
@@ -90,6 +93,7 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   isRestoring = false,
   onSelectFolder,
   onSelectHome,
+  currentEmployeeId,
 }, ref) => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
@@ -166,8 +170,9 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
               )}
             </div>
           </div>
-          {/* Actions - now shown on mobile too */}
           <div className="flex items-center gap-2">
+            {/* Export menu */}
+            <WikiExportMenu pageTitle={page.title} pageContent={page.content} isMobile={isMobile} />
             {versions.length > 0 && (
               <Sheet>
                 <SheetTrigger asChild>
@@ -237,11 +242,12 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             {/* Main content */}
             <div className="flex-1 min-w-0 transition-all duration-300">
               <WikiMarkdownRenderer content={page.content} />
+              {/* Comments section */}
+              <WikiComments pageId={page.id} currentEmployeeId={currentEmployeeId} />
             </div>
             {/* Table of Contents with toggle - only show on larger screens */}
             <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
               <div className="sticky top-6 flex max-h-[calc(100vh-12rem)] overflow-y-auto">
-                {/* TOC Toggle Button */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -251,7 +257,6 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
                 >
                   {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                 </Button>
-                {/* TOC Content */}
                 <div className={`transition-all duration-300 overflow-hidden ${showToc ? 'w-56 opacity-100 ml-2' : 'w-0 opacity-0'}`}>
                   <WikiTableOfContents content={page.content} />
                 </div>
@@ -261,7 +266,6 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}
-      </div>
 
       {/* Version Diff Dialog */}
       {selectedVersion && (
