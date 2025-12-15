@@ -30,18 +30,18 @@ const OrganizationContext = createContext<OrganizationContextType | undefined>(u
 const CURRENT_ORG_KEY = "globalyos_current_org";
 
 export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [orgRole, setOrgRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchOrganizations = async () => {
+    // Don't set loading to false if user is not yet available
+    // This prevents the OrgProtectedRoute from redirecting to /signup prematurely
     if (!user?.id) {
-      setOrganizations([]);
-      setCurrentOrg(null);
-      setOrgRole(null);
-      setLoading(false);
+      // Only clear state if we're sure auth loading is complete
+      // The useAuth hook sets loading to false after auth state is determined
       return;
     }
 
@@ -91,8 +91,22 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    fetchOrganizations();
-  }, [user?.id]);
+    // Wait for auth to finish loading before doing anything
+    if (authLoading) {
+      return;
+    }
+    
+    // Only fetch when we have a user
+    if (user?.id) {
+      fetchOrganizations();
+    } else {
+      // User explicitly not logged in (auth finished loading and no user)
+      setOrganizations([]);
+      setCurrentOrg(null);
+      setOrgRole(null);
+      setLoading(false);
+    }
+  }, [user?.id, authLoading]);
 
   const switchOrganization = (orgId: string) => {
     const org = organizations.find((o) => o.id === orgId);
