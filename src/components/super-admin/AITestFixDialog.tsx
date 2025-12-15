@@ -44,6 +44,46 @@ interface AITestFixDialogProps {
   onRegenerate: () => void;
 }
 
+// Helper to safely extract file strings from various formats
+const normalizeAffectedFiles = (files: unknown): string[] => {
+  if (!files) return [];
+  
+  // If it's already an array, process each item
+  if (Array.isArray(files)) {
+    return files.map(file => {
+      if (typeof file === 'string') return file;
+      if (typeof file === 'object' && file !== null) {
+        // Handle { file: 'path' } format
+        if ('file' in file && typeof (file as Record<string, unknown>).file === 'string') {
+          return (file as Record<string, unknown>).file as string;
+        }
+        // Handle { path: 'path' } format
+        if ('path' in file && typeof (file as Record<string, unknown>).path === 'string') {
+          return (file as Record<string, unknown>).path as string;
+        }
+        // If object has file paths as keys, extract them
+        const keys = Object.keys(file);
+        if (keys.length > 0 && keys[0].includes('/')) {
+          return keys.join(', ');
+        }
+        return JSON.stringify(file);
+      }
+      return String(file);
+    }).filter(Boolean);
+  }
+  
+  // If it's an object with file paths as keys (e.g., { 'src/file.ts': ..., 'src/other.ts': ... })
+  if (typeof files === 'object' && files !== null) {
+    const keys = Object.keys(files);
+    // Check if keys look like file paths
+    if (keys.some(k => k.includes('/'))) {
+      return keys;
+    }
+  }
+  
+  return [];
+};
+
 const AITestFixDialog = ({ 
   open, 
   onOpenChange, 
@@ -54,6 +94,9 @@ const AITestFixDialog = ({
 }: AITestFixDialogProps) => {
   const [copied, setCopied] = useState(false);
   const [showAffectedFiles, setShowAffectedFiles] = useState(false);
+  
+  // Normalize affected files to ensure they're strings
+  const normalizedFiles = normalizeAffectedFiles(fixResponse?.affectedFiles);
 
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
@@ -158,7 +201,7 @@ const AITestFixDialog = ({
               </div>
 
               {/* Affected Files */}
-              {fixResponse.affectedFiles && fixResponse.affectedFiles.length > 0 && (
+              {normalizedFiles.length > 0 && (
                 <Collapsible open={showAffectedFiles} onOpenChange={setShowAffectedFiles}>
                   <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {showAffectedFiles ? (
@@ -166,14 +209,14 @@ const AITestFixDialog = ({
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )}
-                    <span>{fixResponse.affectedFiles.length} affected file(s)</span>
+                    <span>{normalizedFiles.length} affected file(s)</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="mt-2 p-3 rounded-lg bg-muted/50 space-y-1">
-                      {fixResponse.affectedFiles.map((file, index) => (
+                      {normalizedFiles.map((file, index) => (
                         <div key={index} className="flex items-center gap-2 text-xs font-mono">
                           <FileCode className="h-3 w-3 text-muted-foreground" />
-                          {typeof file === 'string' ? file : (file as { file?: string }).file || JSON.stringify(file)}
+                          {file}
                         </div>
                       ))}
                     </div>
