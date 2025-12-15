@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
 import SuperAdminPageHeader from '@/components/super-admin/SuperAdminPageHeader';
@@ -28,13 +28,17 @@ import {
   Bug,
   Zap,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Image as ImageIcon
 } from 'lucide-react';
 import FailedTestCard from '@/components/super-admin/FailedTestCard';
 import AITestFixDialog from '@/components/super-admin/AITestFixDialog';
 import CoverageTrendChart from '@/components/super-admin/CoverageTrendChart';
 import CoverageFileTree from '@/components/super-admin/CoverageFileTree';
 import CoverageLineView from '@/components/super-admin/CoverageLineView';
+import TestResultsFilter from '@/components/super-admin/TestResultsFilter';
+import TestDetailsPanel from '@/components/super-admin/TestDetailsPanel';
+import VisualRegressionView from '@/components/super-admin/VisualRegressionView';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -129,6 +133,7 @@ const SuperAdminTesting = () => {
   const [selectedTab, setSelectedTab] = useState('overview');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
+  const [detailsPanelTest, setDetailsPanelTest] = useState<TestResult | null>(null);
   const [aiFixDialogOpen, setAiFixDialogOpen] = useState(false);
   const [aiFixResponse, setAiFixResponse] = useState<AIFixResponse | null>(null);
   const [isFixingTest, setIsFixingTest] = useState(false);
@@ -136,6 +141,13 @@ const SuperAdminTesting = () => {
   const [securityProgress, setSecurityProgress] = useState<TestProgress | null>(null);
   const [coverageProgress, setCoverageProgress] = useState<TestProgress | null>(null);
   const [selectedCoverageFile, setSelectedCoverageFile] = useState<string | null>(null);
+  
+  // Results tab filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('status');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Fetch test runs
   const { data: testRuns, isLoading: loadingRuns } = useQuery({
@@ -211,6 +223,74 @@ const SuperAdminTesting = () => {
 
   // Get failed tests from latest run
   const failedTests = testResults?.filter(t => t.status === 'failed') ?? [];
+
+  // Filter and sort test results
+  const filteredTestResults = useMemo(() => {
+    if (!testResults) return [];
+    
+    let results = [...testResults];
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      results = results.filter(
+        r => r.test_name.toLowerCase().includes(query) || 
+             r.test_file.toLowerCase().includes(query)
+      );
+    }
+    
+    // Status filter
+    if (statusFilter !== 'all') {
+      results = results.filter(r => r.status === statusFilter);
+    }
+    
+    // Category filter
+    if (categoryFilter !== 'all') {
+      results = results.filter(r => r.test_category === categoryFilter);
+    }
+    
+    // Sorting
+    results.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'name':
+          comparison = a.test_name.localeCompare(b.test_name);
+          break;
+        case 'status':
+          const statusOrder = { failed: 0, skipped: 1, passed: 2, pending: 3 };
+          comparison = (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
+          break;
+        case 'duration':
+          comparison = (a.duration_ms ?? 0) - (b.duration_ms ?? 0);
+          break;
+        case 'file':
+          comparison = a.test_file.localeCompare(b.test_file);
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return results;
+  }, [testResults, searchQuery, statusFilter, categoryFilter, sortBy, sortOrder]);
+
+  // Test counts for filter badges
+  const testCounts = useMemo(() => ({
+    total: testResults?.length ?? 0,
+    passed: testResults?.filter(t => t.status === 'passed').length ?? 0,
+    failed: testResults?.filter(t => t.status === 'failed').length ?? 0,
+    skipped: testResults?.filter(t => t.status === 'skipped').length ?? 0,
+  }), [testResults]);
+
+  // Group filtered results by file
+  const filteredResultsByFile = useMemo(() => {
+    return filteredTestResults.reduce((acc, result) => {
+      if (!acc[result.test_file]) {
+        acc[result.test_file] = [];
+      }
+      acc[result.test_file].push(result);
+      return acc;
+    }, {} as Record<string, TestResult[]>);
+  }, [filteredTestResults]);
 
   // Handle AI fix request
   const handleFixWithAI = async (test: TestResult) => {
@@ -775,71 +855,103 @@ const SuperAdminTesting = () => {
 
         {/* Results Tab */}
         <TabsContent value="results">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Test Results</CardTitle>
-              <CardDescription>
-                {latestRun ? `Run from ${format(new Date(latestRun.started_at), 'MMMM d, yyyy h:mm a')}` : 'No test runs yet'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-2">
-                  {Object.entries(resultsByFile).map(([file, results]) => {
-                    const passed = results.filter(r => r.status === 'passed').length;
-                    const total = results.length;
-                    const isExpanded = expandedFiles.has(file);
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Test List with Filters */}
+            <Card className={detailsPanelTest ? 'lg:col-span-2' : 'lg:col-span-3'}>
+              <CardHeader>
+                <CardTitle className="text-lg">Test Results</CardTitle>
+                <CardDescription>
+                  {latestRun ? `Run from ${format(new Date(latestRun.started_at), 'MMMM d, yyyy h:mm a')}` : 'No test runs yet'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TestResultsFilter
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  categoryFilter={categoryFilter}
+                  onCategoryFilterChange={setCategoryFilter}
+                  sortBy={sortBy}
+                  onSortByChange={setSortBy}
+                  sortOrder={sortOrder}
+                  onSortOrderChange={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                  counts={testCounts}
+                />
+                <ScrollArea className="h-[400px] mt-4">
+                  <div className="space-y-2">
+                    {Object.entries(filteredResultsByFile).map(([file, results]) => {
+                      const passed = results.filter(r => r.status === 'passed').length;
+                      const total = results.length;
+                      const isExpanded = expandedFiles.has(file);
 
-                    return (
-                      <Collapsible key={file} open={isExpanded} onOpenChange={() => toggleFile(file)}>
-                        <CollapsibleTrigger className="w-full">
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                              <FileCode className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-mono text-sm">{file}</span>
-                            </div>
-                            <Badge variant={passed === total ? 'default' : 'destructive'}>
-                              {passed}/{total}
-                            </Badge>
-                          </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="ml-8 mt-1 space-y-1">
-                            {results.map((result) => (
-                              <div 
-                                key={result.id}
-                                className="flex items-center justify-between p-2 rounded bg-background"
-                              >
-                                <div className="flex items-center gap-2">
-                                  {getStatusIcon(result.status)}
-                                  <span className="text-sm">{result.test_name}</span>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {result.duration_ms ? `${result.duration_ms}ms` : '-'}
-                                </span>
+                      return (
+                        <Collapsible key={file} open={isExpanded} onOpenChange={() => toggleFile(file)}>
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                <FileCode className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-mono text-sm truncate">{file}</span>
                               </div>
-                            ))}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
+                              <Badge variant={passed === total ? 'default' : 'destructive'}>{passed}/{total}</Badge>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="ml-8 mt-1 space-y-1">
+                              {results.map((result) => (
+                                <div 
+                                  key={result.id}
+                                  onClick={() => setDetailsPanelTest(result)}
+                                  className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                    detailsPanelTest?.id === result.id ? 'bg-primary/10 border border-primary/30' : 'bg-background hover:bg-muted/50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(result.status)}
+                                    <span className="text-sm">{result.test_name}</span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{result.duration_ms ? `${result.duration_ms}ms` : '-'}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    })}
 
-                  {Object.keys(resultsByFile).length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Bug className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No test results yet. Run tests to see results.</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+                    {Object.keys(filteredResultsByFile).length === 0 && (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Bug className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>{testResults?.length ? 'No tests match your filters' : 'No test results yet. Run tests to see results.'}</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Test Details Panel */}
+            {detailsPanelTest && (
+              <Card className="lg:col-span-1 h-fit">
+                <TestDetailsPanel
+                  test={detailsPanelTest}
+                  onClose={() => setDetailsPanelTest(null)}
+                  onFixWithAI={handleFixWithAI}
+                  isFixing={isFixingTest && selectedTest?.id === detailsPanelTest.id}
+                />
+              </Card>
+            )}
+          </div>
+
+          {/* Visual Regression Section */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Visual Regression
+            </h3>
+            <VisualRegressionView runId={latestRun?.id} />
+          </div>
         </TabsContent>
 
         {/* Security Tab */}
