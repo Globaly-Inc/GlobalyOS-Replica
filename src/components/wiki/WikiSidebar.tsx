@@ -107,7 +107,7 @@ export const WikiSidebar = ({
         <div className="p-2">
           {/* Favorites Section */}
           {hasFavorites && (
-            <div className="mb-2 border-t pt-2">
+            <div className="mb-2">
               <button
                 onClick={() => setShowFavorites(!showFavorites)}
                 className="flex items-center gap-1.5 px-2 py-1.5 w-full text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
