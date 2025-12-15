@@ -41,6 +41,9 @@ import TestDetailsPanel from '@/components/super-admin/TestDetailsPanel';
 import VisualRegressionView from '@/components/super-admin/VisualRegressionView';
 import SecurityFindingsCard from '@/components/super-admin/SecurityFindingsCard';
 import SecurityTrendChart from '@/components/super-admin/SecurityTrendChart';
+import HistoryTrendCharts from '@/components/super-admin/HistoryTrendCharts';
+import HistoryRunComparison from '@/components/super-admin/HistoryRunComparison';
+import HistoryRunList from '@/components/super-admin/HistoryRunList';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -143,6 +146,7 @@ const SuperAdminTesting = () => {
   const [securityProgress, setSecurityProgress] = useState<TestProgress | null>(null);
   const [coverageProgress, setCoverageProgress] = useState<TestProgress | null>(null);
   const [selectedCoverageFile, setSelectedCoverageFile] = useState<string | null>(null);
+  const [rerunningRunId, setRerunningRunId] = useState<string | null>(null);
   
   // Results tab filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -300,6 +304,24 @@ const SuperAdminTesting = () => {
       return data as TestResult[];
     },
     enabled: !!latestRun?.id,
+  });
+
+  // Fetch all test results for comparison (last 20 runs)
+  const { data: allTestResults } = useQuery({
+    queryKey: ['all-test-results'],
+    queryFn: async () => {
+      if (!testRuns?.length) return [];
+      const runIds = testRuns.slice(0, 20).map(r => r.id);
+      const { data, error } = await supabase
+        .from('test_results')
+        .select('*')
+        .in('run_id', runIds)
+        .order('test_file');
+      
+      if (error) throw error;
+      return data as TestResult[];
+    },
+    enabled: !!testRuns?.length,
   });
 
   // Get failed tests from latest run
@@ -1290,63 +1312,40 @@ const SuperAdminTesting = () => {
 
         {/* History Tab */}
         <TabsContent value="history">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Test Run History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-2">
-                  {testRuns?.map((run) => (
-                    <div 
-                      key={run.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-4">
-                        {getStatusIcon(run.status)}
-                        <div>
-                          <div className="font-medium capitalize">{run.test_type} Tests</div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(run.started_at), 'MMMM d, yyyy h:mm a')}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{run.total_tests}</div>
-                          <div className="text-xs text-muted-foreground">Total</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-success">{run.passed_tests}</div>
-                          <div className="text-xs text-muted-foreground">Passed</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-destructive">{run.failed_tests}</div>
-                          <div className="text-xs text-muted-foreground">Failed</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-medium">
-                            {run.duration_ms ? `${(run.duration_ms / 1000).toFixed(1)}s` : '-'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Duration</div>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+          <div className="space-y-6">
+            {/* Trend Charts Section */}
+            <HistoryTrendCharts testRuns={testRuns ?? []} />
 
-                  {(!testRuns || testRuns.length === 0) && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No test history yet. Run your first test to get started.</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+            {/* Comparison Section */}
+            <HistoryRunComparison
+              testRuns={testRuns ?? []}
+              testResults={allTestResults ?? []}
+              onRerunRun={(runId) => {
+                const run = testRuns?.find(r => r.id === runId);
+                if (run) {
+                  setRerunningRunId(runId);
+                  runTestsMutation.mutate(run.test_type as TestType, {
+                    onSettled: () => setRerunningRunId(null),
+                  });
+                }
+              }}
+            />
+
+            {/* Run List with Rerun */}
+            <HistoryRunList
+              testRuns={testRuns ?? []}
+              onRerunRun={(runId) => {
+                const run = testRuns?.find(r => r.id === runId);
+                if (run) {
+                  setRerunningRunId(runId);
+                  runTestsMutation.mutate(run.test_type as TestType, {
+                    onSettled: () => setRerunningRunId(null),
+                  });
+                }
+              }}
+              rerunningId={rerunningRunId}
+            />
+          </div>
         </TabsContent>
       </Tabs>
 
