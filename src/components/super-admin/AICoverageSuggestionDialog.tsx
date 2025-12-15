@@ -113,25 +113,27 @@ const AICoverageSuggestionDialog = ({
                       open={isExpanded}
                       onOpenChange={() => toggleFile(fileSuggestion.file)}
                     >
-                      <CollapsibleTrigger className="w-full">
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                          <div className="flex items-center gap-2">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <FileCode className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-mono text-sm truncate">
+                      <CollapsibleTrigger className="w-full text-left">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors gap-3 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="shrink-0">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </div>
+                            <FileCode className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="font-mono text-sm truncate min-w-0" title={fileSuggestion.file}>
                               {fileSuggestion.file}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="gap-1">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="outline" className="gap-1 whitespace-nowrap">
                               <Target className="h-3 w-3" />
                               {fileSuggestion.currentCoverage}% → 100%
                             </Badge>
-                            <Badge variant="secondary">
+                            <Badge variant="secondary" className="whitespace-nowrap">
                               {fileSuggestion.suggestions.length} suggestions
                             </Badge>
                           </div>
