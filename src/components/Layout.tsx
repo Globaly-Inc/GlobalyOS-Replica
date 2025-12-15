@@ -423,14 +423,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </button>
           </div>
 
-          {(userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
+          {(userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
             <div className="hidden md:block mr-4">
               <OrganizationSwitcher />
             </div>
           )}
           
           <div className="hidden md:flex md:flex-1 md:items-center">
-            <TopNav isAdmin={userProfile?.role === 'admin'} />
+            <TopNav isAdmin={userProfile?.role === 'owner' || userProfile?.role === 'admin'} />
           </div>
 
           <div className="hidden md:flex md:items-center md:gap-2 tour-quick-actions">
@@ -509,7 +509,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <p>Notifications</p>
               </TooltipContent>
             </Tooltip>
-            {(userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
+            {(userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -658,7 +658,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <PostUpdateDialog
             open={postDialogOpen}
             onOpenChange={setPostDialogOpen}
-            canPostAnnouncement={userProfile?.role === 'admin' || userProfile?.role === 'hr'}
+            canPostAnnouncement={userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr'}
           />
         </>
       )}
