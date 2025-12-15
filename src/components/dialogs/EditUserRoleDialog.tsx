@@ -93,10 +93,11 @@ export const EditUserRoleDialog = ({
                 <SelectItem value="user">User</SelectItem>
                 <SelectItem value="hr">HR</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Admin: Full access. HR: Can manage employee data. User: Standard access.
+              Owner: Full access + billing. Admin: Full access. HR: Can manage employee data. User: Standard access.
             </p>
           </div>
 

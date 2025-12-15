@@ -223,7 +223,8 @@ export const OnboardingChecklist = ({ userRole, variant = 'floating' }: Onboardi
     }
   };
 
-  if (loading || isDismissed || items.length === 0) return null;
+  // Only show checklist for owners (first user who signed up the organization)
+  if (loading || isDismissed || items.length === 0 || userRole !== 'owner') return null;
 
   const isInline = variant === 'inline';
 

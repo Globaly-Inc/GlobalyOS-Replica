@@ -4541,6 +4541,7 @@ export type Database = {
         Returns: boolean
       }
       is_own_employee: { Args: { _employee_id: string }; Returns: boolean }
+      is_owner: { Args: { _user_id?: string }; Returns: boolean }
       is_space_admin: {
         Args: { _employee_id: string; _space_id: string }
         Returns: boolean
@@ -4568,7 +4569,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "hr" | "user" | "super_admin"
+      app_role: "admin" | "hr" | "user" | "super_admin" | "owner"
       chat_space_access: "public" | "private"
       chat_space_access_scope: "company" | "offices" | "projects" | "members"
       chat_space_type: "collaboration" | "announcements"
@@ -4699,7 +4700,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "hr", "user", "super_admin"],
+      app_role: ["admin", "hr", "user", "super_admin", "owner"],
       chat_space_access: ["public", "private"],
       chat_space_access_scope: ["company", "offices", "projects", "members"],
       chat_space_type: ["collaboration", "announcements"],

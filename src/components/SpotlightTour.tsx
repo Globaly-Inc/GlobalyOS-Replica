@@ -95,7 +95,7 @@ interface SpotlightTourProps {
 
 export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourProps) => {
   const { user } = useAuth();
-  const { isAdmin, isHR } = useUserRole();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const { orgCode } = useOrgNavigation();
   const navigate = useNavigate();
@@ -108,8 +108,8 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [waitingForNavigation, setWaitingForNavigation] = useState(false);
 
-  // Owner is determined by being admin
-  const isOwnerRole = isAdmin;
+  // Owner is determined by actual owner role
+  const isOwnerRole = isOwner;
   
   // Set up steps based on role
   useEffect(() => {
