@@ -477,12 +477,17 @@ export const WikiShareDialog = ({
   };
 
   const handleAddSelections = async (selections: Selection[], permission: 'view' | 'edit') => {
+    const memberSelections = selections.filter(s => s.type === 'member');
     const groupSelections = selections.filter(s => s.type !== 'member');
 
-    if (groupSelections.length === 0) {
-      // Members only
-      const employeeIds = selections.map(s => s.id);
+    // Handle member additions separately
+    if (memberSelections.length > 0) {
+      const employeeIds = memberSelections.map(s => s.id);
       await handleAddMembers(employeeIds, permission);
+    }
+
+    // If no group selections, we're done
+    if (groupSelections.length === 0) {
       return;
     }
 
@@ -506,35 +511,39 @@ export const WikiShareDialog = ({
       return;
     }
 
+    // For group types, merge with existing selections instead of replacing
     if (groupType === 'office') {
+      const mergedOffices = [...new Set([...selectedOffices, ...ids])];
       await applyGroupAccess({
         scope: 'offices',
         permission,
-        officeIds: ids,
-        departments: [],
-        projectIds: [],
+        officeIds: mergedOffices,
+        departments: selectedDepartments,
+        projectIds: selectedProjects,
       });
       return;
     }
 
     if (groupType === 'department') {
+      const mergedDepts = [...new Set([...selectedDepartments, ...ids])];
       await applyGroupAccess({
         scope: 'departments',
         permission,
-        officeIds: [],
-        departments: ids,
-        projectIds: [],
+        officeIds: selectedOffices,
+        departments: mergedDepts,
+        projectIds: selectedProjects,
       });
       return;
     }
 
     if (groupType === 'project') {
+      const mergedProjects = [...new Set([...selectedProjects, ...ids])];
       await applyGroupAccess({
         scope: 'projects',
         permission,
-        officeIds: [],
-        departments: [],
-        projectIds: ids,
+        officeIds: selectedOffices,
+        departments: selectedDepartments,
+        projectIds: mergedProjects,
       });
     }
   };
