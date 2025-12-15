@@ -508,15 +508,15 @@ export const WikiShareDialog = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md w-full flex flex-col p-0">
+      <SheetContent className="sm:max-w-md w-full flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <SheetHeader className="p-6 pb-4 border-b">
+        <SheetHeader className="p-6 pb-4 border-b shrink-0">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted shrink-0">
               <UserPlus className="h-6 w-6 text-muted-foreground" />
             </div>
-            <div className="flex-1">
-              <SheetTitle className="text-lg">Share "{itemName}"</SheetTitle>
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-lg truncate">Share "{itemName}"</SheetTitle>
               <SheetDescription>
                 Collaborate with members on this {itemType}.
               </SheetDescription>
@@ -529,8 +529,8 @@ export const WikiShareDialog = ({
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 overflow-y-auto px-6">
-            <div className="space-y-6 py-6">
+          <ScrollArea className="flex-1 overflow-hidden">
+            <div className="space-y-6 p-6">
               {/* Invite Members Section */}
               <WikiInviteMember
                 employees={employees}
