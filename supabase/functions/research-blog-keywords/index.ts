@@ -79,23 +79,28 @@ Output as JSON array:
 
     console.log('Researching new blog keywords...');
 
-    const response = await fetch("https://api.lovable.dev/api/v1/chat", {
-      method: "POST",
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: 'google/gemini-2.5-flash',
         messages: [
-          { role: "user", content: prompt }
+          { role: 'user', content: prompt },
         ],
+        temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`AI API error: ${errorText}`);
+      throw new Error(`AI API error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();

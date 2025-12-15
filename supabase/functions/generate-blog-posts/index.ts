@@ -19,12 +19,16 @@ serve(async (req) => {
   try {
     const { keywords, audience, tone, wordCount, count = 5 } = await req.json();
 
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
     if (!keywords || keywords.length === 0) {
-      throw new Error("At least one keyword is required");
+      throw new Error('At least one keyword is required');
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const posts = [];
@@ -67,23 +71,24 @@ Output format (JSON):
 
       console.log(`Generating blog post ${i + 1}/${count} for keyword: ${keyword}`);
 
-      const response = await fetch("https://api.lovable.dev/api/v1/chat", {
-        method: "POST",
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: 'google/gemini-2.5-pro',
           messages: [
-            { role: "user", content: prompt }
+            { role: 'user', content: prompt },
           ],
+          temperature: 0.7,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`AI API error for post ${i + 1}:`, errorText);
+        console.error(`AI API error for post ${i + 1}:`, response.status, errorText);
         continue;
       }
 
@@ -107,16 +112,16 @@ Output format (JSON):
       try {
         const imagePrompt = `Professional blog header image for article about "${postData.title}". Modern, clean design with subtle tech/business elements. Abstract, professional, suitable for HRMS/business software blog. No text overlay.`;
         
-        const imageResponse = await fetch("https://api.lovable.dev/api/v1/images/generations", {
-          method: "POST",
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/images/generations', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           },
           body: JSON.stringify({
-            model: "google/gemini-3-pro-image-preview",
+            model: 'google/gemini-3-pro-image-preview',
             prompt: imagePrompt,
-            size: "1792x1024",
+            size: '1792x1024',
           }),
         });
 
