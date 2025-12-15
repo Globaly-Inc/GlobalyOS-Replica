@@ -34,6 +34,7 @@ export interface QuietHours {
 export interface NotificationPreferences {
   soundEnabled: boolean;
   soundType: SoundType;
+  soundVolume: number; // 0-100
   notificationTypes: {
     kudos: boolean;
     mentions: boolean;
@@ -46,6 +47,7 @@ export interface NotificationPreferences {
 const DEFAULT_PREFERENCES: NotificationPreferences = {
   soundEnabled: true,
   soundType: "chime",
+  soundVolume: 50,
   notificationTypes: {
     kudos: true,
     mentions: true,

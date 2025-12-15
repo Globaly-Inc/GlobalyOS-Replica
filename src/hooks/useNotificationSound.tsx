@@ -58,7 +58,8 @@ const SOUND_CONFIGS: Record<SoundType, NoteConfig[]> = {
 export const useNotificationSound = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const playNotificationSound = useCallback((soundType: SoundType = "chime") => {
+  const playNotificationSound = useCallback((soundType: SoundType = "chime", volume: number = 50) => {
+    const volumeMultiplier = volume / 100;
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -81,9 +82,9 @@ export const useNotificationSound = () => {
         const startTime = audioContext.currentTime + config.startOffset;
         oscillator.frequency.setValueAtTime(config.frequency, startTime);
         
-        const volume = config.volume ?? 0.3;
+        const noteVolume = (config.volume ?? 0.3) * volumeMultiplier;
         gainNode.gain.setValueAtTime(0, startTime);
-        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+        gainNode.gain.linearRampToValueAtTime(noteVolume, startTime + 0.02);
         gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
         
         oscillator.start(startTime);

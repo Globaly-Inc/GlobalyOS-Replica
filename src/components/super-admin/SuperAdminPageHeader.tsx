@@ -1,14 +1,15 @@
 import { ReactNode } from "react";
 
-interface SuperAdminPageHeaderProps {
+export interface SuperAdminPageHeaderProps {
   title: string;
   description: string;
   actions?: ReactNode;
+  className?: string;
 }
 
-const SuperAdminPageHeader = ({ title, description, actions }: SuperAdminPageHeaderProps) => {
+const SuperAdminPageHeader = ({ title, description, actions, className }: SuperAdminPageHeaderProps) => {
   return (
-    <div className="flex items-center justify-between">
+    <div className={`flex items-center justify-between ${className ?? ''}`}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">{title}</h1>
         <p className="text-muted-foreground">{description}</p>
