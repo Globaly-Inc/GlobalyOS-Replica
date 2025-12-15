@@ -4,11 +4,10 @@
  * Resolves orgCode (slug) to orgId server-side for security
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Navigate, useParams, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout } from './Layout';
 
 interface OrgProtectedRouteProps {
@@ -21,43 +20,48 @@ export const OrgProtectedRoute = ({
   children, 
   withLayout = true,
 }: OrgProtectedRouteProps) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, loading: authLoading } = useAuth();
   const { orgCode } = useParams<{ orgCode: string }>();
   const location = useLocation();
   const { currentOrg, organizations, loading: orgLoading, switchOrganization } = useOrganization();
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   // Handle organization switching when URL orgCode differs from current org's slug
   useEffect(() => {
-    if (!orgLoading && orgCode && currentOrg && orgCode !== currentOrg.slug) {
-      // Find the org by slug and switch to it
-      const targetOrg = organizations.find(org => org.slug === orgCode);
+    if (orgLoading || !orgCode) return;
+
+    // If we don't have a current org yet, pick the org that matches the URL
+    if (!currentOrg) {
+      const targetOrg = organizations.find((org) => org.slug === orgCode);
+      if (targetOrg) {
+        switchOrganization(targetOrg.id);
+      }
+      return;
+    }
+
+    // If we do have a current org and it doesn't match, switch to the URL org
+    if (orgCode !== currentOrg.slug) {
+      const targetOrg = organizations.find((org) => org.slug === orgCode);
       if (targetOrg) {
         switchOrganization(targetOrg.id);
       }
     }
   }, [orgCode, currentOrg, organizations, orgLoading, switchOrganization]);
 
+
+  // Auto-select a fallback org if we have orgs but currentOrg is not set yet
+  useEffect(() => {
+    if (authLoading || orgLoading) return;
+    if (!session) return;
+    if (currentOrg?.id) return;
+
+    const fallbackOrgId = organizations[0]?.id;
+    if (fallbackOrgId) {
+      switchOrganization(fallbackOrgId);
+    }
+  }, [authLoading, orgLoading, session, currentOrg?.id, organizations, switchOrganization]);
+
   // Show loading while auth or org data is being fetched
-  if (loading || orgLoading) {
+  if (authLoading || orgLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">

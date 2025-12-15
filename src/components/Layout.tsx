@@ -164,24 +164,30 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   // Fetch unread notification count
   useEffect(() => {
+    if (!user?.id) {
+      previousCountRef.current = 0;
+      setUnreadCount(0);
+      return;
+    }
+
+    const userId = user.id;
+
     const fetchUnreadCount = async () => {
-      if (!user?.id) return;
-      
       const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
-      
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
       const newCount = count || 0;
-      
+
       // Play sound if count increased and preferences allow
       if (newCount > previousCountRef.current && previousCountRef.current !== 0) {
         if (shouldPlaySound()) {
           playNotificationSound(preferences.soundType);
         }
       }
-      
+
       previousCountRef.current = newCount;
       setUnreadCount(newCount);
     };
@@ -190,14 +196,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
     // Real-time subscription for notification updates
     const channel = supabase
-      .channel("layout-notifications")
+      .channel('layout-notifications')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user?.id}`,
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           // Play notification sound based on preferences
@@ -205,32 +211,33 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           if (shouldPlaySound(notificationType)) {
             playNotificationSound(preferences.soundType);
           }
+
           // Send push notification
           sendPushNotification(payload.new);
-          
+
           // Update count
           setUnreadCount((prev) => prev + 1);
         }
       )
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "UPDATE",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user?.id}`,
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
         },
         () => {
           fetchUnreadCount();
         }
       )
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "DELETE",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user?.id}`,
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
         },
         () => {
           fetchUnreadCount();
