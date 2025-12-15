@@ -53,6 +53,7 @@ import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
+import { OrganizationFeaturesManager } from "@/components/super-admin/OrganizationFeaturesManager";
 
 interface Organization {
   id: string;
@@ -676,6 +677,14 @@ const SuperAdminOrganisations = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Feature Flags Management */}
+                <div className="border-t pt-4">
+                  <OrganizationFeaturesManager 
+                    organizationId={selectedOrg.id} 
+                    organizationName={selectedOrg.name} 
+                  />
+                </div>
               </div>
             )}
           </SheetContent>

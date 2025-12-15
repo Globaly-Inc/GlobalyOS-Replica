@@ -2837,6 +2837,41 @@ export type Database = {
           },
         ]
       }
+      organization_features: {
+        Row: {
+          created_at: string
+          feature_name: string
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          feature_name: string
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          feature_name?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_features_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -4984,6 +5019,10 @@ export type Database = {
       }
       is_conversation_participant: {
         Args: { _conversation_id: string; _employee_id: string }
+        Returns: boolean
+      }
+      is_feature_enabled: {
+        Args: { _feature_name: string; _org_id: string }
         Returns: boolean
       }
       is_manager_of_employee: {
