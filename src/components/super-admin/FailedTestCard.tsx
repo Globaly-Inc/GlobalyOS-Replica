@@ -33,10 +33,18 @@ const FailedTestCard = ({ test, onFixWithAI, isFixing }: FailedTestCardProps) =>
             <div className="flex items-start gap-2 min-w-0 flex-1">
               <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm truncate">{test.test_name}</div>
+                <div className="font-medium text-sm truncate">
+                  {typeof test.test_name === 'string' ? test.test_name : String(test.test_name || 'Unknown test')}
+                </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                   <FileCode className="h-3 w-3" />
-                  <span className="font-mono truncate">{test.test_file}</span>
+                  <span className="font-mono truncate">
+                    {typeof test.test_file === 'string' 
+                      ? test.test_file 
+                      : typeof test.test_file === 'object' && test.test_file !== null
+                        ? Object.keys(test.test_file)[0] || 'Unknown file'
+                        : String(test.test_file || 'Unknown file')}
+                  </span>
                 </div>
               </div>
             </div>
