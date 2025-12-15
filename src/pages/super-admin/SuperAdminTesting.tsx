@@ -27,10 +27,14 @@ import {
   FileText,
   Bug,
   Zap,
-  Sparkles
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 import FailedTestCard from '@/components/super-admin/FailedTestCard';
 import AITestFixDialog from '@/components/super-admin/AITestFixDialog';
+import CoverageTrendChart from '@/components/super-admin/CoverageTrendChart';
+import CoverageFileTree from '@/components/super-admin/CoverageFileTree';
+import CoverageLineView from '@/components/super-admin/CoverageLineView';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -94,6 +98,13 @@ interface CoverageReport {
     uncoveredLines: number[];
   }> | null;
   meets_thresholds: boolean | null;
+  trend_data?: Array<{
+    date: string;
+    lines: number;
+    functions: number;
+    branches: number;
+    statements: number;
+  }>;
 }
 
 interface AIFixResponse {
@@ -123,6 +134,8 @@ const SuperAdminTesting = () => {
   const [isFixingTest, setIsFixingTest] = useState(false);
   const [testProgress, setTestProgress] = useState<TestProgress | null>(null);
   const [securityProgress, setSecurityProgress] = useState<TestProgress | null>(null);
+  const [coverageProgress, setCoverageProgress] = useState<TestProgress | null>(null);
+  const [selectedCoverageFile, setSelectedCoverageFile] = useState<string | null>(null);
 
   // Fetch test runs
   const { data: testRuns, isLoading: loadingRuns } = useQuery({
@@ -173,6 +186,7 @@ const SuperAdminTesting = () => {
         summary: data.summary as CoverageReport['summary'],
         file_coverage: data.file_coverage as CoverageReport['file_coverage'],
         meets_thresholds: data.meets_thresholds,
+        trend_data: data.trend_data as CoverageReport['trend_data'],
       } as CoverageReport;
     },
   });
@@ -389,6 +403,81 @@ const SuperAdminTesting = () => {
     },
   });
 
+  // Generate coverage mutation with streaming
+  const generateCoverageMutation = useMutation({
+    mutationFn: async () => {
+      setCoverageProgress({ type: 'starting', message: 'Initializing coverage generation...', progress: 0 });
+      
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/generate-coverage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate coverage');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              setCoverageProgress(data);
+              
+              if (data.type === 'complete') {
+                result = data.report;
+              }
+            } catch (e) {
+              // Ignore parse errors for partial data
+            }
+          }
+        }
+      }
+
+      return result;
+    },
+    onSuccess: (data) => {
+      setCoverageProgress(null);
+      if (data) {
+        if (data.meets_thresholds) {
+          toast.success('Coverage meets all thresholds!');
+        } else {
+          toast.warning('Coverage generated but below thresholds');
+        }
+      } else {
+        toast.success('Coverage report generated');
+      }
+      queryClient.invalidateQueries({ queryKey: ['coverage-report'] });
+    },
+    onError: (error) => {
+      setCoverageProgress(null);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate coverage');
+      console.error(error);
+    },
+  });
+
   const toggleFile = (file: string) => {
     setExpandedFiles(prev => {
       const next = new Set(prev);
@@ -487,29 +576,29 @@ const SuperAdminTesting = () => {
       </div>
 
       {/* Progress Banner */}
-      {(testProgress || securityProgress) && (
+      {(testProgress || securityProgress || coverageProgress) && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardContent className="py-4">
             <div className="flex items-center gap-4">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               <div className="flex-1">
                 <div className="font-medium text-sm">
-                  {testProgress ? 'Running Tests' : 'Running Security Scan'}
+                  {testProgress ? 'Running Tests' : securityProgress ? 'Running Security Scan' : 'Generating Coverage'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {testProgress?.message || securityProgress?.message || 
+                  {testProgress?.message || securityProgress?.message || coverageProgress?.message ||
                    testProgress?.suite || securityProgress?.test ||
                    'Processing...'}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-primary">
-                  {testProgress?.progress || securityProgress?.progress || 0}%
+                  {testProgress?.progress || securityProgress?.progress || coverageProgress?.progress || 0}%
                 </div>
               </div>
             </div>
             <Progress 
-              value={testProgress?.progress || securityProgress?.progress || 0} 
+              value={testProgress?.progress || securityProgress?.progress || coverageProgress?.progress || 0} 
               className="mt-3 h-2" 
             />
           </CardContent>
@@ -846,6 +935,30 @@ const SuperAdminTesting = () => {
 
         {/* Coverage Tab */}
         <TabsContent value="coverage">
+          {/* Coverage Header with Generate Button */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold">Code Coverage</h3>
+              <p className="text-sm text-muted-foreground">
+                {coverageReport?.generated_at 
+                  ? `Last generated: ${format(new Date(coverageReport.generated_at), 'MMMM d, yyyy h:mm a')}`
+                  : 'No coverage data yet'}
+              </p>
+            </div>
+            <Button
+              onClick={() => generateCoverageMutation.mutate()}
+              disabled={generateCoverageMutation.isPending || runTestsMutation.isPending}
+              className="gap-2"
+            >
+              {generateCoverageMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <BarChart3 className="h-4 w-4" />
+              )}
+              Generate Coverage
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Coverage Summary */}
             <Card className="lg:col-span-1">
@@ -898,60 +1011,60 @@ const SuperAdminTesting = () => {
               </CardContent>
             </Card>
 
-            {/* File Coverage */}
+            {/* Coverage Trend Chart */}
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-lg">File Coverage</CardTitle>
-                <CardDescription>Click a file to see uncovered lines</CardDescription>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Coverage Trend
+                </CardTitle>
+                <CardDescription>Coverage metrics over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
-                  {coverageReport?.file_coverage ? (
-                    <div className="space-y-2">
-                      {Object.entries(coverageReport.file_coverage).map(([file, coverage]) => (
-                        <Collapsible key={file}>
-                          <CollapsibleTrigger className="w-full">
-                            <div className="flex items-center justify-between p-2 rounded bg-muted/50 hover:bg-muted">
-                              <div className="flex items-center gap-2">
-                                <FileCode className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-mono text-xs">{file}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Progress 
-                                  value={coverage.lines} 
-                                  className="w-20 h-2"
-                                />
-                                <span className={`text-xs font-medium w-10 text-right ${getCoverageColor(coverage.lines)}`}>
-                                  {coverage.lines}%
-                                </span>
-                              </div>
-                            </div>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="ml-6 p-2 text-xs">
-                              <div className="grid grid-cols-4 gap-2 text-muted-foreground">
-                                <span>Lines: {coverage.lines}%</span>
-                                <span>Functions: {coverage.functions}%</span>
-                                <span>Branches: {coverage.branches}%</span>
-                                <span>Statements: {coverage.statements}%</span>
-                              </div>
-                              {coverage.uncoveredLines?.length > 0 && (
-                                <div className="mt-2 text-destructive">
-                                  Uncovered lines: {coverage.uncoveredLines.join(', ')}
-                                </div>
-                              )}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No coverage data yet. Run tests with coverage enabled.</p>
-                    </div>
-                  )}
-                </ScrollArea>
+                <CoverageTrendChart data={coverageReport?.trend_data ?? []} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* File Tree and Line View */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* File Tree with Coverage Heatmap */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">File Coverage</CardTitle>
+                <CardDescription>Click a file to see line-by-line coverage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CoverageFileTree
+                  fileCoverage={coverageReport?.file_coverage ?? null}
+                  selectedFile={selectedCoverageFile}
+                  onSelectFile={setSelectedCoverageFile}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Line-by-Line Coverage View */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Line Coverage</CardTitle>
+                <CardDescription>
+                  {selectedCoverageFile 
+                    ? 'Viewing coverage for selected file'
+                    : 'Select a file to view line coverage'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[450px]">
+                {selectedCoverageFile && coverageReport?.file_coverage?.[selectedCoverageFile] ? (
+                  <CoverageLineView
+                    filePath={selectedCoverageFile}
+                    coverage={coverageReport.file_coverage[selectedCoverageFile]}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Eye className="h-12 w-12 mb-4 opacity-50" />
+                    <p className="text-sm">Select a file from the tree to view coverage details</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
