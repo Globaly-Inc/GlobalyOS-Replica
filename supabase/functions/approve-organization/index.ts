@@ -174,13 +174,13 @@ async function setupOrganization(
     console.error("Error creating employee:", employeeError);
   }
 
-  // Assign admin role
+  // Assign owner role (first user of organization gets owner role)
   const { error: roleError } = await supabaseAdmin
     .from('user_roles')
     .upsert({
       user_id: userId,
       organization_id: org.id,
-      role: 'admin',
+      role: 'owner',
     }, {
       onConflict: 'user_id,role'
     });

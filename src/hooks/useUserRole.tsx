@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
 
-export type UserRole = 'admin' | 'hr' | 'user' | null;
+export type UserRole = 'owner' | 'admin' | 'hr' | 'user' | null;
 
 export const useUserRole = () => {
   const [role, setRole] = useState<UserRole>(null);
@@ -33,7 +33,7 @@ export const useUserRole = () => {
         .select('role')
         .eq('user_id', user.id)
         .eq('organization_id', currentOrg.id)
-        .order('role', { ascending: true }) // admin < hr < user alphabetically
+        .order('role', { ascending: true }) // admin < hr < owner < user alphabetically
         .limit(1)
         .maybeSingle();
 
@@ -53,13 +53,17 @@ export const useUserRole = () => {
     }
   };
 
-  const isAdmin = role === 'admin';
-  const isHR = role === 'hr' || role === 'admin'; // Admins have HR privileges
+  // Role hierarchy: owner > admin > hr > user
+  const isOwner = role === 'owner';
+  const isAdmin = role === 'admin' || role === 'owner'; // Owner has admin privileges
+  const isHR = role === 'hr' || role === 'admin' || role === 'owner'; // Owner and Admin have HR privileges
+  
   const hasRole = (checkRole: UserRole) => {
-    if (checkRole === 'admin') return role === 'admin';
-    if (checkRole === 'hr') return role === 'hr' || role === 'admin';
+    if (checkRole === 'owner') return role === 'owner';
+    if (checkRole === 'admin') return role === 'admin' || role === 'owner';
+    if (checkRole === 'hr') return role === 'hr' || role === 'admin' || role === 'owner';
     return true; // Everyone is at least a user
   };
 
-  return { role, loading, isAdmin, isHR, hasRole, refetch: checkUserRole };
+  return { role, loading, isOwner, isAdmin, isHR, hasRole, refetch: checkUserRole };
 };
