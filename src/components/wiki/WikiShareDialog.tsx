@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { WikiMembersWithAccess, MemberWithAccess } from "./WikiMembersWithAccess";
-import { WikiAddMember } from "./WikiInviteMember";
+import { WikiAddMember, type Selection } from "./WikiInviteMember";
 import {
   Collapsible,
   CollapsibleContent,
@@ -262,11 +262,11 @@ export const WikiShareDialog = ({
 
   const handleAddMembers = async (employeeIds: string[], permission: 'view' | 'edit') => {
     if (!currentEmployee?.id) return;
-    
+
     setIsAdding(true);
     try {
       let error: unknown = null;
-      
+
       if (itemType === 'folder') {
         const insertData = employeeIds.map(empId => ({
           folder_id: itemId,
@@ -295,7 +295,7 @@ export const WikiShareDialog = ({
         .from('employees')
         .select('id, user_id')
         .in('id', employeeIds);
-      
+
       // Create notifications for added members
       if (empData && empData.length > 0) {
         const notificationData = empData.map(emp => ({
@@ -308,7 +308,7 @@ export const WikiShareDialog = ({
           reference_id: itemId,
           actor_id: currentEmployee.id,
         }));
-        
+
         await supabase.from('notifications').insert(notificationData);
       }
 
@@ -319,6 +319,184 @@ export const WikiShareDialog = ({
       toast.error('Failed to add members');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const applyGroupAccess = async (next: {
+    scope: WikiAccessScope;
+    permission: WikiPermissionLevel;
+    officeIds?: string[];
+    departments?: string[];
+    projectIds?: string[];
+  }) => {
+    setIsSaving(true);
+    try {
+      if (itemType === 'folder') {
+        await supabase
+          .from('wiki_folders')
+          .update({
+            access_scope: next.scope,
+            permission_level: next.permission,
+          })
+          .eq('id', itemId);
+
+        await Promise.all([
+          supabase.from('wiki_folder_offices').delete().eq('folder_id', itemId),
+          supabase.from('wiki_folder_departments').delete().eq('folder_id', itemId),
+          supabase.from('wiki_folder_projects').delete().eq('folder_id', itemId),
+        ]);
+
+        if (next.scope === 'offices' && (next.officeIds?.length || 0) > 0) {
+          await supabase.from('wiki_folder_offices').insert(
+            (next.officeIds || []).map(officeId => ({
+              folder_id: itemId,
+              office_id: officeId,
+              organization_id: organizationId,
+            })),
+          );
+        }
+
+        if (next.scope === 'departments' && (next.departments?.length || 0) > 0) {
+          await supabase.from('wiki_folder_departments').insert(
+            (next.departments || []).map(dept => ({
+              folder_id: itemId,
+              department: dept,
+              organization_id: organizationId,
+            })),
+          );
+        }
+
+        if (next.scope === 'projects' && (next.projectIds?.length || 0) > 0) {
+          await supabase.from('wiki_folder_projects').insert(
+            (next.projectIds || []).map(projectId => ({
+              folder_id: itemId,
+              project_id: projectId,
+              organization_id: organizationId,
+            })),
+          );
+        }
+      } else {
+        await supabase
+          .from('wiki_pages')
+          .update({
+            access_scope: next.scope,
+            permission_level: next.permission,
+            inherit_from_folder: inheritFromFolder,
+          })
+          .eq('id', itemId);
+
+        await Promise.all([
+          supabase.from('wiki_page_offices').delete().eq('page_id', itemId),
+          supabase.from('wiki_page_departments').delete().eq('page_id', itemId),
+          supabase.from('wiki_page_projects').delete().eq('page_id', itemId),
+        ]);
+
+        if (next.scope === 'offices' && (next.officeIds?.length || 0) > 0) {
+          await supabase.from('wiki_page_offices').insert(
+            (next.officeIds || []).map(officeId => ({
+              page_id: itemId,
+              office_id: officeId,
+              organization_id: organizationId,
+            })),
+          );
+        }
+
+        if (next.scope === 'departments' && (next.departments?.length || 0) > 0) {
+          await supabase.from('wiki_page_departments').insert(
+            (next.departments || []).map(dept => ({
+              page_id: itemId,
+              department: dept,
+              organization_id: organizationId,
+            })),
+          );
+        }
+
+        if (next.scope === 'projects' && (next.projectIds?.length || 0) > 0) {
+          await supabase.from('wiki_page_projects').insert(
+            (next.projectIds || []).map(projectId => ({
+              page_id: itemId,
+              project_id: projectId,
+              organization_id: organizationId,
+            })),
+          );
+        }
+      }
+
+      setAccessScope(next.scope);
+      setPermissionLevel(next.permission);
+      setSelectedOffices(next.officeIds || []);
+      setSelectedDepartments(next.departments || []);
+      setSelectedProjects(next.projectIds || []);
+
+      toast.success('Access updated');
+    } catch (error) {
+      console.error('Error applying group access:', error);
+      toast.error('Failed to update access');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddSelections = async (selections: Selection[], permission: 'view' | 'edit') => {
+    const groupSelections = selections.filter(s => s.type !== 'member');
+
+    if (groupSelections.length === 0) {
+      // Members only
+      const employeeIds = selections.map(s => s.id);
+      await handleAddMembers(employeeIds, permission);
+      return;
+    }
+
+    const distinctGroupTypes = Array.from(new Set(groupSelections.map(s => s.type)));
+    if (distinctGroupTypes.length > 1) {
+      toast.error('Please add one access type at a time (e.g. Offices or Departments).');
+      return;
+    }
+
+    const groupType = distinctGroupTypes[0];
+    const ids = groupSelections.map(s => s.id);
+
+    if (groupType === 'everyone') {
+      await applyGroupAccess({
+        scope: 'company',
+        permission,
+        officeIds: [],
+        departments: [],
+        projectIds: [],
+      });
+      return;
+    }
+
+    if (groupType === 'office') {
+      await applyGroupAccess({
+        scope: 'offices',
+        permission,
+        officeIds: ids,
+        departments: [],
+        projectIds: [],
+      });
+      return;
+    }
+
+    if (groupType === 'department') {
+      await applyGroupAccess({
+        scope: 'departments',
+        permission,
+        officeIds: [],
+        departments: ids,
+        projectIds: [],
+      });
+      return;
+    }
+
+    if (groupType === 'project') {
+      await applyGroupAccess({
+        scope: 'projects',
+        permission,
+        officeIds: [],
+        departments: [],
+        projectIds: ids,
+      });
     }
   };
 
@@ -561,7 +739,7 @@ export const WikiShareDialog = ({
                 projects={projects}
                 employeeProjects={employeeProjects}
                 excludedEmployeeIds={excludedEmployeeIds}
-                onAdd={handleAddMembers}
+                onAdd={handleAddSelections}
                 isAdding={isAdding}
               />
 
