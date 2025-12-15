@@ -25,6 +25,7 @@ import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
 import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
 import { useUserRole } from "@/hooks/useUserRole";
+import { InstallAppBanner } from "./InstallAppBanner";
 
 interface UserProfile {
   fullName: string;
@@ -647,6 +648,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav userProfile={userProfile} isOnline={isOnline} />
+
+      {/* Install App Banner for Mobile */}
+      <InstallAppBanner />
 
       {/* Mobile Search */}
       <MobileSearch open={mobileSearchOpen} onOpenChange={setMobileSearchOpen} />
