@@ -450,3 +450,36 @@ export const researchKeywords = async () => {
   if (error) throw error;
   return data;
 };
+
+// Fix blog SEO issues with AI
+export interface SEOFixInput {
+  title: string;
+  slug: string;
+  content: string;
+  focusKeyword: string;
+  metaDescription: string;
+  failedChecks: { label: string; info: string }[];
+}
+
+export interface SEOFixResult {
+  title: string;
+  slug: string;
+  metaDescription: string;
+  content: string;
+}
+
+export const fixBlogSEO = async (input: SEOFixInput): Promise<SEOFixResult> => {
+  const { data, error } = await supabase.functions.invoke('fix-blog-seo', {
+    body: input,
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  
+  return {
+    title: data.title,
+    slug: data.slug,
+    metaDescription: data.metaDescription,
+    content: data.content,
+  };
+};

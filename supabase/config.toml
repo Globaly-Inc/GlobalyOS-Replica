@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.research-blog-keywords]
 verify_jwt = false
+
+[functions.fix-blog-seo]
+verify_jwt = false
