@@ -8,12 +8,15 @@ import { WikiSearch } from "@/components/wiki/WikiSearch";
 import { WikiMobileLanding } from "@/components/wiki/WikiMobileLanding";
 import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { WikiUploadDialog } from "@/components/wiki/WikiUploadDialog";
+import { WikiFilePreview } from "@/components/wiki/WikiFilePreview";
+import { WikiShareDialog } from "@/components/wiki/WikiShareDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWikiFavorites } from "@/hooks/useWikiFavorites";
 import { useWikiPermissions } from "@/hooks/useWikiPermissions";
 import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
+import { useWikiSharedAccess } from "@/hooks/useWikiSharedAccess";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -92,9 +95,22 @@ const Wiki = () => {
   const [canEditCurrentFolder, setCanEditCurrentFolder] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareItemType, setShareItemType] = useState<'folder' | 'page'>('page');
+  const [shareItemId, setShareItemId] = useState<string | null>(null);
+  
+  // File preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
   
   // Ref to WikiContent to check unsaved changes synchronously
   const wikiContentRef = useRef<WikiContentHandle>(null);
+
+  // Get shared access data for current page
+  const sharedAccess = useWikiSharedAccess(
+    selectedPageId ? 'page' : selectedFolderId ? 'folder' : null,
+    selectedPageId || selectedFolderId
+  );
 
   // Check if user can edit the current folder context
   useEffect(() => {
@@ -105,17 +121,7 @@ const Wiki = () => {
     checkFolderPermission();
   }, [selectedFolderId, checkCanEditFolder]);
 
-  // Navigation handlers - check unsaved changes synchronously via ref
-  const handleSelectPage = useCallback((pageId: string) => {
-    if (wikiContentRef.current?.hasUnsavedChanges() && pageId !== selectedPageId) {
-      setPendingNavigation({ type: 'page', id: pageId });
-    } else {
-      setSelectedPageId(pageId);
-      setSelectedFolderId(null);
-      setViewMode("page");
-    }
-  }, [selectedPageId]);
-
+  // Navigation handlers - handleSelectPage moved after pagesList query
   const handleSelectFolder = useCallback((folderId: string) => {
     if (wikiContentRef.current?.hasUnsavedChanges()) {
       setPendingNavigation({ type: 'folder', id: folderId });
@@ -225,6 +231,28 @@ const Wiki = () => {
     },
     enabled: !!currentOrg?.id,
   });
+
+  // Navigation handler for pages (needs pagesList)
+  const handleSelectPage = useCallback((pageId: string) => {
+    if (wikiContentRef.current?.hasUnsavedChanges() && pageId !== selectedPageId) {
+      setPendingNavigation({ type: 'page', id: pageId });
+    } else {
+      // Check if this is a file that should open in preview
+      const page = pagesList.find(p => p.id === pageId);
+      if (page && (page.is_file || page.file_url)) {
+        // Open file preview
+        const previewableItems = pagesList.filter(p => p.folder_id === page.folder_id);
+        const idx = previewableItems.findIndex(p => p.id === pageId);
+        setPreviewIndex(idx >= 0 ? idx : 0);
+        setPreviewOpen(true);
+        setSelectedPageId(pageId);
+      } else {
+        setSelectedPageId(pageId);
+        setSelectedFolderId(null);
+        setViewMode("page");
+      }
+    }
+  }, [selectedPageId, pagesList]);
 
   // Fetch selected page details
   const { data: selectedPage, isLoading: isLoadingPage } = useQuery({
@@ -549,6 +577,18 @@ const Wiki = () => {
     onError: () => toast.error("Failed to restore version"),
   });
 
+  // Get preview items for the current folder
+  const getPreviewItems = useCallback(() => {
+    const folderId = selectedFolderId || (selectedPageId ? pagesList.find(p => p.id === selectedPageId)?.folder_id : null);
+    return pagesList.filter(p => p.folder_id === folderId);
+  }, [selectedFolderId, selectedPageId, pagesList]);
+
+  const handleOpenShare = useCallback((type: 'folder' | 'page', id: string) => {
+    setShareItemType(type);
+    setShareItemId(id);
+    setShareDialogOpen(true);
+  }, []);
+
   // Get current folder for creating items in context
   const getCurrentFolderId = useCallback(() => {
     if (viewMode === "folder" && selectedFolderId) {
@@ -621,6 +661,9 @@ const Wiki = () => {
                 restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
               }
               isRestoring={restoreVersionMutation.isPending}
+              sharedMembers={sharedAccess.members}
+              sharedGroups={sharedAccess.groups}
+              onShareClick={() => selectedPageId && handleOpenShare('page', selectedPageId)}
             />
           )}
         </div>
@@ -693,6 +736,9 @@ const Wiki = () => {
                 isRestoring={restoreVersionMutation.isPending}
                 onSelectFolder={handleSelectFolder}
                 onSelectHome={handleSelectHome}
+                sharedMembers={sharedAccess.members}
+                sharedGroups={sharedAccess.groups}
+                onShareClick={() => selectedPageId && handleOpenShare('page', selectedPageId)}
               />
             ) : (
               <WikiFolderView
@@ -748,6 +794,51 @@ const Wiki = () => {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
       />
+      
+      {/* File Preview */}
+      <WikiFilePreview
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        currentItem={selectedPageId ? pagesList.find(p => p.id === selectedPageId) || null : null}
+        allItems={getPreviewItems()}
+        currentIndex={previewIndex}
+        onNavigate={(index) => {
+          setPreviewIndex(index);
+          const items = getPreviewItems();
+          if (items[index]) {
+            setSelectedPageId(items[index].id);
+          }
+        }}
+        canEdit={hasGlobalEditAccess}
+        isFavorite={selectedPageId ? isFavorite('page', selectedPageId) : false}
+        onToggleFavorite={() => selectedPageId && toggleFavorite('page', selectedPageId)}
+        onShare={() => selectedPageId && handleOpenShare('page', selectedPageId)}
+        onMove={() => {
+          // TODO: Implement move dialog
+          toast.info("Move functionality coming soon");
+        }}
+        onDelete={() => selectedPageId && deletePageMutation.mutate(selectedPageId)}
+        onDuplicate={() => selectedPageId && duplicatePageMutation.mutate(selectedPageId)}
+        onEdit={() => selectedPageId && navigateOrg(`/wiki/edit/${selectedPageId}`)}
+        sharedMembers={sharedAccess.members}
+        sharedGroups={sharedAccess.groups}
+        onShareClick={() => selectedPageId && handleOpenShare('page', selectedPageId)}
+      />
+      
+      {/* Share Dialog */}
+      {shareItemId && (
+        <WikiShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          itemType={shareItemType}
+          itemId={shareItemId}
+          itemName={shareItemType === 'page' 
+            ? pagesList.find(p => p.id === shareItemId)?.title || ''
+            : folders.find(f => f.id === shareItemId)?.name || ''
+          }
+          organizationId={currentOrg?.id || ''}
+        />
+      )}
     </>
   );
 };
