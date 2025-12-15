@@ -262,212 +262,216 @@ export const WikiInviteMember = ({
         </TooltipProvider>
       </div>
 
-      <div className="flex items-stretch gap-2">
-        {/* Selection input */}
-        <div className="flex-1">
-          <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-            <PopoverAnchor asChild>
-              <div
-                className={cn(
-                  "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text",
-                  "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                )}
-                onClick={() => setSearchOpen(true)}
+      {/* Row 1: Search input - full width */}
+      <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+        <PopoverAnchor asChild>
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text w-full",
+              "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+            )}
+            onClick={() => setSearchOpen(true)}
+          >
+            {selections.map((sel, idx) => (
+              <Badge
+                key={`${sel.type}-${sel.id}-${idx}`}
+                variant="secondary"
+                className={cn("gap-1 pl-1.5 pr-1 py-0.5 border", getSelectionColor(sel.type))}
               >
-                {selections.map((sel, idx) => (
-                  <Badge
-                    key={`${sel.type}-${sel.id}-${idx}`}
-                    variant="secondary"
-                    className={cn("gap-1 pl-1.5 pr-1 py-0.5 border", getSelectionColor(sel.type))}
-                  >
-                    {getSelectionIcon(sel.type)}
-                    <span className="text-xs">{sel.label}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveSelection(sel);
-                      }}
-                      className="hover:bg-foreground/10 rounded p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={selections.length === 0 ? "Search members, offices, departments..." : ""}
-                  className="flex-1 min-w-20 border-0 p-0 h-6 focus-visible:ring-0 shadow-none"
-                  onFocus={() => setSearchOpen(true)}
-                  onBlur={(e) => {
-                    // Only close if clicking outside the popover
-                    const relatedTarget = e.relatedTarget as HTMLElement;
-                    if (!relatedTarget?.closest('[data-radix-popover-content-wrapper]')) {
-                      setTimeout(() => setSearchOpen(false), 150);
-                    }
+                {getSelectionIcon(sel.type)}
+                <span className="text-xs">{sel.label}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveSelection(sel);
                   }}
-                />
-              </div>
-            </PopoverAnchor>
-            <PopoverContent 
-              className="w-[350px] p-0 bg-popover z-50" 
-              align="start"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              onCloseAutoFocus={(e) => e.preventDefault()}
-            >
-              <Command shouldFilter={false}>
-                <CommandList className="max-h-[300px] overflow-y-auto">
-                  {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
-                  
-                  {/* Quick Actions - Everyone */}
-                  {filteredItems.showEveryone && (
-                    <CommandGroup heading="Quick Actions">
+                  className="hover:bg-foreground/10 rounded p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={selections.length === 0 ? "Search members, offices, departments..." : ""}
+              className="flex-1 min-w-20 border-0 p-0 h-6 focus-visible:ring-0 shadow-none"
+              onFocus={() => setSearchOpen(true)}
+              onBlur={(e) => {
+                // Only close if clicking outside the popover
+                const relatedTarget = e.relatedTarget as HTMLElement;
+                if (!relatedTarget?.closest('[data-radix-popover-content-wrapper]')) {
+                  setTimeout(() => setSearchOpen(false), 150);
+                }
+              }}
+            />
+          </div>
+        </PopoverAnchor>
+        <PopoverContent 
+          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover z-50" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command shouldFilter={false}>
+            <CommandList className="max-h-[300px] overflow-y-auto">
+              {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
+              
+              {/* Quick Actions - Everyone */}
+              {filteredItems.showEveryone && (
+                <CommandGroup heading="Quick Actions">
+                  <CommandItem
+                    value="everyone"
+                    onSelect={() => handleSelect({ type: 'everyone', id: 'everyone', label: `Everyone (${availableEmployees.length})` })}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">Everyone</span>
+                      <span className="text-xs text-muted-foreground">{availableEmployees.length} members</span>
+                    </div>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+
+              {/* Offices */}
+              {filteredItems.offices.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Offices">
+                    {filteredItems.offices.map(office => (
                       <CommandItem
-                        value="everyone"
-                        onSelect={() => handleSelect({ type: 'everyone', id: 'everyone', label: `Everyone (${availableEmployees.length})` })}
+                        key={office.id}
+                        value={`office-${office.name}`}
+                        onSelect={() => handleSelect({ type: 'office', id: office.id, label: office.name })}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <div className="h-7 w-7 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                          <Users className="h-4 w-4 text-emerald-600" />
+                        <div className="h-7 w-7 rounded-full bg-blue-500/10 flex items-center justify-center">
+                          <Building2 className="h-4 w-4 text-blue-600" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">Everyone</span>
-                          <span className="text-xs text-muted-foreground">{availableEmployees.length} members</span>
+                          <span className="text-sm">{office.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {employeeCountByOffice[office.id] || 0} members
+                          </span>
                         </div>
                       </CommandItem>
-                    </CommandGroup>
-                  )}
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
 
-                  {/* Offices */}
-                  {filteredItems.offices.length > 0 && (
-                    <>
-                      <CommandSeparator />
-                      <CommandGroup heading="Offices">
-                        {filteredItems.offices.map(office => (
-                          <CommandItem
-                            key={office.id}
-                            value={`office-${office.name}`}
-                            onSelect={() => handleSelect({ type: 'office', id: office.id, label: office.name })}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <div className="h-7 w-7 rounded-full bg-blue-500/10 flex items-center justify-center">
-                              <Building2 className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm">{office.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {employeeCountByOffice[office.id] || 0} members
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </>
-                  )}
+              {/* Departments */}
+              {filteredItems.departments.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Departments">
+                    {filteredItems.departments.map(dept => (
+                      <CommandItem
+                        key={dept}
+                        value={`dept-${dept}`}
+                        onSelect={() => handleSelect({ type: 'department', id: dept, label: dept })}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <div className="h-7 w-7 rounded-full bg-purple-500/10 flex items-center justify-center">
+                          <Users className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{dept}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {employeeCountByDepartment[dept] || 0} members
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
 
-                  {/* Departments */}
-                  {filteredItems.departments.length > 0 && (
-                    <>
-                      <CommandSeparator />
-                      <CommandGroup heading="Departments">
-                        {filteredItems.departments.map(dept => (
-                          <CommandItem
-                            key={dept}
-                            value={`dept-${dept}`}
-                            onSelect={() => handleSelect({ type: 'department', id: dept, label: dept })}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <div className="h-7 w-7 rounded-full bg-purple-500/10 flex items-center justify-center">
-                              <Users className="h-4 w-4 text-purple-600" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm">{dept}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {employeeCountByDepartment[dept] || 0} members
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </>
-                  )}
+              {/* Projects */}
+              {filteredItems.projects.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Projects">
+                    {filteredItems.projects.map(project => (
+                      <CommandItem
+                        key={project.id}
+                        value={`project-${project.name}`}
+                        onSelect={() => handleSelect({ type: 'project', id: project.id, label: project.name })}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <div className="h-7 w-7 rounded-full bg-amber-500/10 flex items-center justify-center">
+                          <FolderKanban className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{project.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {employeeCountByProject[project.id] || 0} members
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
 
-                  {/* Projects */}
-                  {filteredItems.projects.length > 0 && (
-                    <>
-                      <CommandSeparator />
-                      <CommandGroup heading="Projects">
-                        {filteredItems.projects.map(project => (
-                          <CommandItem
-                            key={project.id}
-                            value={`project-${project.name}`}
-                            onSelect={() => handleSelect({ type: 'project', id: project.id, label: project.name })}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <div className="h-7 w-7 rounded-full bg-amber-500/10 flex items-center justify-center">
-                              <FolderKanban className="h-4 w-4 text-amber-600" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm">{project.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {employeeCountByProject[project.id] || 0} members
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </>
-                  )}
+              {/* Members */}
+              {filteredItems.members.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Members">
+                    {filteredItems.members.slice(0, 10).map(emp => (
+                      <CommandItem
+                        key={emp.id}
+                        value={`member-${emp.profiles?.full_name || emp.id}`}
+                        onSelect={() => handleSelect({ 
+                          type: 'member', 
+                          id: emp.id, 
+                          label: emp.profiles?.full_name?.split(' ')[0] || 'Member'
+                        })}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {emp.profiles?.full_name?.charAt(0) || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{emp.profiles?.full_name}</span>
+                          {emp.profiles?.email && (
+                            <span className="text-xs text-muted-foreground">{emp.profiles.email}</span>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                    {filteredItems.members.length > 10 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        +{filteredItems.members.length - 10} more members
+                      </div>
+                    )}
+                  </CommandGroup>
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
-                  {/* Members */}
-                  {filteredItems.members.length > 0 && (
-                    <>
-                      <CommandSeparator />
-                      <CommandGroup heading="Members">
-                        {filteredItems.members.slice(0, 10).map(emp => (
-                          <CommandItem
-                            key={emp.id}
-                            value={`member-${emp.profiles?.full_name || emp.id}`}
-                            onSelect={() => handleSelect({ 
-                              type: 'member', 
-                              id: emp.id, 
-                              label: emp.profiles?.full_name?.split(' ')[0] || 'Member'
-                            })}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {emp.profiles?.full_name?.charAt(0) || '?'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span className="text-sm">{emp.profiles?.full_name}</span>
-                              {emp.profiles?.email && (
-                                <span className="text-xs text-muted-foreground">{emp.profiles.email}</span>
-                              )}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-
+      {/* Row 2: Permission dropdown + Invite button - full width */}
+      <div className="flex items-center gap-2 w-full">
         {/* Permission dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-1.5 shrink-0">
+            <Button variant="outline" className="gap-1.5 flex-1">
               <Globe className="h-4 w-4" />
               <span>can {permission}</span>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="start">
             <DropdownMenuItem
               onClick={() => setPermission('edit')}
               className={cn(permission === 'edit' && "bg-muted")}
@@ -487,7 +491,7 @@ export const WikiInviteMember = ({
         <Button
           onClick={handleInvite}
           disabled={selections.length === 0 || isInviting}
-          className="shrink-0"
+          className="flex-1"
         >
           {isInviting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
