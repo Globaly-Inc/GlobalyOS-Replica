@@ -413,22 +413,56 @@ const Home = () => {
     const currentYear = new Date().getFullYear();
 
     // Load people on leave today
-    const {
-      data: leaveRequests
-    } = await supabase.from("leave_requests").select(`
-        id,
-        leave_type,
-        employee:employees!leave_requests_employee_id_fkey(
-          id,
-          position,
-          profiles!inner(
-            full_name,
-            avatar_url
-          )
+    const { data: leaveRequests } = await supabase
+      .from("leave_requests")
+      .select("id, leave_type, employee_id")
+      .eq("organization_id", currentOrg.id)
+      .eq("status", "approved")
+      .lte("start_date", today)
+      .gte("end_date", today);
+
+    if (!leaveRequests || leaveRequests.length === 0) {
+      setPeopleOnLeave([]);
+    } else {
+      const employeeIds = Array.from(
+        new Set(
+          leaveRequests
+            .map((r: any) => r.employee_id)
+            .filter(Boolean)
         )
-      `).eq("organization_id", currentOrg.id).eq("status", "approved").lte("start_date", today).gte("end_date", today);
-    if (leaveRequests) {
-      setPeopleOnLeave(leaveRequests as PersonOnLeave[]);
+      );
+
+      const { data: employees } = await supabase
+        .from("employee_directory")
+        .select("id, full_name, avatar_url, position")
+        .eq("organization_id", currentOrg.id)
+        .in("id", employeeIds);
+
+      const employeeById = new Map(
+        (employees || []).map((e: any) => [e.id, e])
+      );
+
+      const normalized = (leaveRequests as any[])
+        .map((r) => {
+          const emp = employeeById.get(r.employee_id);
+          if (!emp) return null;
+
+          return {
+            id: r.id,
+            leave_type: r.leave_type,
+            employee: {
+              id: emp.id,
+              position: emp.position,
+              profiles: {
+                full_name: emp.full_name,
+                avatar_url: emp.avatar_url,
+              },
+            },
+          };
+        })
+        .filter(Boolean);
+
+      setPeopleOnLeave(normalized as PersonOnLeave[]);
     }
 
     // Load upcoming team leave for managers (direct reports' approved leave in the future)
