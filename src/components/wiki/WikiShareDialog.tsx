@@ -19,14 +19,11 @@ import {
   Briefcase, 
   FolderKanban, 
   Globe, 
-  Eye, 
-  Pencil,
   Copy,
   Check,
   Loader2,
   Link2,
   UserPlus,
-  ExternalLink,
   ChevronDown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,8 +31,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
-import { WikiMembersWithAccess, MemberWithAccess } from "./WikiMembersWithAccess";
+import { WikiMembersWithAccess, MemberWithAccess, OwnerInfo } from "./WikiMembersWithAccess";
 import { WikiAddMember, type Selection } from "./WikiInviteMember";
+import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
@@ -96,7 +94,13 @@ export const WikiShareDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [linkAccessExpanded, setLinkAccessExpanded] = useState(false);
+  const [publicLinkExpanded, setPublicLinkExpanded] = useState(false);
+  const [publicLinkEnabled, setPublicLinkEnabled] = useState(false);
+  const [publicLinkId, setPublicLinkId] = useState<string | null>(null);
+  const [isTogglingPublicLink, setIsTogglingPublicLink] = useState(false);
+
+  // Owner state
+  const [owner, setOwner] = useState<OwnerInfo | null>(null);
 
   // Members with access
   const [membersWithAccess, setMembersWithAccess] = useState<MemberWithAccess[]>([]);
@@ -122,8 +126,43 @@ export const WikiShareDialog = ({
       loadOptions();
       loadCurrentPermissions();
       loadMembersWithAccess();
+      loadOwner();
     }
   }, [open, organizationId, itemId, itemType]);
+
+  const loadOwner = async () => {
+    try {
+      const table = itemType === 'folder' ? 'wiki_folders' : 'wiki_pages';
+      const { data: itemData, error } = await supabase
+        .from(table)
+        .select('created_by')
+        .eq('id', itemId)
+        .single();
+
+      if (error || !itemData) return;
+
+      const createdBy = (itemData as { created_by: string }).created_by;
+      
+      // Fetch owner employee details
+      const { data: empData } = await supabase
+        .from('employees')
+        .select('id, profiles(full_name, avatar_url, email)')
+        .eq('id', createdBy)
+        .single();
+
+      if (empData) {
+        const profiles = empData.profiles as { full_name: string; avatar_url: string | null; email: string } | null;
+        setOwner({
+          employee_id: empData.id,
+          full_name: profiles?.full_name || 'Unknown',
+          avatar_url: profiles?.avatar_url || null,
+          email: profiles?.email || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading owner:', error);
+    }
+  };
 
   const loadOptions = async () => {
     try {
@@ -678,7 +717,9 @@ export const WikiShareDialog = ({
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/org/${currentOrg?.slug}/wiki/${itemType}/${itemId}`;
+    const url = publicLinkEnabled && publicLinkId 
+      ? `${window.location.origin}/public/wiki/${publicLinkId}`
+      : `${window.location.origin}/org/${currentOrg?.slug}/wiki/${itemType}/${itemId}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Link copied to clipboard');
@@ -749,10 +790,13 @@ export const WikiShareDialog = ({
                 <WikiMembersWithAccess
                   members={membersWithAccess}
                   isLoading={isMembersLoading}
+                  owner={owner}
+                  canTransferOwnership={currentEmployee?.id === owner?.employee_id}
                   onUpdatePermission={handleUpdateMemberPermission}
                   onRemoveMember={handleRemoveMember}
                   isUpdating={updatingMemberId}
                   accessScope={accessScope}
+                  permissionLevel={permissionLevel}
                   offices={offices}
                   departments={departments}
                   projects={projects}
@@ -765,42 +809,62 @@ export const WikiShareDialog = ({
 
               <Separator />
 
-              {/* Members with link section */}
-              <Collapsible open={linkAccessExpanded} onOpenChange={setLinkAccessExpanded}>
+              {/* Public link section - moved to bottom */}
+              <Collapsible open={publicLinkExpanded} onOpenChange={setPublicLinkExpanded}>
                 <CollapsibleTrigger asChild>
                   <button className="flex items-center gap-3 w-full text-left py-2 hover:bg-muted/50 rounded-lg px-2 -mx-2">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
-                      <ExternalLink className="h-5 w-5 text-muted-foreground" />
+                      <Link2 className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-1">
-                        <span className="font-medium text-sm">Members with link</span>
+                        <span className="font-medium text-sm">Create public link</span>
                         <ChevronDown className={cn(
                           "h-4 w-4 text-muted-foreground transition-transform",
-                          linkAccessExpanded && "rotate-180"
+                          publicLinkExpanded && "rotate-180"
                         )} />
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Members who have the link have access to this {itemType}.
+                        Anyone with the link can view this {itemType}.
                       </p>
                     </div>
                   </button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground truncate">
-                      {window.location.origin}/org/{currentOrg?.slug}/wiki/{itemType}/{itemId}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyLink}
-                      className="shrink-0 gap-2"
-                    >
-                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      {copied ? 'Copied!' : 'Copy'}
-                    </Button>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Enable public link</span>
+                    <Switch
+                      checked={publicLinkEnabled}
+                      onCheckedChange={async (checked) => {
+                        setIsTogglingPublicLink(true);
+                        // For now, just toggle locally - database changes would be needed
+                        setPublicLinkEnabled(checked);
+                        if (checked && !publicLinkId) {
+                          // Generate a simple public ID
+                          setPublicLinkId(crypto.randomUUID().slice(0, 8));
+                        }
+                        setIsTogglingPublicLink(false);
+                        toast.success(checked ? 'Public link enabled' : 'Public link disabled');
+                      }}
+                      disabled={isTogglingPublicLink}
+                    />
                   </div>
+                  {publicLinkEnabled && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground truncate">
+                        {window.location.origin}/public/wiki/{publicLinkId || itemId}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyLink}
+                        className="shrink-0 gap-2"
+                      >
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied ? 'Copied!' : 'Copy'}
+                      </Button>
+                    </div>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             </div>

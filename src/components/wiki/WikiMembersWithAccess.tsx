@@ -1,12 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Globe, ChevronDown, X, Loader2, Building2, Users, FolderKanban } from "lucide-react";
+import { Globe, ChevronDown, X, Loader2, Building2, Users, FolderKanban, Crown, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WikiAccessScope } from "./WikiShareDialog";
 
@@ -19,6 +20,13 @@ export interface MemberWithAccess {
   permission: 'view' | 'edit';
   added_at: string;
   added_by_name: string | null;
+}
+
+export interface OwnerInfo {
+  employee_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  email: string;
 }
 
 interface Office {
@@ -50,8 +58,13 @@ interface WikiMembersWithAccessProps {
   onRemoveMember: (employeeId: string) => void;
   isUpdating?: string | null;
   canEdit?: boolean;
+  // Owner props
+  owner?: OwnerInfo | null;
+  canTransferOwnership?: boolean;
+  onTransferOwnership?: () => void;
   // Group access props
   accessScope?: WikiAccessScope;
+  permissionLevel?: 'view' | 'edit';
   offices?: Office[];
   departments?: string[];
   projects?: Project[];
@@ -68,7 +81,11 @@ export const WikiMembersWithAccess = ({
   onRemoveMember,
   isUpdating,
   canEdit = true,
+  owner,
+  canTransferOwnership = false,
+  onTransferOwnership,
   accessScope = 'members',
+  permissionLevel = 'view',
   offices = [],
   departments = [],
   projects = [],
@@ -98,9 +115,10 @@ export const WikiMembersWithAccess = ({
     (accessScope === 'departments' && selectedDepartments.length > 0) ||
     (accessScope === 'projects' && selectedProjects.length > 0);
 
-  const hasMembers = members.length > 0;
+  // Only show individual members when access scope is explicitly 'members'
+  const hasMembers = accessScope === 'members' && members.length > 0;
 
-  if (!hasGroupAccess && !hasMembers) {
+  if (!owner && !hasGroupAccess && !hasMembers) {
     return (
       <div className="py-4 text-center text-sm text-muted-foreground">
         No one has been added yet
@@ -110,6 +128,45 @@ export const WikiMembersWithAccess = ({
 
   return (
     <div className="space-y-1">
+      {/* Owner Section */}
+      {owner && (
+        <div className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={owner.avatar_url || undefined} />
+                <AvatarFallback className="text-sm bg-amber-500/10 text-amber-600">
+                  {owner.full_name?.charAt(0) || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center">
+                <Crown className="h-2.5 w-2.5 text-white" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{owner.full_name}</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-700 border-amber-500/20">
+                  Owner
+                </Badge>
+              </div>
+              <span className="text-xs text-muted-foreground">{owner.email}</span>
+            </div>
+          </div>
+          {canTransferOwnership && onTransferOwnership && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onTransferOwnership}
+              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              <span className="text-xs">Transfer</span>
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Company-wide access */}
       {accessScope === 'company' && (
         <div className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group">
@@ -124,7 +181,7 @@ export const WikiMembersWithAccess = ({
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
             <Globe className="h-3.5 w-3.5" />
-            <span>can view</span>
+            <span>can {permissionLevel}</span>
           </div>
         </div>
       )}
@@ -150,7 +207,7 @@ export const WikiMembersWithAccess = ({
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
                 <Globe className="h-3.5 w-3.5" />
-                <span>can view</span>
+                <span>can {permissionLevel}</span>
               </div>
             </div>
           ))}
@@ -178,7 +235,7 @@ export const WikiMembersWithAccess = ({
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
                 <Globe className="h-3.5 w-3.5" />
-                <span>can view</span>
+                <span>can {permissionLevel}</span>
               </div>
             </div>
           ))}
@@ -204,15 +261,15 @@ export const WikiMembersWithAccess = ({
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
                 <Globe className="h-3.5 w-3.5" />
-                <span>can view</span>
+                <span>can {permissionLevel}</span>
               </div>
             </div>
           ))}
         </>
       )}
 
-      {/* Individual members (explicitly added) */}
-      {members.map((member) => (
+      {/* Individual members (only when access_scope is 'members') */}
+      {accessScope === 'members' && members.map((member) => (
         <div
           key={member.employee_id}
           className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
