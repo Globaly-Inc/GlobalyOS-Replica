@@ -268,13 +268,13 @@ export const WikiAddMember = ({
           </div>
         </PopoverAnchor>
         <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover z-50" 
+          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover z-50 max-h-[300px] overflow-hidden" 
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
-          <Command shouldFilter={false}>
-            <CommandList className="max-h-[240px] overflow-y-auto overscroll-contain">
+          <Command shouldFilter={false} className="h-full">
+            <CommandList className="max-h-[280px] overflow-y-auto">
               {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
               
               {/* Quick Actions - Everyone */}
