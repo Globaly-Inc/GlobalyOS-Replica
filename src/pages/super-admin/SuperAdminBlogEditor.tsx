@@ -387,6 +387,13 @@ export default function SuperAdminBlogEditor() {
                   onFocusKeywordChange={setFocusKeyword}
                   onMetaTitleChange={setMetaTitle}
                   onMetaDescriptionChange={setMetaDescription}
+                  onAIFix={(result) => {
+                    setTitle(result.title);
+                    setSlug(result.slug);
+                    setMetaDescription(result.metaDescription);
+                    setContent(result.content);
+                    setHasUnsavedChanges(true);
+                  }}
                 />
               </div>
             </div>

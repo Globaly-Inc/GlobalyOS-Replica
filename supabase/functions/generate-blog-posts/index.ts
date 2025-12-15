@@ -42,31 +42,60 @@ Write a comprehensive, SEO-optimized blog post about: "${keyword}"
 
 Target audience: ${audience || 'HR professionals and business leaders'}
 Tone: ${tone || 'professional yet conversational'}
-Word count: ${wordCount || '800-1200'} words
+Word count: ${wordCount || '1000-1500'} words minimum
 
-Requirements:
-1. Create an engaging, SEO-optimized title (50-60 characters ideal)
-2. Write a compelling meta description (150-160 characters)
-3. Use the focus keyword naturally in:
-   - First paragraph
-   - At least one H2 heading
-   - Throughout the content (1-2% density)
-   - Conclusion
-4. Include 3-5 H2 subheadings
-5. Add practical tips, examples, or statistics where relevant
-6. End with a clear call-to-action related to GlobalyOS features
-7. Make content scannable with short paragraphs and bullet points
+=== CRITICAL SEO REQUIREMENTS (ALL MUST BE MET) ===
 
-Output format (JSON):
+1. TITLE (30-60 characters):
+   - MUST include "${keyword}" naturally
+   - Make it compelling and click-worthy
+   - Character count must be between 30-60
+
+2. META DESCRIPTION (120-160 characters):
+   - MUST include "${keyword}" in first half
+   - Compelling call-to-action
+   - Exactly 120-160 characters (not more, not less)
+
+3. INTRODUCTION (first 300 characters):
+   - MUST include "${keyword}" within the first 2 sentences
+   - Hook the reader immediately
+   - Set up what the article will cover
+
+4. KEYWORD DENSITY (1-2%):
+   - Use "${keyword}" naturally throughout (approximately 1-2 times per 100 words)
+   - Include variations and related terms
+   - Never force or stuff keywords
+
+5. CONTENT STRUCTURE:
+   - Minimum 1000 words (aim for 1200-1500)
+   - Include 4-6 H2 subheadings (at least one should contain the keyword)
+   - Use H3 subheadings for sub-sections
+   - Short paragraphs (2-4 sentences max)
+   - Include at least 2 bullet or numbered lists
+
+6. IMAGES (placeholders):
+   - Include 2-3 image placeholders with this format:
+     <figure><img src="[IMAGE_PLACEHOLDER]" alt="descriptive alt text with ${keyword}" /><figcaption>Caption here</figcaption></figure>
+   - Alt text MUST describe image AND include keyword naturally
+
+7. INTERNAL LINKING (suggestions):
+   - Add 2-3 internal link placeholders: [INTERNAL_LINK: suggested topic]
+   - These will be replaced with actual links
+
+8. CALL TO ACTION:
+   - End with clear CTA related to GlobalyOS features
+   - Make it actionable and relevant
+
+=== OUTPUT FORMAT (JSON only, no code blocks) ===
 {
-  "title": "SEO-optimized title",
-  "slug": "url-friendly-slug",
-  "meta_description": "Compelling meta description under 160 chars",
-  "excerpt": "2-3 sentence summary for previews",
-  "content": "<article HTML content with proper headings, paragraphs, lists>",
-  "category": "hr-tips|product-updates|company-culture|general",
-  "focus_keyword": "main keyword",
-  "reading_time_minutes": estimated reading time
+  "title": "SEO-optimized title with keyword (30-60 chars)",
+  "slug": "keyword-in-url-slug",
+  "meta_description": "Keyword in first half, compelling, 120-160 chars exactly",
+  "excerpt": "2-3 sentence summary with keyword for previews",
+  "content": "<article>Full HTML content with h2/h3 headings, paragraphs, lists, image placeholders</article>",
+  "category": "HR Technology|Employee Management|Workplace Culture|Remote Work|Leadership|Performance",
+  "focus_keyword": "${keyword}",
+  "reading_time_minutes": estimated_reading_time_number
 }`;
 
       console.log(`Generating blog post ${i + 1}/${count} for keyword: ${keyword}`);

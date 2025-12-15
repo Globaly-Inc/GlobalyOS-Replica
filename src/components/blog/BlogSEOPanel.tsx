@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, AlertCircle, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, X, Info, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fixBlogSEO } from "@/services/useBlog";
+import { toast } from "sonner";
 
 interface BlogSEOPanelProps {
   title: string;
@@ -17,6 +20,12 @@ interface BlogSEOPanelProps {
   onFocusKeywordChange: (value: string) => void;
   onMetaTitleChange: (value: string) => void;
   onMetaDescriptionChange: (value: string) => void;
+  onAIFix?: (result: {
+    title: string;
+    slug: string;
+    metaDescription: string;
+    content: string;
+  }) => void;
 }
 
 interface SEOCheck {
@@ -35,7 +44,10 @@ export const BlogSEOPanel = ({
   onFocusKeywordChange,
   onMetaTitleChange,
   onMetaDescriptionChange,
+  onAIFix,
 }: BlogSEOPanelProps) => {
+  const [isFixing, setIsFixing] = useState(false);
+
   const seoAnalysis = useMemo(() => {
     const checks: SEOCheck[] = [];
     let score = 0;
@@ -148,6 +160,10 @@ export const BlogSEOPanel = ({
     return { checks, score: Math.min(score, maxScore), wordCount };
   }, [title, slug, content, focusKeyword, metaTitle, metaDescription]);
 
+  const failedChecks = useMemo(() => {
+    return seoAnalysis.checks.filter(check => !check.passed);
+  }, [seoAnalysis.checks]);
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 50) return 'text-yellow-600';
@@ -158,6 +174,40 @@ export const BlogSEOPanel = ({
     if (score >= 80) return { label: 'Good', variant: 'default' as const };
     if (score >= 50) return { label: 'Needs Work', variant: 'secondary' as const };
     return { label: 'Poor', variant: 'destructive' as const };
+  };
+
+  const handleAIFix = async () => {
+    if (!focusKeyword) {
+      toast.error('Please enter a focus keyword first');
+      return;
+    }
+
+    if (failedChecks.length === 0) {
+      toast.info('All SEO checks are passing!');
+      return;
+    }
+
+    setIsFixing(true);
+    try {
+      const result = await fixBlogSEO({
+        title,
+        slug,
+        content,
+        focusKeyword,
+        metaDescription,
+        failedChecks: failedChecks.map(c => ({ label: c.label, info: c.info || '' })),
+      });
+
+      if (onAIFix) {
+        onAIFix(result);
+        toast.success('SEO issues fixed by AI!');
+      }
+    } catch (error) {
+      console.error('Failed to fix SEO:', error);
+      toast.error('Failed to fix SEO issues. Please try again.');
+    } finally {
+      setIsFixing(false);
+    }
   };
 
   const scoreBadge = getScoreBadge(seoAnalysis.score);
@@ -176,6 +226,29 @@ export const BlogSEOPanel = ({
             {seoAnalysis.score}/100
           </p>
         </div>
+
+        {/* AI Fix Button */}
+        {seoAnalysis.score < 80 && onAIFix && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full gap-2"
+            onClick={handleAIFix}
+            disabled={isFixing || !focusKeyword}
+          >
+            {isFixing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Fixing SEO Issues...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                AI Fix SEO Issues ({failedChecks.length})
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Focus Keyword */}
