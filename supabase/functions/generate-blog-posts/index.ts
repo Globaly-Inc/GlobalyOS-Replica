@@ -33,8 +33,10 @@ async function searchPexelsImage(query: string): Promise<{ url: string; attribut
     const data = await response.json();
     if (data.photos?.length > 0) {
       const photo = data.photos[0];
+      // Use 'large' size (max 940x627) to stay well under 1920x1280 limit
+      // Pexels sizes: original (full), large2x (max 1880), large (max 940), medium, small
       return {
-        url: photo.src.large2x || photo.src.large || photo.src.original,
+        url: photo.src.large,
         attribution: `Photo by ${photo.photographer} on Pexels`,
         photographerUrl: photo.photographer_url || 'https://www.pexels.com'
       };
