@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { ChevronRight, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, ArrowLeft, Folder, FileText, LayoutGrid, List } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { WikiShareDialog } from "./WikiShareDialog";
 import { WikiMoveDialog } from "./WikiMoveDialog";
+import { useWikiItemPermissions } from "@/hooks/useWikiPermissions";
 
 interface WikiFolder {
   id: string;
@@ -46,6 +47,7 @@ interface WikiFolder {
   updated_at: string;
   access_scope?: string;
   permission_level?: string;
+  created_by?: string;
 }
 
 interface WikiPage {
@@ -61,6 +63,7 @@ interface WikiPage {
   thumbnail_url?: string;
   access_scope?: string;
   permission_level?: string;
+  created_by?: string;
 }
 
 interface SelectedItem {
@@ -78,7 +81,9 @@ interface WikiFolderViewProps {
   currentFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
   onSelectPage: (pageId: string) => void;
-  canEdit?: boolean;
+  canEditCurrentFolder?: boolean;
+  hasGlobalEditAccess?: boolean;
+  currentEmployeeId?: string;
   organizationId?: string;
   onCreateFolder?: (name: string, parentId: string | null) => void;
   onCreatePage?: (title: string, folderId: string | null) => void;
@@ -102,7 +107,9 @@ export const WikiFolderView = ({
   currentFolderId,
   onSelectFolder,
   onSelectPage,
-  canEdit = false,
+  canEditCurrentFolder = false,
+  hasGlobalEditAccess = false,
+  currentEmployeeId,
   organizationId,
   onCreateFolder,
   onCreatePage,
@@ -160,6 +167,17 @@ export const WikiFolderView = ({
   );
 
   const totalItems = childFolders.length + childPages.length;
+
+  // Prepare items for permission check
+  const itemsForPermissionCheck = useMemo(() => {
+    return [
+      ...childFolders.map(f => ({ type: 'folder' as const, id: f.id, created_by: f.created_by })),
+      ...childPages.map(p => ({ type: 'page' as const, id: p.id, created_by: p.created_by })),
+    ];
+  }, [childFolders, childPages]);
+
+  // Use the batch permission hook
+  const { getItemPermissions } = useWikiItemPermissions(itemsForPermissionCheck);
 
   // Clear selection when folder changes
   useEffect(() => {
@@ -523,7 +541,7 @@ export const WikiFolderView = ({
         {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
           <WikiEmptyState
             type={currentFolderId ? "folder" : "wiki"}
-            canEdit={canEdit}
+            canEdit={canEditCurrentFolder}
             onCreateFolder={() => onCreateFolder?.("New Folder", currentFolderId)}
             onCreatePage={() => onCreatePage?.("New Page", currentFolderId)}
           />
@@ -586,6 +604,7 @@ export const WikiFolderView = ({
                     const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
                     const isFav = isFavorite?.("folder", folder.id) ?? false;
                     const isEditing = editingItem?.type === "folder" && editingItem.id === folder.id;
+                    const itemPerms = getItemPermissions("folder", folder.id);
                     
                     return (
                       <WikiItemCard
@@ -597,7 +616,9 @@ export const WikiFolderView = ({
                         isFavorite={isFav}
                         isEditing={isEditing}
                         editValue={isEditing ? editingItem.name : ''}
-                        canEdit={canEdit}
+                        canEdit={itemPerms.canEdit}
+                        canDelete={itemPerms.isOwner}
+                        canMove={itemPerms.isOwner}
                         isMobile={isMobile}
                         folderStats={{ subfolderCount, pageCount: folderPageCount }}
                         onSelect={() => onSelectFolder(folder.id)}
@@ -675,6 +696,7 @@ export const WikiFolderView = ({
                   {childPages.map((page) => {
                     const isFav = isFavorite?.("page", page.id) ?? false;
                     const isEditing = editingItem?.type === "page" && editingItem.id === page.id;
+                    const itemPerms = getItemPermissions("page", page.id);
                     
                     return (
                       <WikiItemCard
@@ -686,7 +708,9 @@ export const WikiFolderView = ({
                         isFavorite={isFav}
                         isEditing={isEditing}
                         editValue={isEditing ? editingItem.name : ''}
-                        canEdit={canEdit}
+                        canEdit={itemPerms.canEdit}
+                        canDelete={itemPerms.isOwner}
+                        canMove={itemPerms.isOwner}
                         isMobile={isMobile}
                         onSelect={() => onSelectPage(page.id)}
                         onToggleSelect={() => toggleItemSelection('page', page.id)}

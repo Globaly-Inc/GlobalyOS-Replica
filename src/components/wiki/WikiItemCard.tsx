@@ -65,6 +65,8 @@ interface WikiItemCardProps {
   isEditing: boolean;
   editValue: string;
   canEdit: boolean;
+  canDelete?: boolean;
+  canMove?: boolean;
   isMobile: boolean;
   folderStats?: { subfolderCount: number; pageCount: number };
   onSelect: () => void;
@@ -92,6 +94,8 @@ export const WikiItemCard = ({
   isEditing,
   editValue,
   canEdit,
+  canDelete,
+  canMove,
   isMobile,
   folderStats,
   onSelect,
@@ -118,6 +122,12 @@ export const WikiItemCard = ({
   const name = isFolder ? folder!.name : page!.title;
   const isImageFile = page?.is_file && page?.file_type === 'image' && page?.thumbnail_url;
   const fileTypeInfo = page?.is_file ? getFileTypeIcon(page.file_type, page.title) : null;
+
+  // Determine effective permissions - canDelete and canMove default to canEdit if not specified
+  const effectiveCanDelete = canDelete ?? canEdit;
+  const effectiveCanMove = canMove ?? canEdit;
+  const canPerformAnyAction = canEdit || effectiveCanDelete || effectiveCanMove;
+  
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (isEditing) return;
@@ -159,8 +169,8 @@ export const WikiItemCard = ({
       )}
       onClick={handleCardClick}
     >
-      {/* Checkbox - visible on hover or in selection mode */}
-      {canEdit && !isEditing && (
+      {/* Checkbox - visible on hover or in selection mode (all users can select) */}
+      {!isEditing && (
         <div 
           className={cn(
             "absolute top-2 left-2 z-20 transition-opacity",
@@ -179,14 +189,14 @@ export const WikiItemCard = ({
       {isFavorite && !isEditing && (
         <div className={cn(
           "absolute z-20",
-          canEdit ? "top-2 left-9" : "top-2 left-2"
+          "top-2 left-9"
         )}>
           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
         </div>
       )}
 
-      {/* Three-dot menu */}
-      {canEdit && !isEditing && !isMobile && !isSelectionMode && (
+      {/* Three-dot menu - show for any user (favorites always available) */}
+      {!isEditing && !isMobile && !isSelectionMode && (
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -195,29 +205,46 @@ export const WikiItemCard = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={onStartEditing}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Rename
-              </DropdownMenuItem>
+              {/* Favorites - available to all users */}
               <DropdownMenuItem onClick={onToggleFavorite}>
                 <Star className={cn("h-4 w-4 mr-2", isFavorite && "fill-yellow-400 text-yellow-400")} />
                 {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onShare}>
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onMove}>
-                <Move className="h-4 w-4 mr-2" />
-                Move to...
-              </DropdownMenuItem>
-              {!isFolder && onDuplicate && (
+              
+              {/* Rename - requires edit access */}
+              {canEdit && (
+                <DropdownMenuItem onClick={onStartEditing}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Rename
+                </DropdownMenuItem>
+              )}
+              
+              {/* Share - requires edit access */}
+              {canEdit && (
+                <DropdownMenuItem onClick={onShare}>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+              )}
+              
+              {/* Move - requires ownership */}
+              {effectiveCanMove && (
+                <DropdownMenuItem onClick={onMove}>
+                  <Move className="h-4 w-4 mr-2" />
+                  Move to...
+                </DropdownMenuItem>
+              )}
+              
+              {/* Duplicate - requires edit access (pages only) */}
+              {!isFolder && onDuplicate && canEdit && (
                 <DropdownMenuItem onClick={onDuplicate}>
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
               )}
-              {isFolder && (
+              
+              {/* Create inside folder - requires edit access */}
+              {isFolder && canEdit && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onCreatePage}>
@@ -230,14 +257,20 @@ export const WikiItemCard = ({
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
+              
+              {/* Delete - requires ownership */}
+              {effectiveCanDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

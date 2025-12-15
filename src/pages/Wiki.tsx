@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWikiFavorites } from "@/hooks/useWikiFavorites";
+import { useWikiPermissions } from "@/hooks/useWikiPermissions";
 import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -78,9 +79,10 @@ const Wiki = () => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
   const { currentOrg } = useOrganization();
-  const { isAdmin, isHR } = useUserRole();
+  const { isAdmin, isHR, isOwner } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
   const { recentItems, addRecentItem } = useWikiRecentlyViewed();
+  const { hasGlobalEditAccess, checkCanEditFolder, currentEmployeeId } = useWikiPermissions();
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -88,11 +90,19 @@ const Wiki = () => {
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>("landing");
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   const [creatingItem, setCreatingItem] = useState<{ type: "folder" | "page" } | null>(null);
+  const [canEditCurrentFolder, setCanEditCurrentFolder] = useState(false);
   
   // Ref to WikiContent to check unsaved changes synchronously
   const wikiContentRef = useRef<WikiContentHandle>(null);
 
-  const canEdit = isAdmin || isHR;
+  // Check if user can edit the current folder context
+  useEffect(() => {
+    const checkFolderPermission = async () => {
+      const canEdit = await checkCanEditFolder(selectedFolderId);
+      setCanEditCurrentFolder(canEdit);
+    };
+    checkFolderPermission();
+  }, [selectedFolderId, checkCanEditFolder]);
 
   // Navigation handlers - check unsaved changes synchronously via ref
   const handleSelectPage = useCallback((pageId: string) => {
@@ -155,7 +165,7 @@ const Wiki = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("wiki_folders")
-        .select("id, name, parent_id, sort_order, created_at, updated_at")
+        .select("id, name, parent_id, sort_order, created_at, updated_at, created_by")
         .eq("organization_id", currentOrg.id)
         .order("sort_order");
       if (error) throw error;
@@ -206,7 +216,7 @@ const Wiki = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("wiki_pages")
-        .select("id, folder_id, title, content, sort_order, created_at, updated_at")
+        .select("id, folder_id, title, content, sort_order, created_at, updated_at, created_by")
         .eq("organization_id", currentOrg.id)
         .order("sort_order");
       if (error) throw error;
@@ -576,7 +586,9 @@ const Wiki = () => {
             currentFolderId={selectedFolderId}
             onSelectFolder={handleMobileSelectFolder}
             onSelectPage={handleMobileSelectPage}
-            canEdit={canEdit}
+            canEditCurrentFolder={canEditCurrentFolder}
+            hasGlobalEditAccess={hasGlobalEditAccess}
+            currentEmployeeId={currentEmployeeId}
             organizationId={currentOrg?.id}
             onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
             onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
@@ -600,7 +612,7 @@ const Wiki = () => {
             versions={pageVersions}
             folders={folders}
             onSave={async () => {}}
-            canEdit={canEdit}
+            canEdit={hasGlobalEditAccess}
             isLoading={isLoadingPage}
             organizationId={currentOrg?.id}
             onBack={handleMobileBack}
@@ -628,7 +640,7 @@ const Wiki = () => {
           
           <div className="flex-1" />
           
-          {canEdit && (
+          {canEditCurrentFolder && (
             <>
               <WikiImportDialog
                 organizationId={currentOrg?.id}
@@ -702,7 +714,7 @@ const Wiki = () => {
               onSelectFolder={handleSelectFolder}
               onSelectHome={handleSelectHome}
               onStartCreating={(type) => setCreatingItem({ type })}
-              canEdit={canEdit}
+              canEdit={canEditCurrentFolder}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
               recentItems={recentItems}
@@ -720,7 +732,7 @@ const Wiki = () => {
                 onSave={async (pageId, title, content) => {
                   await savePageMutation.mutateAsync({ pageId, title, content });
                 }}
-                canEdit={canEdit}
+                canEdit={hasGlobalEditAccess}
                 isLoading={isLoadingPage}
                 organizationId={currentOrg?.id}
                 pendingNavigation={pendingNavigation}
@@ -740,7 +752,9 @@ const Wiki = () => {
                 currentFolderId={selectedFolderId}
                 onSelectFolder={handleSelectFolder}
                 onSelectPage={handleSelectPage}
-                canEdit={canEdit}
+                canEditCurrentFolder={canEditCurrentFolder}
+                hasGlobalEditAccess={hasGlobalEditAccess}
+                currentEmployeeId={currentEmployeeId}
                 organizationId={currentOrg?.id}
                 onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
                 onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
