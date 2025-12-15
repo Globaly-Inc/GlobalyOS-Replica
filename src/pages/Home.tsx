@@ -627,9 +627,12 @@ const Home = () => {
     }[];
   };
   const groupedKudos: GroupedKudosItem[] = (() => {
+    // Filter out kudos with null employee or given_by references (deleted users)
+    const validKudos = filteredKudos.filter(k => k.employee && k.given_by && k.employee.profiles && k.given_by.profiles);
+    
     const grouped: Map<string, KudosItem[]> = new Map();
     const standalone: GroupedKudosItem[] = [];
-    filteredKudos.forEach(k => {
+    validKudos.forEach(k => {
       if (k.batch_id) {
         const existing = grouped.get(k.batch_id) || [];
         existing.push(k);
@@ -647,11 +650,13 @@ const Home = () => {
     grouped.forEach(items => {
       if (items.length > 0) {
         const first = items[0];
-        const others = items.slice(1).map(k => ({
-          id: k.employee.id,
-          name: k.employee.profiles.full_name,
-          avatar: k.employee.profiles.avatar_url || undefined
-        }));
+        const others = items.slice(1)
+          .filter(k => k.employee && k.employee.profiles) // Extra safety check
+          .map(k => ({
+            id: k.employee.id,
+            name: k.employee.profiles.full_name,
+            avatar: k.employee.profiles.avatar_url || undefined
+          }));
         result.push({
           ...first,
           otherRecipients: others
@@ -679,17 +684,20 @@ const Home = () => {
             avatar?: string;
           }[];
         };
+        // Skip if employee or given_by is null (shouldn't happen after filter, but safety check)
+        if (!kudosItem.employee || !kudosItem.given_by) return null;
+        
         return <div key={kudosItem.batch_id || item.id} className={isNew ? "animate-fade-in" : ""}>
           <KudosCard kudos={{
             id: kudosItem.id,
             employeeId: kudosItem.employee.id,
-            employeeName: kudosItem.employee.profiles.full_name,
-            givenBy: kudosItem.given_by.profiles.full_name,
+            employeeName: kudosItem.employee.profiles?.full_name || "Unknown",
+            givenBy: kudosItem.given_by.profiles?.full_name || "Unknown",
             givenById: kudosItem.given_by.id,
-            givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
+            givenByAvatar: kudosItem.given_by.profiles?.avatar_url || undefined,
             comment: kudosItem.comment,
             date: kudosItem.created_at,
-            avatar: kudosItem.employee.profiles.avatar_url || undefined,
+            avatar: kudosItem.employee.profiles?.avatar_url || undefined,
             batchId: kudosItem.batch_id || undefined,
             otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
             otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
@@ -697,15 +705,18 @@ const Home = () => {
         </div>;
       } else {
         const updateItem = item as FeedItem;
+        // Skip if employee is null
+        if (!updateItem.employee) return null;
+        
         return <div key={item.id} className={isNew ? "animate-fade-in" : ""}>
           <UpdateCard update={{
             id: updateItem.id,
             employeeId: updateItem.employee_id,
-            employeeName: updateItem.employee.profiles.full_name,
+            employeeName: updateItem.employee.profiles?.full_name || "Unknown",
             content: updateItem.content,
             date: updateItem.created_at,
             type: mapDbTypeToUiType(updateItem.type),
-            avatar: updateItem.employee.profiles.avatar_url || undefined,
+            avatar: updateItem.employee.profiles?.avatar_url || undefined,
             imageUrl: updateItem.image_url || undefined,
             mentions: updateItem.mentions?.map(m => ({
               id: m.id,
@@ -716,7 +727,7 @@ const Home = () => {
           }} onDelete={loadFeed} />
         </div>;
       }
-    })}
+    }).filter(Boolean)}
     </>;
   return <>
       <div className="space-y-6">
