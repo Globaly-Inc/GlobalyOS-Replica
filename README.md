@@ -1,73 +1,95 @@
-# Welcome to your Lovable project
+# Welcome to GlobalyOS
 
-## Project info
+**GlobalyOS** is a modern Business Operating System (SaaS) that combines HRMS, team communication, knowledge management, and CRM into one unified platform.
 
-**URL**: https://lovable.dev/projects/e82dc3a3-760d-4b67-b09d-75a73e25acd5
+## Features
 
-## How can I edit this code?
+### 🧑‍💼 People Management (HRMS)
+- Employee directory with detailed profiles
+- Attendance tracking with QR code check-in/out
+- Leave management with approval workflows
+- Performance reviews and KPIs/OKRs
+- Organization chart visualization
 
-There are several ways of editing your application.
+### 💬 Team Communication
+- Real-time team chat with spaces and direct messages
+- Social feed with posts, wins, kudos, and announcements
+- @mentions and emoji reactions
+- Push notifications
 
-**Use Lovable**
+### 📚 Knowledge Base (Wiki)
+- Collaborative documentation with rich text editor
+- Folder organization with drag-drop support
+- File attachments and internal linking
+- AI-powered Q&A across your knowledge base
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e82dc3a3-760d-4b67-b09d-75a73e25acd5) and start prompting.
+### 📅 Calendar & Events
+- Company-wide event management
+- Holiday scheduling by office location
+- Team calendar integration
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🤖 AI-Powered Features
+- Global AI assistant with organization-wide knowledge
+- AI-generated insights for KPIs
+- Smart content suggestions
 
-**Use your preferred IDE**
+## Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions, Storage)
+- **Mobile**: PWA + Capacitor for native iOS/Android apps
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Getting Started
 
-Follow these steps:
+### Prerequisites
+- Node.js 18+ & npm
+- Git
+
+### Local Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to project directory
+cd globalyos
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Building for Production
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run build
+```
 
-**Use GitHub Codespaces**
+### Mobile App Development
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+GlobalyOS supports native mobile apps via Capacitor:
 
-## What technologies are used for this project?
+```sh
+# Add native platforms
+npx cap add ios
+npx cap add android
 
-This project is built with:
+# Sync web build to native
+npm run build && npx cap sync
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Open in IDE
+npx cap open ios      # Opens Xcode (Mac only)
+npx cap open android  # Opens Android Studio
+```
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/e82dc3a3-760d-4b67-b09d-75a73e25acd5) and click on Share -> Publish.
+- **Web**: Deploy via Lovable's publish feature or self-host the `dist` folder
+- **iOS**: Build in Xcode and submit to App Store Connect
+- **Android**: Build in Android Studio and submit to Google Play Console
 
-## Can I connect a custom domain to my Lovable project?
+## License
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Proprietary - All rights reserved.
