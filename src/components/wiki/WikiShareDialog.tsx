@@ -68,6 +68,8 @@ interface Project {
 interface Employee {
   id: string;
   user_id: string;
+  office_id?: string | null;
+  department?: string | null;
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -148,10 +150,10 @@ export const WikiShareDialog = ({
         .order('name');
       setProjects(projectsData || []);
 
-      // Load employees for member selection with email
+      // Load employees for member selection with email, office, department
       const { data: empsData } = await supabase
         .from('employees')
-        .select('id, user_id, profiles(full_name, avatar_url, email)')
+        .select('id, user_id, office_id, department, profiles(full_name, avatar_url, email)')
         .eq('organization_id', organizationId)
         .eq('status', 'active')
         .order('profiles(full_name)');
@@ -524,6 +526,9 @@ export const WikiShareDialog = ({
               {/* Invite Members Section */}
               <WikiInviteMember
                 employees={employees}
+                offices={offices}
+                departments={departments}
+                projects={projects}
                 excludedEmployeeIds={excludedEmployeeIds}
                 onInvite={handleInviteMembers}
                 isInviting={isInviting}
