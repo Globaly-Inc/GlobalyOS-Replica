@@ -66,7 +66,7 @@ export const WikiSidebar = ({
   const hasRecentItems = recentItems.length > 0;
   return <div className="h-full flex flex-col bg-card border-r">
       {/* Header */}
-      <div className="p-3 border-b flex items-center justify-between pt-[20px] pb-[22px]">
+      <div className="p-3 border-b flex items-center justify-between pt-[21px] pb-[21px]">
         <button onClick={onSelectHome} className={cn("flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors", showingHome && !selectedFolderId && !selectedPageId && "text-primary")}>
           <BookOpen className="h-4 w-4" />
           Wiki Home
