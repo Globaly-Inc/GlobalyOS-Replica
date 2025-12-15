@@ -74,7 +74,7 @@ const AICoverageSuggestionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[85vh] h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -103,7 +103,7 @@ const AICoverageSuggestionDialog = ({
               </Button>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0 pr-4">
+            <ScrollArea className="flex-1 min-h-0 pr-4 overflow-y-auto">
               <div className="space-y-4">
                 {suggestions.map((fileSuggestion) => {
                   const isExpanded = expandedFiles.has(fileSuggestion.file);
