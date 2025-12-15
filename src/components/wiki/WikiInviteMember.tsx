@@ -247,7 +247,7 @@ export const WikiInviteMember = ({
     filteredItems.members.length > 0;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full overflow-hidden">
       <div className="flex items-center gap-1.5">
         <span className="text-sm font-medium">Invite Members</span>
         <TooltipProvider>
@@ -267,7 +267,7 @@ export const WikiInviteMember = ({
         <PopoverAnchor asChild>
           <div
             className={cn(
-              "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text w-full",
+              "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text",
               "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
             )}
             onClick={() => setSearchOpen(true)}
