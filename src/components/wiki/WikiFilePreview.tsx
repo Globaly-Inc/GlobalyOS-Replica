@@ -139,7 +139,7 @@ export const WikiFilePreview = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background/98 backdrop-blur-sm border-none">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background border-none">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-20 bg-gradient-to-b from-background via-background/95 to-transparent">
           <div className="flex items-center gap-3">
