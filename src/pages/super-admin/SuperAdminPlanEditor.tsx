@@ -73,7 +73,7 @@ const SuperAdminPlanEditor = () => {
   });
 
   // Fetch plan limits
-  const { data: planLimits } = useQuery({
+  const { data: planLimits, isLoading: isLimitsLoading } = useQuery({
     queryKey: ['plan-limits', plan?.slug],
     queryFn: async () => {
       if (!plan?.slug) return [];
@@ -438,6 +438,7 @@ const SuperAdminPlanEditor = () => {
               <FeatureLimitsEditor
                 planSlug={formData.slug}
                 limits={planLimits || []}
+                isLoading={isLimitsLoading}
               />
             </CardContent>
           </Card>
