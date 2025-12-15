@@ -184,25 +184,6 @@ const SuperAdminTesting = () => {
     loadSecurityFindings();
   }, []);
 
-  // Security trend data (in production, calculated from security_test_runs history)
-  const securityTrendData = useMemo(() => {
-    const days = 14;
-    const data = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const baseScore = 85 + Math.floor(Math.random() * 10);
-      data.push({
-        date: format(date, 'MMM d'),
-        score: Math.min(100, baseScore + (days - i)),
-        openIssues: Math.max(0, 5 - Math.floor((days - i) / 3)),
-        resolvedIssues: Math.floor((days - i) / 4),
-        criticalIssues: i > 7 ? 1 : 0
-      });
-    }
-    return data;
-  }, []);
-
   // Fetch test runs
   const {
     data: testRuns,
@@ -239,7 +220,34 @@ const SuperAdminTesting = () => {
     }
   });
 
-  // Fetch latest coverage report
+  // Security trend data calculated from actual security_test_runs history
+  const securityTrendData = useMemo(() => {
+    if (!securityRuns?.length) return [];
+    
+    // Convert to array sorted by date
+    const sortedRuns = [...securityRuns]
+      .filter(r => r.completed_at)
+      .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime())
+      .slice(-14);
+    
+    let previousOpenIssues = 0;
+    return sortedRuns.map(run => {
+      const total = run.total_tests || 1;
+      const score = Math.round((run.passed_tests / total) * 100);
+      const openIssues = run.failed_tests;
+      const resolvedIssues = Math.max(0, previousOpenIssues - openIssues);
+      previousOpenIssues = openIssues;
+      
+      return {
+        date: format(new Date(run.completed_at!), 'MMM d'),
+        score,
+        openIssues,
+        resolvedIssues,
+        criticalIssues: run.critical_failures ?? 0
+      };
+    });
+  }, [securityRuns]);
+
   const {
     data: coverageReport,
     isLoading: loadingCoverage
@@ -301,58 +309,10 @@ const SuperAdminTesting = () => {
     enabled: !!testRuns?.length
   });
 
-  // Get failed tests from latest run
-  // If testResults is empty but latestRun shows failures, generate mock failed tests
+  // Get failed tests from latest run - only use actual data, no mocks
   const failedTests = useMemo(() => {
-    const actualFailedTests = testResults?.filter(t => t.status === 'failed') ?? [];
-
-    // If we have actual failed tests, return them
-    if (actualFailedTests.length > 0) {
-      return actualFailedTests;
-    }
-
-    // If latestRun shows failures but testResults is empty, generate mock data
-    if (latestRun?.failed_tests && latestRun.failed_tests > 0 && (!testResults || testResults.length === 0)) {
-      const mockFailedTests: TestResult[] = [];
-      const mockTestNames = [{
-        name: 'should enforce RLS policies for organization isolation',
-        file: 'src/test/security/rls-policies.test.ts',
-        suite: 'RLS Policies'
-      }, {
-        name: 'should prevent cross-tenant data access',
-        file: 'src/test/security/multi-tenant.test.ts',
-        suite: 'Multi-Tenant Isolation'
-      }, {
-        name: 'should sanitize SQL input parameters',
-        file: 'src/test/security/sql-injection.test.ts',
-        suite: 'SQL Injection Prevention'
-      }, {
-        name: 'should validate user authentication before access',
-        file: 'src/test/auth/authentication.test.ts',
-        suite: 'Authentication'
-      }, {
-        name: 'should restrict sensitive data to authorized roles',
-        file: 'src/test/security/authorization.test.ts',
-        suite: 'Authorization'
-      }];
-      for (let i = 0; i < Math.min(latestRun.failed_tests, mockTestNames.length); i++) {
-        mockFailedTests.push({
-          id: `mock-failed-${i}`,
-          run_id: latestRun.id,
-          test_name: mockTestNames[i].name,
-          test_file: mockTestNames[i].file,
-          test_suite: mockTestNames[i].suite,
-          test_category: 'security',
-          status: 'failed',
-          duration_ms: 150 + Math.floor(Math.random() * 200),
-          error_message: `AssertionError: Expected policy to deny access but it allowed it.\n\nThis test verifies that the RLS policy correctly restricts access.`,
-          stack_trace: `at Object.<anonymous> (${mockTestNames[i].file}:45:12)\n    at runTest (node_modules/vitest/dist/index.js:123:45)\n    at processTicksAndRejections (internal/process/task_queues.js:95:5)`
-        });
-      }
-      return mockFailedTests;
-    }
-    return [];
-  }, [testResults, latestRun]);
+    return testResults?.filter(t => t.status === 'failed') ?? [];
+  }, [testResults]);
 
   // Filter and sort test results
   const filteredTestResults = useMemo(() => {
@@ -1381,7 +1341,7 @@ const SuperAdminTesting = () => {
         <TabsContent value="history">
           <div className="space-y-6">
             {/* Trend Charts Section */}
-            <HistoryTrendCharts testRuns={testRuns ?? []} />
+            <HistoryTrendCharts testRuns={testRuns ?? []} allTestResults={allTestResults} />
 
             {/* Comparison Section */}
             <HistoryRunComparison testRuns={testRuns ?? []} testResults={allTestResults ?? []} onRerunRun={runId => {
