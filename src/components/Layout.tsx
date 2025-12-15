@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search } from 'lucide-react';
+import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -603,6 +603,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
               >
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </button>
+              
+              {/* Attendance */}
+              <button
+                onClick={() => navigateOrg("/attendance")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
               </button>
 
               {/* Elapsed Time indicator */}
