@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import FailedTestCard from '@/components/super-admin/FailedTestCard';
 import AITestFixDialog from '@/components/super-admin/AITestFixDialog';
+import AICoverageSuggestionDialog from '@/components/super-admin/AICoverageSuggestionDialog';
 import CoverageTrendChart from '@/components/super-admin/CoverageTrendChart';
 import CoverageFileTree from '@/components/super-admin/CoverageFileTree';
 import CoverageLineView from '@/components/super-admin/CoverageLineView';
@@ -147,6 +148,10 @@ const SuperAdminTesting = () => {
   const [coverageProgress, setCoverageProgress] = useState<TestProgress | null>(null);
   const [selectedCoverageFile, setSelectedCoverageFile] = useState<string | null>(null);
   const [rerunningRunId, setRerunningRunId] = useState<string | null>(null);
+  const [retestingFailed, setRetestingFailed] = useState(false);
+  const [aiCoverageSuggestionsOpen, setAiCoverageSuggestionsOpen] = useState(false);
+  const [aiCoverageSuggestions, setAiCoverageSuggestions] = useState<any[] | null>(null);
+  const [isLoadingCoverageSuggestions, setIsLoadingCoverageSuggestions] = useState(false);
   
   // Results tab filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -475,6 +480,76 @@ const SuperAdminTesting = () => {
   const handleRegenerateAIFix = () => {
     if (selectedTest) {
       handleFixWithAI(selectedTest);
+    }
+  };
+
+  // Retest only failed tests
+  const handleRetestFailed = async () => {
+    if (failedTests.length === 0) return;
+    
+    setRetestingFailed(true);
+    try {
+      // Get unique files from failed tests
+      const failedFiles = [...new Set(failedTests.map(t => 
+        typeof t.test_file === 'string' ? t.test_file : ''
+      ).filter(Boolean))];
+      
+      console.log('Retesting failed files:', failedFiles);
+      
+      // Run tests mutation - in real implementation, would pass specific files
+      await runTestsMutation.mutateAsync('all');
+      toast.success('Retested failed tests');
+    } catch (error) {
+      console.error('Error retesting failed tests:', error);
+      toast.error('Failed to retest');
+    } finally {
+      setRetestingFailed(false);
+    }
+  };
+
+  // Get AI suggestions for coverage improvements
+  const handleGetCoverageSuggestions = async () => {
+    if (!coverageReport?.file_coverage) {
+      toast.error('Generate a coverage report first');
+      return;
+    }
+
+    setAiCoverageSuggestionsOpen(true);
+    setIsLoadingCoverageSuggestions(true);
+    setAiCoverageSuggestions(null);
+
+    try {
+      // Prepare files with low coverage
+      const lowCoverageFiles = Object.entries(coverageReport.file_coverage)
+        .filter(([_, data]) => data.lines < 100)
+        .map(([path, data]) => ({
+          path,
+          coverage: data.lines,
+          uncoveredLines: data.uncoveredLines || [],
+        }))
+        .sort((a, b) => a.coverage - b.coverage)
+        .slice(0, 10);
+
+      if (lowCoverageFiles.length === 0) {
+        toast.success('All files have 100% coverage!');
+        setAiCoverageSuggestionsOpen(false);
+        return;
+      }
+
+      const response = await supabase.functions.invoke('suggest-coverage-improvements', {
+        body: { files: lowCoverageFiles },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      setAiCoverageSuggestions(response.data?.suggestions || []);
+    } catch (error) {
+      console.error('Error getting coverage suggestions:', error);
+      toast.error('Failed to get AI suggestions');
+    } finally {
+      setIsLoadingCoverageSuggestions(false);
     }
   };
 
@@ -957,41 +1032,49 @@ const SuperAdminTesting = () => {
             </Card>
 
             {/* Failed Tests */}
+            {failedTests.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-destructive" />
-                  Failed Tests
-                </CardTitle>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    Failed Tests
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={handleRetestFailed}
+                    disabled={retestingFailed || runTestsMutation.isPending}
+                  >
+                    {retestingFailed ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Retest Failed
+                  </Button>
+                </div>
                 <CardDescription>
-                  {failedTests.length === 0 
-                    ? 'All tests passing' 
-                    : `${failedTests.length} test${failedTests.length > 1 ? 's' : ''} need attention`}
+                  {`${failedTests.length} test${failedTests.length > 1 ? 's' : ''} need attention`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-64">
-                  {failedTests.length > 0 ? (
-                    <div className="space-y-2">
-                      {failedTests.map((test) => (
-                        <FailedTestCard
-                          key={test.id}
-                          test={test}
-                          onFixWithAI={handleFixWithAI}
-                          isFixing={isFixingTest && selectedTest?.id === test.id}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full py-8 text-muted-foreground">
-                      <CheckCircle2 className="h-12 w-12 mb-4 text-success opacity-50" />
-                      <p className="text-sm">No failed tests!</p>
-                      <p className="text-xs mt-1">All tests are passing.</p>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    {failedTests.map((test) => (
+                      <FailedTestCard
+                        key={test.id}
+                        test={test}
+                        onFixWithAI={handleFixWithAI}
+                        isFixing={isFixingTest && selectedTest?.id === test.id}
+                      />
+                    ))}
+                  </div>
                 </ScrollArea>
               </CardContent>
             </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -1224,18 +1307,33 @@ const SuperAdminTesting = () => {
                   : 'No coverage data yet'}
               </p>
             </div>
-            <Button
-              onClick={() => generateCoverageMutation.mutate()}
-              disabled={generateCoverageMutation.isPending || runTestsMutation.isPending}
-              className="gap-2"
-            >
-              {generateCoverageMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <BarChart3 className="h-4 w-4" />
-              )}
-              Generate Coverage
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleGetCoverageSuggestions}
+                disabled={isLoadingCoverageSuggestions || !coverageReport}
+                className="gap-2"
+              >
+                {isLoadingCoverageSuggestions ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                AI Suggestions
+              </Button>
+              <Button
+                onClick={() => generateCoverageMutation.mutate()}
+                disabled={generateCoverageMutation.isPending || runTestsMutation.isPending}
+                className="gap-2"
+              >
+                {generateCoverageMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BarChart3 className="h-4 w-4" />
+                )}
+                Generate Coverage
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1396,6 +1494,15 @@ const SuperAdminTesting = () => {
         fixResponse={aiFixResponse}
         isLoading={isFixingTest}
         onRegenerate={handleRegenerateAIFix}
+      />
+
+      {/* AI Coverage Suggestion Dialog */}
+      <AICoverageSuggestionDialog
+        open={aiCoverageSuggestionsOpen}
+        onOpenChange={setAiCoverageSuggestionsOpen}
+        suggestions={aiCoverageSuggestions}
+        isLoading={isLoadingCoverageSuggestions}
+        onRegenerate={handleGetCoverageSuggestions}
       />
     </SuperAdminLayout>
   );

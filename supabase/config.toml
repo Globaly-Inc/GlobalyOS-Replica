@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.generate-coverage]
 verify_jwt = false
+
+[functions.suggest-coverage-improvements]
+verify_jwt = false
