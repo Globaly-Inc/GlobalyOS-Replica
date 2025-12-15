@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File, ArrowLeft } from "lucide-react";
+import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File, ArrowLeft, Move, Copy } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { WikiShareDialog } from "./WikiShareDialog";
+import { WikiMoveDialog } from "./WikiMoveDialog";
 
 interface WikiFolder {
   id: string;
@@ -83,6 +84,9 @@ interface WikiFolderViewProps {
   onRenamePage?: (pageId: string, title: string) => void;
   onDeleteFolder?: (folderId: string) => void;
   onDeletePage?: (pageId: string) => void;
+  onMoveFolder?: (folderId: string, newParentId: string | null) => void;
+  onMovePage?: (pageId: string, newFolderId: string | null) => void;
+  onDuplicatePage?: (pageId: string) => void;
   isFavorite?: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite?: (itemType: "folder" | "page", itemId: string) => void;
   creatingItem?: { type: "folder" | "page" } | null;
@@ -104,6 +108,9 @@ export const WikiFolderView = ({
   onRenamePage,
   onDeleteFolder,
   onDeletePage,
+  onMoveFolder,
+  onMovePage,
+  onDuplicatePage,
   isFavorite,
   onToggleFavorite,
   creatingItem,
@@ -126,6 +133,9 @@ export const WikiFolderView = ({
   
   // Share dialog state
   const [shareDialog, setShareDialog] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
+  
+  // Move dialog state
+  const [moveDialog, setMoveDialog] = useState<{ type: "folder" | "page"; id: string; name: string; currentParentId: string | null } | null>(null);
 
   // Focus input when creating item
   useEffect(() => {
@@ -529,6 +539,10 @@ export const WikiFolderView = ({
                             <Share2 className="h-4 w-4 mr-2" />
                             Share
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setMoveDialog({ type: "folder", id: folder.id, name: folder.name, currentParentId: folder.parent_id })}>
+                            <Move className="h-4 w-4 mr-2" />
+                            Move to...
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setCreateDialog({ type: "page", parentFolderId: folder.id })}>
                             <FilePlus className="h-4 w-4 mr-2" />
@@ -657,6 +671,14 @@ export const WikiFolderView = ({
                             <Share2 className="h-4 w-4 mr-2" />
                             Share
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setMoveDialog({ type: "page", id: page.id, name: page.title, currentParentId: page.folder_id })}>
+                            <Move className="h-4 w-4 mr-2" />
+                            Move to...
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onDuplicatePage?.(page.id)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
@@ -781,6 +803,27 @@ export const WikiFolderView = ({
           itemId={shareDialog.id}
           itemName={shareDialog.name}
           organizationId={organizationId}
+        />
+      )}
+
+      {/* Move Dialog */}
+      {moveDialog && (
+        <WikiMoveDialog
+          open={!!moveDialog}
+          onOpenChange={(open) => !open && setMoveDialog(null)}
+          itemType={moveDialog.type}
+          itemId={moveDialog.id}
+          itemName={moveDialog.name}
+          currentParentId={moveDialog.currentParentId}
+          folders={folders}
+          onMove={(newParentId) => {
+            if (moveDialog.type === "folder") {
+              onMoveFolder?.(moveDialog.id, newParentId);
+            } else {
+              onMovePage?.(moveDialog.id, newParentId);
+            }
+            setMoveDialog(null);
+          }}
         />
       )}
     </div>

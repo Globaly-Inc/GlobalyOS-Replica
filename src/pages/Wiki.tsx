@@ -421,6 +421,115 @@ const Wiki = () => {
     onError: () => toast.error("Failed to save page"),
   });
 
+  // Move folder mutation
+  const moveFolderMutation = useMutation({
+    mutationFn: async ({ folderId, newParentId }: { folderId: string; newParentId: string | null }) => {
+      const { error } = await supabase
+        .from("wiki_folders")
+        .update({ parent_id: newParentId })
+        .eq("id", folderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+      toast.success("Folder moved");
+    },
+    onError: () => toast.error("Failed to move folder"),
+  });
+
+  // Move page mutation
+  const movePageMutation = useMutation({
+    mutationFn: async ({ pageId, newFolderId }: { pageId: string; newFolderId: string | null }) => {
+      const { error } = await supabase
+        .from("wiki_pages")
+        .update({ folder_id: newFolderId })
+        .eq("id", pageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-page"] });
+      toast.success("Page moved");
+    },
+    onError: () => toast.error("Failed to move page"),
+  });
+
+  // Duplicate page mutation
+  const duplicatePageMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error("Not authenticated");
+
+      // Fetch original page
+      const { data: originalPage, error: fetchError } = await supabase
+        .from("wiki_pages")
+        .select("title, content, folder_id")
+        .eq("id", pageId)
+        .single();
+
+      if (fetchError || !originalPage) throw fetchError || new Error("Page not found");
+
+      // Create duplicate
+      const { error } = await supabase
+        .from("wiki_pages")
+        .insert({
+          title: `${originalPage.title} (Copy)`,
+          content: originalPage.content,
+          folder_id: originalPage.folder_id,
+          organization_id: currentOrg.id,
+          created_by: currentEmployee.id,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      toast.success("Page duplicated");
+    },
+    onError: () => toast.error("Failed to duplicate page"),
+  });
+
+  // Restore version mutation
+  const restoreVersionMutation = useMutation({
+    mutationFn: async ({ pageId, versionTitle, versionContent }: { pageId: string; versionTitle: string; versionContent: string | null }) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error("Not authenticated");
+
+      // Save current version to history before restoring
+      const { data: currentPage } = await supabase
+        .from("wiki_pages")
+        .select("title, content")
+        .eq("id", pageId)
+        .single();
+
+      if (currentPage) {
+        await supabase.from("wiki_page_versions").insert({
+          page_id: pageId,
+          organization_id: currentOrg.id,
+          title: currentPage.title,
+          content: currentPage.content,
+          edited_by: currentEmployee.id,
+        });
+      }
+
+      // Restore the old version
+      const { error } = await supabase
+        .from("wiki_pages")
+        .update({
+          title: versionTitle,
+          content: versionContent,
+          updated_by: currentEmployee.id,
+        })
+        .eq("id", pageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wiki-page"] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-page-versions"] });
+      toast.success("Version restored");
+    },
+    onError: () => toast.error("Failed to restore version"),
+  });
+
   // Get current folder for creating items in context
   const getCurrentFolderId = useCallback(() => {
     if (viewMode === "folder" && selectedFolderId) {
@@ -467,8 +576,17 @@ const Wiki = () => {
             currentFolderId={selectedFolderId}
             onSelectFolder={handleMobileSelectFolder}
             onSelectPage={handleMobileSelectPage}
-            canEdit={false}
+            canEdit={canEdit}
             organizationId={currentOrg?.id}
+            onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
+            onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
+            onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
+            onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
+            onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
+            onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
+            onMoveFolder={(folderId, newParentId) => moveFolderMutation.mutate({ folderId, newParentId })}
+            onMovePage={(pageId, newFolderId) => movePageMutation.mutate({ pageId, newFolderId })}
+            onDuplicatePage={(pageId) => duplicatePageMutation.mutate(pageId)}
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onBack={handleMobileBack}
@@ -481,10 +599,14 @@ const Wiki = () => {
             page={selectedPage || null}
             versions={pageVersions}
             onSave={async () => {}}
-            canEdit={false}
+            canEdit={canEdit}
             isLoading={isLoadingPage}
             organizationId={currentOrg?.id}
             onBack={handleMobileBack}
+            onRestoreVersion={(pageId, versionTitle, versionContent) => 
+              restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
+            }
+            isRestoring={restoreVersionMutation.isPending}
           />
         )}
       </div>
@@ -602,6 +724,10 @@ const Wiki = () => {
                 pendingNavigation={pendingNavigation}
                 onNavigationConfirm={handleNavigationConfirm}
                 onNavigationCancel={handleNavigationCancel}
+                onRestoreVersion={(pageId, versionTitle, versionContent) => 
+                  restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
+                }
+                isRestoring={restoreVersionMutation.isPending}
               />
             ) : (
               <WikiFolderView
@@ -618,6 +744,9 @@ const Wiki = () => {
                 onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
                 onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
                 onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
+                onMoveFolder={(folderId, newParentId) => moveFolderMutation.mutate({ folderId, newParentId })}
+                onMovePage={(pageId, newFolderId) => movePageMutation.mutate({ pageId, newFolderId })}
+                onDuplicatePage={(pageId) => duplicatePageMutation.mutate(pageId)}
                 isFavorite={isFavorite}
                 onToggleFavorite={toggleFavorite}
                 creatingItem={creatingItem}
