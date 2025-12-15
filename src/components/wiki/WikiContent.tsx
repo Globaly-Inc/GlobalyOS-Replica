@@ -14,7 +14,7 @@ import { WikiBreadcrumb } from "./WikiBreadcrumb";
 import { WikiEmptyState } from "./WikiEmptyState";
 import { WikiLoadingSkeleton } from "./WikiLoadingSkeleton";
 import { WikiExportMenu } from "./WikiExportMenu";
-import { WikiComments } from "./WikiComments";
+
 
 interface WikiPage {
   id: string;
@@ -242,8 +242,6 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             {/* Main content */}
             <div className="flex-1 min-w-0 transition-all duration-300">
               <WikiMarkdownRenderer content={page.content} />
-              {/* Comments section */}
-              <WikiComments pageId={page.id} currentEmployeeId={currentEmployeeId} />
             </div>
             {/* Table of Contents with toggle - only show on larger screens */}
             <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
