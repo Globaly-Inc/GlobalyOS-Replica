@@ -115,8 +115,8 @@ export const WikiMembersWithAccess = ({
     (accessScope === 'departments' && selectedDepartments.length > 0) ||
     (accessScope === 'projects' && selectedProjects.length > 0);
 
-  // Only show individual members when access scope is explicitly 'members'
-  const hasMembers = accessScope === 'members' && members.length > 0;
+  // Always show individual members if they exist (regardless of access scope)
+  const hasMembers = members.length > 0;
 
   if (!owner && !hasGroupAccess && !hasMembers) {
     return (
@@ -268,8 +268,8 @@ export const WikiMembersWithAccess = ({
         </>
       )}
 
-      {/* Individual members (only when access_scope is 'members') */}
-      {accessScope === 'members' && members.map((member) => (
+      {/* Individual members - always show if they exist */}
+      {members.map((member) => (
         <div
           key={member.employee_id}
           className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
