@@ -144,8 +144,7 @@ const AITestFixDialog = ({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-              <p className="text-muted-foreground">Analyzing test failure...</p>
-              <p className="text-xs text-muted-foreground mt-1">This may take a few seconds</p>
+              <p className="text-muted-foreground">Analyzing...</p>
             </div>
           ) : fixResponse ? (
             <div className="space-y-4">

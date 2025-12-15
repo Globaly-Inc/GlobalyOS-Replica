@@ -465,7 +465,7 @@ const SuperAdminTesting = () => {
     }
   };
 
-  // Retest only failed tests
+  // Retest only failed tests - now passes specific files to edge function
   const handleRetestFailed = async () => {
     if (failedTests.length === 0) return;
     setRetestingFailed(true);
@@ -474,9 +474,9 @@ const SuperAdminTesting = () => {
       const failedFiles = [...new Set(failedTests.map(t => typeof t.test_file === 'string' ? t.test_file : '').filter(Boolean))];
       console.log('Retesting failed files:', failedFiles);
 
-      // Run tests mutation - in real implementation, would pass specific files
-      await runTestsMutation.mutateAsync('all');
-      toast.success('Retested failed tests');
+      // Run tests with specific files filter
+      await retestFailedMutation.mutateAsync(failedFiles);
+      toast.success(`Retested ${failedFiles.length} file(s) with failures`);
     } catch (error) {
       console.error('Error retesting failed tests:', error);
       toast.error('Failed to retest');
@@ -522,6 +522,75 @@ const SuperAdminTesting = () => {
       setIsLoadingCoverageSuggestions(false);
     }
   };
+
+  // Retest failed mutation - runs only specific files
+  const retestFailedMutation = useMutation({
+    mutationFn: async (files: string[]) => {
+      setTestProgress({
+        type: 'starting',
+        message: `Retesting ${files.length} file(s)...`,
+        progress: 0
+      });
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/run-tests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        body: JSON.stringify({
+          test_type: 'all',
+          files // Pass specific files to filter
+        })
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to retest');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              setTestProgress(data);
+              if (data.type === 'complete') {
+                return data;
+              }
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+      return { type: 'complete' };
+    },
+    onSuccess: data => {
+      setTestProgress(null);
+      if (data?.status === 'passed') {
+        toast.success(`All retested tests passed!`);
+      } else if (data?.failedTests > 0) {
+        toast.error(`${data.failedTests} test(s) still failing`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['test-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['test-results'] });
+    },
+    onError: error => {
+      setTestProgress(null);
+      toast.error(error instanceof Error ? error.message : 'Failed to retest');
+    }
+  });
 
   // Run tests mutation with real edge function and streaming
   const runTestsMutation = useMutation({
@@ -804,7 +873,7 @@ const SuperAdminTesting = () => {
     return 'text-destructive';
   };
   return <SuperAdminLayout>
-      <SuperAdminPageHeader title="Testing Dashboard" description="Run and monitor automated tests, security scans, and code coverage" className="pb-[20px]" />
+      <SuperAdminPageHeader title="Testing Dashboard" description="Run and monitor automated tests, security scans, and code coverage" />
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mb-6">
