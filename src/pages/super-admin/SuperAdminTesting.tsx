@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
 import SuperAdminPageHeader from '@/components/super-admin/SuperAdminPageHeader';
@@ -132,7 +132,7 @@ const SuperAdminTesting = () => {
   const [sortBy, setSortBy] = useState('status');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Security findings state (in production, would come from database)
+  // Security findings state - populated from actual security test results
   const [securityFindings, setSecurityFindings] = useState<Array<{
     id: string;
     severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -145,47 +145,44 @@ const SuperAdminTesting = () => {
     status: 'open' | 'resolved' | 'ignored';
     detectedAt: string;
     resolvedAt?: string;
-  }>>([{
-    id: '1',
-    severity: 'critical',
-    category: 'rls',
-    title: 'Missing RLS policy on sensitive table',
-    description: 'The employee_documents table has RLS enabled but no SELECT policy for regular users, potentially exposing documents to unauthorized access.',
-    affectedTable: 'employee_documents',
-    remediation: 'Add a SELECT policy that restricts access to document owners or users with appropriate roles (HR, admin, or managers of the employee).',
-    status: 'open',
-    detectedAt: new Date().toISOString()
-  }, {
-    id: '2',
-    severity: 'high',
-    category: 'isolation',
-    title: 'Cross-tenant data leakage risk',
-    description: 'The get_employee_for_viewer function may return data across organizations if organization_id validation is bypassed.',
-    affectedPolicy: 'get_employee_for_viewer',
-    remediation: 'Add explicit organization_id check at the beginning of the function before any data access.',
-    status: 'open',
-    detectedAt: new Date(Date.now() - 86400000).toISOString()
-  }, {
-    id: '3',
-    severity: 'medium',
-    category: 'config',
-    title: 'Storage bucket public access',
-    description: 'The wiki-attachments storage bucket is configured as public, allowing unauthenticated access to uploaded files.',
-    affectedTable: 'storage.buckets',
-    remediation: 'Review if public access is required. If not, set bucket to private and add appropriate RLS policies.',
-    status: 'resolved',
-    detectedAt: new Date(Date.now() - 172800000).toISOString(),
-    resolvedAt: new Date(Date.now() - 86400000).toISOString()
-  }, {
-    id: '4',
-    severity: 'low',
-    category: 'auth',
-    title: 'Missing rate limiting on OTP endpoint',
-    description: 'The send-otp edge function lacks rate limiting, potentially allowing brute force attacks.',
-    remediation: 'Implement rate limiting using IP-based throttling or Cloudflare rate limit rules.',
-    status: 'open',
-    detectedAt: new Date(Date.now() - 259200000).toISOString()
-  }]);
+  }>>([]);
+
+  // Load security findings from latest test runs
+  useEffect(() => {
+    const loadSecurityFindings = async () => {
+      const { data: latestRuns } = await supabase
+        .from('security_test_runs')
+        .select('*')
+        .eq('status', 'passed')
+        .order('completed_at', { ascending: false })
+        .limit(3);
+      
+      if (latestRuns) {
+        const allFindings: typeof securityFindings = [];
+        latestRuns.forEach((run, runIndex) => {
+          const summary = run.summary as { findings?: Array<{ severity: string; title: string; description: string; remediation: string; table?: string; policy?: string }> };
+          if (summary?.findings && Array.isArray(summary.findings)) {
+            summary.findings.forEach((finding, findingIndex) => {
+              allFindings.push({
+                id: `${run.id}-${findingIndex}`,
+                severity: (finding.severity || 'medium') as 'critical' | 'high' | 'medium' | 'low' | 'info',
+                category: run.test_type as 'rls' | 'injection' | 'isolation' | 'auth' | 'config',
+                title: finding.title || 'Unknown Issue',
+                description: finding.description || '',
+                affectedTable: finding.table,
+                affectedPolicy: finding.policy,
+                remediation: finding.remediation || 'Review and fix the issue.',
+                status: 'open',
+                detectedAt: run.completed_at || run.started_at
+              });
+            });
+          }
+        });
+        setSecurityFindings(allFindings);
+      }
+    };
+    loadSecurityFindings();
+  }, []);
 
   // Security trend data (in production, calculated from security_test_runs history)
   const securityTrendData = useMemo(() => {
