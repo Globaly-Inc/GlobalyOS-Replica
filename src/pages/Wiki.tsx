@@ -561,72 +561,74 @@ const Wiki = () => {
   // Mobile view rendering
   if (isMobile) {
     return (
-      <div className="h-full flex flex-col">
-        {/* Mobile search header only */}
-        <div className="bg-card border-b px-4 py-3">
+      <div className="min-h-screen pb-40">
+        {/* Mobile content */}
+        <div className="px-4 py-6">
+          {mobileViewMode === "landing" && (
+            <WikiMobileLanding
+              folders={folders}
+              pages={pagesList}
+              onSelectPage={handleMobileSelectPage}
+              onSelectFolder={handleMobileSelectFolder}
+              onGoToFolderView={handleMobileGoToFolderView}
+              isFavorite={isFavorite}
+              recentItems={recentItems}
+            />
+          )}
+          
+          {mobileViewMode === "folder" && (
+            <WikiFolderView
+              folders={folders}
+              pages={pagesList}
+              currentFolderId={selectedFolderId}
+              onSelectFolder={handleMobileSelectFolder}
+              onSelectPage={handleMobileSelectPage}
+              canEditCurrentFolder={canEditCurrentFolder}
+              hasGlobalEditAccess={hasGlobalEditAccess}
+              currentEmployeeId={currentEmployeeId}
+              organizationId={currentOrg?.id}
+              onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
+              onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
+              onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
+              onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
+              onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
+              onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
+              onMoveFolder={(folderId, newParentId) => moveFolderMutation.mutate({ folderId, newParentId })}
+              onMovePage={(pageId, newFolderId) => movePageMutation.mutate({ pageId, newFolderId })}
+              onDuplicatePage={(pageId) => duplicatePageMutation.mutate(pageId)}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
+              onBack={handleMobileBack}
+            />
+          )}
+          
+          {mobileViewMode === "page" && (
+            <WikiContent
+              ref={wikiContentRef}
+              page={selectedPage || null}
+              versions={pageVersions}
+              folders={folders}
+              onSave={async () => {}}
+              canEdit={hasGlobalEditAccess}
+              isLoading={isLoadingPage}
+              organizationId={currentOrg?.id}
+              onBack={handleMobileBack}
+              onRestoreVersion={(pageId, versionTitle, versionContent) => 
+                restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
+              }
+              isRestoring={restoreVersionMutation.isPending}
+            />
+          )}
+        </div>
+
+        {/* Fixed Search Area at Bottom */}
+        <div className="fixed bottom-16 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-safe">
           <WikiSearch
             folders={folders}
             pages={pagesList}
             onSelectPage={handleMobileSelectPage}
           />
         </div>
-
-        {/* Mobile views */}
-        {mobileViewMode === "landing" && (
-          <WikiMobileLanding
-            folders={folders}
-            pages={pagesList}
-            onSelectPage={handleMobileSelectPage}
-            onSelectFolder={handleMobileSelectFolder}
-            onGoToFolderView={handleMobileGoToFolderView}
-            isFavorite={isFavorite}
-            recentItems={recentItems}
-          />
-        )}
-        
-        {mobileViewMode === "folder" && (
-          <WikiFolderView
-            folders={folders}
-            pages={pagesList}
-            currentFolderId={selectedFolderId}
-            onSelectFolder={handleMobileSelectFolder}
-            onSelectPage={handleMobileSelectPage}
-            canEditCurrentFolder={canEditCurrentFolder}
-            hasGlobalEditAccess={hasGlobalEditAccess}
-            currentEmployeeId={currentEmployeeId}
-            organizationId={currentOrg?.id}
-            onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
-            onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
-            onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
-            onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
-            onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
-            onDeletePage={(pageId) => deletePageMutation.mutate(pageId)}
-            onMoveFolder={(folderId, newParentId) => moveFolderMutation.mutate({ folderId, newParentId })}
-            onMovePage={(pageId, newFolderId) => movePageMutation.mutate({ pageId, newFolderId })}
-            onDuplicatePage={(pageId) => duplicatePageMutation.mutate(pageId)}
-            isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
-            onBack={handleMobileBack}
-          />
-        )}
-        
-        {mobileViewMode === "page" && (
-          <WikiContent
-            ref={wikiContentRef}
-            page={selectedPage || null}
-            versions={pageVersions}
-            folders={folders}
-            onSave={async () => {}}
-            canEdit={hasGlobalEditAccess}
-            isLoading={isLoadingPage}
-            organizationId={currentOrg?.id}
-            onBack={handleMobileBack}
-            onRestoreVersion={(pageId, versionTitle, versionContent) => 
-              restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
-            }
-            isRestoring={restoreVersionMutation.isPending}
-          />
-        )}
       </div>
     );
   }
