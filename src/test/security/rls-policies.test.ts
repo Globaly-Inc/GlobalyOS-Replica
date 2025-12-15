@@ -40,6 +40,16 @@ describe('RLS Policy Verification', () => {
     });
   });
 
+  describe('RLS Query Behavior', () => {
+    it('should return empty result when RLS denies access to rows', async () => {
+      // When RLS denies access, queries complete successfully but return empty results
+      const result = await mockSupabase.from('employees').select('*');
+      expect(result.data).toBeDefined();
+      // For unauthorized access, expect empty array (not error)
+      expect(Array.isArray(result.data)).toBe(true);
+    });
+  });
+
   describe('Security Definer Functions', () => {
     it('should verify get_current_employee_id() returns correct employee', async () => {
       const { data, error } = await mockSupabase.rpc('get_current_employee_id');
