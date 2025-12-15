@@ -156,6 +156,7 @@ const Home = () => {
   const seenItemIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
   const {
+    role,
     isHR,
     isAdmin
   } = useUserRole();
@@ -871,7 +872,7 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             {/* Onboarding Checklist - inline at top of feed */}
-            <OnboardingChecklist userRole={isAdmin ? 'admin' : isHR ? 'hr' : 'member'} variant="inline" />
+            <OnboardingChecklist userRole={role} variant="inline" />
             
             <Tabs defaultValue="all" className="space-y-6">
               <div className="flex flex-row items-center justify-between gap-1 sm:gap-4">

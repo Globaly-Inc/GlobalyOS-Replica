@@ -194,13 +194,17 @@ export const OnboardingChecklist = ({ userRole, variant = 'floating' }: Onboardi
     setIsDismissed(true);
     
     // Save dismissal
-    await supabase.from('onboarding_progress').upsert({
+    const { error } = await supabase.from('onboarding_progress').upsert({
       user_id: user.id,
       organization_id: currentOrg.id,
-      role: userRole || 'member',
+      role: userRole || 'owner',
       is_completed: true,
       completed_at: new Date().toISOString(),
     }, { onConflict: 'user_id,organization_id' });
+
+    if (error) {
+      console.error('Error dismissing onboarding checklist:', error);
+    }
   };
 
   const handleItemClick = async (item: ChecklistItem) => {
