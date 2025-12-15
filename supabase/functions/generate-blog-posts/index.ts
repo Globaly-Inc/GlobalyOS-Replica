@@ -168,6 +168,7 @@ Word count: ${wordCount || '1000-1500'} words minimum
    - Use H3 subheadings for sub-sections
    - Short paragraphs (2-4 sentences max)
    - Include at least 2 bullet or numbered lists
+   - CRITICAL: Add proper spacing between paragraphs using CSS margin - wrap each paragraph in <p style="margin-bottom: 1.5rem;"> or use <p class="mb-6"> for Tailwind
 
 6. IMAGES (with search queries for stock photos):
    - Include 2-3 image placeholders using this EXACT format:

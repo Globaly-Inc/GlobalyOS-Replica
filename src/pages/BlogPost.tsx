@@ -227,7 +227,7 @@ export default function BlogPost() {
           )}
 
           <div 
-            className="prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-p:text-muted-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted"
+            className="prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-headings:mt-8 prose-headings:mb-4 prose-p:text-muted-foreground prose-p:mb-6 prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-figure:my-8"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         </div>
