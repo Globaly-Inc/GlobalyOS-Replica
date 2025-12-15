@@ -5108,6 +5108,10 @@ export type Database = {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined
       }
+      transfer_wiki_ownership: {
+        Args: { _item_id: string; _item_type: string; _new_owner_id: string }
+        Returns: boolean
+      }
       validate_qr_and_record_attendance:
         | { Args: { _action: string; _qr_code: string }; Returns: Json }
         | {

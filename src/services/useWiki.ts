@@ -473,3 +473,40 @@ export const useRestoreWikiPageVersion = () => {
     },
   });
 };
+
+// Transfer ownership
+export const useTransferWikiOwnership = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      itemType, 
+      itemId, 
+      newOwnerId 
+    }: { 
+      itemType: 'folder' | 'page'; 
+      itemId: string; 
+      newOwnerId: string;
+    }) => {
+      const { data, error } = await supabase.rpc('transfer_wiki_ownership', {
+        _item_type: itemType,
+        _item_id: itemId,
+        _new_owner_id: newOwnerId,
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      if (variables.itemType === 'page') {
+        queryClient.invalidateQueries({ queryKey: ['wiki-page', variables.itemId] });
+      }
+      toast.success('Ownership transferred successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to transfer ownership');
+    },
+  });
+};

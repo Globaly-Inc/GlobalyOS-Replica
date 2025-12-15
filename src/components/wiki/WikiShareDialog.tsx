@@ -33,6 +33,8 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { WikiMembersWithAccess, MemberWithAccess, OwnerInfo } from "./WikiMembersWithAccess";
 import { WikiAddMember, type Selection } from "./WikiInviteMember";
+import { WikiTransferOwnershipDialog } from "./WikiTransferOwnershipDialog";
+import { useTransferWikiOwnership } from "@/services/useWiki";
 import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
@@ -101,6 +103,10 @@ export const WikiShareDialog = ({
 
   // Owner state
   const [owner, setOwner] = useState<OwnerInfo | null>(null);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  
+  // Transfer ownership mutation
+  const transferOwnershipMutation = useTransferWikiOwnership();
 
   // Members with access
   const [membersWithAccess, setMembersWithAccess] = useState<MemberWithAccess[]>([]);
@@ -920,6 +926,7 @@ export const WikiShareDialog = ({
                   isLoading={isMembersLoading}
                   owner={owner}
                   canTransferOwnership={currentEmployee?.id === owner?.employee_id}
+                  onTransferOwnership={() => setTransferDialogOpen(true)}
                   onUpdatePermission={handleUpdateMemberPermission}
                   onRemoveMember={handleRemoveMember}
                   isUpdating={updatingMemberId}
@@ -944,6 +951,26 @@ export const WikiShareDialog = ({
             </div>
           </ScrollArea>
         )}
+
+        {/* Transfer Ownership Dialog */}
+        <WikiTransferOwnershipDialog
+          open={transferDialogOpen}
+          onOpenChange={setTransferDialogOpen}
+          itemType={itemType}
+          itemName={itemName}
+          currentOwnerId={owner?.employee_id || ''}
+          employees={employees}
+          onTransfer={async (newOwnerId) => {
+            await transferOwnershipMutation.mutateAsync({
+              itemType,
+              itemId,
+              newOwnerId,
+            });
+            setTransferDialogOpen(false);
+            loadOwner(); // Reload owner info
+          }}
+          isTransferring={transferOwnershipMutation.isPending}
+        />
       </SheetContent>
     </Sheet>
   );
