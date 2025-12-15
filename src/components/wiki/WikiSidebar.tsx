@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Folder, FileText, Plus, BookOpen, Star, Clock, ChevronDown, ChevronRight, FolderTree } from "lucide-react";
+import { Folder, FileText, Plus, BookOpen, Star, Clock, ChevronDown, ChevronRight, Upload, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { WikiFolderTree } from "./WikiFolderTree";
@@ -41,6 +41,8 @@ interface WikiSidebarProps {
   isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
   recentItems: RecentItem[];
+  onOpenUploadDialog?: () => void;
+  onOpenImportDialog?: () => void;
 }
 
 export const WikiSidebar = ({
@@ -56,7 +58,9 @@ export const WikiSidebar = ({
   canEdit,
   isFavorite,
   onToggleFavorite,
-  recentItems
+  recentItems,
+  onOpenUploadDialog,
+  onOpenImportDialog
 }: WikiSidebarProps) => {
   const [showFolderTree, setShowFolderTree] = useState(true);
   const [showFavorites, setShowFavorites] = useState(true);
@@ -84,18 +88,29 @@ export const WikiSidebar = ({
         {canEdit && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <Plus className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                Create
+                <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onStartCreating("page")}>
+                <FileText className="h-4 w-4 mr-2" />
+                New Page
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStartCreating("folder")}>
                 <Folder className="h-4 w-4 mr-2" />
                 New Folder
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStartCreating("page")}>
-                <FileText className="h-4 w-4 mr-2" />
-                New Page
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onOpenUploadDialog?.()}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload File
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onOpenImportDialog?.()}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Import
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
