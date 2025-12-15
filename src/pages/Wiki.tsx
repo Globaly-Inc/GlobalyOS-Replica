@@ -285,7 +285,11 @@ const Wiki = () => {
     if (viewMode === "page" && selectedPageId) {
       const page = pagesList.find(p => p.id === selectedPageId);
       if (page) {
-        addRecentItem(selectedPageId, "page", page.title);
+        addRecentItem(selectedPageId, "page", page.title, {
+          is_file: page.is_file,
+          file_type: page.file_type,
+          file_url: page.file_url,
+        });
       }
     }
   }, [selectedPageId, viewMode, pagesList, addRecentItem]);
