@@ -598,6 +598,7 @@ const Wiki = () => {
             ref={wikiContentRef}
             page={selectedPage || null}
             versions={pageVersions}
+            folders={folders}
             onSave={async () => {}}
             canEdit={canEdit}
             isLoading={isLoadingPage}
@@ -715,6 +716,7 @@ const Wiki = () => {
                 ref={wikiContentRef}
                 page={selectedPage || null}
                 versions={pageVersions}
+                folders={folders}
                 onSave={async (pageId, title, content) => {
                   await savePageMutation.mutateAsync({ pageId, title, content });
                 }}
@@ -728,6 +730,8 @@ const Wiki = () => {
                   restoreVersionMutation.mutate({ pageId, versionTitle, versionContent })
                 }
                 isRestoring={restoreVersionMutation.isPending}
+                onSelectFolder={handleSelectFolder}
+                onSelectHome={handleSelectHome}
               />
             ) : (
               <WikiFolderView
