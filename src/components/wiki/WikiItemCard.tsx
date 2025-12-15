@@ -13,12 +13,18 @@ import {
 import { useRelativeTime } from "@/hooks/useRelativeTime";
 
 // File type icons with colors based on extension
-const getFileTypeIcon = (fileType?: string, title?: string) => {
-  const ext = title?.split('.').pop()?.toLowerCase() || '';
+const getFileTypeIcon = (fileType?: string, title?: string, fileUrl?: string) => {
+  // Try to get extension from title first, then from file URL
+  const titleExt = title?.split('.').pop()?.toLowerCase() || '';
+  const urlExt = fileUrl?.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
+  const ext = titleExt.length <= 5 && titleExt !== title?.toLowerCase() ? titleExt : urlExt;
   
-  // Image files
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
-    return { icon: ext.toUpperCase().slice(0, 4), color: 'bg-purple-500', textColor: 'text-purple-500' };
+  // Image files - check both extension and fileType
+  if (fileType === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
+    const displayExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext) 
+      ? ext.toUpperCase().slice(0, 4) 
+      : 'IMG';
+    return { icon: displayExt, color: 'bg-purple-500', textColor: 'text-purple-500' };
   }
   // PDF
   if (fileType === 'pdf' || ext === 'pdf') {
@@ -26,7 +32,7 @@ const getFileTypeIcon = (fileType?: string, title?: string) => {
   }
   // Word documents
   if (fileType === 'document' || ['doc', 'docx'].includes(ext)) {
-    return { icon: ext === 'docx' ? 'DOCX' : 'DOC', color: 'bg-blue-500', textColor: 'text-blue-500' };
+    return { icon: ['doc', 'docx'].includes(ext) ? ext.toUpperCase() : 'DOC', color: 'bg-blue-500', textColor: 'text-blue-500' };
   }
   // Excel files
   if (['xls', 'xlsx', 'csv'].includes(ext)) {
@@ -152,7 +158,7 @@ export const WikiItemCard = ({
   // Only show image preview if there's actually a thumbnail URL
   const hasImagePreview = page?.is_file && page?.file_type === 'image' && page?.thumbnail_url;
   // Get file type info for all uploaded files
-  const fileTypeInfo = page?.is_file ? getFileTypeIcon(page.file_type, page.title) : null;
+  const fileTypeInfo = page?.is_file ? getFileTypeIcon(page.file_type, page.title, page.file_url) : null;
   // Show file badge for any uploaded file that doesn't have an image preview
   const showFileBadge = page?.is_file && !hasImagePreview;
 
