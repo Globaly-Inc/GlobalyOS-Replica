@@ -107,6 +107,9 @@ export const WikiShareDialog = ({
   const [owner, setOwner] = useState<OwnerInfo | null>(null);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   
+  // Folder statistics
+  const [folderStats, setFolderStats] = useState<{ folders: number; pages: number; files: number } | null>(null);
+  
   // Transfer ownership mutation
   const transferOwnershipMutation = useTransferWikiOwnership();
 
@@ -135,8 +138,49 @@ export const WikiShareDialog = ({
       loadCurrentPermissions();
       loadMembersWithAccess();
       loadOwner();
+      if (itemType === 'folder') {
+        loadFolderStats();
+      } else {
+        setFolderStats(null);
+      }
     }
   }, [open, organizationId, itemId, itemType]);
+
+  const loadFolderStats = async () => {
+    try {
+      // Count subfolders
+      const { count: foldersCount } = await supabase
+        .from('wiki_folders')
+        .select('*', { count: 'exact', head: true })
+        .eq('parent_id', itemId)
+        .eq('organization_id', organizationId);
+
+      // Count pages (non-files)
+      const { count: pagesCount } = await supabase
+        .from('wiki_pages')
+        .select('*', { count: 'exact', head: true })
+        .eq('folder_id', itemId)
+        .eq('organization_id', organizationId)
+        .or('is_file.is.null,is_file.eq.false');
+
+      // Count files
+      const { count: filesCount } = await supabase
+        .from('wiki_pages')
+        .select('*', { count: 'exact', head: true })
+        .eq('folder_id', itemId)
+        .eq('organization_id', organizationId)
+        .eq('is_file', true);
+
+      setFolderStats({
+        folders: foldersCount || 0,
+        pages: pagesCount || 0,
+        files: filesCount || 0
+      });
+    } catch (error) {
+      console.error('Error loading folder stats:', error);
+      setFolderStats(null);
+    }
+  };
 
   const loadOwner = async () => {
     try {
@@ -895,7 +939,11 @@ export const WikiShareDialog = ({
             <div className="flex-1 min-w-0">
               <SheetTitle className="text-lg truncate">Share "{itemName}"</SheetTitle>
               <SheetDescription>
-                Collaborate with members on this {itemType}.
+                {itemType === 'folder' && folderStats ? (
+                  <>Contains {folderStats.folders} folder{folderStats.folders !== 1 ? 's' : ''}, {folderStats.pages} page{folderStats.pages !== 1 ? 's' : ''}, and {folderStats.files} file{folderStats.files !== 1 ? 's' : ''}.</>
+                ) : (
+                  <>Collaborate with members on this {itemType}.</>
+                )}
               </SheetDescription>
             </div>
           </div>
