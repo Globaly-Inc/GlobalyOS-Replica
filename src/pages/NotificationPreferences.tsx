@@ -5,24 +5,27 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { useNotificationPreferences, SOUND_OPTIONS, SoundType } from "@/hooks/useNotificationPreferences";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
-import { ArrowLeft, Volume2, VolumeX, Bell, Heart, AtSign, Calendar, Moon, RotateCcw, Play, Check } from "lucide-react";
+import { ArrowLeft, Volume2, VolumeX, Bell, Heart, AtSign, Calendar, Moon, RotateCcw, Play, Check, Volume1 } from "lucide-react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { toast } from "sonner";
 
 const SoundSelector = ({ 
   selectedSound, 
-  onSelectSound 
+  onSelectSound,
+  volume,
 }: { 
   selectedSound: SoundType; 
   onSelectSound: (sound: SoundType) => void;
+  volume: number;
 }) => {
   const { playNotificationSound } = useNotificationSound();
 
   const handlePreview = (sound: SoundType, e: React.MouseEvent) => {
     e.stopPropagation();
-    playNotificationSound(sound);
+    playNotificationSound(sound, volume);
   };
 
   return (
@@ -130,10 +133,34 @@ const NotificationPreferences = () => {
               <>
                 <Separator />
                 <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      {preferences.soundVolume === 0 ? (
+                        <VolumeX className="h-4 w-4 text-muted-foreground" />
+                      ) : preferences.soundVolume < 50 ? (
+                        <Volume1 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Volume2 className="h-4 w-4 text-primary" />
+                      )}
+                      Volume
+                    </Label>
+                    <span className="text-sm text-muted-foreground">{preferences.soundVolume}%</span>
+                  </div>
+                  <Slider
+                    value={[preferences.soundVolume]}
+                    onValueChange={(value) => updatePreference("soundVolume", value[0])}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                  />
+                </div>
+                <Separator />
+                <div className="space-y-3">
                   <Label className="text-sm font-medium">Choose Sound</Label>
                   <SoundSelector
                     selectedSound={preferences.soundType}
                     onSelectSound={(sound) => updatePreference("soundType", sound)}
+                    volume={preferences.soundVolume}
                   />
                 </div>
               </>

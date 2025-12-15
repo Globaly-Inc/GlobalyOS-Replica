@@ -11,6 +11,7 @@ export interface ChatNotificationTypes {
 export interface ChatNotificationPreferences {
   soundEnabled: boolean;
   soundType: SoundType;
+  soundVolume: number; // 0-100
   notificationTypes: ChatNotificationTypes;
 }
 
@@ -19,6 +20,7 @@ const STORAGE_KEY = "chat_notification_preferences";
 const DEFAULT_PREFERENCES: ChatNotificationPreferences = {
   soundEnabled: true,
   soundType: "chime",
+  soundVolume: 50,
   notificationTypes: {
     directMessages: true,
     spaceMessages: true,
@@ -56,6 +58,11 @@ export const useChatNotificationPreferences = () => {
 
   const updateSoundType = useCallback((soundType: SoundType) => {
     const newPrefs = { ...preferences, soundType };
+    savePreferences(newPrefs);
+  }, [preferences, savePreferences]);
+
+  const updateSoundVolume = useCallback((volume: number) => {
+    const newPrefs = { ...preferences, soundVolume: Math.max(0, Math.min(100, volume)) };
     savePreferences(newPrefs);
   }, [preferences, savePreferences]);
 
@@ -105,6 +112,7 @@ export const useChatNotificationPreferences = () => {
     isLoading,
     updateSoundEnabled,
     updateSoundType,
+    updateSoundVolume,
     updateNotificationType,
     resetToDefaults,
     shouldPlayChatSound,

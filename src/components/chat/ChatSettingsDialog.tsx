@@ -10,11 +10,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import {
   Bell,
   BellOff,
   Volume2,
   VolumeX,
+  Volume1,
   MessageCircle,
   Hash,
   AtSign,
@@ -39,6 +41,7 @@ export const ChatSettingsDialog = ({ open, onOpenChange }: ChatSettingsDialogPro
     preferences,
     updateSoundEnabled,
     updateSoundType,
+    updateSoundVolume,
     updateNotificationType,
     resetToDefaults,
   } = useChatNotificationPreferences();
@@ -55,7 +58,7 @@ export const ChatSettingsDialog = ({ open, onOpenChange }: ChatSettingsDialogPro
 
   const handlePlaySound = (soundType: SoundType) => {
     setPlayingSound(soundType);
-    playNotificationSound(soundType);
+    playNotificationSound(soundType, preferences.soundVolume);
     setTimeout(() => setPlayingSound(null), 500);
   };
 
@@ -132,43 +135,68 @@ export const ChatSettingsDialog = ({ open, onOpenChange }: ChatSettingsDialogPro
               </div>
 
               {preferences.soundEnabled && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {SOUND_OPTIONS.map((sound) => (
-                    <button
-                      key={sound.value}
-                      onClick={() => updateSoundType(sound.value)}
-                      className={cn(
-                        "flex items-center justify-between rounded-md border p-3 text-left text-sm transition-colors",
-                        preferences.soundType === sound.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted/50"
-                      )}
-                    >
-                      <div>
-                        <p className="font-medium">{sound.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {sound.description}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlaySound(sound.value);
-                        }}
+                <>
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm flex items-center gap-2">
+                        {preferences.soundVolume === 0 ? (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        ) : preferences.soundVolume < 50 ? (
+                          <Volume1 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        )}
+                        Volume
+                      </Label>
+                      <span className="text-sm text-muted-foreground">{preferences.soundVolume}%</span>
+                    </div>
+                    <Slider
+                      value={[preferences.soundVolume]}
+                      onValueChange={(value) => updateSoundVolume(value[0])}
+                      max={100}
+                      step={5}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    {SOUND_OPTIONS.map((sound) => (
+                      <button
+                        key={sound.value}
+                        onClick={() => updateSoundType(sound.value)}
+                        className={cn(
+                          "flex items-center justify-between rounded-md border p-3 text-left text-sm transition-colors",
+                          preferences.soundType === sound.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/50"
+                        )}
                       >
-                        <Play
-                          className={cn(
-                            "h-4 w-4",
-                            playingSound === sound.value && "text-primary"
-                          )}
-                        />
-                      </Button>
-                    </button>
-                  ))}
-                </div>
+                        <div>
+                          <p className="font-medium">{sound.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {sound.description}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlaySound(sound.value);
+                          }}
+                        >
+                          <Play
+                            className={cn(
+                              "h-4 w-4",
+                              playingSound === sound.value && "text-primary"
+                            )}
+                          />
+                        </Button>
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
