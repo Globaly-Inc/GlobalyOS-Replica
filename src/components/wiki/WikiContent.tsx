@@ -1,6 +1,6 @@
 import { useState, useImperativeHandle, forwardRef } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen, ArrowLeft } from "lucide-react";
+import { Pencil, Clock, User, History, FileText, PanelRightClose, PanelRightOpen, ArrowLeft, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,6 +9,7 @@ import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
 import { WikiTableOfContents } from "./WikiTableOfContents";
+import { WikiVersionDiff } from "./WikiVersionDiff";
 
 interface WikiPage {
   id: string;
@@ -57,6 +58,8 @@ interface WikiContentProps {
   onNavigationConfirm?: () => void;
   onNavigationCancel?: () => void;
   onBack?: () => void;
+  onRestoreVersion?: (pageId: string, versionTitle: string, versionContent: string | null) => void;
+  isRestoring?: boolean;
 }
 
 // Expose methods to parent via ref
@@ -70,10 +73,13 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   canEdit, 
   isLoading,
   onBack,
+  onRestoreVersion,
+  isRestoring = false,
 }, ref) => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
   const [showToc, setShowToc] = useState(true);
+  const [selectedVersion, setSelectedVersion] = useState<WikiPageVersion | null>(null);
   const { formatDateTime } = useFormattedDate();
 
   // No unsaved changes in view mode - editing happens on separate page
@@ -84,6 +90,13 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   const handleStartEdit = () => {
     if (page) {
       navigateOrg(`/wiki/edit/${page.id}`);
+    }
+  };
+
+  const handleRestoreVersion = (version: WikiPageVersion) => {
+    if (page && onRestoreVersion) {
+      onRestoreVersion(page.id, version.title, version.content);
+      setSelectedVersion(null);
     }
   };
 
@@ -132,53 +145,67 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
               )}
             </div>
           </div>
-          {/* Only show edit and history on desktop */}
-          {!isMobile && (
-            <div className="flex items-center gap-2">
-              {versions.length > 0 && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <History className="h-4 w-4 mr-1" />
-                      History
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Version History</SheetTitle>
-                    </SheetHeader>
-                    <ScrollArea className="h-[calc(100vh-100px)] mt-4">
-                      <div className="space-y-4">
-                        {versions.map((version) => (
-                          <div key={version.id} className="border rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
-                                <AvatarFallback className="text-xs">
-                                  {version.edited_by.profiles.full_name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {formatDateTime(version.created_at)}
-                            </p>
-                            <p className="text-sm font-medium">{version.title}</p>
+          {/* Actions - now shown on mobile too */}
+          <div className="flex items-center gap-2">
+            {versions.length > 0 && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <History className="h-4 w-4" />
+                    {!isMobile && <span className="ml-1">History</span>}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Version History</SheetTitle>
+                  </SheetHeader>
+                  <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+                    <div className="space-y-4">
+                      {versions.map((version) => (
+                        <div 
+                          key={version.id} 
+                          className="border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedVersion(version)}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={version.edited_by.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {version.edited_by.profiles.full_name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{version.edited_by.profiles.full_name}</span>
                           </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </SheetContent>
-                </Sheet>
-              )}
-              {canEdit && (
-                <Button size="sm" onClick={handleStartEdit}>
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          )}
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {formatDateTime(version.created_at)}
+                          </p>
+                          <p className="text-sm font-medium">{version.title}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 h-7 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVersion(version);
+                            }}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            View & Restore
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+            )}
+            {canEdit && (
+              <Button size="sm" onClick={handleStartEdit}>
+                <Pencil className="h-4 w-4" />
+                {!isMobile && <span className="ml-1">Edit</span>}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -214,6 +241,19 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
           <p className="text-muted-foreground italic">This page has no content yet.</p>
         )}
       </div>
+
+      {/* Version Diff Dialog */}
+      {selectedVersion && (
+        <WikiVersionDiff
+          open={!!selectedVersion}
+          onOpenChange={(open) => !open && setSelectedVersion(null)}
+          version={selectedVersion}
+          currentPage={{ id: page.id, title: page.title, content: page.content }}
+          onRestore={handleRestoreVersion}
+          isRestoring={isRestoring}
+          formatDateTime={formatDateTime}
+        />
+      )}
     </div>
   );
 });

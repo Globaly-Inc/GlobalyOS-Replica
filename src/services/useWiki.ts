@@ -318,3 +318,158 @@ export const useRenameWikiPage = () => {
     },
   });
 };
+
+// Move folder
+export const useMoveWikiFolder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ folderId, newParentId }: { folderId: string; newParentId: string | null }) => {
+      const { error } = await supabase
+        .from('wiki_folders')
+        .update({ parent_id: newParentId })
+        .eq('id', folderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
+      toast.success('Folder moved');
+    },
+    onError: () => {
+      toast.error('Failed to move folder');
+    },
+  });
+};
+
+// Move page
+export const useMoveWikiPage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ pageId, newFolderId }: { pageId: string; newFolderId: string | null }) => {
+      const { error } = await supabase
+        .from('wiki_pages')
+        .update({ folder_id: newFolderId })
+        .eq('id', pageId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-page', variables.pageId] });
+      toast.success('Page moved');
+    },
+    onError: () => {
+      toast.error('Failed to move page');
+    },
+  });
+};
+
+// Duplicate page
+export const useDuplicateWikiPage = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({ pageId }: { pageId: string }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Fetch original page
+      const { data: originalPage, error: fetchError } = await supabase
+        .from('wiki_pages')
+        .select('title, content, folder_id')
+        .eq('id', pageId)
+        .single();
+
+      if (fetchError || !originalPage) throw fetchError || new Error('Page not found');
+
+      // Create duplicate
+      const { data, error } = await supabase
+        .from('wiki_pages')
+        .insert({
+          title: `${originalPage.title} (Copy)`,
+          content: originalPage.content,
+          folder_id: originalPage.folder_id,
+          organization_id: currentOrg.id,
+          created_by: currentEmployee.id,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      toast.success('Page duplicated');
+    },
+    onError: () => {
+      toast.error('Failed to duplicate page');
+    },
+  });
+};
+
+// Restore page version
+export const useRestoreWikiPageVersion = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({ 
+      pageId, 
+      versionTitle, 
+      versionContent 
+    }: { 
+      pageId: string; 
+      versionTitle: string; 
+      versionContent: string | null;
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Save current version to history before restoring
+      const { data: currentPage } = await supabase
+        .from('wiki_pages')
+        .select('title, content')
+        .eq('id', pageId)
+        .single();
+
+      if (currentPage) {
+        await supabase.from('wiki_page_versions').insert({
+          page_id: pageId,
+          organization_id: currentOrg.id,
+          title: currentPage.title,
+          content: currentPage.content,
+          edited_by: currentEmployee.id,
+        });
+      }
+
+      // Restore the old version
+      const { error } = await supabase
+        .from('wiki_pages')
+        .update({
+          title: versionTitle,
+          content: versionContent,
+          updated_by: currentEmployee.id,
+        })
+        .eq('id', pageId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['wiki-page', variables.pageId] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-page-versions', variables.pageId] });
+      toast.success('Version restored');
+    },
+    onError: () => {
+      toast.error('Failed to restore version');
+    },
+  });
+};
