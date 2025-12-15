@@ -3,6 +3,7 @@ import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
 import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface TopNavProps {
   isAdmin: boolean;
@@ -13,6 +14,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly: boolean;
+  ownerOnly?: boolean;
   isStatic?: boolean;
   featureFlag?: FeatureName;
 }
@@ -20,18 +22,23 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { name: 'Team', href: '/', icon: Users, adminOnly: false },
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
-  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, isStatic: true, featureFlag: 'tasks' },
-  { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, isStatic: true, featureFlag: 'crm' },
+  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, ownerOnly: true, featureFlag: 'chat' },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
+  { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'crm' },
 ];
 
 export const TopNav = ({ isAdmin }: TopNavProps) => {
   const { isEnabled } = useFeatureFlags();
+  const { isOwner } = useUserRole();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
 
-  // Filter items based on feature flags (and admin-only if applicable)
+  // Filter items based on feature flags, admin-only, and owner-only
   const visibleItems = mainNavItems.filter(item => {
+    // If owner only, check owner status
+    if (item.ownerOnly && !isOwner) {
+      return false;
+    }
     // If item has a feature flag, check if it's enabled
     if (item.featureFlag && !isEnabled(item.featureFlag)) {
       return false;
