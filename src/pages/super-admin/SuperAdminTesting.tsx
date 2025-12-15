@@ -39,6 +39,8 @@ import CoverageLineView from '@/components/super-admin/CoverageLineView';
 import TestResultsFilter from '@/components/super-admin/TestResultsFilter';
 import TestDetailsPanel from '@/components/super-admin/TestDetailsPanel';
 import VisualRegressionView from '@/components/super-admin/VisualRegressionView';
+import SecurityFindingsCard from '@/components/super-admin/SecurityFindingsCard';
+import SecurityTrendChart from '@/components/super-admin/SecurityTrendChart';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -148,6 +150,85 @@ const SuperAdminTesting = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('status');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Security findings state (in production, would come from database)
+  const [securityFindings, setSecurityFindings] = useState<Array<{
+    id: string;
+    severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+    category: 'rls' | 'injection' | 'isolation' | 'auth' | 'config';
+    title: string;
+    description: string;
+    affectedTable?: string;
+    affectedPolicy?: string;
+    remediation: string;
+    status: 'open' | 'resolved' | 'ignored';
+    detectedAt: string;
+    resolvedAt?: string;
+  }>>([
+    {
+      id: '1',
+      severity: 'critical',
+      category: 'rls',
+      title: 'Missing RLS policy on sensitive table',
+      description: 'The employee_documents table has RLS enabled but no SELECT policy for regular users, potentially exposing documents to unauthorized access.',
+      affectedTable: 'employee_documents',
+      remediation: 'Add a SELECT policy that restricts access to document owners or users with appropriate roles (HR, admin, or managers of the employee).',
+      status: 'open',
+      detectedAt: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      severity: 'high',
+      category: 'isolation',
+      title: 'Cross-tenant data leakage risk',
+      description: 'The get_employee_for_viewer function may return data across organizations if organization_id validation is bypassed.',
+      affectedPolicy: 'get_employee_for_viewer',
+      remediation: 'Add explicit organization_id check at the beginning of the function before any data access.',
+      status: 'open',
+      detectedAt: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: '3',
+      severity: 'medium',
+      category: 'config',
+      title: 'Storage bucket public access',
+      description: 'The wiki-attachments storage bucket is configured as public, allowing unauthenticated access to uploaded files.',
+      affectedTable: 'storage.buckets',
+      remediation: 'Review if public access is required. If not, set bucket to private and add appropriate RLS policies.',
+      status: 'resolved',
+      detectedAt: new Date(Date.now() - 172800000).toISOString(),
+      resolvedAt: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: '4',
+      severity: 'low',
+      category: 'auth',
+      title: 'Missing rate limiting on OTP endpoint',
+      description: 'The send-otp edge function lacks rate limiting, potentially allowing brute force attacks.',
+      remediation: 'Implement rate limiting using IP-based throttling or Cloudflare rate limit rules.',
+      status: 'open',
+      detectedAt: new Date(Date.now() - 259200000).toISOString(),
+    },
+  ]);
+
+  // Security trend data (in production, calculated from security_test_runs history)
+  const securityTrendData = useMemo(() => {
+    const days = 14;
+    const data = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const baseScore = 85 + Math.floor(Math.random() * 10);
+      data.push({
+        date: format(date, 'MMM d'),
+        score: Math.min(100, baseScore + (days - i)),
+        openIssues: Math.max(0, 5 - Math.floor((days - i) / 3)),
+        resolvedIssues: Math.floor((days - i) / 4),
+        criticalIssues: i > 7 ? 1 : 0,
+      });
+    }
+    return data;
+  }, []);
 
   // Fetch test runs
   const { data: testRuns, isLoading: loadingRuns } = useQuery({
@@ -997,10 +1078,10 @@ const SuperAdminTesting = () => {
             {/* Security Results */}
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-lg">Security Scan Results</CardTitle>
+                <CardTitle className="text-lg">Recent Security Scans</CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
+                <ScrollArea className="h-48">
                   <div className="space-y-2">
                     {securityRuns?.map((run) => (
                       <div 
@@ -1033,15 +1114,40 @@ const SuperAdminTesting = () => {
                     ))}
 
                     {(!securityRuns || securityRuns.length === 0) && (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No security scans yet. Run a security test to see results.</p>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Shield className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">No security scans yet</p>
                       </div>
                     )}
                   </div>
                 </ScrollArea>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Security Findings */}
+          <div className="mt-6">
+            <SecurityFindingsCard
+              findings={securityFindings}
+              onResolve={(id) => {
+                // Mark finding as resolved
+                setSecurityFindings(prev => 
+                  prev.map(f => f.id === id ? { ...f, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : f)
+                );
+                toast.success('Finding marked as resolved');
+              }}
+              onIgnore={(id) => {
+                setSecurityFindings(prev => 
+                  prev.map(f => f.id === id ? { ...f, status: 'ignored' as const } : f)
+                );
+                toast.info('Finding ignored');
+              }}
+            />
+          </div>
+
+          {/* Security Trend Charts */}
+          <div className="mt-6">
+            <SecurityTrendChart data={securityTrendData} />
           </div>
         </TabsContent>
 
