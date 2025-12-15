@@ -77,6 +77,9 @@ interface WikiMembersWithAccessProps {
   onRemoveDepartment?: (department: string) => void;
   onRemoveProject?: (projectId: string) => void;
   onClearCompanyAccess?: () => void;
+  // Permission change handler for groups
+  onChangeGroupPermission?: (permission: 'view' | 'edit') => void;
+  isChangingPermission?: boolean;
 }
 
 export const WikiMembersWithAccess = ({
@@ -102,6 +105,8 @@ export const WikiMembersWithAccess = ({
   onRemoveDepartment,
   onRemoveProject,
   onClearCompanyAccess,
+  onChangeGroupPermission,
+  isChangingPermission = false,
 }: WikiMembersWithAccessProps) => {
   if (isLoading) {
     return (
@@ -117,6 +122,42 @@ export const WikiMembersWithAccess = ({
   
   const getMemberCountForDepartment = (dept: string) => 
     employees.filter(e => e.department === dept).length;
+
+  // Permission dropdown for groups
+  const GroupPermissionDropdown = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+          disabled={isChangingPermission}
+        >
+          {isChangingPermission ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Globe className="h-3.5 w-3.5" />
+          )}
+          <span className="text-sm">can {permissionLevel}</span>
+          <ChevronDown className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem
+          onClick={() => onChangeGroupPermission?.('edit')}
+          className={cn(permissionLevel === 'edit' && 'bg-muted')}
+        >
+          can edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onChangeGroupPermission?.('view')}
+          className={cn(permissionLevel === 'view' && 'bg-muted')}
+        >
+          can view
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   // Check if we have any group access or members to show
   const hasGroupAccess = accessScope === 'company' || 
@@ -189,10 +230,14 @@ export const WikiMembersWithAccess = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-              <Globe className="h-3.5 w-3.5" />
-              <span>can {permissionLevel}</span>
-            </div>
+            {canEdit && onChangeGroupPermission ? (
+              <GroupPermissionDropdown />
+            ) : (
+              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                <Globe className="h-3.5 w-3.5" />
+                <span>can {permissionLevel}</span>
+              </div>
+            )}
             {canEdit && onClearCompanyAccess && (
               <Button
                 variant="ghost"
@@ -227,10 +272,14 @@ export const WikiMembersWithAccess = ({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>can {permissionLevel}</span>
-                </div>
+                {canEdit && onChangeGroupPermission ? (
+                  <GroupPermissionDropdown />
+                ) : (
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                    <Globe className="h-3.5 w-3.5" />
+                    <span>can {permissionLevel}</span>
+                  </div>
+                )}
                 {canEdit && onRemoveOffice && (
                   <Button
                     variant="ghost"
@@ -267,10 +316,14 @@ export const WikiMembersWithAccess = ({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>can {permissionLevel}</span>
-                </div>
+                {canEdit && onChangeGroupPermission ? (
+                  <GroupPermissionDropdown />
+                ) : (
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                    <Globe className="h-3.5 w-3.5" />
+                    <span>can {permissionLevel}</span>
+                  </div>
+                )}
                 {canEdit && onRemoveDepartment && (
                   <Button
                     variant="ghost"
@@ -305,10 +358,14 @@ export const WikiMembersWithAccess = ({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>can {permissionLevel}</span>
-                </div>
+                {canEdit && onChangeGroupPermission ? (
+                  <GroupPermissionDropdown />
+                ) : (
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                    <Globe className="h-3.5 w-3.5" />
+                    <span>can {permissionLevel}</span>
+                  </div>
+                )}
                 {canEdit && onRemoveProject && (
                   <Button
                     variant="ghost"
