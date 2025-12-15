@@ -26,8 +26,11 @@ import {
   BarChart3,
   FileText,
   Bug,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
+import FailedTestCard from '@/components/super-admin/FailedTestCard';
+import AITestFixDialog from '@/components/super-admin/AITestFixDialog';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -93,10 +96,21 @@ interface CoverageReport {
   meets_thresholds: boolean | null;
 }
 
+interface AIFixResponse {
+  explanation: string;
+  suggestedFix: string;
+  confidence: 'High' | 'Medium' | 'Low';
+  affectedFiles: string[];
+}
+
 const SuperAdminTesting = () => {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState('overview');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
+  const [aiFixDialogOpen, setAiFixDialogOpen] = useState(false);
+  const [aiFixResponse, setAiFixResponse] = useState<AIFixResponse | null>(null);
+  const [isFixingTest, setIsFixingTest] = useState(false);
 
   // Fetch test runs
   const { data: testRuns, isLoading: loadingRuns } = useQuery({
@@ -168,6 +182,53 @@ const SuperAdminTesting = () => {
     },
     enabled: !!latestRun?.id,
   });
+
+  // Get failed tests from latest run
+  const failedTests = testResults?.filter(t => t.status === 'failed') ?? [];
+
+  // Handle AI fix request
+  const handleFixWithAI = async (test: TestResult) => {
+    setSelectedTest(test);
+    setAiFixResponse(null);
+    setAiFixDialogOpen(true);
+    setIsFixingTest(true);
+
+    try {
+      const response = await supabase.functions.invoke('fix-test-with-ai', {
+        body: {
+          test_name: test.test_name,
+          test_file: test.test_file,
+          test_suite: test.test_suite,
+          test_category: test.test_category,
+          error_message: test.error_message,
+          stack_trace: test.stack_trace,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      setAiFixResponse(response.data as AIFixResponse);
+    } catch (error) {
+      console.error('Error getting AI fix:', error);
+      toast.error('Failed to get AI fix suggestion');
+      setAiFixResponse({
+        explanation: 'Failed to analyze the test failure. Please try again.',
+        suggestedFix: '',
+        confidence: 'Low',
+        affectedFiles: [],
+      });
+    } finally {
+      setIsFixingTest(false);
+    }
+  };
+
+  const handleRegenerateAIFix = () => {
+    if (selectedTest) {
+      handleFixWithAI(selectedTest);
+    }
+  };
 
   // Run tests mutation (simulated - actual test running would be via edge function)
   const runTestsMutation = useMutation({
@@ -487,39 +548,39 @@ const SuperAdminTesting = () => {
               </CardContent>
             </Card>
 
-            {/* Recent Activity */}
+            {/* Failed Tests */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Recent Test Runs</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <XCircle className="h-5 w-5 text-destructive" />
+                  Failed Tests
+                </CardTitle>
+                <CardDescription>
+                  {failedTests.length === 0 
+                    ? 'All tests passing' 
+                    : `${failedTests.length} test${failedTests.length > 1 ? 's' : ''} need attention`}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-64">
-                  <div className="space-y-2">
-                    {testRuns?.slice(0, 5).map((run) => (
-                      <div 
-                        key={run.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getStatusIcon(run.status)}
-                          <div>
-                            <div className="font-medium capitalize">{run.test_type} Tests</div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(new Date(run.started_at), 'MMM d, h:mm a')}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">
-                            {run.passed_tests}/{run.total_tests}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {run.duration_ms ? `${(run.duration_ms / 1000).toFixed(1)}s` : '-'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {failedTests.length > 0 ? (
+                    <div className="space-y-2">
+                      {failedTests.map((test) => (
+                        <FailedTestCard
+                          key={test.id}
+                          test={test}
+                          onFixWithAI={handleFixWithAI}
+                          isFixing={isFixingTest && selectedTest?.id === test.id}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-muted-foreground">
+                      <CheckCircle2 className="h-12 w-12 mb-4 text-success opacity-50" />
+                      <p className="text-sm">No failed tests!</p>
+                      <p className="text-xs mt-1">All tests are passing.</p>
+                    </div>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -860,6 +921,16 @@ const SuperAdminTesting = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* AI Fix Dialog */}
+      <AITestFixDialog
+        open={aiFixDialogOpen}
+        onOpenChange={setAiFixDialogOpen}
+        test={selectedTest}
+        fixResponse={aiFixResponse}
+        isLoading={isFixingTest}
+        onRegenerate={handleRegenerateAIFix}
+      />
     </SuperAdminLayout>
   );
 };
