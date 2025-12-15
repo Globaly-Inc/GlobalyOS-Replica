@@ -428,7 +428,7 @@ export const generateBlogPosts = async (params: {
   const { data, error } = await supabase.functions.invoke('generate-blog-posts', {
     body: {
       ...params,
-      count: params.count || 1, // Default to 1 post
+      count: params.count ?? 5,
     },
   });
 

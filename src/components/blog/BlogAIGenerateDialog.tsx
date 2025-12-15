@@ -77,7 +77,7 @@ export const BlogAIGenerateDialog = ({ open, onOpenChange }: BlogAIGenerateDialo
         audience,
         tone,
         wordCount,
-        count: selectedKeywords.length, // Generate one post per keyword
+        count: 5,
       });
       const postCount = result?.posts?.length || 0;
       toast.success(`${postCount} blog post${postCount !== 1 ? 's' : ''} generated! Review them in the Pending Review tab.`);
