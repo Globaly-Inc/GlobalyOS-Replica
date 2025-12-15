@@ -64,48 +64,50 @@ const TrialBanner = () => {
 
   return (
     <div
-      className={`w-full px-4 py-2 flex items-center justify-between text-sm ${
+      className={`w-full border-b ${
         isUrgent
-          ? "bg-destructive/10 border-b border-destructive/20"
-          : "bg-primary/5 border-b border-primary/10"
+          ? "bg-destructive/10 border-destructive/20"
+          : "bg-primary/5 border-primary/10"
       }`}
     >
-      <div className="flex items-center gap-2">
-        {isUrgent ? (
-          <AlertCircle className="h-4 w-4 text-destructive" />
-        ) : (
-          <Clock className="h-4 w-4 text-primary" />
-        )}
-        <span className={isUrgent ? "text-destructive" : "text-foreground"}>
-          {trialInfo.daysRemaining === 0 ? (
-            "Your trial ends today!"
-          ) : trialInfo.daysRemaining === 1 ? (
-            "Your trial ends tomorrow!"
+      <div className="container flex items-center justify-between px-4 md:px-8 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          {isUrgent ? (
+            <AlertCircle className="h-4 w-4 text-destructive" />
           ) : (
-            <>
-              <span className="font-medium">{trialInfo.daysRemaining} days</span> left in your trial
-            </>
+            <Clock className="h-4 w-4 text-primary" />
           )}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant={isUrgent ? "destructive" : "default"}
-          className="h-7 text-xs gap-1"
-          onClick={() => navigate("/settings?tab=billing")}
-        >
-          <Sparkles className="h-3 w-3" />
-          Upgrade Now
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 w-7 p-0"
-          onClick={() => setDismissed(true)}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+          <span className={isUrgent ? "text-destructive" : "text-foreground"}>
+            {trialInfo.daysRemaining === 0 ? (
+              "Your trial ends today!"
+            ) : trialInfo.daysRemaining === 1 ? (
+              "Your trial ends tomorrow!"
+            ) : (
+              <>
+                <span className="font-medium">{trialInfo.daysRemaining} days</span> left in your trial
+              </>
+            )}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={isUrgent ? "destructive" : "default"}
+            className="h-7 text-xs gap-1"
+            onClick={() => navigate("/settings?tab=billing")}
+          >
+            <Sparkles className="h-3 w-3" />
+            Upgrade Now
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onClick={() => setDismissed(true)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
