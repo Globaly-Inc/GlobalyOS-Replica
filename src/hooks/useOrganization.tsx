@@ -37,15 +37,14 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchOrganizations = async () => {
-    // Don't set loading to false if user is not yet available
-    // This prevents the OrgProtectedRoute from redirecting to /signup prematurely
+    // Don't proceed if user is not yet available
     if (!user?.id) {
-      // Only clear state if we're sure auth loading is complete
-      // The useAuth hook sets loading to false after auth state is determined
       return;
     }
 
     try {
+      setLoading(true);
+      
       const { data: members, error } = await supabase
         .from("organization_members")
         .select(`
@@ -61,7 +60,14 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         `)
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching organizations:", error);
+        setOrganizations([]);
+        setCurrentOrg(null);
+        setOrgRole(null);
+        setLoading(false);
+        return;
+      }
 
       const orgs = members
         ?.map((m: any) => m.organizations)
@@ -85,6 +91,9 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching organizations:", error);
+      setOrganizations([]);
+      setCurrentOrg(null);
+      setOrgRole(null);
     } finally {
       setLoading(false);
     }
