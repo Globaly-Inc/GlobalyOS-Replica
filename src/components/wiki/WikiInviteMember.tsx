@@ -20,7 +20,7 @@ import {
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Globe, ChevronDown, X, Loader2, Info, Building2, Users, FolderKanban, User } from "lucide-react";
@@ -253,8 +253,8 @@ export const WikiInviteMember = ({
       <div className="flex items-stretch gap-2">
         {/* Selection input */}
         <div className="flex-1">
-          <Popover open={searchOpen} onOpenChange={setSearchOpen} modal={false}>
-            <PopoverTrigger asChild>
+          <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+            <PopoverAnchor asChild>
               <div
                 className={cn(
                   "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text",
@@ -287,27 +287,27 @@ export const WikiInviteMember = ({
                   placeholder={selections.length === 0 ? "Search members, offices, departments..." : ""}
                   className="flex-1 min-w-20 border-0 p-0 h-6 focus-visible:ring-0 shadow-none"
                   onFocus={() => setSearchOpen(true)}
+                  onBlur={(e) => {
+                    // Only close if clicking outside the popover
+                    const relatedTarget = e.relatedTarget as HTMLElement;
+                    if (!relatedTarget?.closest('[data-radix-popover-content-wrapper]')) {
+                      setTimeout(() => setSearchOpen(false), 150);
+                    }
+                  }}
                 />
               </div>
-            </PopoverTrigger>
+            </PopoverAnchor>
             <PopoverContent 
               className="w-[350px] p-0 bg-popover z-50" 
               align="start"
               onOpenAutoFocus={(e) => e.preventDefault()}
-              onInteractOutside={(e) => {
-                // Don't close when clicking inside the trigger
-                const target = e.target as HTMLElement;
-                if (target.closest('[data-radix-popover-trigger]')) {
-                  e.preventDefault();
-                }
-              }}
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <Command shouldFilter={false}>
                 <CommandInput 
                   placeholder="Search..." 
                   value={searchQuery}
                   onValueChange={setSearchQuery}
-                  autoFocus
                 />
                 <CommandList className="max-h-[300px]">
                   {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
