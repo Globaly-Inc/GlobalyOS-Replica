@@ -18,7 +18,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, ChevronDown, FileText, Folder, ArrowLeft } from "lucide-react";
+import { Plus, ChevronDown, FileText, Folder, ArrowLeft, Upload, FileDown } from "lucide-react";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface WikiFolder {
   id: string;
@@ -91,6 +92,8 @@ const Wiki = () => {
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   const [creatingItem, setCreatingItem] = useState<{ type: "folder" | "page" } | null>(null);
   const [canEditCurrentFolder, setCanEditCurrentFolder] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Ref to WikiContent to check unsaved changes synchronously
   const wikiContentRef = useRef<WikiContentHandle>(null);
@@ -646,23 +649,6 @@ const Wiki = () => {
           
           {canEditCurrentFolder && (
             <>
-              <WikiImportDialog
-                organizationId={currentOrg?.id}
-                employeeId={currentEmployee?.id}
-                existingFolders={folders}
-                onImportComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
-                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-                }}
-              />
-              <WikiUploadDialog
-                organizationId={currentOrg?.id}
-                employeeId={currentEmployee?.id}
-                currentFolderId={getCurrentFolderId()}
-                onUploadComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
-                }}
-              />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -674,7 +660,6 @@ const Wiki = () => {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem 
                     onSelect={() => {
-                      // Switch to folder view first if on page view
                       if (viewMode === "page") {
                         setSelectedPageId(null);
                         setViewMode(selectedFolderId ? "folder" : "home");
@@ -687,7 +672,6 @@ const Wiki = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onSelect={() => {
-                      // Switch to folder view first if on page view
                       if (viewMode === "page") {
                         setSelectedPageId(null);
                         setViewMode(selectedFolderId ? "folder" : "home");
@@ -698,8 +682,38 @@ const Wiki = () => {
                     <Folder className="h-4 w-4 mr-2" />
                     New Folder
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setUploadDialogOpen(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload File
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setImportDialogOpen(true)}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Import
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <WikiUploadDialog
+                organizationId={currentOrg?.id}
+                employeeId={currentEmployee?.id}
+                currentFolderId={getCurrentFolderId()}
+                onUploadComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+                }}
+                open={uploadDialogOpen}
+                onOpenChange={setUploadDialogOpen}
+              />
+              <WikiImportDialog
+                organizationId={currentOrg?.id}
+                employeeId={currentEmployee?.id}
+                existingFolders={folders}
+                onImportComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
+                  queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+                }}
+                open={importDialogOpen}
+                onOpenChange={setImportDialogOpen}
+              />
             </>
           )}
         </div>

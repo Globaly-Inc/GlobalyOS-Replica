@@ -7,7 +7,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Upload, X, FileIcon, Loader2, FileText, Image, File } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,8 @@ interface WikiUploadDialogProps {
   employeeId: string | undefined;
   currentFolderId: string | null;
   onUploadComplete: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface SelectedFile {
@@ -54,8 +55,12 @@ export const WikiUploadDialog = ({
   employeeId,
   currentFolderId,
   onUploadComplete,
+  open: controlledOpen,
+  onOpenChange,
 }: WikiUploadDialogProps) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -254,12 +259,6 @@ export const WikiUploadDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose())}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Upload className="h-4 w-4" />
-          Upload
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
