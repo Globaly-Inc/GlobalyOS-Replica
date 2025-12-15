@@ -54,9 +54,9 @@ interface Project {
   name: string;
 }
 
-type SelectionType = 'everyone' | 'office' | 'department' | 'project' | 'member';
+export type SelectionType = 'everyone' | 'office' | 'department' | 'project' | 'member';
 
-interface Selection {
+export interface Selection {
   type: SelectionType;
   id: string;
   label: string;
@@ -69,7 +69,7 @@ interface WikiAddMemberProps {
   projects: Project[];
   employeeProjects: { employee_id: string; project_id: string }[];
   excludedEmployeeIds: string[];
-  onAdd: (employeeIds: string[], permission: 'view' | 'edit') => void;
+  onAdd: (selections: Selection[], permission: 'view' | 'edit') => void;
   isAdding: boolean;
 }
 
@@ -175,48 +175,9 @@ export const WikiAddMember = ({
     setSelections(prev => prev.filter(s => !(s.type === selection.type && s.id === selection.id)));
   };
 
-  const resolveEmployeeIds = (): string[] => {
-    const employeeIds = new Set<string>();
-    
-    selections.forEach(selection => {
-      switch (selection.type) {
-        case 'everyone':
-          availableEmployees.forEach(emp => employeeIds.add(emp.id));
-          break;
-        case 'office':
-          employees
-            .filter(emp => emp.office_id === selection.id && !excludedEmployeeIds.includes(emp.id))
-            .forEach(emp => employeeIds.add(emp.id));
-          break;
-        case 'department':
-          employees
-            .filter(emp => emp.department === selection.id && !excludedEmployeeIds.includes(emp.id))
-            .forEach(emp => employeeIds.add(emp.id));
-          break;
-        case 'project':
-          // Resolve project members via employee_projects junction table
-          employeeProjects
-            .filter(ep => ep.project_id === selection.id && !excludedEmployeeIds.includes(ep.employee_id))
-            .forEach(ep => employeeIds.add(ep.employee_id));
-          break;
-        case 'member':
-          if (!excludedEmployeeIds.includes(selection.id)) {
-            employeeIds.add(selection.id);
-          }
-          break;
-      }
-    });
-
-    return Array.from(employeeIds);
-  };
-
   const handleAdd = () => {
     if (selections.length === 0) return;
-    const employeeIds = resolveEmployeeIds();
-    if (employeeIds.length === 0) {
-      return;
-    }
-    onAdd(employeeIds, permission);
+    onAdd(selections, permission);
     setSelections([]);
   };
 

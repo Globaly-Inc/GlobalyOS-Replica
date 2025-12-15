@@ -211,8 +211,8 @@ export const WikiMembersWithAccess = ({
         </>
       )}
 
-      {/* Individual members - only show when scope is 'members' */}
-      {accessScope === 'members' && members.map((member) => (
+      {/* Individual members (explicitly added) */}
+      {members.map((member) => (
         <div
           key={member.employee_id}
           className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
@@ -253,13 +253,13 @@ export const WikiMembersWithAccess = ({
                   <DropdownMenuContent align="end" className="w-32">
                     <DropdownMenuItem
                       onClick={() => onUpdatePermission(member.employee_id, 'edit')}
-                      className={cn(member.permission === 'edit' && "bg-muted")}
+                      className={cn(member.permission === 'edit' && 'bg-muted')}
                     >
                       can edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => onUpdatePermission(member.employee_id, 'view')}
-                      className={cn(member.permission === 'view' && "bg-muted")}
+                      className={cn(member.permission === 'view' && 'bg-muted')}
                     >
                       can view
                     </DropdownMenuItem>
