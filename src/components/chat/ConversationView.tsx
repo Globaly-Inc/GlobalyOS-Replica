@@ -258,22 +258,99 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
     };
   }, [otherParticipant?.id]);
 
-  // Subscribe to real-time messages, attachments, and reactions
+  // Subscribe to real-time messages with delta sync (merge instead of refetch)
   useEffect(() => {
+    const filter = conversationId 
+      ? `conversation_id=eq.${conversationId}`
+      : `space_id=eq.${spaceId}`;
+
     const channel = supabase
-      .channel('chat-messages-realtime')
+      .channel(`chat-messages-${conversationId || spaceId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'chat_messages',
-          filter: conversationId 
-            ? `conversation_id=eq.${conversationId}`
-            : `space_id=eq.${spaceId}`
+          filter
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
+        async (payload) => {
+          const newMessage = payload.new as any;
+          
+          // Skip if it's our own optimistic message (temp id)
+          if (newMessage.sender_id === currentEmployee?.id) {
+            // Just remove temp messages and let the real one through
+            queryClient.setQueryData<ChatMessage[]>(
+              ['chat-messages', conversationId, spaceId],
+              (old) => old?.filter(m => !m.id.startsWith('temp-')) || []
+            );
+          }
+          
+          // Fetch sender info for the new message
+          const { data: senderData } = await supabase
+            .from('employees')
+            .select(`
+              id,
+              user_id,
+              position,
+              profiles:user_id (
+                full_name,
+                avatar_url
+              )
+            `)
+            .eq('id', newMessage.sender_id)
+            .single();
+
+          // Merge new message into cache
+          queryClient.setQueryData<ChatMessage[]>(
+            ['chat-messages', conversationId, spaceId],
+            (old) => {
+              if (!old) return [{ ...newMessage, sender: senderData, attachments: [] }];
+              // Check if message already exists
+              const exists = old.some(m => m.id === newMessage.id);
+              if (exists) return old;
+              // Remove any temp messages and add real one
+              const filtered = old.filter(m => !m.id.startsWith('temp-'));
+              return [...filtered, { ...newMessage, sender: senderData, attachments: [] }];
+            }
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter
+        },
+        (payload) => {
+          const updatedMessage = payload.new as any;
+          // Merge update into cache
+          queryClient.setQueryData<ChatMessage[]>(
+            ['chat-messages', conversationId, spaceId],
+            (old) => old?.map(m => m.id === updatedMessage.id 
+              ? { ...m, ...updatedMessage } 
+              : m
+            ) || []
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter
+        },
+        (payload) => {
+          const deletedMessage = payload.old as any;
+          // Remove from cache
+          queryClient.setQueryData<ChatMessage[]>(
+            ['chat-messages', conversationId, spaceId],
+            (old) => old?.filter(m => m.id !== deletedMessage.id) || []
+          );
         }
       )
       .on(
@@ -283,8 +360,16 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
           schema: 'public',
           table: 'chat_attachments'
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-messages', conversationId, spaceId] });
+        (payload) => {
+          const newAttachment = payload.new as any;
+          // Add attachment to the message in cache
+          queryClient.setQueryData<ChatMessage[]>(
+            ['chat-messages', conversationId, spaceId],
+            (old) => old?.map(m => m.id === newAttachment.message_id 
+              ? { ...m, attachments: [...(m.attachments || []), newAttachment] }
+              : m
+            ) || []
+          );
         }
       )
       .on(
@@ -295,6 +380,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
           table: 'chat_message_reactions'
         },
         () => {
+          // For reactions, still use invalidate as it's complex to merge
           queryClient.invalidateQueries({ queryKey: ['chat-reactions', conversationId, spaceId] });
         }
       )
@@ -303,7 +389,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, spaceId, queryClient]);
+  }, [conversationId, spaceId, queryClient, currentEmployee?.id]);
 
   // Auto-scroll to bottom on new messages only if already at bottom
   useEffect(() => {
