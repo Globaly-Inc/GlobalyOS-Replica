@@ -543,6 +543,154 @@ export const WikiShareDialog = ({
 
               <Separator />
 
+              {/* Access Scope Tabs */}
+              <Tabs defaultValue="access" className="w-full">
+                <TabsList className="w-full grid grid-cols-1">
+                  <TabsTrigger value="access" className="gap-2">
+                    <Globe className="h-4 w-4" />
+                    Who can access
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="access" className="mt-4 space-y-4">
+                  {/* Permission Level */}
+                  <div className="space-y-3">
+                    <Label className="text-sm">Default Permission Level</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={permissionLevel === 'view' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setPermissionLevel('view')}
+                        className="flex-1"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Only
+                      </Button>
+                      <Button
+                        variant={permissionLevel === 'edit' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setPermissionLevel('edit')}
+                        className="flex-1"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Can Edit
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Access Scope Radio */}
+                  <div className="space-y-3">
+                    <Label className="text-sm">Access Scope</Label>
+                    <RadioGroup value={accessScope} onValueChange={(v) => setAccessScope(v as WikiAccessScope)}>
+                      <div className="space-y-2">
+                        {scopeOptions.map((option) => {
+                          const Icon = option.icon;
+                          return (
+                            <div key={option.value} className="space-y-2">
+                              <label
+                                className={cn(
+                                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                                  accessScope === option.value
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <RadioGroupItem value={option.value} />
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <div className="flex-1">
+                                  <span className="font-medium text-sm">{option.label}</span>
+                                  <p className="text-xs text-muted-foreground">{option.description}</p>
+                                </div>
+                              </label>
+
+                              {/* Selection lists */}
+                              {accessScope === option.value && option.value === 'offices' && (
+                                <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                                  {offices.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No offices configured</p>
+                                  ) : (
+                                    offices.map((office) => (
+                                      <label key={office.id} className="flex items-center gap-2 cursor-pointer">
+                                        <Checkbox
+                                          checked={selectedOffices.includes(office.id)}
+                                          onCheckedChange={() => toggleSelection(office.id, selectedOffices, setSelectedOffices)}
+                                        />
+                                        <span className="text-sm">{office.name}</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+
+                              {accessScope === option.value && option.value === 'departments' && (
+                                <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                                  {departments.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No departments found</p>
+                                  ) : (
+                                    departments.map((dept) => (
+                                      <label key={dept} className="flex items-center gap-2 cursor-pointer">
+                                        <Checkbox
+                                          checked={selectedDepartments.includes(dept)}
+                                          onCheckedChange={() => toggleSelection(dept, selectedDepartments, setSelectedDepartments)}
+                                        />
+                                        <span className="text-sm">{dept}</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+
+                              {accessScope === option.value && option.value === 'projects' && (
+                                <div className="ml-8 p-3 bg-muted/50 rounded-lg space-y-2">
+                                  {projects.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No projects configured</p>
+                                  ) : (
+                                    projects.map((project) => (
+                                      <label key={project.id} className="flex items-center gap-2 cursor-pointer">
+                                        <Checkbox
+                                          checked={selectedProjects.includes(project.id)}
+                                          onCheckedChange={() => toggleSelection(project.id, selectedProjects, setSelectedProjects)}
+                                        />
+                                        <span className="text-sm">{project.name}</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Inherit from folder option (pages only) */}
+                  {itemType === 'page' && currentFolderId && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={inheritFromFolder}
+                        onCheckedChange={(checked) => setInheritFromFolder(checked as boolean)}
+                      />
+                      <span className="text-sm">Inherit permissions from parent folder</span>
+                    </label>
+                  )}
+
+                  {/* Save Access Settings Button */}
+                  <Button 
+                    onClick={handleSaveAccessScope} 
+                    disabled={isSaving}
+                    className="w-full"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Access Settings'
+                    )}
+                  </Button>
+                </TabsContent>
+              </Tabs>
 
               <Separator />
 
