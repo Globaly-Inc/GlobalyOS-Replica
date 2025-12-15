@@ -864,66 +864,6 @@ export const WikiShareDialog = ({
                 />
               </div>
 
-              <Separator />
-
-              {/* Public link section - moved to bottom */}
-              <Collapsible open={publicLinkExpanded} onOpenChange={setPublicLinkExpanded}>
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-3 w-full text-left py-2 hover:bg-muted/50 rounded-lg px-2 -mx-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
-                      <Link2 className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-sm">Create public link</span>
-                        <ChevronDown className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform",
-                          publicLinkExpanded && "rotate-180"
-                        )} />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Anyone with the link can view this {itemType}.
-                      </p>
-                    </div>
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Enable public link</span>
-                    <Switch
-                      checked={publicLinkEnabled}
-                      onCheckedChange={async (checked) => {
-                        setIsTogglingPublicLink(true);
-                        // For now, just toggle locally - database changes would be needed
-                        setPublicLinkEnabled(checked);
-                        if (checked && !publicLinkId) {
-                          // Generate a simple public ID
-                          setPublicLinkId(crypto.randomUUID().slice(0, 8));
-                        }
-                        setIsTogglingPublicLink(false);
-                        toast.success(checked ? 'Public link enabled' : 'Public link disabled');
-                      }}
-                      disabled={isTogglingPublicLink}
-                    />
-                  </div>
-                  {publicLinkEnabled && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground truncate">
-                        {window.location.origin}/public/wiki/{publicLinkId || itemId}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyLink}
-                        className="shrink-0 gap-2"
-                      >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        {copied ? 'Copied!' : 'Copy'}
-                      </Button>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
             </div>
           </ScrollArea>
         )}
