@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,11 +41,20 @@ interface FlakyTest {
   lastFlaky: string;
 }
 
-interface HistoryTrendChartsProps {
-  testRuns: TestRun[];
+interface TestResult {
+  id: string;
+  run_id: string;
+  test_name: string;
+  test_file: string;
+  status: string;
 }
 
-const HistoryTrendCharts = ({ testRuns }: HistoryTrendChartsProps) => {
+interface HistoryTrendChartsProps {
+  testRuns: TestRun[];
+  allTestResults?: TestResult[];
+}
+
+const HistoryTrendCharts = ({ testRuns, allTestResults }: HistoryTrendChartsProps) => {
   // Calculate trend data from test runs
   const trendData = testRuns
     .slice()
@@ -64,33 +74,64 @@ const HistoryTrendCharts = ({ testRuns }: HistoryTrendChartsProps) => {
       testType: run.test_type,
     }));
 
-  // Simulate flaky test detection (in production, would analyze test result patterns)
-  const flakyTests: FlakyTest[] = [
-    {
-      testName: 'should handle concurrent user sessions',
-      testFile: 'src/test/security/multi-tenant.test.ts',
-      flakyCount: 3,
-      totalRuns: 10,
-      flakyRate: 30,
-      lastFlaky: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      testName: 'should refresh token before expiry',
-      testFile: 'src/test/auth/token-refresh.test.ts',
-      flakyCount: 2,
-      totalRuns: 15,
-      flakyRate: 13,
-      lastFlaky: new Date(Date.now() - 172800000).toISOString(),
-    },
-    {
-      testName: 'should load dashboard data within timeout',
-      testFile: 'src/test/e2e/dashboard.test.ts',
-      flakyCount: 4,
-      totalRuns: 8,
-      flakyRate: 50,
-      lastFlaky: new Date(Date.now() - 43200000).toISOString(),
-    },
-  ].sort((a, b) => b.flakyRate - a.flakyRate);
+  // Detect flaky tests by analyzing actual test result patterns
+  const flakyTests: FlakyTest[] = useMemo(() => {
+    if (!allTestResults?.length || !testRuns?.length) return [];
+    
+    // Group results by test name + file
+    const testHistory = new Map<string, { results: string[]; runDates: string[] }>();
+    
+    allTestResults.forEach(result => {
+      const key = `${result.test_file}::${result.test_name}`;
+      const run = testRuns.find(r => r.id === result.run_id);
+      if (!run) return;
+      
+      const existing = testHistory.get(key) || { results: [], runDates: [] };
+      existing.results.push(result.status);
+      existing.runDates.push(run.started_at);
+      testHistory.set(key, existing);
+    });
+    
+    // Find tests with alternating pass/fail patterns (flaky)
+    const detectedFlaky: FlakyTest[] = [];
+    
+    testHistory.forEach((history, key) => {
+      if (history.results.length < 3) return; // Need at least 3 runs to detect flakiness
+      
+      let flakyCount = 0;
+      for (let i = 1; i < history.results.length; i++) {
+        // Count status changes (pass->fail or fail->pass)
+        if (history.results[i] !== history.results[i - 1]) {
+          flakyCount++;
+        }
+      }
+      
+      // If more than 20% of runs show status changes, consider it flaky
+      const flakyRate = Math.round((flakyCount / (history.results.length - 1)) * 100);
+      if (flakyRate >= 20 && flakyCount >= 2) {
+        const [testFile, testName] = key.split('::');
+        // Find last flaky occurrence (last status change)
+        let lastFlakyDate = history.runDates[0];
+        for (let i = history.results.length - 1; i > 0; i--) {
+          if (history.results[i] !== history.results[i - 1]) {
+            lastFlakyDate = history.runDates[i];
+            break;
+          }
+        }
+        
+        detectedFlaky.push({
+          testName,
+          testFile,
+          flakyCount,
+          totalRuns: history.results.length,
+          flakyRate,
+          lastFlaky: lastFlakyDate,
+        });
+      }
+    });
+    
+    return detectedFlaky.sort((a, b) => b.flakyRate - a.flakyRate);
+  }, [allTestResults, testRuns]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

@@ -130,11 +130,12 @@ const VisualRegressionView = ({ runId }: VisualRegressionViewProps) => {
   const failedSnapshots = snapshots?.filter(s => s.status === 'failed') ?? [];
   const passedSnapshots = snapshots?.filter(s => s.status === 'passed') ?? [];
 
-  // Generate placeholder image URLs (in real implementation, these would be actual storage URLs)
+  // Get actual Supabase storage URL for visual snapshots
   const getImageUrl = (path: string | null) => {
     if (!path) return null;
-    // In production, this would be a Supabase storage URL
-    return `https://placehold.co/800x600/1a1a2e/9333ea?text=${encodeURIComponent(path.split('/').pop() || 'Screenshot')}`;
+    // Get public URL from Supabase storage
+    const { data } = supabase.storage.from('visual-snapshots').getPublicUrl(path);
+    return data?.publicUrl || null;
   };
 
   return (

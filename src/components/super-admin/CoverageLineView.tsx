@@ -8,6 +8,7 @@ interface FileCoverage {
   branches: number;
   statements: number;
   uncoveredLines: number[];
+  totalLines?: number; // Actual line count from coverage report
 }
 
 interface CoverageLineViewProps {
@@ -22,8 +23,10 @@ function getCoverageColor(coverage: number): string {
 }
 
 const CoverageLineView = ({ filePath, coverage }: CoverageLineViewProps) => {
-  // Generate line representation (simulated since we don't have actual source)
-  const totalLines = Math.max(50, ...coverage.uncoveredLines, 0);
+  // Use actual line count from coverage data if available, otherwise estimate
+  const totalLines = coverage.totalLines 
+    ? coverage.totalLines 
+    : Math.max(50, ...coverage.uncoveredLines, 0);
   const lines = Array.from({ length: totalLines }, (_, i) => i + 1);
   
   return (
