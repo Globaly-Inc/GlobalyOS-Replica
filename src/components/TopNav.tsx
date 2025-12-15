@@ -2,23 +2,46 @@ import { Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-r
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
+import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 
 interface TopNavProps {
   isAdmin: boolean;
 }
 
-const mainNavItems = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly: boolean;
+  isStatic?: boolean;
+  featureFlag?: FeatureName;
+}
+
+const mainNavItems: NavItem[] = [
   { name: 'Team', href: '/', icon: Users, adminOnly: false },
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
-  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: true }, // Admin only
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: true, isStatic: true },
-  { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: true, isStatic: true },
+  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, isStatic: true, featureFlag: 'tasks' },
+  { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, isStatic: true, featureFlag: 'crm' },
 ];
 
 export const TopNav = ({ isAdmin }: TopNavProps) => {
-  const visibleItems = mainNavItems.filter(item => !item.adminOnly || isAdmin);
+  const { isEnabled } = useFeatureFlags();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+
+  // Filter items based on feature flags (and admin-only if applicable)
+  const visibleItems = mainNavItems.filter(item => {
+    // If item has a feature flag, check if it's enabled
+    if (item.featureFlag && !isEnabled(item.featureFlag)) {
+      return false;
+    }
+    // If admin only, check admin status
+    if (item.adminOnly && !isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   const isActive = (href: string) => {
     const basePath = orgCode ? `/org/${orgCode}` : '';

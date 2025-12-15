@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { OrganizationProvider } from '@/hooks/useOrganization';
+import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
 import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
 import Landing from './pages/Landing';
@@ -82,6 +83,7 @@ const App = () => (
       <BrowserRouter>
         <TimezoneProvider>
           <OrganizationProvider>
+            <FeatureFlagsProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public website routes */}
@@ -198,6 +200,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </FeatureFlagsProvider>
           </OrganizationProvider>
         </TimezoneProvider>
       </BrowserRouter>
