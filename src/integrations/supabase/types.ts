@@ -406,48 +406,159 @@ export type Database = {
           },
         ]
       }
+      blog_keywords: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          difficulty: string | null
+          id: string
+          is_active: boolean | null
+          keyword: string
+          last_analyzed_at: string | null
+          relevance_score: number | null
+          search_volume: number | null
+          suggested_by_ai: boolean | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          is_active?: boolean | null
+          keyword: string
+          last_analyzed_at?: string | null
+          relevance_score?: number | null
+          search_volume?: number | null
+          suggested_by_ai?: boolean | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          is_active?: boolean | null
+          keyword?: string
+          last_analyzed_at?: string | null
+          relevance_score?: number | null
+          search_volume?: number | null
+          suggested_by_ai?: boolean | null
+        }
+        Relationships: []
+      }
+      blog_post_keywords: {
+        Row: {
+          blog_post_id: string | null
+          created_at: string | null
+          id: string
+          keyword_id: string | null
+        }
+        Insert: {
+          blog_post_id?: string | null
+          created_at?: string | null
+          id?: string
+          keyword_id?: string | null
+        }
+        Update: {
+          blog_post_id?: string | null
+          created_at?: string | null
+          id?: string
+          keyword_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_keywords_blog_post_id_fkey"
+            columns: ["blog_post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_post_keywords_keyword_id_fkey"
+            columns: ["keyword_id"]
+            isOneToOne: false
+            referencedRelation: "blog_keywords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
+          ai_generated: boolean | null
           author_avatar_url: string | null
           author_name: string
+          canonical_url: string | null
           category: string
           content: string
           cover_image_url: string | null
           created_at: string
           excerpt: string | null
+          focus_keyword: string | null
+          generation_metadata: Json | null
+          generation_status: string | null
           id: string
           is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
           published_at: string | null
+          reading_time_minutes: number | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          seo_score: number | null
           slug: string
           title: string
           updated_at: string
         }
         Insert: {
+          ai_generated?: boolean | null
           author_avatar_url?: string | null
           author_name: string
+          canonical_url?: string | null
           category?: string
           content: string
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
+          focus_keyword?: string | null
+          generation_metadata?: Json | null
+          generation_status?: string | null
           id?: string
           is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
           published_at?: string | null
+          reading_time_minutes?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          seo_score?: number | null
           slug: string
           title: string
           updated_at?: string
         }
         Update: {
+          ai_generated?: boolean | null
           author_avatar_url?: string | null
           author_name?: string
+          canonical_url?: string | null
           category?: string
           content?: string
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
+          focus_keyword?: string | null
+          generation_metadata?: Json | null
+          generation_status?: string | null
           id?: string
           is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
           published_at?: string | null
+          reading_time_minutes?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          seo_score?: number | null
           slug?: string
           title?: string
           updated_at?: string
