@@ -659,6 +659,16 @@ export const WikiShareDialog = ({
     });
   };
 
+  const handleChangeGroupPermission = async (permission: 'view' | 'edit') => {
+    await applyGroupAccess({
+      scope: accessScope,
+      permission,
+      officeIds: selectedOffices,
+      departments: selectedDepartments,
+      projectIds: selectedProjects,
+    });
+  };
+
   const handleSaveAccessScope = async () => {
     setIsSaving(true);
     try {
@@ -860,6 +870,8 @@ export const WikiShareDialog = ({
                   onRemoveDepartment={handleRemoveDepartment}
                   onRemoveProject={handleRemoveProject}
                   onClearCompanyAccess={handleClearCompanyAccess}
+                  onChangeGroupPermission={handleChangeGroupPermission}
+                  isChangingPermission={isSaving}
                 />
               </div>
 
