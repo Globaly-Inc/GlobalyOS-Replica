@@ -35,6 +35,8 @@ export const BlogReviewCard = ({ post }: BlogReviewCardProps) => {
       id: post.id,
       generation_status: 'approved',
       reviewed_at: new Date().toISOString(),
+      is_published: true,
+      published_at: new Date().toISOString(),
     });
   };
 
