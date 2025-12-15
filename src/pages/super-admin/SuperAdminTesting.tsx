@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
+import SuperAdminPageHeader from '@/components/super-admin/SuperAdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -139,7 +140,14 @@ const SuperAdminTesting = () => {
         .maybeSingle();
       
       if (error) throw error;
-      return data as CoverageReport | null;
+      if (!data) return null;
+      return {
+        id: data.id,
+        generated_at: data.generated_at ?? '',
+        summary: data.summary as CoverageReport['summary'],
+        file_coverage: data.file_coverage as CoverageReport['file_coverage'],
+        meets_thresholds: data.meets_thresholds,
+      } as CoverageReport;
     },
   });
 

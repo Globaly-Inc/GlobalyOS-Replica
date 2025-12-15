@@ -37,39 +37,29 @@ export const mockEmployee = {
 
 // Create mock Supabase client
 export const createMockSupabaseClient = () => {
-  const mockSelect = vi.fn().mockReturnValue({
-    eq: vi.fn().mockReturnThis(),
-    neq: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: null, error: null }),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    range: vi.fn().mockReturnThis(),
-    then: vi.fn().mockResolvedValue({ data: [], error: null }),
-  });
-  
-  const mockInsert = vi.fn().mockReturnValue({
-    select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: null, error: null }),
-    then: vi.fn().mockResolvedValue({ data: null, error: null }),
-  });
-  
-  const mockUpdate = vi.fn().mockReturnValue({
-    eq: vi.fn().mockReturnThis(),
-    then: vi.fn().mockResolvedValue({ data: null, error: null }),
-  });
-  
-  const mockDelete = vi.fn().mockReturnValue({
-    eq: vi.fn().mockReturnThis(),
-    then: vi.fn().mockResolvedValue({ data: null, error: null }),
-  });
+  const createChainable = (): Record<string, ReturnType<typeof vi.fn>> => {
+    const chainable: Record<string, ReturnType<typeof vi.fn>> = {};
+    chainable.eq = vi.fn().mockReturnValue(chainable);
+    chainable.neq = vi.fn().mockReturnValue(chainable);
+    chainable.single = vi.fn().mockResolvedValue({ data: null, error: null });
+    chainable.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    chainable.order = vi.fn().mockReturnValue(chainable);
+    chainable.limit = vi.fn().mockReturnValue(chainable);
+    chainable.range = vi.fn().mockReturnValue(chainable);
+    chainable.then = vi.fn((resolve) => resolve({ data: [], error: null }));
+    chainable.select = vi.fn().mockReturnValue(chainable);
+    return chainable;
+  };
 
-  const mockFrom = vi.fn(() => ({
-    select: mockSelect,
-    insert: mockInsert,
-    update: mockUpdate,
-    delete: mockDelete,
-  }));
+  const mockFrom = vi.fn((_table: string) => {
+    const chainable = createChainable();
+    return {
+      select: vi.fn((_columns?: string) => chainable),
+      insert: vi.fn((_data: unknown) => chainable),
+      update: vi.fn((_data: unknown) => chainable),
+      delete: vi.fn(() => chainable),
+    };
+  });
 
   const mockAuth = {
     getUser: vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
@@ -92,14 +82,6 @@ export const createMockSupabaseClient = () => {
     rpc: mockRpc,
     channel: mockChannel,
     removeChannel: vi.fn(),
-    _mocks: {
-      mockFrom,
-      mockSelect,
-      mockInsert,
-      mockUpdate,
-      mockDelete,
-      mockRpc,
-    },
   };
 };
 
