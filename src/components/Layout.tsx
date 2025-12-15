@@ -24,6 +24,7 @@ import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
 import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface UserProfile {
   fullName: string;
@@ -61,6 +62,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
+  const { role } = useUserRole();
   const { playNotificationSound } = useNotificationSound();
   const { preferences, shouldPlaySound } = useNotificationPreferences();
   const previousCountRef = useRef<number>(0);
@@ -665,7 +667,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       />
 
       {/* Onboarding Checklist - only show floating version on non-home pages */}
-      {!isHomePage && <OnboardingChecklist userRole={userProfile?.role || null} />}
+      {!isHomePage && <OnboardingChecklist userRole={role} />}
     </div>
   );
 };
