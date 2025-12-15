@@ -45,14 +45,16 @@ export const WikiMobileLanding = ({
   const hasRecentItems = recentItems.length > 0;
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      {/* Wiki Home Button */}
+    <div className="space-y-4">
+      {/* Wiki Home Button - Full Width Card */}
       <button 
         onClick={onGoToFolderView}
-        className="w-full flex items-center justify-between p-4 bg-card border-b hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center justify-between p-4 bg-card rounded-lg border hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <BookOpen className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <BookOpen className="h-5 w-5 text-primary" />
+          </div>
           <span className="font-semibold">Browse All Wiki</span>
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -60,16 +62,16 @@ export const WikiMobileLanding = ({
 
       {/* Favorites Section */}
       {hasFavorites && (
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Favorites</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {favoriteFolders.map(folder => (
               <button
                 key={folder.id}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 onClick={() => onSelectFolder(folder.id)}
               >
                 <Folder className="h-5 w-5 text-primary" />
@@ -80,7 +82,7 @@ export const WikiMobileLanding = ({
             {favoritePages.map(page => (
               <button
                 key={page.id}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 onClick={() => onSelectPage(page.id)}
               >
                 <FileText className="h-5 w-5 text-muted-foreground" />
@@ -92,23 +94,18 @@ export const WikiMobileLanding = ({
         </div>
       )}
 
-      {/* Separator */}
-      {hasFavorites && hasRecentItems && (
-        <div className="border-t border-border mx-4" />
-      )}
-
       {/* Recently Viewed Section */}
       {hasRecentItems && (
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recently Viewed</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {recentItems.map(item => (
               <button
                 key={`${item.type}-${item.id}`}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                 onClick={() => item.type === "page" ? onSelectPage(item.id) : onSelectFolder(item.id)}
               >
                 {item.type === "folder" ? (
@@ -126,10 +123,12 @@ export const WikiMobileLanding = ({
 
       {/* Empty state */}
       {!hasFavorites && !hasRecentItems && (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center text-muted-foreground">
-          <Star className="h-12 w-12 mb-4 opacity-20" />
-          <p className="text-lg font-medium">No favorites yet</p>
-          <p className="text-sm mt-1">Star folders or pages to access them quickly</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+          <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+            <Star className="h-8 w-8 text-primary/50" />
+          </div>
+          <p className="text-sm font-medium">No favorites yet</p>
+          <p className="text-xs mt-1">Star folders or pages to access them quickly</p>
         </div>
       )}
     </div>
