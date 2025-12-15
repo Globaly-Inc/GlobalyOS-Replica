@@ -225,23 +225,38 @@ export const useUpdateWikiPage = () => {
   });
 };
 
-// Delete folder
+// Get folder contents count
+export const useWikiFolderContentsCount = (folderId: string | null) => {
+  return useQuery({
+    queryKey: ['wiki-folder-contents-count', folderId],
+    queryFn: async () => {
+      if (!folderId) return null;
+
+      const { data, error } = await supabase
+        .rpc('get_wiki_folder_contents_count', { _folder_id: folderId });
+
+      if (error) throw error;
+      return data?.[0] as { folder_count: number; page_count: number; file_count: number } | null;
+    },
+    enabled: !!folderId,
+  });
+};
+
+// Delete folder (recursive)
 export const useDeleteWikiFolder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (folderId: string) => {
       const { error } = await supabase
-        .from('wiki_folders')
-        .delete()
-        .eq('id', folderId);
+        .rpc('delete_wiki_folder_recursive', { _folder_id: folderId });
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
-      toast.success('Folder deleted');
+      toast.success('Folder and contents deleted');
     },
     onError: () => {
       toast.error('Failed to delete folder');
