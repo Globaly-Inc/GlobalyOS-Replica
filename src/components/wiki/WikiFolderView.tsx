@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronRight, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, ArrowLeft, Folder, FileText, LayoutGrid, List } from "lucide-react";
+import { ChevronRight, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, ArrowLeft, Folder, FileText, LayoutGrid, List, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WikiEmptyState } from "./WikiEmptyState";
+import { WikiSearch } from "./WikiSearch";
 import { WikiItemCard } from "./WikiItemCard";
 import { WikiBulkActionsBar } from "./WikiBulkActionsBar";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,9 @@ interface WikiFolderViewProps {
   creatingItem?: { type: "folder" | "page" } | null;
   onCreatingItemComplete?: () => void;
   onBack?: () => void;
+  // Search props
+  searchFolders?: { id: string; name: string }[];
+  searchPages?: { id: string; title: string; content: string | null; folder_id: string | null }[];
 }
 
 export const WikiFolderView = ({
@@ -125,6 +129,8 @@ export const WikiFolderView = ({
   creatingItem,
   onCreatingItemComplete,
   onBack,
+  searchFolders,
+  searchPages,
 }: WikiFolderViewProps) => {
   const isMobile = useIsMobile();
   const [creatingName, setCreatingName] = useState("");
@@ -439,8 +445,19 @@ export const WikiFolderView = ({
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Header with breadcrumb navigation and controls */}
+      {/* Header with search, breadcrumb, and controls */}
       <div className={cn("border-b bg-card", isMobile ? "px-4 py-3" : "px-6 py-4")}>
+        {/* Search bar - desktop only */}
+        {!isMobile && searchFolders && searchPages && (
+          <div className="mb-3">
+            <WikiSearch
+              folders={searchFolders}
+              pages={searchPages}
+              onSelectPage={onSelectPage}
+            />
+          </div>
+        )}
+        
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
             {/* Mobile back button */}
