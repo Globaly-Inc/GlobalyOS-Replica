@@ -228,8 +228,7 @@ export const WikiAddMember = ({
         <PopoverAnchor asChild>
           <div
             className={cn(
-              "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text",
-              "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+              "flex flex-wrap items-center gap-1.5 min-h-10 px-3 py-2 rounded-md border border-input bg-background cursor-text"
             )}
             onClick={() => setSearchOpen(true)}
           >
@@ -275,7 +274,7 @@ export const WikiAddMember = ({
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <Command shouldFilter={false}>
-            <CommandList className="max-h-[300px] overflow-y-auto">
+            <CommandList className="max-h-[240px] overflow-y-auto overscroll-contain">
               {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
               
               {/* Quick Actions - Everyone */}
