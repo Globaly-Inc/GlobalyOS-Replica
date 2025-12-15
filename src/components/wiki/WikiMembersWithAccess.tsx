@@ -72,6 +72,11 @@ interface WikiMembersWithAccessProps {
   selectedDepartments?: string[];
   selectedProjects?: string[];
   employees?: Employee[];
+  // Group removal handlers
+  onRemoveOffice?: (officeId: string) => void;
+  onRemoveDepartment?: (department: string) => void;
+  onRemoveProject?: (projectId: string) => void;
+  onClearCompanyAccess?: () => void;
 }
 
 export const WikiMembersWithAccess = ({
@@ -93,6 +98,10 @@ export const WikiMembersWithAccess = ({
   selectedDepartments = [],
   selectedProjects = [],
   employees = [],
+  onRemoveOffice,
+  onRemoveDepartment,
+  onRemoveProject,
+  onClearCompanyAccess,
 }: WikiMembersWithAccessProps) => {
   if (isLoading) {
     return (
@@ -179,9 +188,21 @@ export const WikiMembersWithAccess = ({
               <span className="text-xs text-muted-foreground">{employees.length} members</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-            <Globe className="h-3.5 w-3.5" />
-            <span>can {permissionLevel}</span>
+          <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+              <Globe className="h-3.5 w-3.5" />
+              <span>can {permissionLevel}</span>
+            </div>
+            {canEdit && onClearCompanyAccess && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                onClick={onClearCompanyAccess}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -205,9 +226,21 @@ export const WikiMembersWithAccess = ({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                <Globe className="h-3.5 w-3.5" />
-                <span>can {permissionLevel}</span>
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>can {permissionLevel}</span>
+                </div>
+                {canEdit && onRemoveOffice && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => onRemoveOffice(office.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -233,9 +266,21 @@ export const WikiMembersWithAccess = ({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                <Globe className="h-3.5 w-3.5" />
-                <span>can {permissionLevel}</span>
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>can {permissionLevel}</span>
+                </div>
+                {canEdit && onRemoveDepartment && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => onRemoveDepartment(dept)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -259,9 +304,21 @@ export const WikiMembersWithAccess = ({
                   <span className="text-xs text-muted-foreground">Project</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
-                <Globe className="h-3.5 w-3.5" />
-                <span>can {permissionLevel}</span>
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground text-sm px-2">
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>can {permissionLevel}</span>
+                </div>
+                {canEdit && onRemoveProject && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => onRemoveProject(project.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}

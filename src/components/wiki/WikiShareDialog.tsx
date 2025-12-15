@@ -616,6 +616,49 @@ export const WikiShareDialog = ({
     }
   };
 
+  const handleRemoveOffice = async (officeId: string) => {
+    const updatedOffices = selectedOffices.filter(id => id !== officeId);
+    await applyGroupAccess({
+      scope: updatedOffices.length > 0 ? 'offices' : 'members',
+      permission: permissionLevel,
+      officeIds: updatedOffices,
+      departments: selectedDepartments,
+      projectIds: selectedProjects,
+    });
+  };
+
+  const handleRemoveDepartment = async (department: string) => {
+    const updatedDepts = selectedDepartments.filter(d => d !== department);
+    await applyGroupAccess({
+      scope: updatedDepts.length > 0 ? 'departments' : 'members',
+      permission: permissionLevel,
+      officeIds: selectedOffices,
+      departments: updatedDepts,
+      projectIds: selectedProjects,
+    });
+  };
+
+  const handleRemoveProject = async (projectId: string) => {
+    const updatedProjects = selectedProjects.filter(id => id !== projectId);
+    await applyGroupAccess({
+      scope: updatedProjects.length > 0 ? 'projects' : 'members',
+      permission: permissionLevel,
+      officeIds: selectedOffices,
+      departments: selectedDepartments,
+      projectIds: updatedProjects,
+    });
+  };
+
+  const handleClearCompanyAccess = async () => {
+    await applyGroupAccess({
+      scope: 'members',
+      permission: permissionLevel,
+      officeIds: [],
+      departments: [],
+      projectIds: [],
+    });
+  };
+
   const handleSaveAccessScope = async () => {
     setIsSaving(true);
     try {
@@ -813,6 +856,10 @@ export const WikiShareDialog = ({
                   selectedDepartments={selectedDepartments}
                   selectedProjects={selectedProjects}
                   employees={employees}
+                  onRemoveOffice={handleRemoveOffice}
+                  onRemoveDepartment={handleRemoveDepartment}
+                  onRemoveProject={handleRemoveProject}
+                  onClearCompanyAccess={handleClearCompanyAccess}
                 />
               </div>
 
