@@ -208,7 +208,7 @@ export const WikiMembersWithAccess = ({
               variant="ghost"
               size="sm"
               onClick={onTransferOwnership}
-              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-8 gap-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
             >
               <ArrowRightLeft className="h-3.5 w-3.5" />
               <span className="text-xs">Transfer</span>
@@ -242,7 +242,7 @@ export const WikiMembersWithAccess = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
                 onClick={onClearCompanyAccess}
               >
                 <X className="h-4 w-4" />
@@ -284,7 +284,7 @@ export const WikiMembersWithAccess = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onRemoveOffice(office.id)}
                   >
                     <X className="h-4 w-4" />
@@ -328,7 +328,7 @@ export const WikiMembersWithAccess = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onRemoveDepartment(dept)}
                   >
                     <X className="h-4 w-4" />
@@ -370,7 +370,7 @@ export const WikiMembersWithAccess = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onRemoveProject(project.id)}
                   >
                     <X className="h-4 w-4" />
@@ -440,7 +440,7 @@ export const WikiMembersWithAccess = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
                   onClick={() => onRemoveMember(member.employee_id)}
                   disabled={isUpdating === member.employee_id}
                 >
