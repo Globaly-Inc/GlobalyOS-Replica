@@ -498,7 +498,7 @@ export const WikiShareDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="p-6 pb-4">
           <div className="flex items-start gap-4">
@@ -519,7 +519,7 @@ export const WikiShareDialog = ({
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-6">
+          <ScrollArea className="flex-1 overflow-y-auto px-6" style={{ maxHeight: 'calc(85vh - 180px)' }}>
             <div className="space-y-6 pb-6">
               {/* Invite Members Section */}
               <WikiInviteMember
