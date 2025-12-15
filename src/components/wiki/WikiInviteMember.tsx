@@ -255,7 +255,7 @@ export const WikiAddMember = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={selections.length === 0 ? "Search members, offices, departments..." : ""}
-              className="flex-1 min-w-20 border-0 p-0 h-6 focus-visible:ring-0 shadow-none"
+              className="flex-1 min-w-20 border-0 p-0 h-6 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none bg-transparent"
               onFocus={() => setSearchOpen(true)}
               onBlur={(e) => {
                 // Only close if clicking outside the popover
