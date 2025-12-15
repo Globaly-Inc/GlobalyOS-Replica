@@ -62,27 +62,27 @@ interface Selection {
   label: string;
 }
 
-interface WikiInviteMemberProps {
+interface WikiAddMemberProps {
   employees: Employee[];
   offices: Office[];
   departments: string[];
   projects: Project[];
   employeeProjects: { employee_id: string; project_id: string }[];
   excludedEmployeeIds: string[];
-  onInvite: (employeeIds: string[], permission: 'view' | 'edit') => void;
-  isInviting: boolean;
+  onAdd: (employeeIds: string[], permission: 'view' | 'edit') => void;
+  isAdding: boolean;
 }
 
-export const WikiInviteMember = ({
+export const WikiAddMember = ({
   employees,
   offices,
   departments,
   projects,
   employeeProjects,
   excludedEmployeeIds,
-  onInvite,
-  isInviting,
-}: WikiInviteMemberProps) => {
+  onAdd,
+  isAdding,
+}: WikiAddMemberProps) => {
   const [selections, setSelections] = useState<Selection[]>([]);
   const [permission, setPermission] = useState<'view' | 'edit'>('view');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -210,13 +210,13 @@ export const WikiInviteMember = ({
     return Array.from(employeeIds);
   };
 
-  const handleInvite = () => {
+  const handleAdd = () => {
     if (selections.length === 0) return;
     const employeeIds = resolveEmployeeIds();
     if (employeeIds.length === 0) {
       return;
     }
-    onInvite(employeeIds, permission);
+    onAdd(employeeIds, permission);
     setSelections([]);
   };
 
@@ -249,7 +249,7 @@ export const WikiInviteMember = ({
   return (
     <div className="space-y-3 w-full overflow-hidden">
       <div className="flex items-center gap-1.5">
-        <span className="text-sm font-medium">Invite Members</span>
+        <span className="text-sm font-medium">Add People</span>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -487,16 +487,16 @@ export const WikiInviteMember = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Invite button */}
+        {/* Add button */}
         <Button
-          onClick={handleInvite}
-          disabled={selections.length === 0 || isInviting}
+          onClick={handleAdd}
+          disabled={selections.length === 0 || isAdding}
           className="flex-1"
         >
-          {isInviting ? (
+          {isAdding ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            "Invite"
+            "Add"
           )}
         </Button>
       </div>

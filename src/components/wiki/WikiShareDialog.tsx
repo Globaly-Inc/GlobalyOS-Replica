@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { WikiMembersWithAccess, MemberWithAccess } from "./WikiMembersWithAccess";
-import { WikiInviteMember } from "./WikiInviteMember";
+import { WikiAddMember } from "./WikiInviteMember";
 import {
   Collapsible,
   CollapsibleContent,
@@ -101,7 +101,7 @@ export const WikiShareDialog = ({
   // Members with access
   const [membersWithAccess, setMembersWithAccess] = useState<MemberWithAccess[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(true);
-  const [isInviting, setIsInviting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
 
   // Selection states
@@ -260,10 +260,10 @@ export const WikiShareDialog = ({
     }
   };
 
-  const handleInviteMembers = async (employeeIds: string[], permission: 'view' | 'edit') => {
+  const handleAddMembers = async (employeeIds: string[], permission: 'view' | 'edit') => {
     if (!currentEmployee?.id) return;
     
-    setIsInviting(true);
+    setIsAdding(true);
     try {
       let error: unknown = null;
       
@@ -290,13 +290,35 @@ export const WikiShareDialog = ({
       }
       if (error) throw error;
 
-      toast.success(`${employeeIds.length} member${employeeIds.length > 1 ? 's' : ''} added`);
+      // Get user_ids for notifications
+      const { data: empData } = await supabase
+        .from('employees')
+        .select('id, user_id')
+        .in('id', employeeIds);
+      
+      // Create notifications for added members
+      if (empData && empData.length > 0) {
+        const notificationData = empData.map(emp => ({
+          user_id: emp.user_id,
+          organization_id: organizationId,
+          type: 'wiki_access',
+          title: `Wiki ${itemType} shared with you`,
+          message: `You have been given ${permission} access to "${itemName}"`,
+          reference_type: `wiki_${itemType}`,
+          reference_id: itemId,
+          actor_id: currentEmployee.id,
+        }));
+        
+        await supabase.from('notifications').insert(notificationData);
+      }
+
+      toast.success(`${employeeIds.length} ${employeeIds.length > 1 ? 'people' : 'person'} added`);
       loadMembersWithAccess();
     } catch (error) {
-      console.error('Error inviting members:', error);
+      console.error('Error adding members:', error);
       toast.error('Failed to add members');
     } finally {
-      setIsInviting(false);
+      setIsAdding(false);
     }
   };
 
@@ -531,16 +553,16 @@ export const WikiShareDialog = ({
         ) : (
           <ScrollArea className="flex-1 overflow-hidden">
             <div className="space-y-6 p-6">
-              {/* Invite Members Section */}
-              <WikiInviteMember
+              {/* Add People Section */}
+              <WikiAddMember
                 employees={employees}
                 offices={offices}
                 departments={departments}
                 projects={projects}
                 employeeProjects={employeeProjects}
                 excludedEmployeeIds={excludedEmployeeIds}
-                onInvite={handleInviteMembers}
-                isInviting={isInviting}
+                onAdd={handleAddMembers}
+                isAdding={isAdding}
               />
 
               {/* Who has access Section */}
