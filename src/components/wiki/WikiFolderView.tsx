@@ -1,17 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Folder, FileText, ChevronRight, MoreHorizontal, Star, Pencil, Trash2, FilePlus, FolderPlus, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, Share2, Image, File, ArrowLeft, Move, Copy } from "lucide-react";
+import { ChevronRight, ArrowUpDown, ArrowDownAZ, Clock, CalendarPlus, X, Check, ArrowLeft, Folder, FileText, LayoutGrid, List } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { WikiEmptyState } from "./WikiEmptyState";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { WikiItemCard } from "./WikiItemCard";
+import { WikiBulkActionsBar } from "./WikiBulkActionsBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -69,8 +63,14 @@ interface WikiPage {
   permission_level?: string;
 }
 
+interface SelectedItem {
+  type: 'folder' | 'page';
+  id: string;
+}
+
 type SortOption = "name" | "created" | "modified";
 type SortDirection = "asc" | "desc";
+type ViewMode = "grid" | "list";
 
 interface WikiFolderViewProps {
   folders: WikiFolder[];
@@ -120,16 +120,21 @@ export const WikiFolderView = ({
   onBack,
 }: WikiFolderViewProps) => {
   const isMobile = useIsMobile();
-  const { getShortRelativeTime } = useRelativeTime();
   const [creatingName, setCreatingName] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [editingItem, setEditingItem] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
+  // Selection state
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const isSelectionMode = selectedItems.length > 0;
+
   // Dialog states
   const [deleteDialog, setDeleteDialog] = useState<{ type: "folder" | "page"; id: string; name: string } | null>(null);
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [createDialog, setCreateDialog] = useState<{ type: "folder" | "page"; parentFolderId: string } | null>(null);
   const [createDialogName, setCreateDialogName] = useState("");
   const createDialogInputRef = useRef<HTMLInputElement>(null);
@@ -139,12 +144,32 @@ export const WikiFolderView = ({
   
   // Move dialog state
   const [moveDialog, setMoveDialog] = useState<{ type: "folder" | "page"; id: string; name: string; currentParentId: string | null } | null>(null);
+  const [bulkMoveDialog, setBulkMoveDialog] = useState(false);
+
+  // Get child folders and pages for current view
+  const childFolders = sortItems(
+    folders.filter((f) => f.parent_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
+  
+  const childPages = sortItems(
+    pages.filter((p) => p.folder_id === currentFolderId),
+    sortBy,
+    sortDirection
+  );
+
+  const totalItems = childFolders.length + childPages.length;
+
+  // Clear selection when folder changes
+  useEffect(() => {
+    setSelectedItems([]);
+  }, [currentFolderId]);
 
   // Focus input when creating item
   useEffect(() => {
     if (creatingItem) {
       setCreatingName(creatingItem.type === "folder" ? "New Folder" : "New Page");
-      // Small delay to ensure the input is rendered
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -173,6 +198,33 @@ export const WikiFolderView = ({
     }
   }, [createDialog]);
 
+  // Selection handlers
+  const toggleItemSelection = (type: 'folder' | 'page', id: string) => {
+    setSelectedItems(prev => {
+      const exists = prev.some(item => item.type === type && item.id === id);
+      if (exists) {
+        return prev.filter(item => !(item.type === type && item.id === id));
+      }
+      return [...prev, { type, id }];
+    });
+  };
+
+  const selectAll = () => {
+    const allItems: SelectedItem[] = [
+      ...childFolders.map(f => ({ type: 'folder' as const, id: f.id })),
+      ...childPages.map(p => ({ type: 'page' as const, id: p.id })),
+    ];
+    setSelectedItems(allItems);
+  };
+
+  const deselectAll = () => {
+    setSelectedItems([]);
+  };
+
+  const isItemSelected = (type: 'folder' | 'page', id: string) => {
+    return selectedItems.some(item => item.type === type && item.id === id);
+  };
+
   // Check for duplicate names
   const isDuplicateFolderName = (name: string, parentId: string | null, excludeId?: string) => {
     return folders.filter((f) => f.parent_id === parentId).some(
@@ -185,19 +237,6 @@ export const WikiFolderView = ({
       (p) => p.title.toLowerCase() === title.toLowerCase() && p.id !== excludeId
     );
   };
-
-  // Get child folders and pages for current view
-  const childFolders = sortItems(
-    folders.filter((f) => f.parent_id === currentFolderId),
-    sortBy,
-    sortDirection
-  );
-  
-  const childPages = sortItems(
-    pages.filter((p) => p.folder_id === currentFolderId),
-    sortBy,
-    sortDirection
-  );
 
   const handleCreateConfirm = () => {
     if (creatingName.trim() && creatingItem) {
@@ -264,16 +303,6 @@ export const WikiFolderView = ({
     setEditingItem(null);
   };
 
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleEditConfirm();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      handleEditCancel();
-    }
-  };
-
   const startEditing = (type: "folder" | "page", id: string, currentName: string) => {
     setEditingItem({ type, id, name: currentName });
   };
@@ -288,6 +317,28 @@ export const WikiFolderView = ({
       }
       setDeleteDialog(null);
     }
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = () => {
+    selectedItems.forEach(item => {
+      if (item.type === 'folder') {
+        onDeleteFolder?.(item.id);
+      } else {
+        onDeletePage?.(item.id);
+      }
+    });
+    setSelectedItems([]);
+    setBulkDeleteDialog(false);
+    toast.success(`Deleted ${selectedItems.length} item${selectedItems.length > 1 ? 's' : ''}`);
+  };
+
+  // Bulk favorite handler
+  const handleBulkFavorite = () => {
+    selectedItems.forEach(item => {
+      onToggleFavorite?.(item.type, item.id);
+    });
+    toast.success(`Updated favorites for ${selectedItems.length} item${selectedItems.length > 1 ? 's' : ''}`);
   };
 
   // Create dialog handlers
@@ -370,7 +421,7 @@ export const WikiFolderView = ({
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Breadcrumb navigation and sort controls */}
+      {/* Header with breadcrumb navigation and controls */}
       <div className={cn("border-b bg-card", isMobile ? "px-4 py-3" : "px-6 py-4")}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
@@ -405,9 +456,29 @@ export const WikiFolderView = ({
             )}
           </div>
           
-          {/* Sort controls - hide on mobile */}
+          {/* View toggle and sort controls - hide on mobile */}
           {!isMobile && (
             <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <div className="flex items-center border rounded-lg overflow-hidden">
+                <Button
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-none"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-none"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+
               <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
                 <SelectTrigger className="w-[140px] h-8 text-xs">
                   <SelectValue placeholder="Sort by" />
@@ -447,7 +518,7 @@ export const WikiFolderView = ({
         </div>
       </div>
 
-      {/* Content grid */}
+      {/* Content */}
       <div className={cn("flex-1 overflow-y-auto", isMobile ? "p-4" : "p-6")}>
         {childFolders.length === 0 && childPages.length === 0 && !creatingItem ? (
           <WikiEmptyState
@@ -457,290 +528,200 @@ export const WikiFolderView = ({
             onCreatePage={() => onCreatePage?.("New Page", currentFolderId)}
           />
         ) : (
-          <div className={cn(
-            "grid gap-4",
-            isMobile 
-              ? "grid-cols-2" 
-              : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-          )}>
-            {/* Creating new item card - always at top front */}
-            {creatingItem && (
-              <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md">
-                {/* Cancel button */}
-                <button
-                  onClick={handleCreateCancel}
-                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
-                  title="Cancel"
-                >
-                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                </button>
-                
-                <div className="relative mb-3 mt-2">
-                  {creatingItem.type === "folder" ? (
-                    <Folder className="h-12 w-12 text-primary fill-primary/10" />
-                  ) : (
-                    <FileText className="h-12 w-12 text-primary" />
+          <div className="space-y-6">
+            {/* Folders Section */}
+            {(childFolders.length > 0 || (creatingItem?.type === "folder")) && (
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Folder className="h-4 w-4" />
+                  Folders
+                  <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                    {childFolders.length}
+                  </span>
+                </h3>
+                <div className={cn(
+                  "grid gap-4",
+                  viewMode === "grid" 
+                    ? isMobile 
+                      ? "grid-cols-2" 
+                      : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                    : "grid-cols-1"
+                )}>
+                  {/* Creating new folder card */}
+                  {creatingItem?.type === "folder" && (
+                    <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md h-40">
+                      <button
+                        onClick={handleCreateCancel}
+                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                      
+                      <div className="relative mb-2 mt-1">
+                        <Folder className="h-14 w-14 text-amber-500 fill-amber-100" />
+                      </div>
+                      <Input
+                        ref={inputRef}
+                        value={creatingName}
+                        onChange={(e) => setCreatingName(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="text-sm font-medium text-center h-8 px-2"
+                        placeholder="Folder name"
+                      />
+                      <Button
+                        size="sm"
+                        className="mt-2 h-7 px-3"
+                        onClick={handleCreateConfirm}
+                        disabled={!creatingName.trim()}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                    </div>
                   )}
+
+                  {childFolders.map((folder) => {
+                    const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
+                    const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
+                    const isFav = isFavorite?.("folder", folder.id) ?? false;
+                    const isEditing = editingItem?.type === "folder" && editingItem.id === folder.id;
+                    
+                    return (
+                      <WikiItemCard
+                        key={folder.id}
+                        type="folder"
+                        item={folder}
+                        isSelected={isItemSelected('folder', folder.id)}
+                        isSelectionMode={isSelectionMode}
+                        isFavorite={isFav}
+                        isEditing={isEditing}
+                        editValue={isEditing ? editingItem.name : ''}
+                        canEdit={canEdit}
+                        isMobile={isMobile}
+                        folderStats={{ subfolderCount, pageCount: folderPageCount }}
+                        onSelect={() => onSelectFolder(folder.id)}
+                        onToggleSelect={() => toggleItemSelection('folder', folder.id)}
+                        onStartEditing={() => startEditing("folder", folder.id, folder.name)}
+                        onEditChange={(value) => setEditingItem(prev => prev ? { ...prev, name: value } : null)}
+                        onEditConfirm={handleEditConfirm}
+                        onEditCancel={handleEditCancel}
+                        onToggleFavorite={() => onToggleFavorite?.("folder", folder.id)}
+                        onShare={() => setShareDialog({ type: "folder", id: folder.id, name: folder.name })}
+                        onMove={() => setMoveDialog({ type: "folder", id: folder.id, name: folder.name, currentParentId: folder.parent_id })}
+                        onDelete={() => setDeleteDialog({ type: "folder", id: folder.id, name: folder.name })}
+                        onCreatePage={() => setCreateDialog({ type: "page", parentFolderId: folder.id })}
+                        onCreateFolder={() => setCreateDialog({ type: "folder", parentFolderId: folder.id })}
+                        editInputRef={editInputRef}
+                      />
+                    );
+                  })}
                 </div>
-                <Input
-                  ref={inputRef}
-                  value={creatingName}
-                  onChange={(e) => setCreatingName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="text-sm font-medium text-center h-8 px-2"
-                  placeholder={creatingItem.type === "folder" ? "Folder name" : "Page title"}
-                />
-                {/* Save button */}
-                <Button
-                  size="sm"
-                  className="mt-3 h-7 px-3"
-                  onClick={handleCreateConfirm}
-                  disabled={!creatingName.trim()}
-                >
-                  <Check className="h-3 w-3 mr-1" />
-                  Save
-                </Button>
               </div>
             )}
 
-            {/* Folders */}
-            {childFolders.map((folder) => {
-              const folderPageCount = pages.filter((p) => p.folder_id === folder.id).length;
-              const subfolderCount = folders.filter((f) => f.parent_id === folder.id).length;
-              const isFav = isFavorite?.("folder", folder.id) ?? false;
-              const isEditing = editingItem?.type === "folder" && editingItem.id === folder.id;
-              
-              return (
-                <div
-                  key={folder.id}
-                  className={cn(
-                    "group relative flex flex-col items-center p-4 rounded-xl border bg-card transition-all cursor-pointer",
-                    isEditing 
-                      ? "border-2 border-primary shadow-md" 
-                      : "hover:bg-muted/50 hover:border-primary/30 hover:shadow-md"
-                  )}
-                  onClick={() => !isEditing && onSelectFolder(folder.id)}
-                >
-                  {/* Three-dot menu - hide on mobile */}
-                  {canEdit && !isEditing && !isMobile && (
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => startEditing("folder", folder.id, folder.name)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onToggleFavorite?.("folder", folder.id)}>
-                            <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
-                            {isFav ? "Remove from Favorites" : "Add to Favorites"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShareDialog({ type: "folder", id: folder.id, name: folder.name })}>
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setMoveDialog({ type: "folder", id: folder.id, name: folder.name, currentParentId: folder.parent_id })}>
-                            <Move className="h-4 w-4 mr-2" />
-                            Move to...
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setCreateDialog({ type: "page", parentFolderId: folder.id })}>
-                            <FilePlus className="h-4 w-4 mr-2" />
-                            New Page
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setCreateDialog({ type: "folder", parentFolderId: folder.id })}>
-                            <FolderPlus className="h-4 w-4 mr-2" />
-                            New Subfolder
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteDialog({ type: "folder", id: folder.id, name: folder.name })}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                  
-                  {/* Favorite indicator */}
-                  {isFav && !isEditing && (
-                    <div className="absolute top-2 left-2">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    </div>
-                  )}
-                  
-                  <div className="relative mb-3">
-                    <Folder className="h-12 w-12 text-primary fill-primary/10 group-hover:scale-105 transition-transform" />
-                  </div>
-                  {isEditing ? (
-                    <Input
-                      ref={editInputRef}
-                      value={editingItem.name}
-                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                      onKeyDown={handleEditKeyDown}
-                      onBlur={handleEditConfirm}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm font-medium text-center h-8 px-2"
-                      placeholder="Folder name"
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                      {folder.name}
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {getShortRelativeTime(folder.updated_at)}
+            {/* Files Section */}
+            {(childPages.length > 0 || (creatingItem?.type === "page")) && (
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Files
+                  <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                    {childPages.length}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {subfolderCount > 0 && `${subfolderCount} folder${subfolderCount > 1 ? "s" : ""}`}
-                    {subfolderCount > 0 && folderPageCount > 0 && ", "}
-                    {folderPageCount > 0 && `${folderPageCount} page${folderPageCount > 1 ? "s" : ""}`}
-                    {subfolderCount === 0 && folderPageCount === 0 && "Empty"}
-                  </span>
-                </div>
-              );
-            })}
-
-            {/* Pages */}
-            {childPages.map((page) => {
-              const isFav = isFavorite?.("page", page.id) ?? false;
-              const isEditing = editingItem?.type === "page" && editingItem.id === page.id;
-              const isImageFile = page.is_file && page.file_type === 'image' && page.thumbnail_url;
-              const isPdfFile = page.is_file && page.file_type === 'pdf';
-              const isDocFile = page.is_file && page.file_type === 'document';
-              
-              return (
-                <div
-                  key={page.id}
-                  className={cn(
-                    "group relative flex flex-col rounded-xl border bg-card transition-all cursor-pointer overflow-hidden",
-                    isImageFile ? "h-32" : "items-center p-4",
-                    isEditing 
-                      ? "border-2 border-primary shadow-md" 
-                      : "hover:bg-muted/50 hover:border-primary/30 hover:shadow-md"
-                  )}
-                  onClick={() => !isEditing && onSelectPage(page.id)}
-                >
-                  {/* Image file preview background */}
-                  {isImageFile && (
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${page.thumbnail_url})` }}
-                    />
-                  )}
-                  
-                  {/* PDF/Document icon overlay for file types */}
-                  {(isPdfFile || isDocFile) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                      {isPdfFile ? (
-                        <FileText className="h-16 w-16 text-red-500" />
-                      ) : (
-                        <File className="h-16 w-16 text-blue-500" />
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Gradient overlay with filename for files */}
-                  {page.is_file && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-white/90 via-white/60 to-transparent flex items-end p-3 z-10">
-                      <span className="text-sm font-medium text-foreground line-clamp-2 drop-shadow-sm">
-                        {page.title}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Three-dot menu - hide on mobile */}
-                  {canEdit && !isEditing && !isMobile && (
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 bg-background/80 hover:bg-background">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => startEditing("page", page.id, page.title)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onToggleFavorite?.("page", page.id)}>
-                            <Star className={cn("h-4 w-4 mr-2", isFav && "fill-yellow-400 text-yellow-400")} />
-                            {isFav ? "Remove from Favorites" : "Add to Favorites"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShareDialog({ type: "page", id: page.id, name: page.title })}>
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setMoveDialog({ type: "page", id: page.id, name: page.title, currentParentId: page.folder_id })}>
-                            <Move className="h-4 w-4 mr-2" />
-                            Move to...
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDuplicatePage?.(page.id)}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteDialog({ type: "page", id: page.id, name: page.title })}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                  
-                  {/* Favorite indicator */}
-                  {isFav && !isEditing && (
-                    <div className="absolute top-2 left-2 z-20">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    </div>
-                  )}
-                  
-                  {/* Regular page (non-file) content */}
-                  {!page.is_file && (
-                    <>
-                      <div className="relative mb-3">
-                        <FileText className="h-12 w-12 text-muted-foreground group-hover:text-primary group-hover:scale-105 transition-all" />
+                </h3>
+                <div className={cn(
+                  "grid gap-4",
+                  viewMode === "grid" 
+                    ? isMobile 
+                      ? "grid-cols-2" 
+                      : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                    : "grid-cols-1"
+                )}>
+                  {/* Creating new page card */}
+                  {creatingItem?.type === "page" && (
+                    <div className="group relative flex flex-col items-center p-4 rounded-xl border-2 border-primary bg-card shadow-md h-40">
+                      <button
+                        onClick={handleCreateCancel}
+                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                      
+                      <div className="relative mb-2 mt-1">
+                        <FileText className="h-14 w-14 text-primary" />
                       </div>
-                      {isEditing ? (
-                        <Input
-                          ref={editInputRef}
-                          value={editingItem.name}
-                          onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                          onKeyDown={handleEditKeyDown}
-                          onBlur={handleEditConfirm}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-sm font-medium text-center h-8 px-2"
-                          placeholder="Page title"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                          {page.title}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {getShortRelativeTime(page.updated_at)}
-                      </span>
-                    </>
+                      <Input
+                        ref={inputRef}
+                        value={creatingName}
+                        onChange={(e) => setCreatingName(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="text-sm font-medium text-center h-8 px-2"
+                        placeholder="Page title"
+                      />
+                      <Button
+                        size="sm"
+                        className="mt-2 h-7 px-3"
+                        onClick={handleCreateConfirm}
+                        disabled={!creatingName.trim()}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                    </div>
                   )}
+
+                  {childPages.map((page) => {
+                    const isFav = isFavorite?.("page", page.id) ?? false;
+                    const isEditing = editingItem?.type === "page" && editingItem.id === page.id;
+                    
+                    return (
+                      <WikiItemCard
+                        key={page.id}
+                        type="page"
+                        item={page}
+                        isSelected={isItemSelected('page', page.id)}
+                        isSelectionMode={isSelectionMode}
+                        isFavorite={isFav}
+                        isEditing={isEditing}
+                        editValue={isEditing ? editingItem.name : ''}
+                        canEdit={canEdit}
+                        isMobile={isMobile}
+                        onSelect={() => onSelectPage(page.id)}
+                        onToggleSelect={() => toggleItemSelection('page', page.id)}
+                        onStartEditing={() => startEditing("page", page.id, page.title)}
+                        onEditChange={(value) => setEditingItem(prev => prev ? { ...prev, name: value } : null)}
+                        onEditConfirm={handleEditConfirm}
+                        onEditCancel={handleEditCancel}
+                        onToggleFavorite={() => onToggleFavorite?.("page", page.id)}
+                        onShare={() => setShareDialog({ type: "page", id: page.id, name: page.title })}
+                        onMove={() => setMoveDialog({ type: "page", id: page.id, name: page.title, currentParentId: page.folder_id })}
+                        onDelete={() => setDeleteDialog({ type: "page", id: page.id, name: page.title })}
+                        onDuplicate={() => onDuplicatePage?.(page.id)}
+                        editInputRef={editInputRef}
+                      />
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Bulk Actions Bar */}
+      {isSelectionMode && (
+        <WikiBulkActionsBar
+          selectedItems={selectedItems}
+          totalItems={totalItems}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onDelete={() => setBulkDeleteDialog(true)}
+          onMove={() => setBulkMoveDialog(true)}
+          onFavorite={handleBulkFavorite}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
@@ -763,6 +744,27 @@ export const WikiFolderView = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedItems.length} items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected items. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -834,6 +836,31 @@ export const WikiFolderView = ({
               onMovePage?.(moveDialog.id, newParentId);
             }
             setMoveDialog(null);
+          }}
+        />
+      )}
+
+      {/* Bulk Move Dialog */}
+      {bulkMoveDialog && (
+        <WikiMoveDialog
+          open={bulkMoveDialog}
+          onOpenChange={setBulkMoveDialog}
+          itemType="page"
+          itemId="bulk"
+          itemName={`${selectedItems.length} items`}
+          currentParentId={currentFolderId}
+          folders={folders}
+          onMove={(newParentId) => {
+            selectedItems.forEach(item => {
+              if (item.type === 'folder') {
+                onMoveFolder?.(item.id, newParentId);
+              } else {
+                onMovePage?.(item.id, newParentId);
+              }
+            });
+            setSelectedItems([]);
+            setBulkMoveDialog(false);
+            toast.success(`Moved ${selectedItems.length} items`);
           }}
         />
       )}
