@@ -445,19 +445,8 @@ export const WikiFolderView = ({
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Header with search, breadcrumb, and controls */}
+      {/* Header with search and controls */}
       <div className={cn("border-b bg-card", isMobile ? "px-4 py-3" : "px-6 py-4")}>
-        {/* Search bar - desktop only */}
-        {!isMobile && searchFolders && searchPages && (
-          <div className="mb-3">
-            <WikiSearch
-              folders={searchFolders}
-              pages={searchPages}
-              onSelectPage={onSelectPage}
-            />
-          </div>
-        )}
-        
         <div className="flex items-center justify-between gap-4">
           {/* Mobile back button and title */}
           {isMobile && (
@@ -473,9 +462,20 @@ export const WikiFolderView = ({
             </div>
           )}
           
+          {/* Search bar - desktop only */}
+          {!isMobile && searchFolders && searchPages && (
+            <div className="flex-1 max-w-md">
+              <WikiSearch
+                folders={searchFolders}
+                pages={searchPages}
+                onSelectPage={onSelectPage}
+              />
+            </div>
+          )}
+          
           {/* View toggle and sort controls - hide on mobile */}
           {!isMobile && (
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2">
               {/* View toggle */}
               <div className="flex items-center border rounded-lg overflow-hidden">
                 <Button
