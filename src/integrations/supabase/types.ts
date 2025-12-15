@@ -4836,15 +4836,25 @@ export type Database = {
           emp_user_id: string
         }[]
       }
-      get_organization_usage: {
-        Args: { _billing_period?: string; _organization_id: string }
-        Returns: {
-          feature: string
-          monthly_limit: number
-          overage_rate: number
-          quantity: number
-        }[]
-      }
+      get_organization_usage:
+        | {
+            Args: { _billing_period?: string; _organization_id: string }
+            Returns: {
+              feature: string
+              monthly_limit: number
+              overage_rate: number
+              quantity: number
+            }[]
+          }
+        | {
+            Args: { _billing_period?: string; _organization_id: string }
+            Returns: {
+              feature: string
+              monthly_limit: number
+              overage_rate: number
+              quantity: number
+            }[]
+          }
       get_unread_counts_batch: {
         Args: { _employee_id: string; _organization_id: string }
         Returns: {
