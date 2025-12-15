@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -131,44 +132,48 @@ export const OrganizationFeaturesManager = ({
           Enable or disable features for this organization
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {AVAILABLE_FEATURES.map((feature) => {
-          const Icon = feature.icon;
-          const isEnabled = features[feature.name] ?? false;
-          const isUpdating = updating === feature.name;
+      <CardContent className="p-0">
+        <ScrollArea className="h-[300px] px-6 py-4">
+          <div className="space-y-4">
+            {AVAILABLE_FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              const isEnabled = features[feature.name] ?? false;
+              const isUpdating = updating === feature.name;
 
-          return (
-            <div
-              key={feature.name}
-              className="flex items-center justify-between rounded-lg border p-4"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
+              return (
+                <div
+                  key={feature.name}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <Label htmlFor={feature.name} className="text-sm font-medium">
+                        {feature.label}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isUpdating && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    <Switch
+                      id={feature.name}
+                      checked={isEnabled}
+                      onCheckedChange={(checked) => toggleFeature(feature.name, checked)}
+                      disabled={isUpdating}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor={feature.name} className="text-sm font-medium">
-                    {feature.label}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {isUpdating && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-                <Switch
-                  id={feature.name}
-                  checked={isEnabled}
-                  onCheckedChange={(checked) => toggleFeature(feature.name, checked)}
-                  disabled={isUpdating}
-                />
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
