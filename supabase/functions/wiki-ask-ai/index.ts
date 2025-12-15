@@ -36,6 +36,32 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Check feature limit before processing
+    const { data: limitCheck, error: limitError } = await supabase
+      .rpc('check_feature_limit', {
+        _organization_id: organizationId,
+        _feature: 'ai_queries',
+        _increment: 1
+      });
+
+    if (limitError) {
+      console.error("Error checking feature limit:", limitError);
+    }
+
+    // Block if limit exceeded (and not unlimited)
+    if (limitCheck && !limitCheck.allowed && !limitCheck.unlimited) {
+      console.log("AI query limit exceeded for org:", organizationId, limitCheck);
+      return new Response(JSON.stringify({ 
+        error: "You've reached your monthly AI query limit. Please upgrade your plan for more queries.",
+        limit_exceeded: true,
+        current_usage: limitCheck.current_usage,
+        limit: limitCheck.limit
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch wiki pages for context
     const { data: pages, error: pagesError } = await supabase
       .from("wiki_pages")
@@ -107,6 +133,18 @@ ${wikiContext || "No wiki content available yet."}
 
     const data = await response.json();
     const answer = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+
+    // Record usage after successful response
+    const { error: usageError } = await supabase
+      .rpc('record_usage', {
+        _organization_id: organizationId,
+        _feature: 'ai_queries',
+        _quantity: 1
+      });
+
+    if (usageError) {
+      console.error("Error recording usage:", usageError);
+    }
 
     return new Response(JSON.stringify({ answer }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
