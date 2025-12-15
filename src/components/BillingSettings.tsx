@@ -36,6 +36,8 @@ import {
   Clock,
   Download,
   ExternalLink,
+  CalendarDays,
+  ClipboardCheck,
 } from "lucide-react";
 
 interface Subscription {
@@ -65,20 +67,31 @@ interface Invoice {
 interface PlanLimitRow {
   plan: string;
   feature: string;
-  monthly_limit: number;
+  monthly_limit: number | null;
   overage_rate: number | null;
 }
 
 interface PlanLimits {
   max_employees: number | null;
-  max_storage_gb: number;
+  max_storage_gb: number | null;
   max_ai_queries: number | null;
+  max_leave_requests: number | null;
+  max_attendance_scans: number | null;
+}
+
+interface UsageData {
+  feature: string;
+  quantity: number;
+  monthly_limit: number | null;
+  overage_rate: number | null;
 }
 
 interface UsageSummary {
   employees: number;
   storage_gb: number;
   ai_queries: number;
+  leave_requests: number;
+  attendance_scans: number;
 }
 
 const BillingSettings = () => {
@@ -88,8 +101,20 @@ const BillingSettings = () => {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [planLimits, setPlanLimits] = useState<PlanLimits>({ max_employees: null, max_storage_gb: 5, max_ai_queries: 0 });
-  const [usage, setUsage] = useState<UsageSummary>({ employees: 0, storage_gb: 0, ai_queries: 0 });
+  const [planLimits, setPlanLimits] = useState<PlanLimits>({ 
+    max_employees: null, 
+    max_storage_gb: 5, 
+    max_ai_queries: 0,
+    max_leave_requests: null,
+    max_attendance_scans: null,
+  });
+  const [usage, setUsage] = useState<UsageSummary>({ 
+    employees: 0, 
+    storage_gb: 0, 
+    ai_queries: 0,
+    leave_requests: 0,
+    attendance_scans: 0,
+  });
 
   useEffect(() => {
     if (currentOrg?.id) {
@@ -116,20 +141,27 @@ const BillingSettings = () => {
         const { data: limitData } = await supabase
           .from("plan_limits")
           .select("*")
-          .eq("plan", subData.plan);
+          .eq("plan", subData.plan)
+          .eq("is_active", true);
 
         if (limitData && limitData.length > 0) {
           const limits: PlanLimits = {
             max_employees: null,
-            max_storage_gb: 5,
-            max_ai_queries: 0,
+            max_storage_gb: null,
+            max_ai_queries: null,
+            max_leave_requests: null,
+            max_attendance_scans: null,
           };
           
           limitData.forEach((row: PlanLimitRow) => {
             if (row.feature === "storage_gb") {
               limits.max_storage_gb = row.monthly_limit;
             } else if (row.feature === "ai_queries") {
-              limits.max_ai_queries = row.monthly_limit || null;
+              limits.max_ai_queries = row.monthly_limit;
+            } else if (row.feature === "leave_requests") {
+              limits.max_leave_requests = row.monthly_limit;
+            } else if (row.feature === "attendance_scans") {
+              limits.max_attendance_scans = row.monthly_limit;
             }
           });
           
@@ -156,12 +188,38 @@ const BillingSettings = () => {
         .eq("organization_id", currentOrg.id)
         .eq("status", "active");
 
-      // For demo, we'll use mock storage and AI query data
-      setUsage({
+      // Fetch real usage data from usage_records
+      const billingPeriod = format(new Date(), "yyyy-MM");
+      const { data: usageData } = await supabase
+        .from("usage_records")
+        .select("feature, quantity")
+        .eq("organization_id", currentOrg.id)
+        .eq("billing_period", billingPeriod);
+
+      // Parse usage data
+      const usageSummary: UsageSummary = {
         employees: employeeCount || 0,
-        storage_gb: 2.4, // Mock data
-        ai_queries: 45, // Mock data
-      });
+        storage_gb: 0, // TODO: Calculate from storage bucket usage
+        ai_queries: 0,
+        leave_requests: 0,
+        attendance_scans: 0,
+      };
+
+      if (usageData) {
+        usageData.forEach((record) => {
+          if (record.feature === "ai_queries") {
+            usageSummary.ai_queries = record.quantity;
+          } else if (record.feature === "leave_requests") {
+            usageSummary.leave_requests = record.quantity;
+          } else if (record.feature === "attendance_scans") {
+            usageSummary.attendance_scans = record.quantity;
+          } else if (record.feature === "storage_gb") {
+            usageSummary.storage_gb = record.quantity;
+          }
+        });
+      }
+
+      setUsage(usageSummary);
     } catch (error) {
       console.error("Error fetching billing data:", error);
     } finally {
@@ -212,6 +270,17 @@ const BillingSettings = () => {
     if (!subscription?.trial_ends_at) return null;
     const days = differenceInDays(parseISO(subscription.trial_ends_at), new Date());
     return Math.max(0, days);
+  };
+
+  const getUsagePercentage = (current: number, limit: number | null) => {
+    if (limit === null || limit === -1) return 0; // Unlimited
+    if (limit === 0) return 100; // Not allowed
+    return Math.min(100, (current / limit) * 100);
+  };
+
+  const formatLimit = (limit: number | null) => {
+    if (limit === null || limit === -1) return "Unlimited";
+    return limit.toString();
   };
 
   if (loading) {
@@ -305,12 +374,14 @@ const BillingSettings = () => {
             </div>
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{planLimits.max_storage_gb} GB storage</span>
+              <span className="text-sm">{formatLimit(planLimits.max_storage_gb)} GB storage</span>
             </div>
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                {planLimits.max_ai_queries ? `${planLimits.max_ai_queries} AI queries/mo` : "Unlimited AI queries"}
+                {planLimits.max_ai_queries !== null && planLimits.max_ai_queries !== -1 
+                  ? `${planLimits.max_ai_queries} AI queries/mo` 
+                  : "Unlimited AI queries"}
               </span>
             </div>
           </div>
@@ -339,7 +410,7 @@ const BillingSettings = () => {
               </span>
             </div>
             <Progress
-              value={planLimits.max_employees ? (usage.employees / planLimits.max_employees) * 100 : 0}
+              value={getUsagePercentage(usage.employees, planLimits.max_employees)}
               className="h-2"
             />
           </div>
@@ -352,11 +423,11 @@ const BillingSettings = () => {
                 <span>Storage</span>
               </div>
               <span className="font-medium">
-                {usage.storage_gb.toFixed(1)} GB / {planLimits.max_storage_gb} GB
+                {usage.storage_gb.toFixed(1)} GB / {formatLimit(planLimits.max_storage_gb)} GB
               </span>
             </div>
             <Progress
-              value={planLimits.max_storage_gb ? (usage.storage_gb / planLimits.max_storage_gb) * 100 : 0}
+              value={getUsagePercentage(usage.storage_gb, planLimits.max_storage_gb)}
               className="h-2"
             />
           </div>
@@ -369,11 +440,52 @@ const BillingSettings = () => {
                 <span>AI Queries</span>
               </div>
               <span className="font-medium">
-                {usage.ai_queries} {planLimits.max_ai_queries ? `/ ${planLimits.max_ai_queries}` : "/ Unlimited"}
+                {usage.ai_queries} / {formatLimit(planLimits.max_ai_queries)}
               </span>
             </div>
-            {planLimits.max_ai_queries && planLimits.max_ai_queries > 0 && (
-              <Progress value={(usage.ai_queries / planLimits.max_ai_queries) * 100} className="h-2" />
+            {planLimits.max_ai_queries !== null && planLimits.max_ai_queries !== -1 && (
+              <Progress 
+                value={getUsagePercentage(usage.ai_queries, planLimits.max_ai_queries)} 
+                className="h-2" 
+              />
+            )}
+          </div>
+
+          {/* Leave Requests */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <span>Leave Requests</span>
+              </div>
+              <span className="font-medium">
+                {usage.leave_requests} / {formatLimit(planLimits.max_leave_requests)}
+              </span>
+            </div>
+            {planLimits.max_leave_requests !== null && planLimits.max_leave_requests !== -1 && (
+              <Progress 
+                value={getUsagePercentage(usage.leave_requests, planLimits.max_leave_requests)} 
+                className="h-2" 
+              />
+            )}
+          </div>
+
+          {/* Attendance Scans */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                <span>Attendance Check-ins</span>
+              </div>
+              <span className="font-medium">
+                {usage.attendance_scans} / {formatLimit(planLimits.max_attendance_scans)}
+              </span>
+            </div>
+            {planLimits.max_attendance_scans !== null && planLimits.max_attendance_scans !== -1 && (
+              <Progress 
+                value={getUsagePercentage(usage.attendance_scans, planLimits.max_attendance_scans)} 
+                className="h-2" 
+              />
             )}
           </div>
         </CardContent>

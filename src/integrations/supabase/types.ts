@@ -4376,6 +4376,14 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      check_feature_limit: {
+        Args: {
+          _feature: string
+          _increment?: number
+          _organization_id: string
+        }
+        Returns: Json
+      }
       generate_invoice_number: { Args: never; Returns: string }
       get_accessible_ai_content: {
         Args: {
@@ -4430,6 +4438,15 @@ export type Database = {
           emp_user_id: string
         }[]
       }
+      get_organization_usage: {
+        Args: { _billing_period?: string; _organization_id: string }
+        Returns: {
+          feature: string
+          monthly_limit: number
+          overage_rate: number
+          quantity: number
+        }[]
+      }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
@@ -4465,6 +4482,10 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
+      record_usage: {
+        Args: { _feature: string; _organization_id: string; _quantity?: number }
+        Returns: undefined
+      }
       validate_qr_and_record_attendance:
         | { Args: { _action: string; _qr_code: string }; Returns: Json }
         | {
