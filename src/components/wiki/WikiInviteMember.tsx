@@ -253,7 +253,7 @@ export const WikiInviteMember = ({
       <div className="flex items-stretch gap-2">
         {/* Selection input */}
         <div className="flex-1">
-          <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+          <Popover open={searchOpen} onOpenChange={setSearchOpen} modal={false}>
             <PopoverTrigger asChild>
               <div
                 className={cn(
@@ -290,12 +290,24 @@ export const WikiInviteMember = ({
                 />
               </div>
             </PopoverTrigger>
-            <PopoverContent className="w-[350px] p-0" align="start">
-              <Command>
+            <PopoverContent 
+              className="w-[350px] p-0 bg-popover z-50" 
+              align="start"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onInteractOutside={(e) => {
+                // Don't close when clicking inside the trigger
+                const target = e.target as HTMLElement;
+                if (target.closest('[data-radix-popover-trigger]')) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <Command shouldFilter={false}>
                 <CommandInput 
                   placeholder="Search..." 
                   value={searchQuery}
                   onValueChange={setSearchQuery}
+                  autoFocus
                 />
                 <CommandList className="max-h-[300px]">
                   {!hasResults && <CommandEmpty>No results found</CommandEmpty>}
