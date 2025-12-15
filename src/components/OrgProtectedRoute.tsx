@@ -72,8 +72,10 @@ export const OrgProtectedRoute = ({
     return <Navigate to="/landing" replace />;
   }
 
-  // No organizations - redirect to create one
+  // No organizations - but ensure we're not in a race condition
+  // Only redirect if we've confirmed no orgs exist (not just empty from loading)
   if (organizations.length === 0) {
+    console.warn('[OrgProtectedRoute] No organizations found for authenticated user');
     return <Navigate to="/signup" replace />;
   }
 

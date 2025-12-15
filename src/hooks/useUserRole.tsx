@@ -10,20 +10,26 @@ export const useUserRole = () => {
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    if (currentOrg) {
+    if (currentOrg?.id) {
       checkUserRole();
+    } else {
+      // Reset loading state when no org is available
+      setLoading(false);
     }
   }, [currentOrg?.id]);
 
   const checkUserRole = async () => {
-    if (!currentOrg) {
+    if (!currentOrg?.id) {
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setRole(null);
         setLoading(false);
         return;
       }
@@ -39,15 +45,17 @@ export const useUserRole = () => {
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error checking role:', error);
-      }
-
-      if (data) {
+        // Default to user role on error to prevent blocking access
+        setRole('user');
+      } else if (data) {
         setRole(data.role as UserRole);
       } else {
         setRole('user'); // Default to user if no role assigned
       }
     } catch (error) {
       console.error('Error in checkUserRole:', error);
+      // Default to user role on error to prevent blocking access
+      setRole('user');
     } finally {
       setLoading(false);
     }
