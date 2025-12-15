@@ -370,6 +370,12 @@ export const WikiShareDialog = ({
   }) => {
     setIsSaving(true);
     try {
+      // Track newly added groups to send notifications
+      const newOfficeIds = (next.officeIds || []).filter(id => !selectedOffices.includes(id));
+      const newDepartments = (next.departments || []).filter(d => !selectedDepartments.includes(d));
+      const newProjectIds = (next.projectIds || []).filter(id => !selectedProjects.includes(id));
+      const isNewCompanyScope = next.scope === 'company' && accessScope !== 'company';
+
       if (itemType === 'folder') {
         await supabase
           .from('wiki_folders')
@@ -458,6 +464,77 @@ export const WikiShareDialog = ({
               organization_id: organizationId,
             })),
           );
+        }
+      }
+
+      // Send notifications to newly added group members
+      if (currentEmployee?.id) {
+        const employeesToNotify: { id: string; user_id: string }[] = [];
+
+        // Get employees for new offices
+        if (newOfficeIds.length > 0) {
+          const { data: officeEmployees } = await supabase
+            .from('employees')
+            .select('id, user_id')
+            .eq('organization_id', organizationId)
+            .in('office_id', newOfficeIds);
+          if (officeEmployees) employeesToNotify.push(...officeEmployees);
+        }
+
+        // Get employees for new departments
+        if (newDepartments.length > 0) {
+          const { data: deptEmployees } = await supabase
+            .from('employees')
+            .select('id, user_id')
+            .eq('organization_id', organizationId)
+            .in('department', newDepartments);
+          if (deptEmployees) employeesToNotify.push(...deptEmployees);
+        }
+
+        // Get employees for new projects
+        if (newProjectIds.length > 0) {
+          const { data: projectMembers } = await supabase
+            .from('employee_projects')
+            .select('employee_id, employees!inner(id, user_id)')
+            .eq('organization_id', organizationId)
+            .in('project_id', newProjectIds);
+          if (projectMembers) {
+            projectMembers.forEach((pm: any) => {
+              if (pm.employees) {
+                employeesToNotify.push({ id: pm.employees.id, user_id: pm.employees.user_id });
+              }
+            });
+          }
+        }
+
+        // Get all employees for company-wide access
+        if (isNewCompanyScope) {
+          const { data: allEmployees } = await supabase
+            .from('employees')
+            .select('id, user_id')
+            .eq('organization_id', organizationId);
+          if (allEmployees) employeesToNotify.push(...allEmployees);
+        }
+
+        // Deduplicate and exclude current user
+        const uniqueEmployees = Array.from(
+          new Map(employeesToNotify.map(e => [e.id, e])).values()
+        ).filter(e => e.id !== currentEmployee.id);
+
+        // Create notifications
+        if (uniqueEmployees.length > 0) {
+          const notificationData = uniqueEmployees.map(emp => ({
+            user_id: emp.user_id,
+            organization_id: organizationId,
+            type: 'wiki_access',
+            title: `Wiki ${itemType} shared with you`,
+            message: `You have been given ${next.permission} access to "${itemName}"`,
+            reference_type: `wiki_${itemType}`,
+            reference_id: itemId,
+            actor_id: currentEmployee.id,
+          }));
+
+          await supabase.from('notifications').insert(notificationData);
         }
       }
 
