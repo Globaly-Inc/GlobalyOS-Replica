@@ -7,6 +7,9 @@ export interface RecentItem {
   type: "folder" | "page";
   name: string;
   viewedAt: number;
+  is_file?: boolean;
+  file_type?: string;
+  file_url?: string;
 }
 
 const MAX_RECENT_ITEMS = 10;
@@ -38,14 +41,23 @@ export const useWikiRecentlyViewed = () => {
 
         const validIds = new Set<string>();
 
-        // Check which pages still exist
+        // Check which pages still exist and get file info
         if (pageIds.length > 0) {
           const { data: pages } = await supabase
             .from("wiki_pages")
-            .select("id")
+            .select("id, is_file, file_type, file_url")
             .in("id", pageIds)
             .eq("organization_id", currentOrg.id);
-          pages?.forEach(p => validIds.add(p.id));
+          pages?.forEach(p => {
+            validIds.add(p.id);
+            // Update file info in items
+            const item = items.find(i => i.id === p.id && i.type === "page");
+            if (item) {
+              item.is_file = p.is_file || false;
+              item.file_type = p.file_type || undefined;
+              item.file_url = p.file_url || undefined;
+            }
+          });
         }
 
         // Check which folders still exist
@@ -85,7 +97,12 @@ export const useWikiRecentlyViewed = () => {
     }
   }, [storageKey]);
 
-  const addRecentItem = useCallback((id: string, type: "folder" | "page", name: string) => {
+  const addRecentItem = useCallback((
+    id: string, 
+    type: "folder" | "page", 
+    name: string,
+    options?: { is_file?: boolean; file_type?: string; file_url?: string }
+  ) => {
     if (!storageKey || !name) return;
 
     setRecentItems(prev => {
@@ -97,7 +114,10 @@ export const useWikiRecentlyViewed = () => {
         id,
         type,
         name,
-        viewedAt: Date.now()
+        viewedAt: Date.now(),
+        is_file: options?.is_file,
+        file_type: options?.file_type,
+        file_url: options?.file_url,
       };
       
       const updated = [newItem, ...filtered].slice(0, MAX_RECENT_ITEMS);
