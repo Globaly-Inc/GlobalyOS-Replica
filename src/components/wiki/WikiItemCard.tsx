@@ -1,4 +1,4 @@
-import { Folder, FileText, File, Clock, Star, MoreHorizontal, Pencil, Trash2, Share2, Move, Copy, FilePlus, FolderPlus, Check, X } from "lucide-react";
+import { Folder, FileText, Clock, Star, MoreHorizontal, Pencil, Trash2, Share2, Move, Copy, FilePlus, FolderPlus, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -149,8 +149,12 @@ export const WikiItemCard = ({
   const page = !isFolder ? (item as WikiPage) : null;
   
   const name = isFolder ? folder!.name : page!.title;
-  const isImageFile = page?.is_file && page?.file_type === 'image' && page?.thumbnail_url;
+  // Only show image preview if there's actually a thumbnail URL
+  const hasImagePreview = page?.is_file && page?.file_type === 'image' && page?.thumbnail_url;
+  // Get file type info for all uploaded files
   const fileTypeInfo = page?.is_file ? getFileTypeIcon(page.file_type, page.title) : null;
+  // Show file badge for any uploaded file that doesn't have an image preview
+  const showFileBadge = page?.is_file && !hasImagePreview;
 
   // Determine effective permissions - canDelete and canMove default to canEdit if not specified
   const effectiveCanDelete = canDelete ?? canEdit;
@@ -189,8 +193,8 @@ export const WikiItemCard = ({
     <div
       className={cn(
         "group relative flex flex-col rounded-xl border bg-card transition-all cursor-pointer overflow-hidden",
-        isImageFile ? "h-36" : "items-center p-4 h-40",
-        isEditing 
+        hasImagePreview ? "h-36" : "items-center p-4 h-40",
+        isEditing
           ? "border-2 border-primary shadow-md" 
           : isSelected
             ? "border-2 border-primary bg-primary/5"
@@ -303,33 +307,41 @@ export const WikiItemCard = ({
       )}
 
       {/* Image file preview background */}
-      {isImageFile && (
+      {hasImagePreview && (
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${page!.thumbnail_url})` }}
         />
       )}
 
-      {/* File type badge for uploaded files (non-image) */}
-      {page?.is_file && fileTypeInfo && !isImageFile && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className={cn("w-16 h-16 rounded-lg flex items-center justify-center relative", fileTypeInfo.color)}>
-            <File className="h-10 w-10 text-white/30 absolute" />
-            <span className="text-white font-bold text-xs relative z-10">{fileTypeInfo.icon}</span>
+      {/* File type badge for uploaded files (non-image or no preview) */}
+      {showFileBadge && fileTypeInfo && (
+        <>
+          <div className="relative mb-2 mt-1">
+            <div className={cn("w-14 h-14 rounded-lg flex items-center justify-center", fileTypeInfo.color)}>
+              <span className="text-white font-bold text-xs">{fileTypeInfo.icon}</span>
+            </div>
           </div>
-        </div>
+          <span className="text-sm font-medium text-center line-clamp-1 group-hover:text-primary transition-colors px-2">
+            {page!.title}
+          </span>
+          <span className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {getShortRelativeTime(page!.updated_at)}
+          </span>
+        </>
       )}
 
-      {/* Gradient overlay with filename for files */}
-      {page?.is_file && (
+      {/* Gradient overlay with filename for image files with preview */}
+      {hasImagePreview && (
         <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background/95 via-background/70 to-transparent flex items-end p-3 z-10">
           <div className="w-full">
             <span className="text-sm font-medium text-foreground line-clamp-1">
-              {page.title}
+              {page!.title}
             </span>
             <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <Clock className="h-3 w-3" />
-              {getShortRelativeTime(page.updated_at)}
+              {getShortRelativeTime(page!.updated_at)}
             </span>
           </div>
         </div>
