@@ -211,8 +211,8 @@ export const WikiMembersWithAccess = ({
         </>
       )}
 
-      {/* Individual members - always show if present */}
-      {members.map((member) => (
+      {/* Individual members - only show when scope is 'members' */}
+      {accessScope === 'members' && members.map((member) => (
         <div
           key={member.employee_id}
           className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-muted/50 group"
