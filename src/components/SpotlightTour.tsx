@@ -131,6 +131,12 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
       return;
     }
 
+    // Only run tour for owners
+    if (!isOwnerRole) {
+      setLoading(false);
+      return;
+    }
+
     const checkOnboardingProgress = async () => {
       setLoading(true);
       
@@ -142,12 +148,11 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
         .maybeSingle();
 
       if (!progress) {
-        // Create new onboarding progress record
-        const role = isOwnerRole ? "owner" : isHR ? "hr" : "member";
+        // Create new onboarding progress record for owner
         await supabase.from("onboarding_progress").insert({
           user_id: user.id,
           organization_id: currentOrg.id,
-          role,
+          role: "owner",
           current_step: 0,
           completed_steps: [],
           is_completed: false,
@@ -172,7 +177,7 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
     };
 
     checkOnboardingProgress();
-  }, [user?.id, currentOrg?.id, isOwnerRole, isHR]);
+  }, [user?.id, currentOrg?.id, isOwnerRole]);
 
   // Watch for survey completion changes
   useEffect(() => {

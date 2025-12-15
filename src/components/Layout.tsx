@@ -72,10 +72,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showWelcomeSurvey, setShowWelcomeSurvey] = useState(false);
 
-  // Check if user needs to see welcome survey
+  // Check if user needs to see welcome survey (owners only)
   useEffect(() => {
     const checkSurveyStatus = async () => {
-      if (!user?.id || !currentOrg?.id) return;
+      if (!user?.id || !currentOrg?.id || role !== 'owner') {
+        setShowWelcomeSurvey(false);
+        return;
+      }
 
       const { data } = await supabase
         .from('onboarding_progress')
@@ -84,7 +87,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         .eq('organization_id', currentOrg.id)
         .maybeSingle();
 
-      // Show survey if not completed
+      // Show survey only for owners who haven't completed it
       if (!data?.survey_completed) {
         // Small delay to let the page load first
         setTimeout(() => setShowWelcomeSurvey(true), 1000);
@@ -92,7 +95,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     };
 
     checkSurveyStatus();
-  }, [user?.id, currentOrg?.id]);
+  }, [user?.id, currentOrg?.id, role]);
 
   // Track online presence
   useEffect(() => {
