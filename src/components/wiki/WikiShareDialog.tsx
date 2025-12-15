@@ -927,7 +927,7 @@ export const WikiShareDialog = ({
                   members={membersWithAccess}
                   isLoading={isMembersLoading}
                   owner={owner}
-                  canTransferOwnership={currentEmployee?.id === owner?.employee_id || isOwner || isAdmin || isHR}
+                  canTransferOwnership={currentEmployee?.id === owner?.employee_id || isOwner || isAdmin}
                   onTransferOwnership={() => setTransferDialogOpen(true)}
                   onUpdatePermission={handleUpdateMemberPermission}
                   onRemoveMember={handleRemoveMember}
