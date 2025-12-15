@@ -39,6 +39,7 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
   const fetchOrganizations = async () => {
     // Don't proceed if user is not yet available
     if (!user?.id) {
+      setLoading(false);
       return;
     }
 
@@ -69,16 +70,16 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const orgs = members
+      const orgs = (members
         ?.map((m: any) => m.organizations)
-        .filter(Boolean) as Organization[];
+        .filter(Boolean) || []) as Organization[];
       
-      setOrganizations(orgs || []);
+      setOrganizations(orgs);
 
       // Get saved org from localStorage or use first org
       const savedOrgId = localStorage.getItem(CURRENT_ORG_KEY);
-      const savedOrg = orgs?.find((o) => o.id === savedOrgId);
-      const targetOrg = savedOrg || orgs?.[0] || null;
+      const savedOrg = orgs.find((o) => o.id === savedOrgId);
+      const targetOrg = savedOrg || orgs[0] || null;
 
       if (targetOrg) {
         setCurrentOrg(targetOrg);
