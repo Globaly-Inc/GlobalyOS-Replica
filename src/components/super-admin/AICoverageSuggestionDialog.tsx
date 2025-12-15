@@ -103,8 +103,8 @@ const AICoverageSuggestionDialog = ({
               </Button>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0 pr-4 overflow-y-auto">
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
+              <div className="space-y-4 pr-4">
                 {suggestions.map((fileSuggestion) => {
                   const isExpanded = expandedFiles.has(fileSuggestion.file);
                   return (
@@ -139,8 +139,8 @@ const AICoverageSuggestionDialog = ({
                           </div>
                         </div>
                       </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="ml-6 mt-2 space-y-3">
+                      <CollapsibleContent className="overflow-hidden">
+                        <div className="ml-6 mt-2 space-y-3 overflow-hidden">
                           {fileSuggestion.suggestions.map((suggestion, idx) => {
                             const suggestionId = `${fileSuggestion.file}-${idx}`;
                             return (
@@ -149,8 +149,8 @@ const AICoverageSuggestionDialog = ({
                                 className="border rounded-lg overflow-hidden"
                               >
                                 <div className="p-3 bg-muted/30 flex items-start justify-between gap-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       <Badge
                                         variant="outline"
                                         className={getPriorityColor(suggestion.priority)}
@@ -179,9 +179,11 @@ const AICoverageSuggestionDialog = ({
                                     )}
                                   </Button>
                                 </div>
-                                <pre className="p-3 text-xs font-mono bg-muted/10 overflow-x-auto">
-                                  {suggestion.testCode}
-                                </pre>
+                                <div className="overflow-x-auto max-w-full">
+                                  <pre className="p-3 text-xs font-mono bg-muted/10 whitespace-pre-wrap break-all">
+                                    {suggestion.testCode}
+                                  </pre>
+                                </div>
                               </div>
                             );
                           })}
