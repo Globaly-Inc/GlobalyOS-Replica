@@ -1,148 +1,86 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
-
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  content: string;
-  cover_image_url: string | null;
-  category: string;
-  author_name: string;
-  is_published: boolean;
-  published_at: string | null;
-  created_at: string;
-}
-
-const categories = [
-  { value: "product-updates", label: "Product Updates" },
-  { value: "hr-tips", label: "HR Tips" },
-  { value: "company-culture", label: "Company Culture" },
-  { value: "general", label: "General" },
-];
+import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Search, Bot, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { useBlogPosts, useDeleteBlogPost, useBlogKeywords } from "@/services/useBlog";
+import { BlogKeywordsManager } from "@/components/blog/BlogKeywordsManager";
+import { BlogAIGenerateDialog } from "@/components/blog/BlogAIGenerateDialog";
+import { BlogReviewCard } from "@/components/blog/BlogReviewCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function SuperAdminBlog() {
-  const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    slug: "",
-    excerpt: "",
-    content: "",
-    cover_image_url: "",
-    category: "general",
-    author_name: "",
-    is_published: false,
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+
+  const { data: posts, isLoading } = useBlogPosts();
+  const { data: keywords } = useBlogKeywords();
+  const deleteMutation = useDeleteBlogPost();
+
+  const filteredPosts = posts?.filter((post) => {
+    const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    switch (activeTab) {
+      case "drafts":
+        return matchesSearch && !post.is_published && post.generation_status !== "pending_review";
+      case "pending":
+        return matchesSearch && post.generation_status === "pending_review";
+      case "published":
+        return matchesSearch && post.is_published;
+      case "ai-generated":
+        return matchesSearch && post.ai_generated;
+      default:
+        return matchesSearch;
+    }
   });
 
-  const { data: posts, isLoading } = useQuery({
-    queryKey: ["admin-blog-posts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("blog_posts")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as BlogPost[];
-    },
-  });
+  const counts = {
+    all: posts?.length || 0,
+    drafts: posts?.filter(p => !p.is_published && p.generation_status !== "pending_review").length || 0,
+    pending: posts?.filter(p => p.generation_status === "pending_review").length || 0,
+    published: posts?.filter(p => p.is_published).length || 0,
+    aiGenerated: posts?.filter(p => p.ai_generated).length || 0,
+  };
 
-  const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from("blog_posts").insert({
-        ...data,
-        published_at: data.is_published ? new Date().toISOString() : null,
+  const handleDelete = () => {
+    if (deletePostId) {
+      deleteMutation.mutate(deletePostId, {
+        onSuccess: () => {
+          toast.success("Post deleted successfully");
+          setDeletePostId(null);
+        },
       });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] });
-      toast.success("Post created successfully");
-      resetForm();
-    },
-    onError: (error) => toast.error(`Failed to create post: ${error.message}`),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const updateData = {
-        ...data,
-        published_at: data.is_published && !editingPost?.published_at 
-          ? new Date().toISOString() 
-          : editingPost?.published_at,
-      };
-      const { error } = await supabase.from("blog_posts").update(updateData).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] });
-      toast.success("Post updated successfully");
-      resetForm();
-    },
-    onError: (error) => toast.error(`Failed to update post: ${error.message}`),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("blog_posts").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] });
-      toast.success("Post deleted successfully");
-    },
-    onError: (error) => toast.error(`Failed to delete post: ${error.message}`),
-  });
-
-  const resetForm = () => {
-    setFormData({ title: "", slug: "", excerpt: "", content: "", cover_image_url: "", category: "general", author_name: "", is_published: false });
-    setEditingPost(null);
-    setIsDialogOpen(false);
-  };
-
-  const handleEdit = (post: BlogPost) => {
-    setEditingPost(post);
-    setFormData({
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt || "",
-      content: post.content,
-      cover_image_url: post.cover_image_url || "",
-      category: post.category,
-      author_name: post.author_name,
-      is_published: post.is_published,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingPost) {
-      updateMutation.mutate({ id: editingPost.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
     }
   };
 
-  const generateSlug = (title: string) => {
-    return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const getStatusBadge = (post: typeof posts extends (infer T)[] | undefined ? T : never) => {
+    if (post.generation_status === "pending_review") {
+      return <Badge variant="outline" className="border-amber-500 text-amber-600"><Clock className="w-3 h-3 mr-1" />Pending Review</Badge>;
+    }
+    if (post.is_published) {
+      return <Badge className="bg-emerald-500/10 text-emerald-600"><Eye className="w-3 h-3 mr-1" />Published</Badge>;
+    }
+    return <Badge variant="outline"><EyeOff className="w-3 h-3 mr-1" />Draft</Badge>;
   };
 
   return (
@@ -150,106 +88,167 @@ export default function SuperAdminBlog() {
       <div className="space-y-6">
         <SuperAdminPageHeader 
           title="Blog Management" 
-          description="Create and manage blog posts"
+          description="Create, manage, and publish blog posts with AI assistance"
           actions={
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
-              <DialogTrigger asChild>
-                <Button><Plus className="w-4 h-4 mr-2" />New Post</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingPost ? "Edit Post" : "Create New Post"}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Title</Label>
-                      <Input value={formData.title} onChange={(e) => { setFormData({ ...formData, title: e.target.value, slug: generateSlug(e.target.value) }); }} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Slug</Label>
-                      <Input value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} required />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Author Name</Label>
-                      <Input value={formData.author_name} onChange={(e) => setFormData({ ...formData, author_name: e.target.value })} required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cover Image URL</Label>
-                    <Input value={formData.cover_image_url} onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })} placeholder="https://..." />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Excerpt</Label>
-                    <Textarea value={formData.excerpt} onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })} rows={2} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Content (HTML)</Label>
-                    <Textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} rows={10} required />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={formData.is_published} onCheckedChange={(c) => setFormData({ ...formData, is_published: c })} />
-                    <Label>Published</Label>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
-                    <Button type="submit">{editingPost ? "Update" : "Create"}</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsAIDialogOpen(true)}>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Blogs
+              </Button>
+              <Button onClick={() => navigate("/super-admin/blog/new")}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Post
+              </Button>
+            </div>
           }
         />
 
-        <div className="grid gap-4">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : posts?.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">No blog posts yet. Create your first one!</p>
-            </Card>
-          ) : (
-            posts?.map((post) => (
-              <Card key={post.id} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {post.cover_image_url ? (
-                    <img src={post.cover_image_url} alt="" className="w-16 h-16 rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-lg bg-muted" />
-                  )}
-                  <div>
-                    <h3 className="font-semibold text-foreground">{post.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary">{post.category}</Badge>
-                      {post.is_published ? (
-                        <Badge className="bg-success/10 text-success"><Eye className="w-3 h-3 mr-1" />Published</Badge>
-                      ) : (
-                        <Badge variant="outline"><EyeOff className="w-3 h-3 mr-1" />Draft</Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground">{format(new Date(post.created_at), "MMM d, yyyy")}</span>
-                    </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <TabsList>
+              <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+              <TabsTrigger value="drafts">Drafts ({counts.drafts})</TabsTrigger>
+              <TabsTrigger value="pending">Pending Review ({counts.pending})</TabsTrigger>
+              <TabsTrigger value="published">Published ({counts.published})</TabsTrigger>
+              <TabsTrigger value="ai-generated">
+                <Bot className="w-3 h-3 mr-1" />
+                AI Generated ({counts.aiGenerated})
+              </TabsTrigger>
+              <TabsTrigger value="keywords">Keywords ({keywords?.length || 0})</TabsTrigger>
+            </TabsList>
+
+            {activeTab !== "keywords" && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search posts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+            )}
+          </div>
+
+          <TabsContent value="keywords" className="mt-6">
+            <BlogKeywordsManager />
+          </TabsContent>
+
+          {["all", "drafts", "pending", "published", "ai-generated"].map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-6">
+              {isLoading ? (
+                <div className="grid gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-4 animate-pulse">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-lg bg-muted" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-5 w-1/3 bg-muted rounded" />
+                          <div className="h-4 w-1/4 bg-muted rounded" />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredPosts?.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    {tab === "pending" ? <Clock className="w-6 h-6 text-muted-foreground" /> : <Plus className="w-6 h-6 text-muted-foreground" />}
                   </div>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    {tab === "pending" ? "No posts pending review" : "No posts found"}
+                  </h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    {tab === "pending" 
+                      ? "AI-generated posts will appear here for your approval"
+                      : "Create your first blog post or generate content with AI"}
+                  </p>
+                  <div className="flex justify-center gap-2">
+                    <Button variant="outline" onClick={() => setIsAIDialogOpen(true)}>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Generate with AI
+                    </Button>
+                    <Button onClick={() => navigate("/super-admin/blog/new")}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Manually
+                    </Button>
+                  </div>
+                </Card>
+              ) : tab === "pending" ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredPosts?.map((post) => (
+                    <BlogReviewCard key={post.id} post={post} />
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(post)}><Pencil className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(post.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              ) : (
+                <div className="grid gap-4">
+                  {filteredPosts?.map((post) => (
+                    <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4">
+                        {post.cover_image_url ? (
+                          <img src={post.cover_image_url} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-2xl font-bold text-primary/50">{post.title.charAt(0)}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground truncate">{post.title}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge variant="secondary">{post.category.replace("-", " ")}</Badge>
+                            {getStatusBadge(post)}
+                            {post.ai_generated && (
+                              <Badge variant="outline" className="border-primary/50 text-primary">
+                                <Bot className="w-3 h-3 mr-1" />AI
+                              </Badge>
+                            )}
+                            {post.seo_score !== null && post.seo_score !== undefined && (
+                              <Badge variant={post.seo_score >= 70 ? "default" : "outline"} className={post.seo_score >= 70 ? "bg-emerald-500" : ""}>
+                                SEO: {post.seo_score}%
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            By {post.author_name} • {format(new Date(post.created_at), "MMM d, yyyy")}
+                            {post.reading_time_minutes && ` • ${post.reading_time_minutes} min read`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/super-admin/blog/${post.id}/edit`)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeletePostId(post.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-              </Card>
-            ))
-          )}
-        </div>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
+
+      <BlogAIGenerateDialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen} />
+
+      <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SuperAdminLayout>
   );
 }
