@@ -1012,32 +1012,61 @@ const SuperAdminTesting = () => {
                 <CardTitle className="text-lg">Pass Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-center py-8">
-                  <div className="relative">
-                    <div className="w-32 h-32 rounded-full border-8 border-muted flex items-center justify-center">
-                      <span className="text-3xl font-bold">
-                        {getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1)}%
-                      </span>
-                    </div>
-                    <div className="absolute inset-0 rounded-full border-8 border-success" style={{
-                    clipPath: `polygon(50% 50%, 50% 0%, ${50 + getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1) / 2}% 0%, 100% ${100 - getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1)}%, 50% 50%)`
-                  }} />
-                  </div>
-                </div>
-                <div className="flex justify-center gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-success" />
-                    Passed
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-destructive" />
-                    Failed
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-muted" />
-                    Skipped
-                  </div>
-                </div>
+                {(() => {
+                  const passRate = getPassRate(latestRun?.passed_tests ?? 0, latestRun?.total_tests ?? 1);
+                  const failedCount = latestRun?.failed_tests ?? 0;
+                  const circumference = 2 * Math.PI * 56; // radius = 56
+                  const passedOffset = circumference - (passRate / 100) * circumference;
+                  
+                  return (
+                    <>
+                      <div className="flex items-center justify-center py-8">
+                        <div className="relative w-32 h-32">
+                          <svg className="w-32 h-32 transform -rotate-90">
+                            {/* Background circle */}
+                            <circle
+                              cx="64"
+                              cy="64"
+                              r="56"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="none"
+                              className="text-muted"
+                            />
+                            {/* Progress circle */}
+                            <circle
+                              cx="64"
+                              cy="64"
+                              r="56"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="none"
+                              strokeDasharray={circumference}
+                              strokeDashoffset={passedOffset}
+                              strokeLinecap="round"
+                              className={passRate === 100 ? "text-success" : "text-success"}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-3xl font-bold">{passRate}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex justify-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-success" />
+                          Passed ({latestRun?.passed_tests ?? 0})
+                        </div>
+                        {failedCount > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-destructive" />
+                            Failed ({failedCount})
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
 
