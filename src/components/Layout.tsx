@@ -607,7 +607,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               
               {/* Attendance */}
               <button
-                onClick={() => navigateOrg("/attendance")}
+                onClick={() => navigateOrg("/attendance-history")}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
               >
                 <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
