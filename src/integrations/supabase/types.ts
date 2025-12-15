@@ -3929,6 +3929,75 @@ export type Database = {
           },
         ]
       }
+      wiki_page_comments: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          organization_id: string
+          page_id: string
+          parent_comment_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          organization_id: string
+          page_id: string
+          parent_comment_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          organization_id?: string
+          page_id?: string
+          parent_comment_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wiki_page_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_comments_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wiki_page_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "wiki_page_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wiki_page_departments: {
         Row: {
           created_at: string | null
