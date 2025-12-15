@@ -127,12 +127,18 @@ const BillingSettings = () => {
     setLoading(true);
 
     try {
-      // Fetch subscription
-      const { data: subData } = await supabase
+      // Fetch subscription (avoid single() to prevent noisy 406 when org has no subscription row yet)
+      const { data: subs, error: subError } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("organization_id", currentOrg.id)
-        .single();
+        .limit(1);
+
+      if (subError) {
+        console.error("Error fetching subscription:", subError);
+      }
+
+      const subData = subs?.[0] || null;
 
       if (subData) {
         setSubscription(subData);
@@ -152,7 +158,7 @@ const BillingSettings = () => {
             max_leave_requests: null,
             max_attendance_scans: null,
           };
-          
+
           limitData.forEach((row: PlanLimitRow) => {
             if (row.feature === "storage_gb") {
               limits.max_storage_gb = row.monthly_limit;
@@ -164,9 +170,11 @@ const BillingSettings = () => {
               limits.max_attendance_scans = row.monthly_limit;
             }
           });
-          
+
           setPlanLimits(limits);
         }
+      } else {
+        setSubscription(null);
       }
 
       // Fetch invoices

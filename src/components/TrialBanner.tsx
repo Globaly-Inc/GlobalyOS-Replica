@@ -23,12 +23,18 @@ const TrialBanner = () => {
     if (!currentOrg?.id) return;
 
     const fetchTrialInfo = async () => {
-      const { data: subscription } = await supabase
+      const { data: subscriptions, error } = await supabase
         .from("subscriptions")
         .select("status, plan, trial_ends_at")
         .eq("organization_id", currentOrg.id)
-        .single();
+        .limit(1);
 
+      if (error) {
+        console.error("Error fetching trial info:", error);
+        return;
+      }
+
+      const subscription = subscriptions?.[0];
       if (subscription) {
         const isOnTrial = subscription.status === "trialing";
         const trialEndsAt = subscription.trial_ends_at;
@@ -44,6 +50,8 @@ const TrialBanner = () => {
           trialEndsAt,
           plan: subscription.plan,
         });
+      } else {
+        setTrialInfo(null);
       }
     };
 
