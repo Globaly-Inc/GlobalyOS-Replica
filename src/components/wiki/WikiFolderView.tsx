@@ -444,37 +444,37 @@ export const WikiFolderView = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Header with search and controls */}
-      <div className={cn("border-b bg-card", isMobile ? "px-4 py-3" : "px-6 py-4")}>
-        <div className="flex items-center justify-between gap-4">
-          {/* Mobile back button and title */}
-          {isMobile && (
-            <div className="flex items-center gap-1 text-sm min-w-0 flex-1">
-              {onBack && (
-                <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mr-1 shrink-0">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <span className="font-semibold truncate">
-                {breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 1].name : "Wiki Home"}
-              </span>
-            </div>
+    <div className={cn("flex flex-col bg-background", isMobile ? "" : "h-full")}>
+      {/* Header with back button and title - mobile only */}
+      {isMobile && (
+        <div className="flex items-center gap-2 mb-4">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 -ml-2">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
           )}
-          
-          {/* Search bar - desktop only */}
-          {!isMobile && searchFolders && searchPages && (
-            <div className="flex-1 max-w-md">
-              <WikiSearch
-                folders={searchFolders}
-                pages={searchPages}
-                onSelectPage={onSelectPage}
-              />
-            </div>
-          )}
-          
-          {/* View toggle and sort controls - hide on mobile */}
-          {!isMobile && (
+          <h1 className="font-semibold text-lg truncate">
+            {breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 1].name : "Wiki"}
+          </h1>
+        </div>
+      )}
+
+      {/* Header with search and controls - desktop only */}
+      {!isMobile && (
+        <div className="border-b bg-card px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Search bar */}
+            {searchFolders && searchPages && (
+              <div className="flex-1 max-w-md">
+                <WikiSearch
+                  folders={searchFolders}
+                  pages={searchPages}
+                  onSelectPage={onSelectPage}
+                />
+              </div>
+            )}
+            
+            {/* View toggle and sort controls */}
             <div className="flex items-center gap-2">
               {/* View toggle */}
               <div className="flex items-center border rounded-lg overflow-hidden">
@@ -531,12 +531,12 @@ export const WikiFolderView = ({
                 <ArrowUpDown className={cn("h-4 w-4", sortDirection === "desc" && "rotate-180")} />
               </Button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
-      <div className={cn("flex-1 overflow-y-auto", isMobile ? "p-4" : "p-6")}>
+      <div className={cn("flex-1", isMobile ? "" : "overflow-y-auto p-6")}>
         {/* Breadcrumb navigation - desktop only, above folders */}
         {!isMobile && (
           <div className="flex items-center gap-1 text-sm mb-4">
