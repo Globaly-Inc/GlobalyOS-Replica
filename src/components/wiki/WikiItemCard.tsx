@@ -12,26 +12,55 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
 
-// File type icons with colors
+// File type icons with colors based on extension
 const getFileTypeIcon = (fileType?: string, title?: string) => {
-  const ext = title?.split('.').pop()?.toLowerCase();
+  const ext = title?.split('.').pop()?.toLowerCase() || '';
   
+  // Image files
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
+    return { icon: ext.toUpperCase().slice(0, 4), color: 'bg-purple-500', textColor: 'text-purple-500' };
+  }
+  // PDF
   if (fileType === 'pdf' || ext === 'pdf') {
     return { icon: 'PDF', color: 'bg-red-500', textColor: 'text-red-500' };
   }
-  if (fileType === 'document' || ['doc', 'docx'].includes(ext || '')) {
-    return { icon: 'DOC', color: 'bg-blue-500', textColor: 'text-blue-500' };
+  // Word documents
+  if (fileType === 'document' || ['doc', 'docx'].includes(ext)) {
+    return { icon: ext === 'docx' ? 'DOCX' : 'DOC', color: 'bg-blue-500', textColor: 'text-blue-500' };
   }
-  if (['xls', 'xlsx', 'csv'].includes(ext || '')) {
-    return { icon: 'XLS', color: 'bg-green-500', textColor: 'text-green-500' };
+  // Excel files
+  if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-green-500', textColor: 'text-green-500' };
   }
-  if (['ppt', 'pptx'].includes(ext || '')) {
-    return { icon: 'PPT', color: 'bg-orange-500', textColor: 'text-orange-500' };
+  // PowerPoint
+  if (['ppt', 'pptx'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-orange-500', textColor: 'text-orange-500' };
   }
-  if (['txt', 'md'].includes(ext || '')) {
-    return { icon: 'TXT', color: 'bg-gray-500', textColor: 'text-gray-500' };
+  // Text and markdown
+  if (['txt', 'md', 'rtf'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-gray-500', textColor: 'text-gray-500' };
   }
-  return null;
+  // Code files
+  if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'html', 'css', 'json', 'xml'].includes(ext)) {
+    return { icon: ext.toUpperCase().slice(0, 4), color: 'bg-cyan-500', textColor: 'text-cyan-500' };
+  }
+  // Archive files
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-yellow-600', textColor: 'text-yellow-600' };
+  }
+  // Audio files
+  if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-pink-500', textColor: 'text-pink-500' };
+  }
+  // Video files
+  if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)) {
+    return { icon: ext.toUpperCase(), color: 'bg-indigo-500', textColor: 'text-indigo-500' };
+  }
+  // Default file - show extension if exists
+  if (ext && ext.length <= 4) {
+    return { icon: ext.toUpperCase(), color: 'bg-slate-500', textColor: 'text-slate-500' };
+  }
+  return { icon: 'FILE', color: 'bg-slate-500', textColor: 'text-slate-500' };
 };
 
 interface WikiFolder {
@@ -281,11 +310,12 @@ export const WikiItemCard = ({
         />
       )}
 
-      {/* File type badge for documents */}
-      {fileTypeInfo && !isImageFile && (
+      {/* File type badge for uploaded files (non-image) */}
+      {page?.is_file && fileTypeInfo && !isImageFile && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className={cn("w-14 h-14 rounded-lg flex items-center justify-center", fileTypeInfo.color)}>
-            <span className="text-white font-bold text-sm">{fileTypeInfo.icon}</span>
+          <div className={cn("w-16 h-16 rounded-lg flex items-center justify-center relative", fileTypeInfo.color)}>
+            <File className="h-10 w-10 text-white/30 absolute" />
+            <span className="text-white font-bold text-xs relative z-10">{fileTypeInfo.icon}</span>
           </div>
         </div>
       )}
