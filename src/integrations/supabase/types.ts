@@ -4516,6 +4516,14 @@ export type Database = {
           quantity: number
         }[]
       }
+      get_unread_counts_batch: {
+        Args: { _employee_id: string; _organization_id: string }
+        Returns: {
+          context_id: string
+          context_type: string
+          unread_count: number
+        }[]
+      }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {

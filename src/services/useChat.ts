@@ -295,10 +295,90 @@ export const useSendMessage = () => {
 
       return data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ 
+    // Optimistic update: immediately add message to cache
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ 
         queryKey: ['chat-messages', variables.conversationId, variables.spaceId] 
       });
+
+      // Snapshot previous value
+      const previousMessages = queryClient.getQueryData<ChatMessage[]>(
+        ['chat-messages', variables.conversationId, variables.spaceId]
+      );
+
+      // Create optimistic message
+      const optimisticMessage: ChatMessage = {
+        id: `temp-${Date.now()}`,
+        organization_id: currentOrg?.id || '',
+        conversation_id: variables.conversationId || null,
+        space_id: variables.spaceId || null,
+        sender_id: currentEmployee?.id || '',
+        content: variables.content,
+        content_type: variables.attachments?.length ? 'file' : 'text',
+        is_pinned: false,
+        reply_to_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sender: currentEmployee ? {
+          id: currentEmployee.id,
+          user_id: currentEmployee.user_id,
+          position: currentEmployee.position,
+          profiles: {
+            full_name: currentEmployee.profiles?.full_name || '',
+            avatar_url: currentEmployee.profiles?.avatar_url || null
+          }
+        } : undefined,
+        attachments: variables.attachments?.map((att, i) => ({
+          id: `temp-att-${i}`,
+          message_id: `temp-${Date.now()}`,
+          organization_id: currentOrg?.id || '',
+          file_name: att.fileName,
+          file_path: att.filePath,
+          file_type: att.fileType,
+          file_size: att.fileSize,
+          created_at: new Date().toISOString()
+        })) || []
+      };
+
+      // Optimistically update messages
+      queryClient.setQueryData<ChatMessage[]>(
+        ['chat-messages', variables.conversationId, variables.spaceId],
+        (old) => [...(old || []), optimisticMessage]
+      );
+
+      return { previousMessages };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ['chat-messages', variables.conversationId, variables.spaceId],
+          context.previousMessages
+        );
+      }
+    },
+    onSettled: (data, error, variables) => {
+      // Replace temp message with real one or refetch if needed
+      if (data && !error) {
+        queryClient.setQueryData<ChatMessage[]>(
+          ['chat-messages', variables.conversationId, variables.spaceId],
+          (old) => {
+            if (!old) return old;
+            // Remove temp message and add real one (realtime will handle it, but just in case)
+            const filtered = old.filter(m => !m.id.startsWith('temp-'));
+            const exists = filtered.some(m => m.id === data.id);
+            if (!exists) {
+              // Fetch the full message with sender info
+              queryClient.invalidateQueries({ 
+                queryKey: ['chat-messages', variables.conversationId, variables.spaceId] 
+              });
+            }
+            return filtered;
+          }
+        );
+      }
+      // Update conversation/space lists for last message preview
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
     },
@@ -695,7 +775,7 @@ export const useMarkAsRead = () => {
   });
 };
 
-// Get unread counts for conversations
+// Get unread counts for conversations and spaces using optimized batch function
 export const useUnreadCounts = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -705,42 +785,26 @@ export const useUnreadCounts = () => {
     queryFn: async () => {
       if (!currentOrg?.id || !currentEmployee?.id) return { conversations: {}, spaces: {} };
 
-      // Get conversation unread counts
-      const { data: participants } = await supabase
-        .from('chat_participants')
-        .select('conversation_id, last_read_at')
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
+      // Use optimized database function for batch unread counts
+      const { data, error } = await supabase.rpc('get_unread_counts_batch', {
+        _employee_id: currentEmployee.id,
+        _organization_id: currentOrg.id
+      });
 
-      const conversationCounts: Record<string, number> = {};
-      
-      for (const p of participants || []) {
-        const { count } = await supabase
-          .from('chat_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', p.conversation_id)
-          .gt('created_at', p.last_read_at || '1970-01-01');
-
-        conversationCounts[p.conversation_id] = count || 0;
+      if (error) {
+        console.error('Error fetching unread counts:', error);
+        return { conversations: {}, spaces: {} };
       }
 
-      // Get space unread counts
-      const { data: memberships } = await supabase
-        .from('chat_space_members')
-        .select('space_id, last_read_at')
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
-
+      const conversationCounts: Record<string, number> = {};
       const spaceCounts: Record<string, number> = {};
 
-      for (const m of memberships || []) {
-        const { count } = await supabase
-          .from('chat_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('space_id', m.space_id)
-          .gt('created_at', m.last_read_at || '1970-01-01');
-
-        spaceCounts[m.space_id] = count || 0;
+      for (const row of data || []) {
+        if (row.context_type === 'conversation') {
+          conversationCounts[row.context_id] = row.unread_count;
+        } else if (row.context_type === 'space') {
+          spaceCounts[row.context_id] = row.unread_count;
+        }
       }
 
       return { conversations: conversationCounts, spaces: spaceCounts };
