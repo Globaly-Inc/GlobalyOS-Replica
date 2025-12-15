@@ -240,3 +240,5 @@ export const BlogAIGenerateDialog = ({ open, onOpenChange }: BlogAIGenerateDialo
     </Dialog>
   );
 };
+
+export default BlogAIGenerateDialog;
