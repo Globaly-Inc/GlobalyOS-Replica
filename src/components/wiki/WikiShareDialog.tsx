@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { WikiMembersWithAccess, MemberWithAccess, OwnerInfo } from "./WikiMembersWithAccess";
 import { WikiAddMember, type Selection } from "./WikiInviteMember";
@@ -88,6 +89,7 @@ export const WikiShareDialog = ({
 }: WikiShareDialogProps) => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   
   // Main state
   const [accessScope, setAccessScope] = useState<WikiAccessScope>('company');
@@ -925,7 +927,7 @@ export const WikiShareDialog = ({
                   members={membersWithAccess}
                   isLoading={isMembersLoading}
                   owner={owner}
-                  canTransferOwnership={currentEmployee?.id === owner?.employee_id}
+                  canTransferOwnership={currentEmployee?.id === owner?.employee_id || isOwner || isAdmin || isHR}
                   onTransferOwnership={() => setTransferDialogOpen(true)}
                   onUpdatePermission={handleUpdateMemberPermission}
                   onRemoveMember={handleRemoveMember}
