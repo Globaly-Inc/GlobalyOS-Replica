@@ -105,34 +105,6 @@ export const WikiSidebar = ({
       {/* Content */}
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {/* Folder Tree Section */}
-          <div className="mb-2">
-            <button
-              onClick={() => setShowFolderTree(!showFolderTree)}
-              className="flex items-center gap-1.5 px-2 py-1.5 w-full text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
-            >
-              {showFolderTree ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              <FolderTree className="h-3 w-3" />
-              All Content
-            </button>
-            {showFolderTree && (
-              <div className="mt-1">
-                <WikiFolderTree
-                  folders={folders}
-                  pages={pages}
-                  selectedPageId={selectedPageId}
-                  selectedFolderId={selectedFolderId}
-                  onSelectPage={onSelectPage}
-                  onSelectFolder={(id) => onSelectFolder(id)}
-                />
-              </div>
-            )}
-          </div>
-
           {/* Favorites Section */}
           {hasFavorites && (
             <div className="mb-2 border-t pt-2">
