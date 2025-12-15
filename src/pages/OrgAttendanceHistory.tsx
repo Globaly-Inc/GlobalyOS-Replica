@@ -128,20 +128,20 @@ const OrgAttendanceHistory = () => {
   });
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6" />
+    <div className="min-h-screen bg-background pb-24 md:pb-6">
+      <div className="space-y-4 md:space-y-6">
+        {/* Header - Mobile optimized */}
+        <div className="px-4 pt-4 md:px-0 md:pt-0">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="h-5 w-5 md:h-6 md:w-6" />
             Attendance History
           </h1>
-          <p className="text-muted-foreground">View attendance records across the organization</p>
+          <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+        {/* Filters - Mobile stacked layout */}
+        <div className="px-4 md:px-0 space-y-3">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by employee name..."
@@ -151,153 +151,173 @@ const OrgAttendanceHistory = () => {
             />
           </div>
           
-          <Select 
-            value={format(selectedMonth, "yyyy-MM")} 
-            onValueChange={(val) => {
-              const [year, month] = val.split("-");
-              setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[160px]">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((month) => (
-                <SelectItem key={format(month.value, "yyyy-MM")} value={format(month.value, "yyyy-MM")}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="present">Present</SelectItem>
-              <SelectItem value="late">Late</SelectItem>
-              <SelectItem value="absent">Absent</SelectItem>
-              <SelectItem value="half_day">Half Day</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={dateFilter ? "bg-primary/10" : ""}>
+          <div className="flex flex-wrap gap-2">
+            <Select 
+              value={format(selectedMonth, "yyyy-MM")} 
+              onValueChange={(val) => {
+                const [year, month] = val.split("-");
+                setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
+              }}
+            >
+              <SelectTrigger className="flex-1 min-w-[140px]">
                 <CalendarIcon className="h-4 w-4 mr-2" />
-                {dateFilter ? format(dateFilter, "MMM d") : "Pick date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={dateFilter}
-                onSelect={setDateFilter}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month) => (
+                  <SelectItem key={format(month.value, "yyyy-MM")} value={format(month.value, "yyyy-MM")}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {dateFilter && (
-            <Button variant="ghost" onClick={() => setDateFilter(undefined)}>
-              Clear
-            </Button>
-          )}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="flex-1 min-w-[120px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="present">Present</SelectItem>
+                <SelectItem value="late">Late</SelectItem>
+                <SelectItem value="absent">Absent</SelectItem>
+                <SelectItem value="half_day">Half Day</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("flex-shrink-0", dateFilter ? "bg-primary/10" : "")}>
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  {dateFilter ? format(dateFilter, "MMM d") : "Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={dateFilter}
+                  onSelect={setDateFilter}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {dateFilter && (
+              <Button variant="ghost" size="sm" onClick={() => setDateFilter(undefined)}>
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats - Mobile 2 columns */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="p-4 text-center bg-primary/5 border-primary/10">
-              <div className="text-2xl font-bold text-primary">{stats.total}</div>
-              <div className="text-xs text-muted-foreground mt-1">Total Records</div>
+          <div className="px-4 md:px-0 grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
+            <Card className="p-3 md:p-4 text-center bg-primary/5 border-primary/10">
+              <div className="text-xl md:text-2xl font-bold text-primary">{stats.total}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Total Records</div>
             </Card>
-            <Card className="p-4 text-center bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</div>
-              <div className="text-xs text-muted-foreground mt-1">Present</div>
+            <Card className="p-3 md:p-4 text-center bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50">
+              <div className="text-xl md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Present</div>
             </Card>
-            <Card className="p-4 text-center bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50">
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</div>
-              <div className="text-xs text-muted-foreground mt-1">Late</div>
+            <Card className="p-3 md:p-4 text-center bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50">
+              <div className="text-xl md:text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Late</div>
             </Card>
-            <Card className="p-4 text-center bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
-              <div className="text-xs text-muted-foreground mt-1">Absent</div>
+            <Card className="p-3 md:p-4 text-center bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50">
+              <div className="text-xl md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Absent</div>
             </Card>
-            <Card className="p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalHours.toFixed(1)}h</div>
-              <div className="text-xs text-muted-foreground mt-1">Total Hours</div>
+            <Card className="p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50 col-span-2 md:col-span-1">
+              <div className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalHours.toFixed(1)}h</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Total Hours</div>
             </Card>
           </div>
         )}
 
-        {/* Records */}
-        <Card className="overflow-hidden">
-          <div className="px-5 py-4 border-b bg-card">
-            <h2 className="font-semibold">Attendance Records</h2>
-          </div>
-          
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        {/* Records - Mobile optimized cards */}
+        <div className="px-4 md:px-0">
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3 md:px-5 md:py-4 border-b bg-card">
+              <h2 className="font-semibold text-sm md:text-base">Attendance Records</h2>
             </div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground">No attendance records found</p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {filteredRecords.map((record) => {
-                const employee = record.employee as any;
-                return (
-                  <div
-                    key={record.id}
-                    className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      {getStatusIcon(record.status)}
-                      <OrgLink 
-                        to={`/team/${employee?.id}`}
-                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={employee?.profiles?.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {getInitials(employee?.profiles?.full_name || "?")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{employee?.profiles?.full_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(parseISO(record.date), "EEE, MMM d, yyyy")}
-                          </p>
+            
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : filteredRecords.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No attendance records found</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredRecords.map((record) => {
+                  const employee = record.employee as any;
+                  return (
+                    <div
+                      key={record.id}
+                      className="p-3 md:p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <OrgLink 
+                          to={`/team/${employee?.id}`}
+                          className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                        >
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={employee?.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {getInitials(employee?.profiles?.full_name || "?")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-0.5 -right-0.5">
+                              {getStatusIcon(record.status)}
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(parseISO(record.date), "EEE, MMM d, yyyy")}
+                            </p>
+                          </div>
+                        </OrgLink>
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(record.status)}
+                          {record.work_hours && (
+                            <span className="text-xs text-muted-foreground">
+                              {record.work_hours.toFixed(1)}h
+                            </span>
+                          )}
                         </div>
-                      </OrgLink>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right text-sm text-muted-foreground hidden sm:block">
-                        <div>In: {record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "-"}</div>
-                        <div>Out: {record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "-"}</div>
                       </div>
-                      {record.work_hours && (
-                        <Badge variant="outline" className="hidden md:inline-flex">
-                          {record.work_hours.toFixed(1)}h
-                        </Badge>
-                      )}
-                      {getStatusBadge(record.status)}
+                      {/* Mobile: Show check-in/out times below */}
+                      <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground md:hidden">
+                        <span className="flex items-center gap-1">
+                          <span className="text-green-500">In:</span>
+                          {record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "-"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-red-500">Out:</span>
+                          {record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "-"}
+                        </span>
+                      </div>
+                      {/* Desktop: Show check-in/out on right */}
+                      <div className="hidden md:flex items-center justify-end gap-4 text-sm text-muted-foreground mt-1">
+                        <span>In: {record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "-"}</span>
+                        <span>Out: {record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "-"}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 
