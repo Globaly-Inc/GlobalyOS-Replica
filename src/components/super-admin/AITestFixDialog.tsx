@@ -173,7 +173,7 @@ const AITestFixDialog = ({
                       {fixResponse.affectedFiles.map((file, index) => (
                         <div key={index} className="flex items-center gap-2 text-xs font-mono">
                           <FileCode className="h-3 w-3 text-muted-foreground" />
-                          {file}
+                          {typeof file === 'string' ? file : (file as { file?: string }).file || JSON.stringify(file)}
                         </div>
                       ))}
                     </div>
