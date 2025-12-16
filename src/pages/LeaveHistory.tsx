@@ -377,14 +377,7 @@ const LeaveHistory = () => {
   return <div className="space-y-6">
       {/* Header Row: Title on left, Profile Card on right */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <OrgLink to={`/team/${employeeId}`}>
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </OrgLink>
-          <h1 className="text-2xl font-bold text-foreground">My Leave History</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-foreground">My Leave History</h1>
         
         {/* Profile Card - Top Right */}
         <div className="flex items-center gap-3 ml-10 sm:ml-0">
