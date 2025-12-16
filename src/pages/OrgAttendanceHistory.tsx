@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -21,34 +21,67 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Clock, 
   CheckCircle2, 
   XCircle, 
-  AlertCircle, 
   CalendarIcon, 
   Search,
   Users,
   X,
   Download,
-  ExternalLink
+  ExternalLink,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
+
+interface AttendanceRecord {
+  id: string;
+  employee_id: string;
+  date: string;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  status: string;
+  notes: string | null;
+  work_hours: number | null;
+}
 
 const OrgAttendanceHistory = () => {
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode } = useOrgNavigation();
+  const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
+  const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; record: any | null }>({ open: false, record: null });
+  const [deleting, setDeleting] = useState(false);
 
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
@@ -209,6 +242,26 @@ const OrgAttendanceHistory = () => {
   // Click on stat card to filter
   const handleStatClick = (status: string) => {
     setStatusFilter(status === statusFilter ? "all" : status);
+  };
+
+  // Delete handler
+  const handleDeleteRecord = async () => {
+    if (!deleteDialog.record) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("attendance_records")
+        .delete()
+        .eq("id", deleteDialog.record.id);
+      if (error) throw error;
+      toast.success("Attendance record deleted");
+      queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
+      setDeleteDialog({ open: false, record: null });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete record");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -520,11 +573,61 @@ const OrgAttendanceHistory = () => {
                           </TableCell>
                           <TableCell>{getStatusBadge(record.status)}</TableCell>
                           <TableCell>
-                            <OrgLink to={`/team/${employee?.id}`}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </OrgLink>
+                            <TooltipProvider>
+                              <div className="flex items-center gap-0.5">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <OrgLink to={`/team/${employee?.id}`}>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </OrgLink>
+                                  </TooltipTrigger>
+                                  <TooltipContent>View Profile</TooltipContent>
+                                </Tooltip>
+                                
+                                {(isOwner || isAdmin) && (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-7 w-7"
+                                          onClick={() => setEditRecord({
+                                            id: record.id,
+                                            employee_id: record.employee_id,
+                                            date: record.date,
+                                            check_in_time: record.check_in_time,
+                                            check_out_time: record.check_out_time,
+                                            status: record.status,
+                                            notes: record.notes,
+                                            work_hours: record.work_hours,
+                                          })}
+                                        >
+                                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Edit</TooltipContent>
+                                    </Tooltip>
+                                    
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-7 w-7"
+                                          onClick={() => setDeleteDialog({ open: true, record })}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Delete</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+                              </div>
+                            </TooltipProvider>
                           </TableCell>
                         </TableRow>
                       );
@@ -536,6 +639,40 @@ const OrgAttendanceHistory = () => {
           </Card>
         </div>
       </div>
+
+      {/* Edit Attendance Dialog */}
+      <EditAttendanceDialog
+        open={!!editRecord}
+        onOpenChange={(open) => !open && setEditRecord(null)}
+        record={editRecord}
+        employeeId={editRecord?.employee_id || ""}
+        organizationId={currentOrg?.id || ""}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, record: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attendance Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the attendance record for{" "}
+              <span className="font-medium">{deleteDialog.record?.employee?.profiles?.full_name}</span> on{" "}
+              <span className="font-medium">{deleteDialog.record?.date ? format(parseISO(deleteDialog.record.date), "MMM d, yyyy") : ""}</span>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteRecord} 
+              disabled={deleting} 
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
