@@ -112,10 +112,12 @@ const OrgLeaveHistory = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (currentOrg?.id) {
-      loadData();
-    }
-  }, [currentOrg?.id, yearFilter]);
+    if (!currentOrg?.id) return;
+    if (roleLoading) return;
+    if (!isOwner && !isAdmin && !isHR) return;
+
+    loadData();
+  }, [currentOrg?.id, yearFilter, roleLoading, isOwner, isAdmin, isHR]);
 
   // Only owner, admin, and HR can access org-wide leave history - moved after all hooks
   if (!roleLoading && !isOwner && !isAdmin && !isHR) {
