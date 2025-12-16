@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck } from 'lucide-react';
+import { LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck } from 'lucide-react';
+import globalyosLogo from "@/assets/globalyos-logo.svg";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -459,9 +460,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="mr-4 hidden md:flex items-center">
             <button 
               onClick={() => navigate("/landing")}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark hover:opacity-90 transition-opacity"
+              className="hover:opacity-90 transition-opacity"
             >
-              <Users className="h-5 w-5 text-primary-foreground" />
+              <img src={globalyosLogo} alt="GlobalyOS" className="h-9 w-9 rounded-lg" />
             </button>
           </div>
 
