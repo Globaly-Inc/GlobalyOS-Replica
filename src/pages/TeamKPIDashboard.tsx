@@ -31,6 +31,10 @@ import {
   ChevronRight,
   LineChart,
   FileText,
+  Building,
+  FolderKanban,
+  X,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
@@ -65,6 +69,8 @@ const TeamKPIDashboard = () => {
   const { currentOrg } = useOrganization();
   const [quarter, setQuarter] = useState(getCurrentQuarter());
   const [year, setYear] = useState(getCurrentYear());
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
 
   // Get current employee
   const { data: currentEmployee } = useQuery({
@@ -106,6 +112,37 @@ const TeamKPIDashboard = () => {
     enabled: !!currentEmployee?.id,
   });
 
+  // Fetch projects for filter
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch employee-project mappings
+  const { data: employeeProjects = [] } = useQuery({
+    queryKey: ["employee-projects", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("employee_projects")
+        .select("employee_id, project_id")
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id,
+  });
+
   // Fetch all KPIs for the team (current quarter)
   const { data: teamKPIs = [], isLoading: loadingKPIs } = useQuery({
     queryKey: ["team-kpis", teamMembers.map(t => t.id), quarter, year],
@@ -143,6 +180,58 @@ const TeamKPIDashboard = () => {
     },
     enabled: teamMembers.length > 0,
   });
+
+  // Extract unique departments from team members
+  const departments = useMemo(() => {
+    const deptSet = new Set(teamMembers.map(m => m.department).filter(Boolean));
+    return Array.from(deptSet).sort();
+  }, [teamMembers]);
+
+  // Get member count per department
+  const departmentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    teamMembers.forEach(m => {
+      if (m.department) {
+        counts[m.department] = (counts[m.department] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [teamMembers]);
+
+  // Get member count per project
+  const projectCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    employeeProjects.forEach(ep => {
+      if (teamMembers.some(m => m.id === ep.employee_id)) {
+        counts[ep.project_id] = (counts[ep.project_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [employeeProjects, teamMembers]);
+
+  // Filter team members based on department and project filters
+  const filteredTeamMembers = useMemo(() => {
+    return teamMembers.filter(member => {
+      if (departmentFilter !== "all" && member.department !== departmentFilter) {
+        return false;
+      }
+      if (projectFilter !== "all") {
+        const memberProjectIds = employeeProjects
+          .filter(ep => ep.employee_id === member.id)
+          .map(ep => ep.project_id);
+        if (!memberProjectIds.includes(projectFilter)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [teamMembers, departmentFilter, projectFilter, employeeProjects]);
+
+  // Filter KPIs based on filtered team members
+  const filteredTeamKPIs = useMemo(() => {
+    const filteredMemberIds = filteredTeamMembers.map(m => m.id);
+    return teamKPIs.filter(kpi => filteredMemberIds.includes(kpi.employee_id));
+  }, [teamKPIs, filteredTeamMembers]);
 
   // Process historical data for trend charts
   const trendData = useMemo(() => {
@@ -226,26 +315,26 @@ const TeamKPIDashboard = () => {
     },
   };
 
-  // Calculate aggregated stats
+  // Calculate aggregated stats (from filtered data)
   const stats = {
-    totalKPIs: teamKPIs.length,
-    onTrack: teamKPIs.filter(k => k.status === "on_track").length,
-    atRisk: teamKPIs.filter(k => k.status === "at_risk").length,
-    behind: teamKPIs.filter(k => k.status === "behind").length,
-    completed: teamKPIs.filter(k => k.status === "completed").length,
-    avgProgress: teamKPIs.length > 0
+    totalKPIs: filteredTeamKPIs.length,
+    onTrack: filteredTeamKPIs.filter(k => k.status === "on_track").length,
+    atRisk: filteredTeamKPIs.filter(k => k.status === "at_risk").length,
+    behind: filteredTeamKPIs.filter(k => k.status === "behind").length,
+    completed: filteredTeamKPIs.filter(k => k.status === "completed").length,
+    avgProgress: filteredTeamKPIs.length > 0
       ? Math.round(
-          teamKPIs.reduce((acc, kpi) => {
+          filteredTeamKPIs.reduce((acc, kpi) => {
             if (!kpi.target_value) return acc;
             return acc + ((kpi.current_value || 0) / kpi.target_value) * 100;
-          }, 0) / teamKPIs.filter(k => k.target_value).length || 0
+          }, 0) / filteredTeamKPIs.filter(k => k.target_value).length || 0
         )
       : 0,
   };
 
-  // Group KPIs by employee
-  const kpisByEmployee = teamMembers.map(member => {
-    const memberKPIs = teamKPIs.filter(k => k.employee_id === member.id);
+  // Group KPIs by employee (using filtered members and KPIs)
+  const kpisByEmployee = filteredTeamMembers.map(member => {
+    const memberKPIs = filteredTeamKPIs.filter(k => k.employee_id === member.id);
     const avgProgress = memberKPIs.length > 0
       ? Math.round(
           memberKPIs.reduce((acc, kpi) => {
@@ -267,6 +356,12 @@ const TeamKPIDashboard = () => {
   }).sort((a, b) => b.kpis.length - a.kpis.length);
 
   const isLoading = loadingTeam || loadingKPIs;
+  const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all";
+
+  const clearFilters = () => {
+    setDepartmentFilter("all");
+    setProjectFilter("all");
+  };
 
   return (
     <>
@@ -490,92 +585,87 @@ const TeamKPIDashboard = () => {
               </div>
             )}
 
-            {/* Team Progress Overview */}
-            <Card className="mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Team Progress
-                  <Badge variant="secondary" className="ml-2">
-                    {teamMembers.length} members
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {kpisByEmployee.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={(member.profiles as any)?.avatar_url} />
-                        <AvatarFallback>
-                          {(member.profiles as any)?.full_name?.charAt(0) || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-sm truncate">
-                            {(member.profiles as any)?.full_name}
-                          </p>
-                          <span className="text-xs text-muted-foreground">
-                            {member.kpis.length} KPIs
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Progress value={member.avgProgress} className="h-2 flex-1" />
-                          <span className="text-xs font-medium w-10 text-right">
-                            {member.avgProgress}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {member.onTrack + member.completed > 0 && (
-                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">
-                            {member.onTrack + member.completed}
-                          </Badge>
-                        )}
-                        {member.atRisk > 0 && (
-                          <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs">
-                            {member.atRisk}
-                          </Badge>
-                        )}
-                        {member.behind > 0 && (
-                          <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs">
-                            {member.behind}
-                          </Badge>
-                        )}
-                      </div>
-                      <OrgLink to={`/team/${member.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </OrgLink>
-                    </div>
+            {/* Filter Bar */}
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span>Filter by:</span>
+              </div>
+              
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept} ({departmentCounts[dept] || 0})
+                    </SelectItem>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
+                </SelectContent>
+              </Select>
 
-            {/* Detailed KPI Breakdown */}
-            <Card>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <FolderKanban className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name} ({projectCounts[project.id] || 0})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear filters
+                </Button>
+              )}
+
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-auto">
+                  {filteredTeamMembers.length} of {teamMembers.length} members
+                </Badge>
+              )}
+            </div>
+
+            {/* All KPIs - Now above Team Progress */}
+            <Card className="mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Target className="h-4 w-4" />
                   All KPIs
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredTeamKPIs.length} KPIs
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {teamKPIs.length === 0 ? (
+                {filteredTeamKPIs.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No KPIs set for Q{quarter} {year}</p>
+                    <p className="text-sm">
+                      {hasActiveFilters 
+                        ? "No KPIs match the selected filters" 
+                        : `No KPIs set for Q${quarter} ${year}`}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {teamKPIs.map((kpi) => {
-                      const member = teamMembers.find(m => m.id === kpi.employee_id);
+                    {filteredTeamKPIs.map((kpi) => {
+                      const member = filteredTeamMembers.find(m => m.id === kpi.employee_id);
                       const progress = kpi.target_value
                         ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
                         : 0;
@@ -621,6 +711,90 @@ const TeamKPIDashboard = () => {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Team Progress Overview - Now as 3-column grid */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Team Progress
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredTeamMembers.length} members
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {kpisByEmployee.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No team members match the selected filters</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {kpisByEmployee.map((member) => (
+                      <Card 
+                        key={member.id} 
+                        className="p-4 hover:shadow-md transition-shadow border bg-card"
+                      >
+                        <div className="flex items-start gap-3 mb-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={(member.profiles as any)?.avatar_url} />
+                            <AvatarFallback>
+                              {(member.profiles as any)?.full_name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {(member.profiles as any)?.full_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {member.department}
+                            </p>
+                          </div>
+                          <OrgLink to={`/team/${member.id}`}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </OrgLink>
+                        </div>
+
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
+                            <span className="font-medium">{member.avgProgress}%</span>
+                          </div>
+                          <Progress value={member.avgProgress} className="h-2" />
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {member.onTrack + member.completed > 0 && (
+                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              {member.onTrack + member.completed}
+                            </Badge>
+                          )}
+                          {member.atRisk > 0 && (
+                            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {member.atRisk}
+                            </Badge>
+                          )}
+                          {member.behind > 0 && (
+                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                              <XCircle className="h-3 w-3" />
+                              {member.behind}
+                            </Badge>
+                          )}
+                          {member.kpis.length === 0 && (
+                            <span className="text-xs text-muted-foreground">No KPIs</span>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
                 )}
               </CardContent>
