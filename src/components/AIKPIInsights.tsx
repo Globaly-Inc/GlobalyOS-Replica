@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,9 +66,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
   const currentYear = new Date().getFullYear();
   const [editingKpiId, setEditingKpiId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
-  const [expandedQuarters, setExpandedQuarters] = useState<Set<string>>(
-    new Set([`${currentYear}-Q${currentQuarter}`])
-  );
 
   // Check if the current user owns this employee record
   const { data: isOwnProfile } = useQuery({
@@ -129,17 +126,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [kpis]);
 
-  const toggleQuarter = (quarterKey: string) => {
-    setExpandedQuarters((prev) => {
-      const next = new Set(prev);
-      if (next.has(quarterKey)) {
-        next.delete(quarterKey);
-      } else {
-        next.add(quarterKey);
-      }
-      return next;
-    });
-  };
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -260,102 +246,90 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
         <div className="space-y-2">
           
           {groupedKpis.map(([quarterKey, quarterKpis]) => {
-            const isExpanded = expandedQuarters.has(quarterKey);
             const [year, quarter] = quarterKey.split("-");
             const isCurrentQuarter = quarterKey === `${currentYear}-Q${currentQuarter}`;
             
             return (
-              <Collapsible 
-                key={quarterKey} 
-                open={isExpanded} 
-                onOpenChange={() => toggleQuarter(quarterKey)}
-              >
-                <CollapsibleTrigger className="flex items-center gap-2 w-full py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                  )}
+              <div key={quarterKey} className="space-y-2">
+                <div className="flex items-center gap-2 py-1.5 px-2">
                   <Badge variant={isCurrentQuarter ? "default" : "outline"} className="text-xs">
                     {quarter} {year}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     ({quarterKpis.length} KPI{quarterKpis.length !== 1 ? 's' : ''})
                   </span>
-                </CollapsibleTrigger>
+                </div>
                 
-                <CollapsibleContent className="pl-6 pt-1">
-                  <div className="grid gap-2">
-                    {quarterKpis.map((kpi) => {
-                      const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
-                      const isEditing = editingKpiId === kpi.id;
-                      
-                      return (
-                        <div key={kpi.id} className="flex items-start justify-between text-sm gap-2">
-                          <span className="flex-1 text-sm leading-tight break-words min-w-0">{kpi.title}</span>
-                          
-                          {isEditing ? (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Input
-                                type="number"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="w-20 h-7 text-xs"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSaveEdit(kpi.id);
-                                  if (e.key === "Escape") handleCancelEdit();
-                                }}
+                <div className="grid gap-2 pl-2">
+                  {quarterKpis.map((kpi) => {
+                    const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+                    const isEditing = editingKpiId === kpi.id;
+                    
+                    return (
+                      <div key={kpi.id} className="flex items-start justify-between text-sm gap-2">
+                        <span className="flex-1 text-sm leading-tight break-words min-w-0">{kpi.title}</span>
+                        
+                        {isEditing ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Input
+                              type="number"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              className="w-20 h-7 text-xs"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveEdit(kpi.id);
+                                if (e.key === "Escape") handleCancelEdit();
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleSaveEdit(kpi.id)}
+                              disabled={updateProgressMutation.isPending}
+                            >
+                              <Check className="h-3 w-3 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full",
+                                  progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
+                                )}
+                                style={{ width: `${Math.min(progress, 100)}%` }}
                               />
-                              <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                            {isOwnProfile && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleSaveEdit(kpi.id)}
-                                disabled={updateProgressMutation.isPending}
+                                className="h-6 w-6 opacity-50 hover:opacity-100"
+                                onClick={() => handleStartEdit(kpi)}
                               >
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Pencil className="h-3 w-3" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={handleCancelEdit}
-                              >
-                                <X className="h-3 w-3 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full",
-                                    progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                                  )}
-                                  style={{ width: `${Math.min(progress, 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
-                              {isOwnProfile && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-50 hover:opacity-100"
-                                  onClick={() => handleStartEdit(kpi)}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
