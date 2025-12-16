@@ -319,7 +319,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {selectedType === "win" ? "Posting a Win" : 
@@ -339,15 +339,17 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                   onClick={() => setSelectedType(type)}
                   className={cn(
                     "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all hover:border-primary",
-                    "bg-muted/30 border-border"
+                    "bg-muted/30 border-border",
                   )}
                 >
-                  <div className={cn(
-                    "p-3 rounded-full",
-                    color === "amber" && "bg-amber-100 text-amber-600",
-                    color === "blue" && "bg-blue-100 text-blue-600",
-                    color === "pink" && "bg-pink-100 text-pink-600",
-                  )}>
+                  <div
+                    className={cn(
+                      "p-3 rounded-full",
+                      color === "amber" && "bg-amber-100 text-amber-600",
+                      color === "blue" && "bg-blue-100 text-blue-600",
+                      color === "pink" && "bg-pink-100 text-pink-600",
+                    )}
+                  >
                     <Icon className="h-5 w-5" />
                   </div>
                   <span className="text-sm font-medium">{label}</span>
@@ -359,9 +361,8 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
         {/* Win/Announcement Form */}
         {selectedType && selectedType !== "kudos" && (
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="space-y-4 pb-24">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>
@@ -386,154 +387,174 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                 {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
               </div>
 
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Add Photo (optional)</Label>
-              {imagePreview ? (
-                <div className="relative">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="w-full max-h-48 object-cover rounded-lg"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8"
-                    onClick={removeImage}
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <Label>Add Photo (optional)</Label>
+                {imagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full max-h-48 object-cover rounded-lg"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8"
+                      onClick={removeImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                >
-                  <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Click to add a photo</p>
-                  <p className="text-xs text-muted-foreground mt-1">Max 5MB</p>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
+                    <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Click to add a photo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Max 5MB</p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Tag Team Members (optional) */}
+              <div className="space-y-2">
+                <Label>Tag Team Members (optional)</Label>
+                <Popover open={memberSelectOpen} onOpenChange={setMemberSelectOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={memberSelectOpen}
+                      className="w-full justify-between font-normal h-auto min-h-10"
+                    >
+                      <span className="text-muted-foreground">
+                        {selectedMembers.length === 0
+                          ? "Choose team members..."
+                          : `${selectedMembers.length} selected`}
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search team members..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8 h-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="h-[200px] overflow-y-auto">
+                      <div className="p-2 space-y-1">
+                        {teamMembers
+                          .filter((member) =>
+                            member.profiles.full_name
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase()),
+                          )
+                          .map((member) => (
+                            <div
+                              key={member.id}
+                              className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                              onClick={() => toggleMember(member.id)}
+                            >
+                              <Checkbox
+                                checked={selectedMembers.includes(member.id)}
+                                className="pointer-events-none"
+                              />
+                              <Avatar className="h-6 w-6">
+                                {member.profiles.avatar_url && (
+                                  <AvatarImage src={member.profiles.avatar_url} />
+                                )}
+                                <AvatarFallback className="text-xs bg-muted">
+                                  {member.profiles.full_name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{member.profiles.full_name}</span>
+                            </div>
+                          ))}
+                        {teamMembers.filter((member) =>
+                          member.profiles.full_name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase()),
+                        ).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {selectedMembers.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedMembers.map((memberId) => {
+                      const member = teamMembers.find((m) => m.id === memberId);
+                      if (!member) return null;
+                      return (
+                        <Badge key={memberId} variant="secondary" className="gap-1">
+                          {member.profiles.full_name}
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-destructive"
+                            onClick={() => toggleMember(memberId)}
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Visibility Selector */}
+              <PostVisibilitySelector
+                accessScope={accessScope}
+                onAccessScopeChange={setAccessScope}
+                selectedOfficeIds={selectedOfficeIds}
+                onOfficeIdsChange={setSelectedOfficeIds}
+                selectedDepartments={selectedDepartments}
+                onDepartmentsChange={setSelectedDepartments}
+                selectedProjectIds={selectedProjectIds}
+                onProjectIdsChange={setSelectedProjectIds}
               />
             </div>
 
-            {/* Tag Team Members (optional) */}
-            <div className="space-y-2">
-              <Label>Tag Team Members (optional)</Label>
-              <Popover open={memberSelectOpen} onOpenChange={setMemberSelectOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={memberSelectOpen}
-                    className="w-full justify-between font-normal h-auto min-h-10"
-                  >
-                    <span className="text-muted-foreground">
-                      {selectedMembers.length === 0 
-                        ? "Choose team members..." 
-                        : `${selectedMembers.length} selected`}
-                    </span>
-                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                  <div className="p-2 border-b">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search team members..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 h-9"
-                      />
-                    </div>
-                  </div>
-                  <div className="h-[200px] overflow-y-auto">
-                    <div className="p-2 space-y-1">
-                      {teamMembers
-                        .filter(member => member.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
-                        .map((member) => (
-                          <div
-                            key={member.id}
-                            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                            onClick={() => toggleMember(member.id)}
-                          >
-                            <Checkbox
-                              checked={selectedMembers.includes(member.id)}
-                              className="pointer-events-none"
-                            />
-                            <Avatar className="h-6 w-6">
-                              {member.profiles.avatar_url && <AvatarImage src={member.profiles.avatar_url} />}
-                              <AvatarFallback className="text-xs bg-muted">
-                                {member.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{member.profiles.full_name}</span>
-                          </div>
-                        ))}
-                      {teamMembers.filter(member => member.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
-                      )}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              
-              {selectedMembers.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {selectedMembers.map(memberId => {
-                    const member = teamMembers.find(m => m.id === memberId);
-                    if (!member) return null;
-                    return (
-                      <Badge key={memberId} variant="secondary" className="gap-1">
-                        {member.profiles.full_name}
-                        <X 
-                          className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                          onClick={() => toggleMember(memberId)}
-                        />
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Visibility Selector */}
-            <PostVisibilitySelector
-              accessScope={accessScope}
-              onAccessScopeChange={setAccessScope}
-              selectedOfficeIds={selectedOfficeIds}
-              onOfficeIdsChange={setSelectedOfficeIds}
-              selectedDepartments={selectedDepartments}
-              onDepartmentsChange={setSelectedDepartments}
-              selectedProjectIds={selectedProjectIds}
-              onProjectIdsChange={setSelectedProjectIds}
-            />
-            </div>
-
-            <div className="flex gap-2 pt-4 border-t bg-background sticky bottom-0 -mx-6 px-6 pb-0 -mb-6">
-              <Button type="button" variant="outline" onClick={() => handleClose(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? "Posting..." : "Post"}
-              </Button>
+            <div className="sticky bottom-0 -mx-6 px-6 py-4 border-t bg-background">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleClose(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading} className="flex-1">
+                  {loading ? "Posting..." : "Post"}
+                </Button>
+              </div>
             </div>
           </form>
         )}
 
         {/* Kudos Form */}
         {selectedType === "kudos" && (
-          <GiveKudosDialogContent 
+          <GiveKudosDialogContent
             onBack={() => setSelectedType(null)}
             onSuccess={() => {
               resetForm();
