@@ -1,5 +1,6 @@
 import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from "@/components/KudosCard";
+import { LeaveManagement } from "@/components/LeaveManagement";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -75,15 +76,6 @@ interface KudosItem {
   kudos_departments?: Array<{ department: string }>;
   kudos_projects?: Array<{ project: { name: string } }>;
 }
-interface LeaveTypeBalance {
-  id: string;
-  balance: number;
-  leave_type: {
-    id: string;
-    name: string;
-    category: string;
-  };
-}
 interface PersonOnLeave {
   id: string;
   employee: {
@@ -146,7 +138,6 @@ const Home = () => {
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
-  const [leaveBalances, setLeaveBalances] = useState<LeaveTypeBalance[]>([]);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingTeamLeave, setUpcomingTeamLeave] = useState<UpcomingTeamLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
@@ -506,26 +497,6 @@ const Home = () => {
       }
     }
 
-    // Load current user's leave balance from new flexible table
-    const {
-      data: employeeData
-    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
-    if (employeeData) {
-      const {
-        data: balanceData
-      } = await supabase.from("leave_type_balances").select(`
-          id,
-          balance,
-          leave_type:leave_types!inner(
-            id,
-            name,
-            category
-          )
-        `).eq("employee_id", employeeData.id).eq("year", currentYear);
-      if (balanceData) {
-        setLeaveBalances(balanceData as LeaveTypeBalance[]);
-      }
-    }
   };
   const loadFeed = async () => {
     if (!currentOrg?.id) return;
@@ -1099,7 +1070,7 @@ const Home = () => {
             <PendingWfhApprovals />
 
             {/* Current User Leave Balance */}
-            {hasEmployeeProfile && <Card className="p-6">
+            {hasEmployeeProfile && currentEmployeeId && <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                     <Calendar className="h-5 w-5 text-primary" />
@@ -1110,21 +1081,7 @@ const Home = () => {
                     Request
                   </Button>
                 </div>
-                {leaveBalances.length > 0 ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {[...leaveBalances]
-                      .sort((a, b) => {
-                        // Sort by category: paid first, then unpaid
-                        if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
-                        if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
-                        return a.leave_type.name.localeCompare(b.leave_type.name);
-                      })
-                      .map(item => <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
-                        <div className="text-2xl font-bold text-primary">
-                          {item.balance}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">{item.leave_type.name}</div>
-                      </div>)}
-                  </div> : <p className="text-sm text-muted-foreground">No leave balance set for this year</p>}
+                <LeaveManagement employeeId={currentEmployeeId} />
               </Card>}
 
             {/* People on Leave Today */}
