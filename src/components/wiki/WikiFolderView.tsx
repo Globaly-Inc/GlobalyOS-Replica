@@ -756,8 +756,8 @@ export const WikiFolderView = ({
         )}
       </div>
 
-      {/* Bulk Actions Bar */}
-      {isSelectionMode && (
+      {/* Bulk Actions Bar (hidden on mobile) */}
+      {isSelectionMode && !isMobile && (
         <WikiBulkActionsBar
           selectedItems={selectedItems}
           totalItems={totalItems}

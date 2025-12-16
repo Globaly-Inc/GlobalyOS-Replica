@@ -179,6 +179,12 @@ export const WikiItemCard = ({
   const handleCardClick = (e: React.MouseEvent) => {
     if (isEditing) return;
     
+    // On mobile, always navigate (no selection mode)
+    if (isMobile) {
+      onSelect();
+      return;
+    }
+    
     if (isSelectionMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -223,8 +229,8 @@ export const WikiItemCard = ({
         </div>
       )}
 
-      {/* Checkbox - top right, visible on hover or in selection mode */}
-      {!isEditing && (
+      {/* Checkbox - top right, visible on hover or in selection mode (hidden on mobile) */}
+      {!isEditing && !isMobile && (
         <div 
           className={cn(
             "absolute top-2 right-2 z-20 transition-opacity",
