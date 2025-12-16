@@ -11,11 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown, X, Search } from "lucide-react";
+import { AIWritingAssist } from "@/components/AIWritingAssist";
+import { PostVisibilitySelector, AccessScope } from "@/components/feed/PostVisibilitySelector";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Helper to get plain text length from HTML
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return (doc.body.textContent || "").trim().length;
@@ -65,22 +66,28 @@ export const EditKudosDialog = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectOpen, setSelectOpen] = useState(false);
 
+  // Visibility state
+  const [accessScope, setAccessScope] = useState<AccessScope>('company');
+  const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     employeeIds: [] as string[],
     comment: "",
   });
 
-  // Reset form when dialog opens - use a ref to track previous open state
+  // Reset form and load existing data when dialog opens
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      // Dialog just opened
       setFormData({
         employeeIds: initialRecipientIds,
         comment: initialComment,
       });
       setErrors({});
       setSearchQuery("");
+      loadExistingVisibility();
     }
     prevOpenRef.current = open;
   }, [open]);
@@ -91,6 +98,40 @@ export const EditKudosDialog = ({
     }
   }, [open, currentOrg]);
 
+  const loadExistingVisibility = async () => {
+    if (!kudosId) return;
+
+    // Load kudos details including visibility
+    const { data: kudos } = await supabase
+      .from("kudos")
+      .select("access_scope")
+      .eq("id", kudosId)
+      .single();
+
+    if (kudos) {
+      setAccessScope((kudos.access_scope as AccessScope) || 'company');
+    }
+
+    // Load visibility targets
+    const { data: offices } = await supabase
+      .from("kudos_offices")
+      .select("office_id")
+      .eq("kudos_id", kudosId);
+    if (offices) setSelectedOfficeIds(offices.map(o => o.office_id));
+
+    const { data: departments } = await supabase
+      .from("kudos_departments")
+      .select("department")
+      .eq("kudos_id", kudosId);
+    if (departments) setSelectedDepartments(departments.map(d => d.department));
+
+    const { data: projects } = await supabase
+      .from("kudos_projects")
+      .select("project_id")
+      .eq("kudos_id", kudosId);
+    if (projects) setSelectedProjectIds(projects.map(p => p.project_id));
+  };
+
   const loadEmployees = async () => {
     if (!currentOrg) return;
 
@@ -98,7 +139,7 @@ export const EditKudosDialog = ({
       .from("employees")
       .select("id, profiles!inner(full_name, avatar_url)")
       .eq("organization_id", currentOrg.id)
-      .neq("id", givenById) // Exclude the giver from recipients
+      .neq("id", givenById)
       .order("profiles(full_name)");
 
     if (!error && data) {
@@ -137,7 +178,6 @@ export const EditKudosDialog = ({
       const validated = kudosSchema.parse(formData);
       setLoading(true);
 
-      // Get the giver's employee info for organization_id
       const { data: giverEmployee } = await supabase
         .from("employees")
         .select("id, organization_id")
@@ -160,22 +200,53 @@ export const EditKudosDialog = ({
         await supabase.from("kudos").delete().eq("id", kudosId);
       }
 
-      // Create new batch_id if multiple recipients
       const newBatchId = validated.employeeIds.length > 1 ? crypto.randomUUID() : null;
 
-      // Insert new kudos records
       const kudosRecords = validated.employeeIds.map(employeeId => ({
         employee_id: employeeId,
         given_by_id: givenById,
         comment: validated.comment,
         organization_id: giverEmployee.organization_id,
         batch_id: newBatchId,
+        access_scope: accessScope,
       }));
 
-      const { error } = await supabase.from("kudos").insert(kudosRecords);
+      const { data: insertedKudos, error } = await supabase
+        .from("kudos")
+        .insert(kudosRecords)
+        .select("id");
 
-      if (error) {
-        throw error;
+      if (error) throw error;
+
+      // Insert visibility targets for each kudos
+      if (insertedKudos && insertedKudos.length > 0) {
+        for (const kudos of insertedKudos) {
+          if (accessScope === 'offices' && selectedOfficeIds.length > 0) {
+            await supabase.from("kudos_offices").insert(
+              selectedOfficeIds.map(officeId => ({
+                kudos_id: kudos.id,
+                office_id: officeId,
+                organization_id: giverEmployee.organization_id,
+              }))
+            );
+          } else if (accessScope === 'departments' && selectedDepartments.length > 0) {
+            await supabase.from("kudos_departments").insert(
+              selectedDepartments.map(department => ({
+                kudos_id: kudos.id,
+                department,
+                organization_id: giverEmployee.organization_id,
+              }))
+            );
+          } else if (accessScope === 'projects' && selectedProjectIds.length > 0) {
+            await supabase.from("kudos_projects").insert(
+              selectedProjectIds.map(projectId => ({
+                kudos_id: kudos.id,
+                project_id: projectId,
+                organization_id: giverEmployee.organization_id,
+              }))
+            );
+          }
+        }
       }
 
       toast({
@@ -210,110 +281,132 @@ export const EditKudosDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Edit Kudos</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Recipients *</Label>
-            <Popover open={selectOpen} onOpenChange={setSelectOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={selectOpen}
-                  className="w-full justify-between font-normal h-auto min-h-10"
-                >
-                  <span className="text-muted-foreground">
-                    {formData.employeeIds.length === 0 
-                      ? "Choose team members..." 
-                      : `${formData.employeeIds.length} selected`}
-                  </span>
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <div className="p-2 border-b">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search team members..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 h-9"
-                    />
-                  </div>
-                </div>
-                <div className="h-[200px] overflow-y-auto">
-                  <div className="p-2 space-y-1">
-                    {employees
-                      .filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((employee) => (
-                        <div
-                          key={employee.id}
-                          className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                          onClick={() => toggleEmployee(employee.id)}
-                        >
-                          <Checkbox
-                            checked={formData.employeeIds.includes(employee.id)}
-                            className="pointer-events-none"
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 flex-1 overflow-hidden">
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4 pb-4">
+              {/* Recipients Selector */}
+              <div className="space-y-2">
+                <Label>Recipients *</Label>
+                <Popover open={selectOpen} onOpenChange={setSelectOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={selectOpen}
+                      className="w-full justify-between font-normal h-auto min-h-10"
+                    >
+                      <span className="text-muted-foreground">
+                        {formData.employeeIds.length === 0 
+                          ? "Choose team members..." 
+                          : `${formData.employeeIds.length} selected`}
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search team members..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8 h-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="h-[200px] overflow-y-auto">
+                      <div className="p-2 space-y-1">
+                        {employees
+                          .filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map((employee) => (
+                            <div
+                              key={employee.id}
+                              className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                              onClick={() => toggleEmployee(employee.id)}
+                            >
+                              <Checkbox
+                                checked={formData.employeeIds.includes(employee.id)}
+                                className="pointer-events-none"
+                              />
+                              <Avatar className="h-6 w-6">
+                                {employee.profiles.avatar_url && <AvatarImage src={employee.profiles.avatar_url} />}
+                                <AvatarFallback className="text-xs bg-muted">
+                                  {employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{employee.profiles.full_name}</span>
+                            </div>
+                          ))}
+                        {employees.filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                
+                {selectedNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedNames.map((name, idx) => {
+                      const employeeId = formData.employeeIds[idx];
+                      return (
+                        <Badge key={employeeId} variant="secondary" className="gap-1">
+                          {name}
+                          <X 
+                            className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                            onClick={() => removeEmployee(employeeId)}
                           />
-                          <Avatar className="h-6 w-6">
-                            {employee.profiles.avatar_url && <AvatarImage src={employee.profiles.avatar_url} />}
-                            <AvatarFallback className="text-xs bg-muted">
-                              {employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{employee.profiles.full_name}</span>
-                        </div>
-                      ))}
-                    {employees.filter(emp => emp.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">No team members found</p>
-                    )}
+                        </Badge>
+                      );
+                    })}
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-            
-            {selectedNames.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {selectedNames.map((name, idx) => {
-                  const employeeId = formData.employeeIds[idx];
-                  return (
-                    <Badge key={employeeId} variant="secondary" className="gap-1">
-                      {name}
-                      <X 
-                        className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                        onClick={() => removeEmployee(employeeId)}
-                      />
-                    </Badge>
-                  );
-                })}
+                )}
+                {errors.employeeIds && <p className="text-sm text-destructive">{errors.employeeIds}</p>}
               </div>
-            )}
-            {errors.employeeIds && <p className="text-sm text-destructive">{errors.employeeIds}</p>}
-          </div>
 
-          <div className="space-y-2">
-            <Label>Message *</Label>
-            <RichTextEditor
-              value={formData.comment}
-              onChange={(value) => setFormData({ ...formData, comment: value })}
-              placeholder="Edit your kudos message..."
-              minHeight="120px"
-            />
-            {errors.comment && <p className="text-sm text-destructive">{errors.comment}</p>}
-          </div>
+              {/* Message Editor */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Your Message *</Label>
+                  <AIWritingAssist
+                    type="kudos"
+                    currentText={formData.comment}
+                    onTextGenerated={(text) => setFormData({ ...formData, comment: text })}
+                    context={selectedNames.length > 0 ? `Thanking ${selectedNames.join(", ")}` : undefined}
+                  />
+                </div>
+                <RichTextEditor
+                  value={formData.comment}
+                  onChange={(value) => setFormData({ ...formData, comment: value })}
+                  placeholder="Edit your kudos message..."
+                  minHeight="100px"
+                />
+                {errors.comment && <p className="text-sm text-destructive">{errors.comment}</p>}
+              </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
+              {/* Visibility Selector */}
+              <PostVisibilitySelector
+                accessScope={accessScope}
+                onAccessScopeChange={setAccessScope}
+                selectedOfficeIds={selectedOfficeIds}
+                onOfficeIdsChange={setSelectedOfficeIds}
+                selectedDepartments={selectedDepartments}
+                onDepartmentsChange={setSelectedDepartments}
+                selectedProjectIds={selectedProjectIds}
+                onProjectIdsChange={setSelectedProjectIds}
+              />
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
