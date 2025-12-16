@@ -81,4 +81,5 @@ export interface LeaveBalanceLog {
   reason: string | null;
   created_by: string;
   created_at: string;
+  effective_date: string | null;
 }

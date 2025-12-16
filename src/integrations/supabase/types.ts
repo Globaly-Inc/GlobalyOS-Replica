@@ -2349,6 +2349,7 @@ export type Database = {
           change_amount: number
           created_at: string
           created_by: string
+          effective_date: string | null
           employee_id: string
           id: string
           leave_type: string
@@ -2361,6 +2362,7 @@ export type Database = {
           change_amount: number
           created_at?: string
           created_by: string
+          effective_date?: string | null
           employee_id: string
           id?: string
           leave_type: string
@@ -2373,6 +2375,7 @@ export type Database = {
           change_amount?: number
           created_at?: string
           created_by?: string
+          effective_date?: string | null
           employee_id?: string
           id?: string
           leave_type?: string

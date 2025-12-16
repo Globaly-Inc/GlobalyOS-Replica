@@ -2,27 +2,33 @@ import { useState, useEffect } from "react";
 import { OrgLink } from "@/components/OrgLink";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { History, Clock, Calendar, Search } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateTime, formatDateRange } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useUserRole } from "@/hooks/useUserRole";
+import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustmentDialog";
+import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 
-interface LeaveRequest {
+interface LeaveTransaction {
   id: string;
+  type: 'leave_taken' | 'adjustment';
   leave_type: string;
-  start_date: string;
-  end_date: string;
-  days_count: number;
-  half_day_type: string;
+  days: number;
+  effective_date: string;
   reason: string | null;
-  status: string;
-  created_at: string;
-  reviewed_at: string | null;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  half_day_type?: string;
+  previous_balance?: number;
+  new_balance?: number;
   employee: {
     id: string;
     profiles: {
@@ -30,33 +36,40 @@ interface LeaveRequest {
       avatar_url: string | null;
     };
   };
-  reviewed_by_employee: {
-    profiles: {
-      full_name: string;
-    };
-  } | null;
 }
 
 const OrgLeaveHistory = () => {
   const { currentOrg } = useOrganization();
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const { isOwner, isAdmin, isHR } = useUserRole();
+  const canEdit = isOwner || isAdmin || isHR;
+  
+  const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
+  
+  const [editAdjustment, setEditAdjustment] = useState<any>(null);
+  const [editRequest, setEditRequest] = useState<any>(null);
 
   useEffect(() => {
     if (currentOrg?.id) {
       loadData();
     }
-  }, [currentOrg?.id]);
+  }, [currentOrg?.id, yearFilter]);
 
   const loadData = async () => {
     if (!currentOrg?.id) return;
     setLoading(true);
     
     try {
+      const startOfYear = `${yearFilter}-01-01`;
+      const endOfYear = `${yearFilter}-12-31`;
+
+      // Load leave requests
       const { data: requestsData, error: requestsError } = await supabase
         .from("leave_requests")
         .select(`
@@ -69,24 +82,77 @@ const OrgLeaveHistory = () => {
           reason,
           status,
           created_at,
-          reviewed_at,
           employee:employees!leave_requests_employee_id_fkey(
             id,
             profiles!inner(full_name, avatar_url)
-          ),
-          reviewed_by_employee:employees!leave_requests_reviewed_by_fkey(
-            profiles!inner(full_name)
           )
         `)
         .eq("organization_id", currentOrg.id)
-        .order("created_at", { ascending: false });
+        .gte("start_date", startOfYear)
+        .lte("start_date", endOfYear)
+        .order("start_date", { ascending: false });
 
       if (requestsError) throw requestsError;
-      setRequests((requestsData as any) || []);
+
+      // Load leave balance logs (adjustments)
+      const { data: logsData, error: logsError } = await supabase
+        .from("leave_balance_logs")
+        .select(`
+          id,
+          leave_type,
+          change_amount,
+          previous_balance,
+          new_balance,
+          reason,
+          effective_date,
+          created_at,
+          employee:employees!leave_balance_logs_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq("organization_id", currentOrg.id)
+        .gte("effective_date", startOfYear)
+        .lte("effective_date", endOfYear)
+        .order("effective_date", { ascending: false });
+
+      if (logsError) throw logsError;
+
+      // Combine and format transactions
+      const requestTransactions: LeaveTransaction[] = (requestsData || []).map((r: any) => ({
+        id: r.id,
+        type: 'leave_taken' as const,
+        leave_type: r.leave_type,
+        days: -r.days_count,
+        effective_date: r.start_date,
+        reason: r.reason,
+        status: r.status,
+        start_date: r.start_date,
+        end_date: r.end_date,
+        half_day_type: r.half_day_type,
+        employee: r.employee
+      }));
+
+      const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
+        id: l.id,
+        type: 'adjustment' as const,
+        leave_type: l.leave_type,
+        days: l.change_amount,
+        effective_date: l.effective_date || l.created_at.split('T')[0],
+        reason: l.reason,
+        previous_balance: l.previous_balance,
+        new_balance: l.new_balance,
+        employee: l.employee
+      }));
+
+      const allTransactions = [...requestTransactions, ...adjustmentTransactions]
+        .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime());
+
+      setTransactions(allTransactions);
       
       // Extract unique leave types
-      const types = [...new Set((requestsData || []).map((r: any) => r.leave_type))];
-      setLeaveTypes(types as string[]);
+      const types = [...new Set(allTransactions.map(t => t.leave_type))];
+      setLeaveTypes(types);
     } catch (error) {
       console.error("Error loading leave data:", error);
       toast.error("Failed to load leave history");
@@ -95,176 +161,275 @@ const OrgLeaveHistory = () => {
     }
   };
 
-  const filteredRequests = requests.filter((request) => {
-    const matchesSearch = request.employee?.profiles?.full_name
+  const filteredTransactions = transactions.filter((t) => {
+    const matchesSearch = t.employee?.profiles?.full_name
       ?.toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || request.status === statusFilter;
-    const matchesType = leaveTypeFilter === "all" || request.leave_type === leaveTypeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesStatus = statusFilter === "all" || t.status === statusFilter || (t.type === 'adjustment' && statusFilter === 'all');
+    const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
+    const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
+    return matchesSearch && matchesStatus && matchesType && matchesTransType;
   });
 
-  const getLeaveTypeBadgeVariant = (type: string) => {
-    const lowerType = type.toLowerCase();
-    if (lowerType.includes("vacation") || lowerType.includes("annual")) {
-      return "default";
-    } else if (lowerType.includes("sick") || lowerType.includes("medical")) {
-      return "secondary";
-    } else {
-      return "outline";
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
     switch (status) {
       case "approved":
-        return <Badge className="bg-green-500">Approved</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 border-green-200 text-xs">Approved</Badge>;
       case "rejected":
-        return <Badge variant="destructive">Rejected</Badge>;
+        return <Badge variant="destructive" className="bg-destructive/10 text-xs">Rejected</Badge>;
+      case "pending":
+        return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-200 text-xs">Pending</Badge>;
       default:
-        return <Badge variant="secondary">Pending</Badge>;
+        return <span className="text-muted-foreground text-xs">-</span>;
     }
   };
 
   const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    return name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   };
 
-  const pendingCount = requests.filter(r => r.status === "pending").length;
-  const approvedCount = requests.filter(r => r.status === "approved").length;
-  const rejectedCount = requests.filter(r => r.status === "rejected").length;
+  const handleExportCSV = () => {
+    const headers = ["Employee", "Date", "Type", "Leave Type", "Days", "Status", "Reason"];
+    const rows = filteredTransactions.map(t => [
+      t.employee?.profiles?.full_name || "",
+      t.effective_date,
+      t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
+      t.leave_type,
+      t.days.toString(),
+      t.status || "-",
+      t.reason || ""
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leave-history-${yearFilter}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export complete");
+  };
+
+  const pendingCount = transactions.filter(r => r.status === "pending").length;
+  const approvedCount = transactions.filter(r => r.status === "approved").length;
+  const adjustmentCount = transactions.filter(r => r.type === "adjustment").length;
+
+  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <History className="h-6 w-6" />
             Leave History
           </h1>
-          <p className="text-muted-foreground">View all leave requests across the organization</p>
+          <p className="text-muted-foreground">View all leave transactions across the organization</p>
         </div>
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        )}
+      </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by employee name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending ({pendingCount})</SelectItem>
-              <SelectItem value="approved">Approved ({approvedCount})</SelectItem>
-              <SelectItem value="rejected">Rejected ({rejectedCount})</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue placeholder="Leave Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {leaveTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Content */}
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
-          <CardContent className="pt-6">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : filteredRequests.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">No leave requests found</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <OrgLink 
-                        to={`/team/${request.employee?.id}`}
-                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={request.employee?.profiles?.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {getInitials(request.employee?.profiles?.full_name || "?")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {request.employee?.profiles?.full_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Requested {formatDateTime(request.created_at)}
-                          </p>
-                        </div>
-                      </OrgLink>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getLeaveTypeBadgeVariant(request.leave_type)}>
-                          {request.leave_type}
-                        </Badge>
-                        {getStatusBadge(request.status)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      {formatDateRange(request.start_date, request.end_date)}
-                      <span className="ml-2">
-                        ({request.days_count} {request.days_count === 1 ? 'day' : 'days'})
-                        {request.half_day_type !== 'full' && (
-                          <span className="text-primary ml-1">
-                            • {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    {request.reason && (
-                      <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
-                        {request.reason}
-                      </p>
-                    )}
-                    {request.reviewed_at && (
-                      <p className="text-sm text-muted-foreground">
-                        Reviewed on {formatDateTime(request.reviewed_at)}
-                        {request.reviewed_by_employee?.profiles &&
-                          ` by ${request.reviewed_by_employee.profiles.full_name}`
-                        }
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+          <CardContent className="p-3 text-center">
+            <div className="text-2xl font-bold text-amber-600">{pendingCount}</div>
+            <div className="text-xs text-muted-foreground">Pending</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
+            <div className="text-xs text-muted-foreground">Approved</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <div className="text-2xl font-bold text-primary">{adjustmentCount}</div>
+            <div className="text-xs text-muted-foreground">Adjustments</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <div className="text-2xl font-bold text-foreground">{transactions.length}</div>
+            <div className="text-xs text-muted-foreground">Total</div>
           </CardContent>
         </Card>
       </div>
-    </>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by employee name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={yearFilter} onValueChange={setYearFilter}>
+          <SelectTrigger className="w-full sm:w-28">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="leave_taken">Leave Taken</SelectItem>
+            <SelectItem value="adjustment">Adjustments</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-32">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Leave Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Leave Types</SelectItem>
+            {leaveTypes.map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">No leave transactions found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[180px]">Employee</TableHead>
+                    <TableHead className="min-w-[100px]">Date</TableHead>
+                    <TableHead className="min-w-[100px]">Type</TableHead>
+                    <TableHead className="min-w-[120px]">Leave Type</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Days</TableHead>
+                    <TableHead className="min-w-[90px]">Status</TableHead>
+                    <TableHead className="min-w-[150px]">Reason</TableHead>
+                    {canEdit && <TableHead className="w-[60px]"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTransactions.map((t) => (
+                    <TableRow key={`${t.type}-${t.id}`} className="group">
+                      <TableCell>
+                        <OrgLink 
+                          to={`/team/${t.employee?.id}`}
+                          className="flex items-center gap-2 hover:opacity-80"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={t.employee?.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(t.employee?.profiles?.full_name || "")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium text-sm truncate max-w-[120px]">
+                            {t.employee?.profiles?.full_name}
+                          </span>
+                        </OrgLink>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(t.effective_date)}
+                      </TableCell>
+                      <TableCell>
+                        {t.type === 'leave_taken' ? (
+                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
+                            <TrendingDown className="h-3 w-3" />
+                            Taken
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            Adjust
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-medium ${t.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {t.days > 0 ? '+' : ''}{t.days}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(t.status)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate max-w-[150px]" title={t.reason || ""}>
+                        {t.reason || "-"}
+                      </TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                            onClick={() => {
+                              if (t.type === 'adjustment') {
+                                setEditAdjustment(t);
+                              } else {
+                                setEditRequest(t);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialogs */}
+      <EditLeaveAdjustmentDialog
+        adjustment={editAdjustment}
+        open={!!editAdjustment}
+        onOpenChange={(open) => !open && setEditAdjustment(null)}
+        onSuccess={loadData}
+      />
+      <EditLeaveRequestDialog
+        request={editRequest}
+        open={!!editRequest}
+        onOpenChange={(open) => !open && setEditRequest(null)}
+        onSuccess={loadData}
+      />
+    </div>
   );
 };
 
