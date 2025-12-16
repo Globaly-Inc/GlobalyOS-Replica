@@ -14,7 +14,7 @@ interface LeaveBulkActionsBarProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onDeleteAdjustments: () => void;
-  onCancelRequests: () => void;
+  onDeleteLeave: () => void;
   onExportSelected: () => void;
   className?: string;
 }
@@ -25,7 +25,7 @@ export const LeaveBulkActionsBar = ({
   onSelectAll,
   onDeselectAll,
   onDeleteAdjustments,
-  onCancelRequests,
+  onDeleteLeave,
   onExportSelected,
   className,
 }: LeaveBulkActionsBarProps) => {
@@ -33,7 +33,6 @@ export const LeaveBulkActionsBar = ({
   const allSelected = selectedCount === totalItems && totalItems > 0;
 
   const adjustmentCount = selectedItems.filter(i => i.type === 'adjustment').length;
-  const pendingRequestCount = selectedItems.filter(i => i.type === 'leave_taken' && i.status === 'pending').length;
   const leaveCount = selectedItems.filter(i => i.type === 'leave_taken').length;
 
   const getSelectionText = () => {
@@ -103,15 +102,15 @@ export const LeaveBulkActionsBar = ({
           <span className="hidden sm:inline">Export</span>
         </Button>
         
-        {pendingRequestCount > 0 && (
+        {leaveCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={onCancelRequests}
+            onClick={onDeleteLeave}
             className="gap-2 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
-            <X className="h-4 w-4" />
-            <span className="hidden sm:inline">Cancel ({pendingRequestCount})</span>
+            <Trash2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Delete Leave ({leaveCount})</span>
           </Button>
         )}
         
@@ -123,7 +122,7 @@ export const LeaveBulkActionsBar = ({
             className="gap-2 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Delete ({adjustmentCount})</span>
+            <span className="hidden sm:inline">Delete Adj ({adjustmentCount})</span>
           </Button>
         )}
       </div>

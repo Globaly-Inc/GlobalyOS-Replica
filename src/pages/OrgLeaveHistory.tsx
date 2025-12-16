@@ -98,15 +98,15 @@ const OrgLeaveHistory = () => {
   const [editRequest, setEditRequest] = useState<any>(null);
   const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
-  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
-  const [canceling, setCanceling] = useState(false);
   
   // Bulk selection state
   const [selectedTransactions, setSelectedTransactions] = useState<SelectedTransaction[]>([]);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
-  const [bulkCancelDialog, setBulkCancelDialog] = useState(false);
+  const [bulkDeleteLeaveDialog, setBulkDeleteLeaveDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [bulkCanceling, setBulkCanceling] = useState(false);
+  const [bulkDeletingLeave, setBulkDeletingLeave] = useState(false);
+  const [deleteLeaveDialog, setDeleteLeaveDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
+  const [deletingLeave, setDeletingLeave] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -313,33 +313,54 @@ const OrgLeaveHistory = () => {
     }
   };
 
-  const handleBulkCancelRequests = async () => {
-    const pendingRequestIds = selectedTransactions
-      .filter(s => s.type === 'leave_taken' && s.status === 'pending')
+  const handleBulkDeleteLeave = async () => {
+    const leaveIds = selectedTransactions
+      .filter(s => s.type === 'leave_taken')
       .map(s => s.id);
     
-    if (pendingRequestIds.length === 0) return;
+    if (leaveIds.length === 0) return;
     
-    setBulkCanceling(true);
+    setBulkDeletingLeave(true);
     try {
       const { error } = await supabase
         .from("leave_requests")
         .delete()
-        .in("id", pendingRequestIds);
+        .in("id", leaveIds);
 
       if (error) throw error;
 
-      toast.success(`Cancelled ${pendingRequestIds.length} request${pendingRequestIds.length > 1 ? 's' : ''}`);
+      toast.success(`Deleted ${leaveIds.length} leave record${leaveIds.length > 1 ? 's' : ''}`);
       setSelectedTransactions([]);
       loadData();
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
     } catch (error) {
-      console.error("Error cancelling requests:", error);
-      toast.error("Failed to cancel some requests");
+      console.error("Error deleting leave records:", error);
+      toast.error("Failed to delete some leave records");
     } finally {
-      setBulkCanceling(false);
-      setBulkCancelDialog(false);
+      setBulkDeletingLeave(false);
+      setBulkDeleteLeaveDialog(false);
     }
+  };
+
+  const handleDeleteLeaveRequest = async () => {
+    if (!deleteLeaveDialog.request) return;
+    setDeletingLeave(true);
+
+    const { error } = await supabase
+      .from("leave_requests")
+      .delete()
+      .eq("id", deleteLeaveDialog.request.id);
+
+    if (error) {
+      toast.error("Failed to delete leave record");
+    } else {
+      toast.success("Leave record deleted");
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+    }
+
+    setDeletingLeave(false);
+    setDeleteLeaveDialog({ open: false, request: null });
   };
 
   const handleExportSelected = () => {
@@ -473,28 +494,6 @@ const OrgLeaveHistory = () => {
     setDeletingAdjustment(false);
     setDeleteAdjustmentDialog({ open: false, adjustment: null });
   };
-
-  const handleCancelRequest = async () => {
-    if (!cancelDialog.request) return;
-    setCanceling(true);
-
-    const { error } = await supabase
-      .from("leave_requests")
-      .delete()
-      .eq("id", cancelDialog.request.id);
-
-    if (error) {
-      toast.error("Failed to cancel leave request");
-    } else {
-      toast.success("Leave request cancelled");
-      loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-    }
-
-    setCanceling(false);
-    setCancelDialog({ open: false, request: null });
-  };
-
   // Helper to map LeaveTransaction to EditLeaveAdjustmentDialog format
   const mapToAdjustmentEdit = (t: LeaveTransaction) => ({
     id: t.id,
@@ -870,20 +869,20 @@ const OrgLeaveHistory = () => {
                               </Tooltip>
                             )}
                             
-                            {/* Cancel - For pending leave requests */}
-                            {canEdit && t.type === 'leave_taken' && t.status === 'pending' && (
+                            {/* Delete - For leave taken records */}
+                            {canEdit && t.type === 'leave_taken' && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
                                     className="h-7 w-7"
-                                    onClick={() => setCancelDialog({ open: true, request: t })}
+                                    onClick={() => setDeleteLeaveDialog({ open: true, request: t })}
                                   >
-                                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Cancel Request</TooltipContent>
+                                <TooltipContent>Delete Leave</TooltipContent>
                               </Tooltip>
                             )}
                           </div>
@@ -930,37 +929,6 @@ const OrgLeaveHistory = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cancel Leave Request Dialog */}
-      <AlertDialog 
-        open={cancelDialog.open} 
-        onOpenChange={(open) => !open && setCancelDialog({ open: false, request: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Leave Request?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {cancelDialog.request && (
-                <>
-                  Are you sure you want to cancel this {cancelDialog.request.leave_type} request for{" "}
-                  {Math.abs(cancelDialog.request.days)} {Math.abs(cancelDialog.request.days) === 1 ? "day" : "days"} 
-                  {" "}by {cancelDialog.request.employee?.profiles?.full_name}? This action cannot be undone.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={canceling}>Keep Request</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelRequest}
-              disabled={canceling}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {canceling ? "Cancelling..." : "Cancel Request"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* Edit Dialogs */}
       <EditLeaveAdjustmentDialog
         adjustment={editAdjustment}
@@ -983,7 +951,7 @@ const OrgLeaveHistory = () => {
           onSelectAll={selectAllFiltered}
           onDeselectAll={deselectAll}
           onDeleteAdjustments={() => setBulkDeleteDialog(true)}
-          onCancelRequests={() => setBulkCancelDialog(true)}
+          onDeleteLeave={() => setBulkDeleteLeaveDialog(true)}
           onExportSelected={handleExportSelected}
         />
       )}
@@ -1011,24 +979,56 @@ const OrgLeaveHistory = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bulk Cancel Requests Dialog */}
-      <AlertDialog open={bulkCancelDialog} onOpenChange={setBulkCancelDialog}>
+      {/* Bulk Delete Leave Dialog */}
+      <AlertDialog open={bulkDeleteLeaveDialog} onOpenChange={setBulkDeleteLeaveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Selected Requests?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Selected Leave Records?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel {selectedTransactions.filter(s => s.type === 'leave_taken' && s.status === 'pending').length} pending leave request(s)?
-              This action cannot be undone.
+              Are you sure you want to delete {selectedTransactions.filter(s => s.type === 'leave_taken').length} leave record(s)?
+              This action cannot be undone and may affect leave balances.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkCanceling}>Keep Requests</AlertDialogCancel>
+            <AlertDialogCancel disabled={bulkDeletingLeave}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleBulkCancelRequests}
-              disabled={bulkCanceling}
+              onClick={handleBulkDeleteLeave}
+              disabled={bulkDeletingLeave}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {bulkCanceling ? "Cancelling..." : "Cancel Requests"}
+              {bulkDeletingLeave ? "Deleting..." : "Delete Leave Records"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Single Leave Request Dialog */}
+      <AlertDialog 
+        open={deleteLeaveDialog.open} 
+        onOpenChange={(open) => !open && setDeleteLeaveDialog({ open: false, request: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Leave Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteLeaveDialog.request && (
+                <>
+                  Are you sure you want to delete this {deleteLeaveDialog.request.leave_type} leave of{" "}
+                  {Math.abs(deleteLeaveDialog.request.days)} {Math.abs(deleteLeaveDialog.request.days) === 1 ? "day" : "days"} 
+                  {" "}for {deleteLeaveDialog.request.employee?.profiles?.full_name}? 
+                  This action cannot be undone and may affect leave balances.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingLeave}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteLeaveRequest}
+              disabled={deletingLeave}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deletingLeave ? "Deleting..." : "Delete Leave"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
