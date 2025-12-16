@@ -1,18 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { toast } from 'sonner';
 
 export const useServiceWorkerUpdate = () => {
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(swUrl, r) {
-      // Check for updates every 30 seconds
+      registrationRef.current = r || null;
+      
+      // Check for updates every 15 seconds
       if (r) {
         setInterval(() => {
           r.update();
-        }, 30 * 1000);
+        }, 15 * 1000);
       }
     },
     onRegisterError(error) {
@@ -20,50 +23,36 @@ export const useServiceWorkerUpdate = () => {
     },
   });
 
-  // In the editor/preview environment, an old PWA SW can keep serving cached bundles after refresh.
-  // Unregistering ensures the latest UI is always loaded.
+  // Check for updates when app becomes visible (critical for mobile PWA resume)
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
-
-    const unregister = async () => {
-      try {
-        if ('serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister()));
-        }
-
-        if ('caches' in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
-        }
-      } catch (error) {
-        console.warn('SW cleanup failed:', error);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && registrationRef.current) {
+        registrationRef.current.update();
       }
     };
 
-    unregister();
+    // Check for updates when coming back online
+    const handleOnline = () => {
+      if (registrationRef.current) {
+        registrationRef.current.update();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
+  // Auto-apply updates when detected
   useEffect(() => {
     if (!needRefresh) return;
 
-    // Auto-apply updates during development/preview to avoid "old UI after refresh" issues.
-    if (import.meta.env.DEV) {
-      updateServiceWorker(true);
-      return;
-    }
-
-    toast('New version available!', {
-      description: 'Click to update to the latest version.',
-      action: {
-        label: 'Update',
-        onClick: () => {
-          updateServiceWorker(true);
-        },
-      },
-      duration: Infinity,
-      id: 'sw-update',
-    });
+    // Auto-apply updates immediately - no user interaction needed
+    updateServiceWorker(true);
   }, [needRefresh, updateServiceWorker]);
 
   return { needRefresh, updateServiceWorker };
