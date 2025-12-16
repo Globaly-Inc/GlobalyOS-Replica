@@ -3,10 +3,10 @@ import { EmployeeCard } from "@/components/EmployeeCard";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog } from "lucide-react";
+import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog, Wifi, WifiOff, FolderKanban, X, Filter } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphaned
 import { cn } from "@/lib/utils";
 
 type StatusFilter = 'all' | 'active' | 'invited' | 'inactive';
+type OnlineFilter = 'all' | 'online' | 'offline';
 type ViewMode = 'cards' | 'orgchart';
 
 interface Employee {
@@ -40,6 +41,22 @@ interface Employee {
   offices: {
     name: string;
   } | null;
+}
+
+interface Office {
+  id: string;
+  name: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+interface EmployeeProject {
+  employee_id: string;
+  project_id: string;
 }
 
 interface UserRole {
@@ -68,8 +85,14 @@ const Team = () => {
   // Team directory page component
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [onlineFilter, setOnlineFilter] = useState<OnlineFilter>('all');
+  const [officeFilter, setOfficeFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -139,17 +162,37 @@ const Team = () => {
     if (!currentOrg) return;
     setLoading(true);
     
-    // Use employee_directory view for secure, non-sensitive data access
-    // This view only exposes non-sensitive fields and respects org membership
-    const { data: employeeData } = await supabase
-      .from("employee_directory")
-      .select("*")
-      .eq("organization_id", currentOrg.id)
-      .order("created_at", { ascending: false });
+    // Fetch all data in parallel
+    const [employeeResult, officesResult, projectsResult, employeeProjectsResult] = await Promise.all([
+      supabase
+        .from("employee_directory")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("offices")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name"),
+      supabase
+        .from("projects")
+        .select("id, name, color")
+        .eq("organization_id", currentOrg.id)
+        .order("name"),
+      supabase
+        .from("employee_projects")
+        .select("employee_id, project_id")
+        .eq("organization_id", currentOrg.id)
+    ]);
 
-    if (employeeData) {
+    // Set offices and projects
+    if (officesResult.data) setOffices(officesResult.data as Office[]);
+    if (projectsResult.data) setProjects(projectsResult.data as Project[]);
+    if (employeeProjectsResult.data) setEmployeeProjects(employeeProjectsResult.data as EmployeeProject[]);
+
+    if (employeeResult.data) {
       // Transform view data to match Employee interface
-      const transformedEmployees = employeeData.map((e: any) => ({
+      const transformedEmployees = employeeResult.data.map((e: any) => ({
         id: e.id,
         user_id: e.user_id,
         position: e.position,
@@ -172,7 +215,7 @@ const Team = () => {
       setEmployees(transformedEmployees as Employee[]);
       
       // Fetch user roles for all employees
-      const userIds = employeeData.map((e: any) => e.user_id);
+      const userIds = employeeResult.data.map((e: any) => e.user_id);
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("user_id, role")
@@ -188,7 +231,7 @@ const Team = () => {
       }
       
       // Fetch online statuses after employees are loaded
-      const employeeIds = employeeData.map((e: any) => e.id);
+      const employeeIds = employeeResult.data.map((e: any) => e.id);
       fetchOnlineStatuses(employeeIds);
     }
     
@@ -216,8 +259,42 @@ const Team = () => {
 
   const statusCounts = getStatusCounts();
 
+  // Calculate online/offline counts
+  const onlineCounts = useMemo(() => {
+    const activeEmployees = employees.filter(e => e.status === 'active');
+    const online = activeEmployees.filter(e => onlineStatuses[e.id]).length;
+    return { online, offline: activeEmployees.length - online };
+  }, [employees, onlineStatuses]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'active') count++; // 'active' is default
+    if (onlineFilter !== 'all') count++;
+    if (officeFilter !== 'all') count++;
+    if (projectFilter !== 'all') count++;
+    return count;
+  }, [statusFilter, onlineFilter, officeFilter, projectFilter]);
+
+  const clearAllFilters = () => {
+    setStatusFilter('active');
+    setOnlineFilter('all');
+    setOfficeFilter('all');
+    setProjectFilter('all');
+  };
+
   const filteredEmployees = employees
     .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)
+    .filter((employee) => {
+      if (onlineFilter === 'all') return true;
+      const isOnline = onlineStatuses[employee.id] ?? false;
+      return onlineFilter === 'online' ? isOnline : !isOnline;
+    })
+    .filter((employee) => officeFilter === 'all' || employee.office_id === officeFilter)
+    .filter((employee) => {
+      if (projectFilter === 'all') return true;
+      return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
+    })
     .filter((employee) =>
       employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -432,45 +509,142 @@ const Team = () => {
             </Button>
           </div>
 
-          {/* Status Filter - only in cards view, hidden on mobile */}
-          {viewMode === 'cards' && (
-            (isAdmin || isHR) ? (
-              <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)} className="hidden sm:block w-auto">
-                <TabsList className="w-auto inline-flex">
-                  <TabsTrigger value="all" className="gap-1.5">
-                    All <span className="text-xs text-muted-foreground">({statusCounts.all})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="active" className="gap-1.5">
-                    Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="invited" className="gap-1.5">
-                    Invited <span className="text-xs text-muted-foreground">({statusCounts.invited})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="inactive" className="gap-1.5">
-                    Inactive <span className="text-xs text-muted-foreground">({statusCounts.inactive})</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2 flex-1">
+            {/* Status Filter */}
+            {(isAdmin || isHR) ? (
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className={cn(
+                  "w-[130px] h-9",
+                  statusFilter !== 'active' && "border-primary bg-primary/5"
+                )}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ({statusCounts.all})</SelectItem>
+                  <SelectItem value="active">Active ({statusCounts.active})</SelectItem>
+                  <SelectItem value="invited">Invited ({statusCounts.invited})</SelectItem>
+                  <SelectItem value="inactive">Inactive ({statusCounts.inactive})</SelectItem>
+                </SelectContent>
+              </Select>
             ) : (
-              <Tabs value="active" className="hidden sm:block w-auto">
-                <TabsList className="w-auto inline-flex">
-                  <TabsTrigger value="active" className="gap-1.5">
-                    Active <span className="text-xs text-muted-foreground">({statusCounts.active})</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )
-          )}
+              <div className="flex items-center gap-2 px-3 h-9 border rounded-md bg-muted/50 text-sm">
+                <span className="text-muted-foreground">Active</span>
+                <Badge variant="secondary" className="h-5 px-1.5">{statusCounts.active}</Badge>
+              </div>
+            )}
 
-          <div className="relative flex-1 w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            {/* Online Status Filter */}
+            <Select value={onlineFilter} onValueChange={(v) => setOnlineFilter(v as OnlineFilter)}>
+              <SelectTrigger className={cn(
+                "w-[130px] h-9",
+                onlineFilter !== 'all' && "border-primary bg-primary/5"
+              )}>
+                <SelectValue placeholder="Online Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <div className="flex items-center gap-2">
+                    <span>All Status</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="online">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>Online ({onlineCounts.online})</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="offline">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                    <span>Offline ({onlineCounts.offline})</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Office Filter */}
+            {offices.length > 0 && (
+              <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                <SelectTrigger className={cn(
+                  "w-[150px] h-9",
+                  officeFilter !== 'all' && "border-primary bg-primary/5"
+                )}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Office" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Offices</SelectItem>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id}>
+                      {office.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Project Filter */}
+            {projects.length > 0 && (
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className={cn(
+                  "w-[150px] h-9",
+                  projectFilter !== 'all' && "border-primary bg-primary/5"
+                )}>
+                  <div className="flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Project" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div className="flex items-center gap-2">
+                        {project.color && (
+                          <span 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: project.color }}
+                          />
+                        )}
+                        <span>{project.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Clear All Filters */}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+                Clear ({activeFilterCount})
+              </Button>
+            )}
+          </div>
+
+          <div className="relative w-full sm:w-auto sm:min-w-[280px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name, position, department, or office..."
+              placeholder="Search name, position, department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-full"
+              className="pl-9 h-9 w-full"
             />
           </div>
+        </div>
+
+        {/* Results count */}
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredEmployees.length} of {employees.length} team members
         </div>
 
         {loading ? (
