@@ -68,14 +68,143 @@ const parseDate = (dateStr: string): string | null => {
   
   const cleanDate = dateStr.trim();
   
-  // Try various date formats
+  // Handle Excel serial dates (numbers like 45678)
+  if (/^\d+$/.test(cleanDate)) {
+    const excelSerial = parseInt(cleanDate, 10);
+    if (excelSerial > 1 && excelSerial < 100000) {
+      // Excel epoch is January 1, 1900 (but Excel incorrectly counts 1900 as leap year)
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + excelSerial * 86400000);
+      if (isValid(date)) {
+        return format(date, 'yyyy-MM-dd');
+      }
+    }
+  }
+  
+  // Handle ISO with timestamp: 2025-01-15T00:00:00
+  if (cleanDate.includes('T')) {
+    const isoWithoutTime = cleanDate.split('T')[0];
+    const parsed = parseISO(isoWithoutTime);
+    if (isValid(parsed)) {
+      return format(parsed, 'yyyy-MM-dd');
+    }
+  }
+  
+  // Smart detection for ambiguous formats like 01/02/2025
+  // Check if we can determine day-first vs month-first by value analysis
+  const slashParts = cleanDate.split('/');
+  const dashParts = cleanDate.split('-');
+  const dotParts = cleanDate.split('.');
+  
+  const trySmartParse = (parts: string[], separator: string) => {
+    if (parts.length === 3) {
+      const first = parseInt(parts[0], 10);
+      const second = parseInt(parts[1], 10);
+      const third = parseInt(parts[2], 10);
+      
+      // If all parts are numbers
+      if (!isNaN(first) && !isNaN(second) && !isNaN(third)) {
+        let year = third;
+        // Handle 2-digit years
+        if (year < 100) {
+          year = year > 50 ? 1900 + year : 2000 + year;
+        }
+        
+        // If first > 12, it must be day (day-first format)
+        if (first > 12 && second <= 12) {
+          const date = new Date(year, second - 1, first);
+          if (isValid(date) && date.getDate() === first) {
+            return format(date, 'yyyy-MM-dd');
+          }
+        }
+        // If second > 12, it must be day (month-first format)
+        else if (second > 12 && first <= 12) {
+          const date = new Date(year, first - 1, second);
+          if (isValid(date) && date.getDate() === second) {
+            return format(date, 'yyyy-MM-dd');
+          }
+        }
+        // Both could be valid - prefer day-first for dot separator, month-first for slash
+        else if (first <= 12 && second <= 12) {
+          if (separator === '.') {
+            // European format: dd.MM.yyyy
+            const date = new Date(year, second - 1, first);
+            if (isValid(date) && date.getDate() === first) {
+              return format(date, 'yyyy-MM-dd');
+            }
+          } else {
+            // Default to month-first for ambiguous slash dates (US format common)
+            const date = new Date(year, first - 1, second);
+            if (isValid(date) && date.getDate() === second) {
+              return format(date, 'yyyy-MM-dd');
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+  
+  // Try smart parsing for numeric-only formats
+  if (slashParts.length === 3 && slashParts.every(p => /^\d+$/.test(p))) {
+    const result = trySmartParse(slashParts, '/');
+    if (result) return result;
+  }
+  if (dotParts.length === 3 && dotParts.every(p => /^\d+$/.test(p))) {
+    const result = trySmartParse(dotParts, '.');
+    if (result) return result;
+  }
+  if (dashParts.length === 3 && dashParts.every(p => /^\d+$/.test(p))) {
+    const result = trySmartParse(dashParts, '-');
+    if (result) return result;
+  }
+  
+  // Comprehensive date formats list
   const formats = [
-    'dd-MMM-yy',    // 15-Jan-25
-    'dd/MM/yyyy',   // 15/01/2025
-    'd/M/yyyy',     // 1/1/2025
-    'yyyy-MM-dd',   // 2025-01-15
-    'dd-MM-yyyy',   // 15-01-2025
-    'MMM d, yyyy',  // Jan 15, 2025
+    // ISO and standard
+    'yyyy-MM-dd',       // 2025-01-15
+    'yyyy/MM/dd',       // 2025/01/15
+    
+    // Day first formats (European/International)
+    'dd-MMM-yy',        // 15-Jan-25
+    'dd-MMM-yyyy',      // 15-Jan-2025
+    'dd MMM yyyy',      // 15 Jan 2025
+    'dd MMM yy',        // 15 Jan 25
+    'd-MMM-yy',         // 1-Jan-25
+    'd-MMM-yyyy',       // 1-Jan-2025
+    'd MMM yyyy',       // 1 Jan 2025
+    'dd/MM/yyyy',       // 15/01/2025
+    'd/M/yyyy',         // 1/1/2025
+    'dd-MM-yyyy',       // 15-01-2025
+    'd-M-yyyy',         // 1-1-2025
+    'dd.MM.yyyy',       // 15.01.2025
+    'd.M.yyyy',         // 1.1.2025
+    'dd/MM/yy',         // 15/01/25
+    'd/M/yy',           // 1/1/25
+    'dd-MM-yy',         // 15-01-25
+    'd-M-yy',           // 1-1-25
+    'dd.MM.yy',         // 15.01.25
+    'd.M.yy',           // 1.1.25
+    
+    // Month first formats (US)
+    'MM/dd/yyyy',       // 01/15/2025
+    'M/d/yyyy',         // 1/15/2025
+    'MM-dd-yyyy',       // 01-15-2025
+    'M-d-yyyy',         // 1-15-2025
+    'MM/dd/yy',         // 01/15/25
+    'M/d/yy',           // 1/15/25
+    'MM-dd-yy',         // 01-15-25
+    'M-d-yy',           // 1-15-25
+    
+    // Full month names
+    'MMM d, yyyy',      // Jan 15, 2025
+    'MMMM d, yyyy',     // January 15, 2025
+    'd MMMM yyyy',      // 15 January 2025
+    'd MMM yyyy',       // 15 Jan 2025
+    'MMMM dd, yyyy',    // January 15, 2025
+    'MMM dd, yyyy',     // Jan 15, 2025
+    'MMMM d yyyy',      // January 15 2025
+    'MMM d yyyy',       // Jan 15 2025
   ];
   
   for (const fmt of formats) {
@@ -89,7 +218,7 @@ const parseDate = (dateStr: string): string | null => {
     }
   }
   
-  // Try ISO format as fallback
+  // Try ISO format as final fallback
   try {
     const parsed = parseISO(cleanDate);
     if (isValid(parsed)) {
