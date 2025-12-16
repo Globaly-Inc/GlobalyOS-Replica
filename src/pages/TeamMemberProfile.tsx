@@ -34,7 +34,8 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star } from "lucide-react";
+import { format } from "date-fns";
 import AIKPIInsights from "@/components/AIKPIInsights";
 import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
@@ -89,6 +90,7 @@ const TeamMemberProfile = () => {
   const [editStatusOpen, setEditStatusOpen] = useState(false);
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
   const [employeeSchedule, setEmployeeSchedule] = useState<any>(null);
+  const [performanceReviews, setPerformanceReviews] = useState<any[]>([]);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -164,8 +166,46 @@ const TeamMemberProfile = () => {
       loadEmployeeProjects();
       loadCurrentLeave();
       loadEmployeeSchedule();
+      loadPerformanceReviews();
     }
   }, [id]);
+
+  const loadPerformanceReviews = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("performance_reviews")
+      .select(`
+        id,
+        review_period_start,
+        review_period_end,
+        status,
+        overall_rating,
+        created_at,
+        reviewer:employees!performance_reviews_reviewer_id_fkey(
+          id,
+          profiles!inner(full_name)
+        )
+      `)
+      .eq("employee_id", id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (data) setPerformanceReviews(data);
+  };
+
+  const getReviewStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Completed</Badge>;
+      case "pending_acknowledgment":
+        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Awaiting Acknowledgment</Badge>;
+      case "in_progress":
+        return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Manager Review</Badge>;
+      case "self_assessment_pending":
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Self-Assessment</Badge>;
+      default:
+        return <Badge variant="secondary">Draft</Badge>;
+    }
+  };
 
   const loadEmployeeSchedule = async () => {
     if (!id) return;
@@ -955,6 +995,9 @@ const TeamMemberProfile = () => {
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <ClipboardList className="h-5 w-5 text-primary" />
                     Performance Reviews
+                    {performanceReviews.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">{performanceReviews.length}</Badge>
+                    )}
                   </h2>
                   <OrgLink to={`/team/${id}/reviews`}>
                     <Button size="sm" variant="outline">
@@ -963,9 +1006,49 @@ const TeamMemberProfile = () => {
                   </OrgLink>
                 </div>
                 <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">
-                    View and manage performance reviews for this employee.
-                  </p>
+                  {performanceReviews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No performance reviews yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {performanceReviews.map((review) => (
+                        <OrgLink
+                          key={review.id}
+                          to={`/team/${id}/reviews`}
+                          className="block p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">
+                                {format(new Date(review.review_period_start), "MMM yyyy")} – {format(new Date(review.review_period_end), "MMM yyyy")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Reviewer: {review.reviewer?.profiles?.full_name || "Unknown"}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {getReviewStatusBadge(review.status)}
+                              {review.status === "completed" && review.overall_rating && (
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`h-3.5 w-3.5 ${
+                                        star <= review.overall_rating
+                                          ? "fill-amber-400 text-amber-400"
+                                          : "text-muted-foreground/30"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </OrgLink>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
