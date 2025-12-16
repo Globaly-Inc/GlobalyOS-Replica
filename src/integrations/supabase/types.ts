@@ -2066,6 +2066,7 @@ export type Database = {
       }
       kudos: {
         Row: {
+          access_scope: string | null
           batch_id: string | null
           comment: string
           created_at: string
@@ -2073,8 +2074,10 @@ export type Database = {
           given_by_id: string
           id: string
           organization_id: string | null
+          updated_at: string | null
         }
         Insert: {
+          access_scope?: string | null
           batch_id?: string | null
           comment: string
           created_at?: string
@@ -2082,8 +2085,10 @@ export type Database = {
           given_by_id: string
           id?: string
           organization_id?: string | null
+          updated_at?: string | null
         }
         Update: {
+          access_scope?: string | null
           batch_id?: string | null
           comment?: string
           created_at?: string
@@ -2091,6 +2096,7 @@ export type Database = {
           given_by_id?: string
           id?: string
           organization_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -2126,6 +2132,137 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kudos_departments: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          kudos_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          kudos_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          kudos_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kudos_departments_kudos_id_fkey"
+            columns: ["kudos_id"]
+            isOneToOne: false
+            referencedRelation: "kudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kudos_offices: {
+        Row: {
+          created_at: string | null
+          id: string
+          kudos_id: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          kudos_id: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          kudos_id?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kudos_offices_kudos_id_fkey"
+            columns: ["kudos_id"]
+            isOneToOne: false
+            referencedRelation: "kudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kudos_projects: {
+        Row: {
+          created_at: string | null
+          id: string
+          kudos_id: string
+          organization_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          kudos_id: string
+          organization_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          kudos_id?: string
+          organization_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kudos_projects_kudos_id_fkey"
+            columns: ["kudos_id"]
+            isOneToOne: false
+            referencedRelation: "kudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -3836,6 +3973,45 @@ export type Database = {
         }
         Relationships: []
       }
+      update_departments: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          organization_id: string
+          update_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          organization_id: string
+          update_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          organization_id?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_departments_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       update_mentions: {
         Row: {
           created_at: string
@@ -3889,8 +4065,101 @@ export type Database = {
           },
         ]
       }
+      update_offices: {
+        Row: {
+          created_at: string | null
+          id: string
+          office_id: string
+          organization_id: string
+          update_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          office_id: string
+          organization_id: string
+          update_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          office_id?: string
+          organization_id?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_offices_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      update_projects: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          project_id: string
+          update_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          project_id: string
+          update_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          project_id?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_projects_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       updates: {
         Row: {
+          access_scope: string | null
           content: string
           created_at: string
           employee_id: string
@@ -3898,8 +4167,10 @@ export type Database = {
           image_url: string | null
           organization_id: string | null
           type: string
+          updated_at: string | null
         }
         Insert: {
+          access_scope?: string | null
           content: string
           created_at?: string
           employee_id: string
@@ -3907,8 +4178,10 @@ export type Database = {
           image_url?: string | null
           organization_id?: string | null
           type: string
+          updated_at?: string | null
         }
         Update: {
+          access_scope?: string | null
           content?: string
           created_at?: string
           employee_id?: string
@@ -3916,6 +4189,7 @@ export type Database = {
           image_url?: string | null
           organization_id?: string | null
           type?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -4957,7 +5231,15 @@ export type Database = {
         Args: { _employee_id: string }
         Returns: boolean
       }
+      can_view_kudos: {
+        Args: { _kudos_id: string; _user_id?: string }
+        Returns: boolean
+      }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      can_view_update: {
+        Args: { _update_id: string; _user_id?: string }
+        Returns: boolean
+      }
       can_view_wiki_item: {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean

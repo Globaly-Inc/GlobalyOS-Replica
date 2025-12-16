@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AIWritingAssist } from "@/components/AIWritingAssist";
+import { PostVisibilitySelector, AccessScope } from "@/components/feed/PostVisibilitySelector";
 
 // Helper to get plain text length from HTML
 const getTextLength = (html: string): number => {
@@ -60,6 +61,12 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
   const [memberSelectOpen, setMemberSelectOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { currentOrg } = useOrganization();
+
+  // Visibility state
+  const [accessScope, setAccessScope] = useState<AccessScope>('company');
+  const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     content: "",
@@ -208,6 +215,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
         type: dbType,
         organization_id: employee.organization_id,
         image_url: imageUrl,
+        access_scope: accessScope,
       }).select("id").single();
 
       if (error) {
@@ -225,6 +233,35 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
             organization_id: employee.organization_id,
           }));
           await supabase.from("update_mentions").insert(mentionsToInsert);
+        }
+
+        // Insert visibility targets based on access scope
+        if (insertedUpdate) {
+          if (accessScope === 'offices' && selectedOfficeIds.length > 0) {
+            await supabase.from("update_offices").insert(
+              selectedOfficeIds.map(officeId => ({
+                update_id: insertedUpdate.id,
+                office_id: officeId,
+                organization_id: employee.organization_id,
+              }))
+            );
+          } else if (accessScope === 'departments' && selectedDepartments.length > 0) {
+            await supabase.from("update_departments").insert(
+              selectedDepartments.map(department => ({
+                update_id: insertedUpdate.id,
+                department,
+                organization_id: employee.organization_id,
+              }))
+            );
+          } else if (accessScope === 'projects' && selectedProjectIds.length > 0) {
+            await supabase.from("update_projects").insert(
+              selectedProjectIds.map(projectId => ({
+                update_id: insertedUpdate.id,
+                project_id: projectId,
+                organization_id: employee.organization_id,
+              }))
+            );
+          }
         }
 
         toast({
@@ -261,6 +298,10 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
     setMemberSelectOpen(false);
     setSearchQuery("");
     setErrors({});
+    setAccessScope('company');
+    setSelectedOfficeIds([]);
+    setSelectedDepartments([]);
+    setSelectedProjectIds([]);
   };
 
   const handleClose = (open: boolean) => {
@@ -464,6 +505,18 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
                 </div>
               )}
             </div>
+
+            {/* Visibility Selector */}
+            <PostVisibilitySelector
+              accessScope={accessScope}
+              onAccessScopeChange={setAccessScope}
+              selectedOfficeIds={selectedOfficeIds}
+              onOfficeIdsChange={setSelectedOfficeIds}
+              selectedDepartments={selectedDepartments}
+              onDepartmentsChange={setSelectedDepartments}
+              selectedProjectIds={selectedProjectIds}
+              onProjectIdsChange={setSelectedProjectIds}
+            />
 
             <div className="flex gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => handleClose(false)} className="flex-1">

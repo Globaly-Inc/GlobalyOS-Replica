@@ -16,6 +16,7 @@ interface FeedUpdateItem {
   created_at: string;
   image_url: string | null;
   employee_id: string;
+  access_scope: string | null;
   employee: {
     id: string;
     profiles: {
@@ -34,6 +35,9 @@ interface FeedUpdateItem {
       };
     };
   }>;
+  update_offices?: Array<{ office: { name: string } }>;
+  update_departments?: Array<{ department: string }>;
+  update_projects?: Array<{ project: { name: string } }>;
 }
 
 interface FeedKudosItem {
@@ -41,6 +45,7 @@ interface FeedKudosItem {
   comment: string;
   created_at: string;
   batch_id: string | null;
+  access_scope: string | null;
   employee: {
     id: string;
     profiles: {
@@ -55,6 +60,9 @@ interface FeedKudosItem {
       avatar_url: string | null;
     };
   };
+  kudos_offices?: Array<{ office: { name: string } }>;
+  kudos_departments?: Array<{ department: string }>;
+  kudos_projects?: Array<{ project: { name: string } }>;
 }
 
 // Fetch feed updates
@@ -75,6 +83,7 @@ export const useFeedUpdates = () => {
           created_at,
           image_url,
           employee_id,
+          access_scope,
           employee:employees!inner(
             id,
             profiles!inner(
@@ -92,7 +101,10 @@ export const useFeedUpdates = () => {
                 avatar_url
               )
             )
-          )
+          ),
+          update_offices(office:offices(name)),
+          update_departments(department),
+          update_projects(project:projects(name))
         `)
         .eq('organization_id', currentOrg.id)
         .order('created_at', { ascending: false })
@@ -122,6 +134,7 @@ export const useFeedKudos = () => {
           comment,
           created_at,
           batch_id,
+          access_scope,
           employee:employees!kudos_employee_id_fkey(
             id,
             profiles!inner(
@@ -135,7 +148,10 @@ export const useFeedKudos = () => {
               full_name,
               avatar_url
             )
-          )
+          ),
+          kudos_offices(office:offices(name)),
+          kudos_departments(department),
+          kudos_projects(project:projects(name))
         `)
         .eq('organization_id', currentOrg.id)
         .order('created_at', { ascending: false })

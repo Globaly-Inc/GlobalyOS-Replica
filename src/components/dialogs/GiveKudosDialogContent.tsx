@@ -13,6 +13,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AIWritingAssist } from "@/components/AIWritingAssist";
+import { PostVisibilitySelector, AccessScope } from "@/components/feed/PostVisibilitySelector";
 
 // Helper to get plain text length from HTML
 const getTextLength = (html: string): number => {
@@ -55,6 +56,12 @@ export const GiveKudosDialogContent = ({
   const { currentOrg } = useOrganization();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectOpen, setSelectOpen] = useState(false);
+
+  // Visibility state
+  const [accessScope, setAccessScope] = useState<AccessScope>('company');
+  const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     employeeIds: preselectedEmployeeId ? [preselectedEmployeeId] : [] as string[],
@@ -155,9 +162,13 @@ export const GiveKudosDialogContent = ({
         comment: validated.comment,
         organization_id: giverEmployee.organization_id,
         batch_id: batchId,
+        access_scope: accessScope,
       }));
 
-      const { error } = await supabase.from("kudos").insert(kudosRecords);
+      const { data: insertedKudos, error } = await supabase
+        .from("kudos")
+        .insert(kudosRecords)
+        .select("id");
 
       if (error) {
         toast({
@@ -166,6 +177,37 @@ export const GiveKudosDialogContent = ({
           variant: "destructive",
         });
       } else {
+        // Insert visibility targets for each kudos
+        if (insertedKudos && insertedKudos.length > 0) {
+          for (const kudos of insertedKudos) {
+            if (accessScope === 'offices' && selectedOfficeIds.length > 0) {
+              await supabase.from("kudos_offices").insert(
+                selectedOfficeIds.map(officeId => ({
+                  kudos_id: kudos.id,
+                  office_id: officeId,
+                  organization_id: giverEmployee.organization_id,
+                }))
+              );
+            } else if (accessScope === 'departments' && selectedDepartments.length > 0) {
+              await supabase.from("kudos_departments").insert(
+                selectedDepartments.map(department => ({
+                  kudos_id: kudos.id,
+                  department,
+                  organization_id: giverEmployee.organization_id,
+                }))
+              );
+            } else if (accessScope === 'projects' && selectedProjectIds.length > 0) {
+              await supabase.from("kudos_projects").insert(
+                selectedProjectIds.map(projectId => ({
+                  kudos_id: kudos.id,
+                  project_id: projectId,
+                  organization_id: giverEmployee.organization_id,
+                }))
+              );
+            }
+          }
+        }
+
         toast({
           title: "Kudos given! 🎉",
           description: `Your appreciation has been shared with ${validated.employeeIds.length} team member${validated.employeeIds.length > 1 ? 's' : ''}`,
@@ -298,6 +340,18 @@ export const GiveKudosDialogContent = ({
         />
         {errors.comment && <p className="text-sm text-destructive">{errors.comment}</p>}
       </div>
+
+      {/* Visibility Selector */}
+      <PostVisibilitySelector
+        accessScope={accessScope}
+        onAccessScopeChange={setAccessScope}
+        selectedOfficeIds={selectedOfficeIds}
+        onOfficeIdsChange={setSelectedOfficeIds}
+        selectedDepartments={selectedDepartments}
+        onDepartmentsChange={setSelectedDepartments}
+        selectedProjectIds={selectedProjectIds}
+        onProjectIdsChange={setSelectedProjectIds}
+      />
 
       <div className="flex gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
