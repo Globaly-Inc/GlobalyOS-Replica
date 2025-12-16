@@ -7,19 +7,16 @@ interface LeaveManagementProps {
   employeeId: string;
 }
 
-interface LeaveTypeBalance {
-  id: string;
-  balance: number;
-  leave_type: {
-    id: string;
-    name: string;
-    category: string;
-  };
-}
-
 interface HourBalance {
   overtime_minutes: number;
   undertime_minutes: number;
+}
+
+interface CalculatedBalance {
+  leave_type_id: string;
+  leave_type_name: string;
+  category: string;
+  balance: number;
 }
 
 // Get icon for leave type
@@ -36,15 +33,17 @@ const getLeaveTypeIcon = (leaveType: string) => {
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
+  const yearStart = `${currentYear}-01-01`;
+  const yearEnd = `${currentYear}-12-31`;
 
-  const { data: balances = [] } = useQuery({
-    queryKey: ["leave-type-balances", employeeId, currentYear],
+  // Fetch adjustments from leave_balance_logs
+  const { data: adjustments = [] } = useQuery({
+    queryKey: ["leave-adjustments", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leave_type_balances")
+        .from("leave_balance_logs")
         .select(`
-          id,
-          balance,
+          days_changed,
           leave_type:leave_types!inner(
             id,
             name,
@@ -52,10 +51,35 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
           )
         `)
         .eq("employee_id", employeeId)
-        .eq("year", currentYear);
+        .gte("created_at", yearStart)
+        .lte("created_at", `${yearEnd}T23:59:59`);
 
       if (error) throw error;
-      return (data || []) as LeaveTypeBalance[];
+      return data || [];
+    },
+  });
+
+  // Fetch approved leave requests
+  const { data: leaveRequests = [] } = useQuery({
+    queryKey: ["leave-requests-taken", employeeId, currentYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select(`
+          days,
+          leave_type:leave_types!inner(
+            id,
+            name,
+            category
+          )
+        `)
+        .eq("employee_id", employeeId)
+        .eq("status", "approved")
+        .gte("start_date", yearStart)
+        .lte("start_date", yearEnd);
+
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -74,11 +98,48 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  // Show ALL balances (including zero/negative), sort paid first
-  const sortedBalances = balances.sort((a, b) => {
-    if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
-    if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
-    return a.leave_type.name.localeCompare(b.leave_type.name);
+  // Calculate balances: Sum(Adjustments) - Sum(Approved Leave Taken)
+  const calculatedBalances: CalculatedBalance[] = (() => {
+    const balanceMap = new Map<string, CalculatedBalance>();
+
+    // Add adjustments
+    adjustments.forEach((adj: any) => {
+      const leaveTypeId = adj.leave_type.id;
+      if (!balanceMap.has(leaveTypeId)) {
+        balanceMap.set(leaveTypeId, {
+          leave_type_id: leaveTypeId,
+          leave_type_name: adj.leave_type.name,
+          category: adj.leave_type.category,
+          balance: 0,
+        });
+      }
+      const current = balanceMap.get(leaveTypeId)!;
+      current.balance += adj.days_changed;
+    });
+
+    // Subtract approved leave taken
+    leaveRequests.forEach((req: any) => {
+      const leaveTypeId = req.leave_type.id;
+      if (!balanceMap.has(leaveTypeId)) {
+        balanceMap.set(leaveTypeId, {
+          leave_type_id: leaveTypeId,
+          leave_type_name: req.leave_type.name,
+          category: req.leave_type.category,
+          balance: 0,
+        });
+      }
+      const current = balanceMap.get(leaveTypeId)!;
+      current.balance -= req.days;
+    });
+
+    return Array.from(balanceMap.values());
+  })();
+
+  // Sort: paid first, then alphabetically
+  const sortedBalances = calculatedBalances.sort((a, b) => {
+    if (a.category === 'paid' && b.category !== 'paid') return -1;
+    if (a.category !== 'paid' && b.category === 'paid') return 1;
+    return a.leave_type_name.localeCompare(b.leave_type_name);
   });
 
   const formatMinutes = (minutes: number) => {
@@ -97,18 +158,18 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {sortedBalances.map((item) => (
             <div 
-              key={item.id} 
+              key={item.leave_type_id} 
               className={`text-center p-3 rounded-lg ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/5'}`}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <span className={item.balance < 0 ? 'text-destructive' : 'text-primary'}>
-                  {getLeaveTypeIcon(item.leave_type.name)}
+                  {getLeaveTypeIcon(item.leave_type_name)}
                 </span>
               </div>
               <div className={`text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
                 {item.balance < 0 ? `(${Math.abs(item.balance)})` : item.balance}
               </div>
-              <div className="text-xs text-muted-foreground mt-1 truncate">{item.leave_type.name}</div>
+              <div className="text-xs text-muted-foreground mt-1 truncate">{item.leave_type_name}</div>
             </div>
           ))}
         </div>
