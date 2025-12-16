@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Navigate } from "react-router-dom";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,9 +82,14 @@ const formatBalance = (balance: number | undefined) => {
 
 const OrgLeaveHistory = () => {
   const { currentOrg } = useOrganization();
-  const { isOwner, isAdmin, isHR } = useUserRole();
-  const { navigateOrg } = useOrgNavigation();
+  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { navigateOrg, orgCode } = useOrgNavigation();
   const canEdit = isOwner || isAdmin || isHR;
+  
+  // Only owner, admin, and HR can access org-wide leave history
+  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
+    return <Navigate to={`/org/${orgCode}/leave`} replace />;
+  }
   
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);

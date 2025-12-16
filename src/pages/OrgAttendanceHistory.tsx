@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { OrgLink } from "@/components/OrgLink";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +28,14 @@ import { cn } from "@/lib/utils";
 
 const OrgAttendanceHistory = () => {
   const { currentOrg } = useOrganization();
+  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { orgCode } = useOrgNavigation();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  
+  // Only owner, admin, and HR can access org-wide attendance history
+  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
+    return <Navigate to={`/org/${orgCode}`} replace />;
+  }
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
