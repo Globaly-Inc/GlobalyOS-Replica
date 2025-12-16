@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useSalaryStructures, useCreateSalaryStructure, usePayrollProfiles } from "@/services/usePayroll";
 import { supabase } from "@/integrations/supabase/client";
-import { useOrganization } from "@/hooks/useOrganization";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, DollarSign, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
