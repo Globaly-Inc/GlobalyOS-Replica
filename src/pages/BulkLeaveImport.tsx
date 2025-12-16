@@ -899,17 +899,6 @@ const BulkLeaveImport = () => {
 
       setImportResults(results);
       setStep('results');
-
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-      
-      if (failCount === 0) {
-        toast({ title: "Import successful", description: `Successfully imported ${successCount} records` });
-      } else if (successCount === 0) {
-        toast({ title: "Import failed", description: `Failed to import all ${failCount} records`, variant: "destructive" });
-      } else {
-        toast({ title: "Import completed", description: `Imported ${successCount} records, ${failCount} failed` });
-      }
     } catch (error: any) {
       toast({ title: "Import error", description: error.message, variant: "destructive" });
     } finally {
