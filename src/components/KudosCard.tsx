@@ -37,7 +37,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   const getFirstName = (fullName: string) => fullName.split(" ")[0];
   const { toast } = useToast();
   const { formatDateTime } = useFormattedDate();
-  const { isAdmin, isHR } = useUserRole();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -76,7 +76,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   }, []);
 
   // Can edit/delete if admin, HR, or the person who gave the kudos
-  const canEditDelete = isAdmin || isHR || currentEmployeeId === kudos.givenById;
+  const canEditDelete = isOwner || isAdmin || isHR || currentEmployeeId === kudos.givenById;
 
   const handleDelete = async () => {
     setIsDeleting(true);

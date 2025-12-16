@@ -59,7 +59,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
   const config = typeConfig[update.type];
   const Icon = config.icon;
   const { toast } = useToast();
-  const { isAdmin, isHR } = useUserRole();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   const { formatDateTime } = useFormattedDate();
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -85,7 +85,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
     fetchCurrentEmployee();
   }, []);
 
-  const canEditDelete = isAdmin || isHR || currentEmployeeId === update.employeeId;
+  const canEditDelete = isOwner || isAdmin || isHR || currentEmployeeId === update.employeeId;
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -260,6 +260,7 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
         onOpenChange={setShowEditDialog}
         updateId={update.id}
         initialContent={update.content}
+        initialImageUrl={update.imageUrl}
         type={update.type}
         onSuccess={onDelete}
       />
