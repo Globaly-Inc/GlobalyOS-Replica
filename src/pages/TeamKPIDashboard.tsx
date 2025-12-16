@@ -481,22 +481,6 @@ const TeamKPIDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
-              className="border rounded-lg"
-            >
-              <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-3 gap-1.5">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Quarterly</span>
-              </ToggleGroupItem>
-              <ToggleGroupItem value="annual" aria-label="Annual view" className="px-3 gap-1.5">
-                <CalendarDays className="h-4 w-4" />
-                <span className="hidden sm:inline">Annual</span>
-              </ToggleGroupItem>
-            </ToggleGroup>
-            
             {(isAdmin || isHR) && (
               <KPITemplatesDialog>
                 <Button variant="outline" size="sm">
@@ -528,6 +512,22 @@ const TeamKPIDashboard = () => {
                 ))}
               </SelectContent>
             </Select>
+            
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
+              className="border rounded-lg"
+            >
+              <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-3 gap-1.5">
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Quarterly</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="annual" aria-label="Annual view" className="px-3 gap-1.5">
+                <CalendarDays className="h-4 w-4" />
+                <span className="hidden sm:inline">Annual</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
 
