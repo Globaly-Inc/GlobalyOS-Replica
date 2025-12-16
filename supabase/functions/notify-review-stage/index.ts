@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -172,12 +173,11 @@ serve(async (req) => {
             : config.getEmailSubject(employeeName);
 
         const emailBody =
-          stage === "review_initiated"
-            ? config.emailBody(employeeName, period, reviewerName)
-            : stage === "manager_review_ready"
-              ? config.emailBody(employeeName, period, reviewerName)
-              : config.emailBody(employeeName, period);
+          stage === "review_initiated" || stage === "manager_review_ready"
+            ? (config.emailBody as (e: string, p: string, r: string) => string)(employeeName, period, reviewerName)
+            : (config.emailBody as (e: string, p: string) => string)(employeeName, period);
 
+        const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
         await resend.emails.send({
           from: "GlobalyOS <notifications@globalyos.com>",
           to: [recipientEmail],

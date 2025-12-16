@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,6 +111,7 @@ serve(async (req) => {
       // Send email reminder
       if (employeeEmail && Deno.env.get("RESEND_API_KEY")) {
         try {
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
           await resend.emails.send({
             from: "GlobalyOS <notifications@globalyos.com>",
             to: [employeeEmail],
@@ -200,6 +202,7 @@ serve(async (req) => {
       // Send email reminder
       if (employeeEmail && Deno.env.get("RESEND_API_KEY")) {
         try {
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
           await resend.emails.send({
             from: "GlobalyOS <notifications@globalyos.com>",
             to: [employeeEmail],

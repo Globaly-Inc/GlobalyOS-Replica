@@ -247,7 +247,10 @@ export const ReviewTemplatesDialog = ({ onSelectTemplate, selectedTemplateId }: 
     }
     
     queryClient.invalidateQueries({ queryKey: ["review-templates"] });
-    const result = { ...data, competencies: Array.isArray(data.competencies) ? data.competencies : [] } as ReviewTemplate;
+    const competencies = Array.isArray(data.competencies) 
+      ? (data.competencies as unknown as Competency[]) 
+      : [];
+    const result: ReviewTemplate = { ...data, competencies };
     onSelectTemplate(result);
     setIsOpen(false);
     toast.success(`Using ${template.name} template`);
