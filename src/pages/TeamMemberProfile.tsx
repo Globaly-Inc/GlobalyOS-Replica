@@ -35,6 +35,8 @@ import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home } from "lucide-react";
 import { WORK_LOCATION_CONFIG, WorkLocation } from "@/types/wfh";
+import { useEmployeeWorkLocation } from "@/services/useWfh";
+import { AddWfhRequestDialog } from "@/components/dialogs/AddWfhRequestDialog";
 import { format } from "date-fns";
 import AIKPIInsights from "@/components/AIKPIInsights";
 import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
@@ -102,6 +104,10 @@ const TeamMemberProfile = () => {
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
   const [employeeSchedule, setEmployeeSchedule] = useState<any>(null);
   const [performanceReviews, setPerformanceReviews] = useState<any[]>([]);
+  const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
+
+  // Fetch work location for WFH request button
+  const { data: workLocation } = useEmployeeWorkLocation(id);
 
   // Permission flags based on roles and relationships
   const isAdminOrHR = isAdmin || isHR;
@@ -1076,14 +1082,23 @@ const TeamMemberProfile = () => {
                     <Clock className="h-5 w-5 text-primary" />
                     Attendance Tracking
                   </h2>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = `/team/${id}/attendance`}>
-                    <History className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">View History</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {isOwnProfile && workLocation === 'office' && (
+                      <Button variant="outline" size="sm" onClick={() => setWfhDialogOpen(true)}>
+                        <Home className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Request WFH</span>
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => window.location.href = `/team/${id}/attendance`}>
+                      <History className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">View History</span>
+                    </Button>
+                  </div>
                 </div>
                 <div className="p-4">
-                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} organizationId={employee?.organization_id} />
+                  <AttendanceTracker employeeId={id!} showCheckIn={isOwnProfile} />
                 </div>
+                <AddWfhRequestDialog open={wfhDialogOpen} onOpenChange={setWfhDialogOpen} />
               </Card>}
 
             {/* Kudos and Wins */}
