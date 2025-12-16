@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
 
 interface AttendanceRecord {
   id: string;
@@ -89,6 +90,8 @@ const OrgAttendanceHistory = () => {
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; record: any | null }>({ open: false, record: null });
   const [deleting, setDeleting] = useState(false);
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
@@ -327,6 +330,27 @@ const OrgAttendanceHistory = () => {
     }
   };
 
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    const selectedIds = Array.from(selectedRecords);
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("attendance_records")
+        .delete()
+        .in("id", selectedIds);
+      if (error) throw error;
+      toast.success(`Deleted ${selectedIds.length} attendance records`);
+      setSelectedRecords(new Set());
+      queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
+      setBulkDeleteDialog(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete records");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   // Mobile Card Component
   const MobileRecordCard = ({ record }: { record: any }) => {
     const employee = record.employee as any;
@@ -340,11 +364,13 @@ const OrgAttendanceHistory = () => {
         )}
       >
         <div className="flex items-start gap-3">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => toggleSelectRecord(record.id)}
-            className="mt-1"
-          />
+          {(isOwner || isAdmin) && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => toggleSelectRecord(record.id)}
+              className="mt-1"
+            />
+          )}
           <div className="flex-1 min-w-0">
             {/* Header: Employee + Location */}
             <div className="flex items-start justify-between gap-2 mb-2">
@@ -634,25 +660,6 @@ const OrgAttendanceHistory = () => {
           </div>
         )}
 
-        {/* Bulk Selection Bar */}
-        {selectedRecords.size > 0 && (
-          <div className="px-4 md:px-0">
-            <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {selectedRecords.size} record{selectedRecords.size > 1 ? "s" : ""} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={exportCSV} className="h-8 gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedRecords(new Set())} className="h-8">
-                  Clear
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Records - Mobile Cards or Desktop Table */}
         <div className="px-4 md:px-0">
@@ -670,14 +677,16 @@ const OrgAttendanceHistory = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{filteredRecords.length} records</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={toggleSelectAll}
-                  className="h-8 text-xs"
-                >
-                  {allSelected ? "Deselect All" : "Select All"}
-                </Button>
+                {(isOwner || isAdmin) && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={toggleSelectAll}
+                    className="h-8 text-xs"
+                  >
+                    {allSelected ? "Deselect All" : "Select All"}
+                  </Button>
+                )}
               </div>
               {filteredRecords.map((record) => (
                 <MobileRecordCard key={record.id} record={record} />
@@ -695,14 +704,16 @@ const OrgAttendanceHistory = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/20">
-                      <TableHead className="w-[40px]">
-                        <Checkbox
-                          checked={allSelected}
-                          onCheckedChange={toggleSelectAll}
-                          aria-label="Select all"
-                          className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
-                        />
-                      </TableHead>
+                      {(isOwner || isAdmin) && (
+                        <TableHead className="w-[40px]">
+                          <Checkbox
+                            checked={allSelected}
+                            onCheckedChange={toggleSelectAll}
+                            aria-label="Select all"
+                            className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                          />
+                        </TableHead>
+                      )}
                       <TableHead className="min-w-[180px]">Employee</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Date</TableHead>
@@ -725,13 +736,15 @@ const OrgAttendanceHistory = () => {
                             isSelected && "bg-primary/5"
                           )}
                         >
-                          <TableCell>
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleSelectRecord(record.id)}
-                              aria-label={`Select ${employee?.profiles?.full_name}`}
-                            />
-                          </TableCell>
+                          {(isOwner || isAdmin) && (
+                            <TableCell>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelectRecord(record.id)}
+                                aria-label={`Select ${employee?.profiles?.full_name}`}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <OrgLink 
                               to={`/team/${employee?.id}`}
@@ -887,6 +900,42 @@ const OrgAttendanceHistory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Records?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedRecords.size} attendance records?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete} 
+              disabled={bulkDeleting} 
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting..." : "Delete Records"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedRecords.size > 0 && (isOwner || isAdmin) && (
+        <AttendanceBulkActionsBar
+          selectedCount={selectedRecords.size}
+          totalItems={filteredRecords.length}
+          onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map((r) => r.id)))}
+          onDeselectAll={() => setSelectedRecords(new Set())}
+          onDelete={() => setBulkDeleteDialog(true)}
+          onExport={exportCSV}
+          canDelete={isOwner || isAdmin}
+        />
+      )}
     </div>
   );
 };
