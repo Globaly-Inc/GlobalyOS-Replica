@@ -71,6 +71,7 @@ const Team = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
+  const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -83,6 +84,55 @@ const Team = () => {
     if (currentOrg) {
       loadEmployees();
     }
+  }, [currentOrg?.id]);
+
+  // Fetch online statuses for employees
+  const fetchOnlineStatuses = async (employeeIds: string[]) => {
+    if (!employeeIds.length) return;
+    
+    const { data: presences } = await supabase
+      .from('chat_presence')
+      .select('employee_id, is_online, last_seen_at')
+      .in('employee_id', employeeIds);
+    
+    if (presences) {
+      const now = new Date();
+      const statusMap: Record<string, boolean> = {};
+      presences.forEach((p: any) => {
+        if (p.is_online && p.last_seen_at) {
+          const lastSeen = new Date(p.last_seen_at);
+          const isStale = (now.getTime() - lastSeen.getTime()) > 60000; // 60 seconds
+          statusMap[p.employee_id] = !isStale;
+        }
+      });
+      setOnlineStatuses(statusMap);
+    }
+  };
+
+  // Subscribe to real-time presence updates
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+    
+    const channel = supabase
+      .channel('team-presence')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_presence',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, (payload: any) => {
+        if (payload.new?.employee_id) {
+          const lastSeen = payload.new.last_seen_at ? new Date(payload.new.last_seen_at) : null;
+          const isStale = lastSeen ? (new Date().getTime() - lastSeen.getTime()) > 60000 : true;
+          setOnlineStatuses(prev => ({
+            ...prev,
+            [payload.new.employee_id]: payload.new.is_online && !isStale
+          }));
+        }
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
   }, [currentOrg?.id]);
 
   const loadEmployees = async () => {
@@ -136,6 +186,10 @@ const Team = () => {
         });
         setUserRoles(rolesMap);
       }
+      
+      // Fetch online statuses after employees are loaded
+      const employeeIds = employeeData.map((e: any) => e.id);
+      fetchOnlineStatuses(employeeIds);
     }
     
     setLoading(false);
@@ -455,6 +509,7 @@ const Team = () => {
                     }}
                     showResendInvite={isHR}
                     role={userRoles[employee.user_id]}
+                    isOnline={onlineStatuses[employee.id]}
                   />
                 ))}
               </div>
