@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/hooks/useAuth";
 import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustmentDialog";
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
@@ -49,6 +50,7 @@ interface LeaveTransaction {
   employee: {
     id: string;
     position?: string;
+    manager_id?: string;
     profiles: {
       full_name: string;
       avatar_url: string | null;
@@ -81,10 +83,11 @@ const formatBalance = (balance: number | undefined) => {
 };
 
 const OrgLeaveHistory = () => {
+  const { user } = useAuth();
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { navigateOrg, orgCode } = useOrgNavigation();
-  const canEdit = isOwner || isAdmin || isHR;
+  const canEditAll = isOwner || isAdmin || isHR;
   
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,29 +114,99 @@ const OrgLeaveHistory = () => {
   
   const queryClient = useQueryClient();
 
+  // Get current employee
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["current-employee", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, organization_id, manager_id")
+        .eq("user_id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if current user has direct reports (is a manager)
+  const { data: directReportsCount = 0 } = useQuery({
+    queryKey: ["has-direct-reports", currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentEmployee?.id) return 0;
+      const { count } = await supabase
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("manager_id", currentEmployee.id)
+        .eq("status", "active");
+      return count || 0;
+    },
+    enabled: !!currentEmployee?.id,
+  });
+
+  const isManager = directReportsCount > 0;
+
+  // Get direct report IDs for filtering
+  const { data: directReportIds = [] } = useQuery({
+    queryKey: ["direct-report-ids", currentEmployee?.id, isManager],
+    queryFn: async () => {
+      if (!currentEmployee?.id || !isManager) return [];
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("manager_id", currentEmployee.id)
+        .eq("status", "active");
+      if (error) throw error;
+      return data?.map(e => e.id) || [];
+    },
+    enabled: !!currentEmployee?.id && isManager,
+  });
+
+  // Helper to determine if user can edit a specific transaction
+  const canEditTransaction = (t: LeaveTransaction) => {
+    if (canEditAll) return true; // Owner/Admin/HR can edit all
+    
+    // User can always edit their own transactions
+    if (t.employee?.id === currentEmployee?.id) return true;
+    
+    // Manager can edit their direct reports' transactions
+    if (t.employee?.manager_id === currentEmployee?.id) return true;
+    
+    return false;
+  };
+
+  // Load data when dependencies change
   useEffect(() => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id || !currentEmployee?.id) return;
     if (roleLoading) return;
-    if (!isOwner && !isAdmin && !isHR) return;
-
+    
     loadData();
-  }, [currentOrg?.id, yearFilter, roleLoading, isOwner, isAdmin, isHR]);
-
-  // Only owner, admin, and HR can access org-wide leave history - moved after all hooks
-  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
-    return <Navigate to={`/org/${orgCode}/leave`} replace />;
-  }
+  }, [currentOrg?.id, currentEmployee?.id, yearFilter, roleLoading, canEditAll, isManager, directReportIds]);
 
   const loadData = async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id || !currentEmployee?.id) return;
     setLoading(true);
     
     try {
       const startOfYear = `${yearFilter}-01-01`;
       const endOfYear = `${yearFilter}-12-31`;
 
+      // Determine employee IDs to fetch based on role
+      let employeeIds: string[] = [];
+      if (canEditAll) {
+        // Admin/HR/Owner: fetch all (no employee filter)
+        employeeIds = [];
+      } else if (isManager && directReportIds.length > 0) {
+        // Manager: fetch self + direct reports
+        employeeIds = [currentEmployee.id, ...directReportIds];
+      } else {
+        // Regular user: fetch only self
+        employeeIds = [currentEmployee.id];
+      }
+
       // Load leave requests
-      const { data: requestsData, error: requestsError } = await supabase
+      let requestsQuery = supabase
         .from("leave_requests")
         .select(`
           id,
@@ -148,6 +221,7 @@ const OrgLeaveHistory = () => {
           employee:employees!leave_requests_employee_id_fkey(
             id,
             position,
+            manager_id,
             profiles!inner(full_name, avatar_url)
           )
         `)
@@ -156,10 +230,16 @@ const OrgLeaveHistory = () => {
         .lte("start_date", endOfYear)
         .order("start_date", { ascending: false });
 
+      // Apply employee filter for non-admin users
+      if (employeeIds.length > 0) {
+        requestsQuery = requestsQuery.in("employee_id", employeeIds);
+      }
+
+      const { data: requestsData, error: requestsError } = await requestsQuery;
       if (requestsError) throw requestsError;
 
       // Load leave balance logs (adjustments)
-      const { data: logsData, error: logsError } = await supabase
+      let logsQuery = supabase
         .from("leave_balance_logs")
         .select(`
           id,
@@ -173,6 +253,7 @@ const OrgLeaveHistory = () => {
           employee:employees!leave_balance_logs_employee_id_fkey(
             id,
             position,
+            manager_id,
             profiles!inner(full_name, avatar_url)
           )
         `)
@@ -181,7 +262,14 @@ const OrgLeaveHistory = () => {
         .lte("effective_date", endOfYear)
         .order("effective_date", { ascending: false });
 
+      // Apply employee filter for non-admin users
+      if (employeeIds.length > 0) {
+        logsQuery = logsQuery.in("employee_id", employeeIds);
+      }
+
+      const { data: logsData, error: logsError } = await logsQuery;
       if (logsError) throw logsError;
+
 
       // Combine and format transactions
       const requestTransactions: LeaveTransaction[] = (requestsData || []).map((r: any) => ({
@@ -540,9 +628,15 @@ const OrgLeaveHistory = () => {
             <History className="h-6 w-6" />
             Leave History
           </h1>
-          <p className="text-muted-foreground">View all leave transactions across the organization</p>
+          <p className="text-muted-foreground">
+            {canEditAll
+              ? "View all leave transactions across the organization"
+              : isManager
+              ? "Your leave transactions and direct reports' history"
+              : "Your personal leave transaction history"}
+          </p>
         </div>
-        {canEdit && (
+        {canEditAll && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
@@ -707,7 +801,7 @@ const OrgLeaveHistory = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {canEdit && (
+                    {canEditAll && (
                       <TableHead className="w-[40px]">
                         <Checkbox
                           checked={allFilteredSelected}
@@ -746,7 +840,7 @@ const OrgLeaveHistory = () => {
                       key={`${t.type}-${t.id}`} 
                       className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}
                     >
-                      {canEdit && (
+                      {canEditAll && (
                         <TableCell>
                           <Checkbox
                             checked={isTransactionSelected(t.id, t.type)}
@@ -837,8 +931,8 @@ const OrgLeaveHistory = () => {
                               <TooltipContent>View Leave History</TooltipContent>
                             </Tooltip>
                             
-                            {/* Edit - Only for canEdit users */}
-                            {canEdit && (
+                            {/* Edit - Only for users with edit permission for this transaction */}
+                            {canEditTransaction(t) && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button 
@@ -860,8 +954,8 @@ const OrgLeaveHistory = () => {
                               </Tooltip>
                             )}
                             
-                            {/* Delete - Only for adjustments and canEdit users */}
-                            {canEdit && t.type === 'adjustment' && (
+                            {/* Delete - Only for adjustments and users with edit permission */}
+                            {canEditTransaction(t) && t.type === 'adjustment' && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button 
@@ -878,7 +972,7 @@ const OrgLeaveHistory = () => {
                             )}
                             
                             {/* Delete - For leave taken records */}
-                            {canEdit && t.type === 'leave_taken' && (
+                            {canEditTransaction(t) && t.type === 'leave_taken' && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button 
@@ -952,7 +1046,7 @@ const OrgLeaveHistory = () => {
       />
 
       {/* Bulk Actions Bar */}
-      {canEdit && selectedTransactions.length > 0 && (
+      {canEditAll && selectedTransactions.length > 0 && (
         <LeaveBulkActionsBar
           selectedItems={selectedTransactions}
           totalItems={filteredTransactions.length}
