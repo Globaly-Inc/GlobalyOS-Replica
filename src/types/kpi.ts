@@ -80,7 +80,7 @@ export interface PerformanceReview {
   updated_at: string;
 }
 
-export type ReviewStatus = 'draft' | 'submitted' | 'acknowledged';
+export type ReviewStatus = 'draft' | 'self_assessment_pending' | 'in_progress' | 'pending_acknowledgment' | 'completed';
 
 export interface AiReviewDraft {
   what_went_well: string;
