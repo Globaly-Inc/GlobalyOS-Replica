@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { OrgLink } from "@/components/OrgLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,9 +52,15 @@ import {
   FolderKanban,
   X,
   Filter,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Calendar,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
+import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
 import {
   ChartContainer,
   ChartTooltip,
@@ -59,6 +82,8 @@ import {
   Area,
   AreaChart,
 } from "recharts";
+import { Kpi } from "@/types/kpi";
+import { toast } from "sonner";
 
 const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 const getCurrentYear = () => new Date().getFullYear();
@@ -67,10 +92,19 @@ const TeamKPIDashboard = () => {
   const { user } = useAuth();
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
+  
+  const [viewMode, setViewMode] = useState<"quarterly" | "annual">("quarterly");
   const [quarter, setQuarter] = useState(getCurrentQuarter());
   const [year, setYear] = useState(getCurrentYear());
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  
+  // Edit/Delete state
+  const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
+  const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null);
+  
+  const canManageKPIs = isAdmin;
 
   // Get current employee
   const { data: currentEmployee } = useQuery({
@@ -143,22 +177,49 @@ const TeamKPIDashboard = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // Fetch all KPIs for the team (current quarter)
+  // Fetch all KPIs for the team (based on view mode)
   const { data: teamKPIs = [], isLoading: loadingKPIs } = useQuery({
-    queryKey: ["team-kpis", teamMembers.map(t => t.id), quarter, year],
+    queryKey: ["team-kpis", teamMembers.map(t => t.id), viewMode, quarter, year],
     queryFn: async () => {
       if (teamMembers.length === 0) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("kpis")
         .select("*")
         .in("employee_id", teamMembers.map(t => t.id))
-        .eq("quarter", quarter)
         .eq("year", year);
+      
+      // Only filter by quarter in quarterly mode
+      if (viewMode === "quarterly") {
+        query = query.eq("quarter", quarter);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
     enabled: teamMembers.length > 0,
+  });
+  
+  // Delete KPI mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (kpiId: string) => {
+      const { error } = await supabase
+        .from("kpis")
+        .delete()
+        .eq("id", kpiId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
+      toast.success("KPI deleted successfully");
+      setDeletingKpiId(null);
+    },
+    onError: (error) => {
+      toast.error("Failed to delete KPI");
+      console.error(error);
+    },
   });
 
   // Fetch historical KPIs for trend analysis (last 4 quarters)
@@ -377,7 +438,23 @@ const TeamKPIDashboard = () => {
               {isAdmin || isHR ? "Organization-wide" : "Your direct reports'"} KPI overview
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
+              className="border rounded-lg"
+            >
+              <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-3 gap-1.5">
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Quarterly</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="annual" aria-label="Annual view" className="px-3 gap-1.5">
+                <CalendarDays className="h-4 w-4" />
+                <span className="hidden sm:inline">Annual</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
             {(isAdmin || isHR) && (
               <KPITemplatesDialog>
                 <Button variant="outline" size="sm">
@@ -386,16 +463,19 @@ const TeamKPIDashboard = () => {
                 </Button>
               </KPITemplatesDialog>
             )}
-            <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 4].map((q) => (
-                  <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            {viewMode === "quarterly" && (
+              <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4].map((q) => (
+                    <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
               <SelectTrigger className="w-28">
                 <SelectValue />
@@ -659,7 +739,9 @@ const TeamKPIDashboard = () => {
                     <p className="text-sm">
                       {hasActiveFilters 
                         ? "No KPIs match the selected filters" 
-                        : `No KPIs set for Q${quarter} ${year}`}
+                        : viewMode === "annual" 
+                          ? `No KPIs set for ${year}`
+                          : `No KPIs set for Q${quarter} ${year}`}
                     </p>
                   </div>
                 ) : (
@@ -684,13 +766,18 @@ const TeamKPIDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-medium text-sm truncate">{kpi.title}</p>
+                              {viewMode === "annual" && (
+                                <Badge variant="outline" className="text-xs">
+                                  Q{kpi.quarter}
+                                </Badge>
+                              )}
                               <Badge
                                 className={cn(
                                   "text-xs",
                                   kpi.status === "on_track" && "bg-green-100 text-green-700",
                                   kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
                                   kpi.status === "behind" && "bg-red-100 text-red-700",
-                                  kpi.status === "completed" && "bg-blue-100 text-blue-700"
+                                  kpi.status === "achieved" && "bg-blue-100 text-blue-700"
                                 )}
                               >
                                 {kpi.status.replace("_", " ")}
@@ -707,6 +794,28 @@ const TeamKPIDashboard = () => {
                                 {progress}%
                               </span>
                             </div>
+                          )}
+                          {canManageKPIs && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditingKpi(kpi as Kpi)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => setDeletingKpiId(kpi.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </div>
                       );
@@ -802,6 +911,34 @@ const TeamKPIDashboard = () => {
           </>
         )}
       </div>
+      
+      {/* Edit KPI Dialog */}
+      <EditKPIDialog
+        open={!!editingKpi}
+        onOpenChange={(open) => !open && setEditingKpi(null)}
+        kpi={editingKpi}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingKpiId} onOpenChange={(open) => !open && setDeletingKpiId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete KPI</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this KPI? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingKpiId && deleteMutation.mutate(deletingKpiId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
