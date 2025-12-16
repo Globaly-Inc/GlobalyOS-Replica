@@ -21,7 +21,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Overview', href: '/' },
-  { icon: CalendarDays, label: 'Leave', href: '/leave' },
+  { icon: CalendarDays, label: 'Leave', href: '/leave/history' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
   { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
   { icon: null, label: 'Profile', action: 'more' },
