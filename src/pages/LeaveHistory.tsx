@@ -378,7 +378,7 @@ const LeaveHistory = () => {
       {/* Header Row: Title on left, Profile Card on right */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <OrgLink to={`/team/${employeeId}`}>
+          <OrgLink to={`/team/${employeeId}`} className="hidden sm:block">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
