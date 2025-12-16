@@ -319,7 +319,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {selectedType === "win" ? "Posting a Win" : 
