@@ -13,7 +13,6 @@ interface HourBalance {
 }
 
 interface CalculatedBalance {
-  leave_type_id: string;
   leave_type_name: string;
   category: string;
   balance: number;
@@ -36,20 +35,35 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const yearStart = `${currentYear}-01-01`;
   const yearEnd = `${currentYear}-12-31`;
 
-  // Fetch adjustments from leave_balance_logs
+  // Fetch leave types for category lookup
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ["leave-types-for-management", employeeId],
+    queryFn: async () => {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("organization_id")
+        .eq("id", employeeId)
+        .maybeSingle();
+      
+      if (!employee) return [];
+      
+      const { data } = await supabase
+        .from("leave_types")
+        .select("name, category")
+        .eq("organization_id", employee.organization_id)
+        .eq("is_active", true);
+      
+      return data || [];
+    },
+  });
+
+  // Fetch adjustments from leave_balance_logs (correct column: change_amount, leave_type is string)
   const { data: adjustments = [] } = useQuery({
     queryKey: ["leave-adjustments", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leave_balance_logs")
-        .select(`
-          days_changed,
-          leave_type:leave_types!inner(
-            id,
-            name,
-            category
-          )
-        `)
+        .select("change_amount, leave_type")
         .eq("employee_id", employeeId)
         .gte("created_at", yearStart)
         .lte("created_at", `${yearEnd}T23:59:59`);
@@ -59,20 +73,13 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  // Fetch approved leave requests
+  // Fetch approved leave requests (correct column: days_count, leave_type is string)
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ["leave-requests-taken", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leave_requests")
-        .select(`
-          days,
-          leave_type:leave_types!inner(
-            id,
-            name,
-            category
-          )
-        `)
+        .select("days_count, leave_type")
         .eq("employee_id", employeeId)
         .eq("status", "approved")
         .gte("start_date", yearStart)
@@ -91,12 +98,18 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         .select("overtime_minutes, undertime_minutes")
         .eq("employee_id", employeeId)
         .eq("year", currentYear)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as HourBalance | null;
     },
   });
+
+  // Helper to get category from leave type name
+  const getCategory = (leaveTypeName: string): string => {
+    const lt = leaveTypes.find(t => t.name === leaveTypeName);
+    return lt?.category || 'paid';
+  };
 
   // Calculate balances: Sum(Adjustments) - Sum(Approved Leave Taken)
   const calculatedBalances: CalculatedBalance[] = (() => {
@@ -104,32 +117,30 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
 
     // Add adjustments
     adjustments.forEach((adj: any) => {
-      const leaveTypeId = adj.leave_type.id;
-      if (!balanceMap.has(leaveTypeId)) {
-        balanceMap.set(leaveTypeId, {
-          leave_type_id: leaveTypeId,
-          leave_type_name: adj.leave_type.name,
-          category: adj.leave_type.category,
+      const leaveTypeName = adj.leave_type;
+      if (!balanceMap.has(leaveTypeName)) {
+        balanceMap.set(leaveTypeName, {
+          leave_type_name: leaveTypeName,
+          category: getCategory(leaveTypeName),
           balance: 0,
         });
       }
-      const current = balanceMap.get(leaveTypeId)!;
-      current.balance += adj.days_changed;
+      const current = balanceMap.get(leaveTypeName)!;
+      current.balance += adj.change_amount;
     });
 
     // Subtract approved leave taken
     leaveRequests.forEach((req: any) => {
-      const leaveTypeId = req.leave_type.id;
-      if (!balanceMap.has(leaveTypeId)) {
-        balanceMap.set(leaveTypeId, {
-          leave_type_id: leaveTypeId,
-          leave_type_name: req.leave_type.name,
-          category: req.leave_type.category,
+      const leaveTypeName = req.leave_type;
+      if (!balanceMap.has(leaveTypeName)) {
+        balanceMap.set(leaveTypeName, {
+          leave_type_name: leaveTypeName,
+          category: getCategory(leaveTypeName),
           balance: 0,
         });
       }
-      const current = balanceMap.get(leaveTypeId)!;
-      current.balance -= req.days;
+      const current = balanceMap.get(leaveTypeName)!;
+      current.balance -= req.days_count;
     });
 
     return Array.from(balanceMap.values());
@@ -143,8 +154,8 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   });
 
   // Calculate totals for Taken and Adjusted cards
-  const totalTaken = leaveRequests.reduce((sum, req: any) => sum + req.days, 0);
-  const totalAdjustments = adjustments.reduce((sum, adj: any) => sum + adj.days_changed, 0);
+  const totalTaken = leaveRequests.reduce((sum, req: any) => sum + (req.days_count || 0), 0);
+  const totalAdjustments = adjustments.reduce((sum, adj: any) => sum + (adj.change_amount || 0), 0);
 
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -162,7 +173,7 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {sortedBalances.map((item) => (
             <div 
-              key={item.leave_type_id} 
+              key={item.leave_type_name} 
               className={`text-center p-2 sm:p-3 rounded-lg ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/5'}`}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
