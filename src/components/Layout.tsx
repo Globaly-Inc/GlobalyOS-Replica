@@ -12,6 +12,8 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
 import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
 import { QRScannerDialog } from "./dialogs/QRScannerDialog";
+import { RemoteCheckInDialog } from "./dialogs/RemoteCheckInDialog";
+import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -61,6 +63,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
@@ -74,6 +77,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showWelcomeSurvey, setShowWelcomeSurvey] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+
+  // Work location and WFH hooks for smart check-in
+  const { data: workLocation } = useEmployeeWorkLocation(userProfile?.employeeId || undefined);
+  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(userProfile?.employeeId || undefined);
+
+  // Determine if user should use remote check-in (no QR scan)
+  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
+    (workLocation === 'office' && hasApprovedWfhToday);
+
+  const handleCheckIn = () => {
+    if (shouldUseRemoteCheckIn) {
+      setRemoteCheckInOpen(true);
+    } else {
+      setQrScannerOpen(true);
+    }
+  };
 
   // Check if user needs to see welcome survey (owners only)
   useEffect(() => {
@@ -485,14 +504,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   variant="outline" 
                   size="icon"
                   className="h-10 w-10 tour-check-in"
-                  onClick={() => setQrScannerOpen(true)}
+                  onClick={handleCheckIn}
                   disabled={!userProfile?.employeeId}
                 >
                   <ScanLine className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Quick Check-In</p>
+                <p>{shouldUseRemoteCheckIn ? 'Remote Check-In' : 'Quick Check-In'}</p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -708,6 +727,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             open={postDialogOpen}
             onOpenChange={setPostDialogOpen}
             canPostAnnouncement={userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr'}
+          />
+          <RemoteCheckInDialog
+            open={remoteCheckInOpen}
+            onOpenChange={setRemoteCheckInOpen}
           />
         </>
       )}

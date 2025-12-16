@@ -88,6 +88,30 @@ export const useOwnPendingWfhRequests = () => {
   });
 };
 
+// Check if employee has approved WFH for today
+export const useHasApprovedWfhToday = (employeeId?: string) => {
+  return useQuery({
+    queryKey: ["has-approved-wfh-today", employeeId],
+    queryFn: async () => {
+      if (!employeeId) return false;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from("wfh_requests")
+        .select("id")
+        .eq("employee_id", employeeId)
+        .eq("status", "approved")
+        .lte("start_date", today)
+        .gte("end_date", today)
+        .limit(1);
+
+      if (error) throw error;
+      return (data?.length ?? 0) > 0;
+    },
+    enabled: !!employeeId,
+  });
+};
+
 // Fetch approved WFH days for a period
 export const useWfhDays = (employeeId?: string, startDate?: string, endDate?: string) => {
   return useQuery({

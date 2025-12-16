@@ -7,8 +7,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { QRScannerDialog } from './dialogs/QRScannerDialog';
+import { RemoteCheckInDialog } from './dialogs/RemoteCheckInDialog';
 import { MobileMoreMenu } from './MobileMoreMenu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useEmployeeWorkLocation, useHasApprovedWfhToday } from '@/services/useWfh';
 
 interface NavItem {
   icon: React.ElementType | null;
@@ -43,8 +45,17 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const { currentOrg } = useOrganization();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
+
+  // Work location and WFH hooks for smart check-in
+  const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
+  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
+
+  // Determine if user should use remote check-in (no QR scan)
+  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
+    (workLocation === 'office' && hasApprovedWfhToday);
 
   useEffect(() => {
     const loadEmployee = async () => {
@@ -83,7 +94,11 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
     if (item.href) {
       navigateOrg(item.href);
     } else if (item.action === 'scan') {
-      setQrScannerOpen(true);
+      if (shouldUseRemoteCheckIn) {
+        setRemoteCheckInOpen(true);
+      } else {
+        setQrScannerOpen(true);
+      }
     } else if (item.action === 'more') {
       setMoreMenuOpen(true);
     }
@@ -170,6 +185,11 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
       <QRScannerDialog
         open={qrScannerOpen}
         onOpenChange={setQrScannerOpen}
+      />
+
+      <RemoteCheckInDialog
+        open={remoteCheckInOpen}
+        onOpenChange={setRemoteCheckInOpen}
       />
       
       <MobileMoreMenu

@@ -134,12 +134,13 @@ export const AddWfhRequestDialog = ({ open, onOpenChange }: AddWfhRequestDialogP
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label>Reason (Optional)</Label>
+            <Label>Reason <span className="text-destructive">*</span></Label>
             <Textarea
               placeholder="Why do you need to work from home?"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
+              required
             />
           </div>
         </div>
@@ -150,7 +151,7 @@ export const AddWfhRequestDialog = ({ open, onOpenChange }: AddWfhRequestDialogP
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!startDate || !endDate || daysCount <= 0 || createMutation.isPending}
+            disabled={!startDate || !endDate || daysCount <= 0 || !reason.trim() || createMutation.isPending}
           >
             {createMutation.isPending ? "Submitting..." : "Submit Request"}
           </Button>
