@@ -11,3 +11,4 @@ export * from './useFeed';
 export * from './useWiki';
 export * from './useKpi';
 export * from './useNotifications';
+export * from './usePayroll';
