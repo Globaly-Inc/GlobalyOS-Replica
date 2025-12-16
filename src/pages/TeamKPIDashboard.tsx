@@ -618,9 +618,9 @@ const TeamKPIDashboard = () => {
               </Card>
             </div>
 
-            {/* Trend Charts */}
+            {/* Trend Charts - Hidden on mobile */}
             {trendData.length > 0 && (
-              <div className="grid gap-4 sm:gap-6 md:grid-cols-2 mb-4 sm:mb-6">
+              <div className="hidden sm:grid gap-6 md:grid-cols-2 mb-6">
                 {/* Progress Trend Chart */}
                 <Card>
                   <CardHeader className="pb-2">
@@ -630,7 +630,7 @@ const TeamKPIDashboard = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[180px] sm:h-[250px] w-full">
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
                       <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="progressGradient" x1="0" y1="0" x2="0" y2="1">
@@ -669,8 +669,8 @@ const TeamKPIDashboard = () => {
                   </CardContent>
                 </Card>
 
-                {/* Status Distribution Chart - Hidden on mobile */}
-                <Card className="hidden sm:block">
+                {/* Status Distribution Chart */}
+                <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" />
