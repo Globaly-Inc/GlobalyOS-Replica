@@ -385,7 +385,7 @@ const LeaveHistory = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </OrgLink>
-          <h1 className="text-2xl font-bold text-foreground">My Leave History</h1>
+          <h1 className="text-2xl font-bold text-foreground">My Leave Balances</h1>
         </div>
         
         {/* Profile Card - Top Right */}
@@ -461,10 +461,7 @@ const LeaveHistory = () => {
 
       {/* Mobile Request Leave Button */}
       <div className="sm:hidden">
-        <Button 
-          onClick={() => setRequestLeaveOpen(true)} 
-          className="w-full h-12 gap-2 text-base font-medium"
-        >
+        <Button onClick={() => setRequestLeaveOpen(true)} className="w-full h-12 gap-2 text-base font-medium">
           <CalendarPlus className="h-5 w-5" />
           Request Leave
         </Button>
