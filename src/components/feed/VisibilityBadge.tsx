@@ -18,9 +18,6 @@ export const VisibilityBadge = ({
   projects,
   className,
 }: VisibilityBadgeProps) => {
-  // Don't show badge for company-wide posts
-  if (!accessScope || accessScope === 'company') return null;
-
   const getIcon = () => {
     switch (accessScope) {
       case 'offices':
@@ -52,7 +49,7 @@ export const VisibilityBadge = ({
         }
         return "Specific projects";
       default:
-        return "";
+        return "Everyone";
     }
   };
 
@@ -67,6 +64,7 @@ export const VisibilityBadge = ({
             variant="outline" 
             className={cn(
               "gap-1 text-xs font-normal",
+              (!accessScope || accessScope === 'company') && "border-muted-foreground/30 bg-muted/50 text-muted-foreground",
               accessScope === 'offices' && "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300",
               accessScope === 'departments' && "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300",
               accessScope === 'projects' && "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300",
