@@ -5370,6 +5370,10 @@ export type Database = {
         Args: { _conversation_id: string; _employee_id: string }
         Returns: boolean
       }
+      is_employee_in_same_org: {
+        Args: { _employee_org_id: string }
+        Returns: boolean
+      }
       is_feature_enabled: {
         Args: { _feature_name: string; _org_id: string }
         Returns: boolean
