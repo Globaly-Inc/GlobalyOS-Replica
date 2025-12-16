@@ -34,8 +34,8 @@ import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home } from "lucide-react";
-import { WORK_LOCATION_CONFIG, WorkLocation } from "@/types/wfh";
-import { useEmployeeWorkLocation } from "@/services/useWfh";
+import { WORK_LOCATION_CONFIG, WorkLocation, WorkLocationDisplay } from "@/types/wfh";
+import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
 import { AddWfhRequestDialog } from "@/components/dialogs/AddWfhRequestDialog";
 import { format } from "date-fns";
 import AIKPIInsights from "@/components/AIKPIInsights";
@@ -108,8 +108,13 @@ const TeamMemberProfile = () => {
 
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
-
-  // Permission flags based on roles and relationships
+  
+  // Check if employee has approved WFH for today
+  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(id);
+  
+  // Determine display location (show WFH if office employee has approved WFH today)
+  const displayLocation: WorkLocationDisplay = 
+    workLocation === 'office' && hasApprovedWfhToday ? 'wfh' : (workLocation || 'office');
   const isAdminOrHR = isAdmin || isHR;
 
   // Can view all details
@@ -750,14 +755,14 @@ const TeamMemberProfile = () => {
                       {employeeSchedule?.work_location && (
                         <Badge 
                           variant="secondary" 
-                          className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.color} border-0`}
+                          className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[displayLocation]?.bgColor} ${WORK_LOCATION_CONFIG[displayLocation]?.color} border-0`}
                         >
-                          {employeeSchedule.work_location === 'office' ? (
+                          {displayLocation === 'office' ? (
                             <Building2 className="h-3 w-3 mr-1" />
                           ) : (
                             <Home className="h-3 w-3 mr-1" />
                           )}
-                          {WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.label}
+                          {WORK_LOCATION_CONFIG[displayLocation]?.label}
                         </Badge>
                       )}
                     </div>

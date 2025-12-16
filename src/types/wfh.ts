@@ -35,7 +35,9 @@ export interface WfhRequestWithEmployee extends WfhRequest {
   } | null;
 }
 
-export const WORK_LOCATION_CONFIG: Record<WorkLocation, {
+export type WorkLocationDisplay = WorkLocation | 'wfh';
+
+export const WORK_LOCATION_CONFIG: Record<WorkLocationDisplay, {
   label: string;
   description: string;
   icon: string;
@@ -66,5 +68,13 @@ export const WORK_LOCATION_CONFIG: Record<WorkLocation, {
     color: 'text-green-700 dark:text-green-300',
     bgColor: 'bg-green-100 dark:bg-green-900/30',
     borderColor: 'border-green-200 dark:border-green-800',
+  },
+  wfh: {
+    label: 'WFH',
+    description: 'Working from home today (approved)',
+    icon: '🏠',
+    color: 'text-amber-700 dark:text-amber-300',
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+    borderColor: 'border-amber-200 dark:border-amber-800',
   },
 };
