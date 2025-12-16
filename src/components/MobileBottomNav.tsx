@@ -120,7 +120,11 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
     if (item.href) {
       const fullPath = item.href === '/' ? basePath : `${basePath}${item.href}`;
       if (item.href === '/') {
-        // Overview is active for home, team, calendar, kpi routes
+        // Overview is active for home, team (excluding leave-history), calendar, kpi routes
+        const isLeaveRelated = location.pathname.includes('/leave-history') || 
+                               location.pathname.includes('/leave');
+        if (isLeaveRelated) return false;
+        
         return location.pathname === basePath || 
                location.pathname === `${basePath}/` ||
                location.pathname.startsWith(`${basePath}/team`) ||
