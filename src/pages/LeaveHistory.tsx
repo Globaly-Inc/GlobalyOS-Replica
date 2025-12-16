@@ -4,6 +4,7 @@ import { OrgLink } from "@/components/OrgLink";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -16,7 +17,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, MoreHorizontal } from "lucide-react";
+import { 
+  ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, MoreHorizontal,
+  Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +34,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUserRole } from "@/hooks/useUserRole";
 import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustmentDialog";
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
+import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
+import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 
 interface LeaveTransaction {
   id: string;
@@ -45,12 +51,50 @@ interface LeaveTransaction {
   previous_balance?: number;
   new_balance?: number;
   balance_after?: number;
+  created_at?: string;
 }
 
 interface LeaveBalance {
   leave_type: string;
   balance: number;
 }
+
+interface EmployeeInfo {
+  name: string;
+  avatar_url?: string;
+  position?: string;
+  department?: string;
+}
+
+// Get icon for leave type
+const getLeaveTypeIcon = (leaveType: string) => {
+  const type = leaveType.toLowerCase();
+  if (type.includes('annual') || type.includes('vacation')) return <Sun className="h-4 w-4" />;
+  if (type.includes('sick') || type.includes('medical')) return <Heart className="h-4 w-4" />;
+  if (type.includes('menstrual') || type.includes('period')) return <Moon className="h-4 w-4" />;
+  if (type.includes('unpaid')) return <Clock className="h-4 w-4" />;
+  if (type.includes('maternity') || type.includes('paternity') || type.includes('parental')) return <Baby className="h-4 w-4" />;
+  if (type.includes('travel') || type.includes('holiday')) return <Plane className="h-4 w-4" />;
+  return <Briefcase className="h-4 w-4" />;
+};
+
+// Format days with negative as (X) in red
+const formatDays = (days: number, showSign: boolean = true) => {
+  if (days === 0) return <span className="text-muted-foreground">0</span>;
+  if (days < 0) {
+    return <span className="text-destructive font-medium">({Math.abs(days)})</span>;
+  }
+  return <span className="text-green-600 font-medium">{showSign ? '+' : ''}{days}</span>;
+};
+
+// Format balance with color
+const formatBalance = (balance: number | undefined) => {
+  if (balance === undefined) return <span className="text-muted-foreground">-</span>;
+  if (balance < 0) {
+    return <span className="text-destructive font-medium">({Math.abs(balance)})</span>;
+  }
+  return <span className={balance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{balance}</span>;
+};
 
 const LeaveHistory = () => {
   const { id: employeeId } = useParams();
@@ -60,7 +104,7 @@ const LeaveHistory = () => {
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [employeeName, setEmployeeName] = useState<string>("");
+  const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo>({ name: "" });
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
@@ -73,6 +117,7 @@ const LeaveHistory = () => {
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
+  const [addLeaveOpen, setAddLeaveOpen] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -104,15 +149,20 @@ const LeaveHistory = () => {
       const startOfYear = `${yearFilter}-01-01`;
       const endOfYear = `${yearFilter}-12-31`;
 
-      // Load employee name
+      // Load employee info
       const { data: empData } = await supabase
         .from("employees")
-        .select("profiles!inner(full_name)")
+        .select("position, department, profiles!inner(full_name, avatar_url)")
         .eq("id", employeeId)
         .single();
       
       if (empData) {
-        setEmployeeName((empData.profiles as any).full_name);
+        setEmployeeInfo({
+          name: (empData.profiles as any).full_name,
+          avatar_url: (empData.profiles as any).avatar_url,
+          position: empData.position,
+          department: empData.department
+        });
       }
 
       // Load current balances
@@ -143,7 +193,8 @@ const LeaveHistory = () => {
           days_count,
           half_day_type,
           reason,
-          status
+          status,
+          created_at
         `)
         .eq("employee_id", employeeId)
         .gte("start_date", startOfYear)
@@ -178,12 +229,13 @@ const LeaveHistory = () => {
         type: 'leave_taken' as const,
         leave_type: r.leave_type,
         days: -r.days_count,
-        effective_date: r.start_date,
+        effective_date: r.created_at?.split('T')[0] || r.start_date,
         reason: r.reason,
         status: r.status,
         start_date: r.start_date,
         end_date: r.end_date,
-        half_day_type: r.half_day_type
+        half_day_type: r.half_day_type,
+        created_at: r.created_at
       }));
 
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
@@ -194,7 +246,8 @@ const LeaveHistory = () => {
         effective_date: l.effective_date || l.created_at.split('T')[0],
         reason: l.reason,
         previous_balance: l.previous_balance,
-        new_balance: l.new_balance
+        new_balance: l.new_balance,
+        created_at: l.created_at
       }));
 
       const allTransactions = [...requestTransactions, ...adjustmentTransactions]
@@ -309,9 +362,10 @@ const LeaveHistory = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Type", "Leave Type", "Days", "Status", "Balance", "Reason"];
+    const headers = ["Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Balance", "Reason"];
     const rows = filteredTransactions.map(t => [
       t.effective_date,
+      t.type === 'leave_taken' && t.start_date ? `${t.start_date} - ${t.end_date || t.start_date}` : '-',
       t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
       t.leave_type,
       t.days.toString(),
@@ -325,7 +379,7 @@ const LeaveHistory = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `leave-history-${employeeName.replace(/\s+/g, '-')}-${yearFilter}.csv`;
+    a.download = `leave-history-${employeeInfo.name.replace(/\s+/g, '-')}-${yearFilter}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Export complete");
@@ -333,44 +387,121 @@ const LeaveHistory = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+  // Calculate summary stats
+  const totalTaken = filteredTransactions
+    .filter(t => t.type === 'leave_taken' && t.status === 'approved')
+    .reduce((sum, t) => sum + Math.abs(t.days), 0);
+  const totalAdjustments = filteredTransactions
+    .filter(t => t.type === 'adjustment')
+    .reduce((sum, t) => sum + t.days, 0);
+  const pendingCount = filteredTransactions.filter(t => t.status === 'pending').length;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      {/* Header with Employee Card */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
           <OrgLink to={`/team/${employeeId}`}>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="mt-1">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </OrgLink>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <History className="h-6 w-6" />
-              Leave History
-            </h1>
-            {employeeName && (
-              <p className="text-muted-foreground">{employeeName}</p>
-            )}
+          
+          {/* Employee Card */}
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+              <AvatarImage src={employeeInfo.avatar_url} alt={employeeInfo.name} />
+              <AvatarFallback className="text-sm font-medium">
+                {employeeInfo.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                {employeeInfo.name}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {employeeInfo.position}{employeeInfo.department && ` · ${employeeInfo.department}`}
+              </p>
+            </div>
           </div>
         </div>
-        {canEdit && (
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
-        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 ml-12 sm:ml-0">
+          {canEdit && (
+            <>
+              <AddLeaveBalanceDialog employeeId={employeeId!} onSuccess={loadData} />
+              <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add Leave</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Current Balances Summary */}
-      {balances.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {balances.map((b) => (
-            <Badge key={b.leave_type} variant="outline" className="py-1.5 px-3 text-sm">
-              {b.leave_type}: <span className="font-bold ml-1">{b.balance}</span> days
-            </Badge>
-          ))}
-        </div>
-      )}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {balances.map((b) => (
+          <Card key={b.leave_type} className="overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-md ${b.balance < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                  {getLeaveTypeIcon(b.leave_type)}
+                </div>
+                <span className="text-sm font-medium text-muted-foreground truncate">{b.leave_type}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-2xl font-bold ${b.balance < 0 ? 'text-destructive' : ''}`}>
+                  {b.balance < 0 ? `(${Math.abs(b.balance)})` : b.balance}
+                </span>
+                <span className="text-sm text-muted-foreground">days</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        
+        {/* Stats Summary */}
+        <Card className="col-span-2 sm:col-span-4 bg-muted/30">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-destructive/10">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Taken: </span>
+                  <span className="font-semibold">{totalTaken} days</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-green-500/10">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Adjustments: </span>
+                  <span className="font-semibold">{totalAdjustments > 0 ? '+' : ''}{totalAdjustments} days</span>
+                </div>
+              </div>
+              {pendingCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-amber-500/10">
+                    <Clock className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Pending: </span>
+                    <span className="font-semibold">{pendingCount}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -422,14 +553,15 @@ const LeaveHistory = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[100px]">Date</TableHead>
+                    <TableHead className="min-w-[100px]">Applied Date</TableHead>
+                    <TableHead className="min-w-[130px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[90px]">Type</TableHead>
                     <TableHead className="min-w-[110px]">Leave Type</TableHead>
                     <TableHead className="text-right min-w-[70px]">Days</TableHead>
                     <TableHead className="min-w-[85px]">Status</TableHead>
                     <TableHead className="text-right min-w-[80px]">Balance</TableHead>
                     <TableHead className="min-w-[140px]">Reason</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -437,15 +569,25 @@ const LeaveHistory = () => {
                     <TableRow key={`${t.type}-${t.id}`} className="group">
                       <TableCell className="text-sm">
                         {formatDate(t.effective_date)}
-                        {t.end_date && t.start_date !== t.end_date && (
-                          <span className="text-xs text-muted-foreground block">
-                            → {formatDate(t.end_date)}
-                          </span>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {t.type === 'leave_taken' && t.start_date ? (
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>
+                              {formatDate(t.start_date)}
+                              {t.end_date && t.start_date !== t.end_date && (
+                                <span className="text-muted-foreground"> → {formatDate(t.end_date)}</span>
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {t.type === 'leave_taken' ? (
-                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
+                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs gap-1">
                             <TrendingDown className="h-3 w-3" />
                             Taken
                           </Badge>
@@ -459,12 +601,12 @@ const LeaveHistory = () => {
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${t.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {t.days > 0 ? '+' : ''}{t.days}
+                      <TableCell className="text-right">
+                        {formatDays(t.days)}
                       </TableCell>
                       <TableCell>{getStatusBadge(t.status)}</TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {t.balance_after !== undefined ? t.balance_after : '-'}
+                      <TableCell className="text-right">
+                        {formatBalance(t.balance_after)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground truncate max-w-[140px]" title={t.reason || ""}>
                         {t.reason || "-"}
@@ -592,11 +734,22 @@ const LeaveHistory = () => {
         open={!!editAdjustment}
         onOpenChange={(open) => !open && setEditAdjustment(null)}
         onSuccess={loadData}
+        employeeId={employeeId}
       />
       <EditLeaveRequestDialog
         request={editRequest}
         open={!!editRequest}
         onOpenChange={(open) => !open && setEditRequest(null)}
+        onSuccess={loadData}
+        employeeId={employeeId}
+      />
+      
+      {/* Add Leave Dialog */}
+      <AddLeaveForEmployeeDialog
+        employeeId={employeeId!}
+        employeeName={employeeInfo.name}
+        open={addLeaveOpen}
+        onOpenChange={setAddLeaveOpen}
         onSuccess={loadData}
       />
     </div>

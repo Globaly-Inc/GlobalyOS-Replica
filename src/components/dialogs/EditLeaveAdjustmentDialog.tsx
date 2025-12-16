@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface LeaveAdjustment {
   id: string;
@@ -27,14 +28,17 @@ interface EditLeaveAdjustmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  employeeId?: string;
 }
 
 export const EditLeaveAdjustmentDialog = ({
   adjustment,
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
+  employeeId
 }: EditLeaveAdjustmentDialogProps) => {
+  const { currentOrg } = useOrganization();
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<string>("");
   const [reason, setReason] = useState<string>("");
@@ -60,21 +64,92 @@ export const EditLeaveAdjustmentDialog = ({
 
     setLoading(true);
     try {
-      // Calculate new balance based on change
+      // Get current user's employee ID for audit trail
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: currentEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user?.id)
+        .eq("organization_id", currentOrg?.id)
+        .maybeSingle();
+
+      // Calculate balance difference for recalculation
       const balanceDiff = changeAmount - adjustment.change_amount;
       const updatedNewBalance = adjustment.new_balance + balanceDiff;
 
-      const { error } = await supabase
+      // Update the leave_balance_logs entry
+      const { error: logError } = await supabase
         .from("leave_balance_logs")
         .update({
           change_amount: changeAmount,
           new_balance: updatedNewBalance,
           reason: reason || null,
-          effective_date: effectiveDate ? format(effectiveDate, "yyyy-MM-dd") : null
+          effective_date: effectiveDate ? format(effectiveDate, "yyyy-MM-dd") : null,
+          updated_by: currentEmployee?.id,
+          updated_at: new Date().toISOString()
         })
         .eq("id", adjustment.id);
 
-      if (error) throw error;
+      if (logError) throw logError;
+
+      // Recalculate leave_type_balances if balance changed
+      if (balanceDiff !== 0 && employeeId) {
+        // Get the leave_type_id from leave_types table
+        const { data: leaveTypeData } = await supabase
+          .from("leave_types")
+          .select("id")
+          .eq("organization_id", currentOrg?.id)
+          .eq("name", adjustment.leave_type)
+          .single();
+
+        if (leaveTypeData) {
+          const currentYear = new Date().getFullYear();
+          
+          // Get current balance
+          const { data: balanceData } = await supabase
+            .from("leave_type_balances")
+            .select("id, balance")
+            .eq("employee_id", employeeId)
+            .eq("leave_type_id", leaveTypeData.id)
+            .eq("year", currentYear)
+            .maybeSingle();
+
+          if (balanceData) {
+            // Update balance with the difference
+            const newBalance = balanceData.balance + balanceDiff;
+            const { error: balanceError } = await supabase
+              .from("leave_type_balances")
+              .update({ balance: newBalance })
+              .eq("id", balanceData.id);
+
+            if (balanceError) {
+              console.error("Error updating balance:", balanceError);
+            }
+          }
+        }
+      }
+
+      // Send notification to employee about the edit
+      if (employeeId && currentEmployee) {
+        const { data: employeeData } = await supabase
+          .from("employees")
+          .select("user_id")
+          .eq("id", employeeId)
+          .single();
+
+        if (employeeData?.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: employeeData.user_id,
+            organization_id: currentOrg?.id,
+            type: "leave_adjustment_edited",
+            title: "Leave Adjustment Updated",
+            message: `Your ${adjustment.leave_type} balance adjustment was updated by HR/Admin`,
+            reference_type: "leave_balance_log",
+            reference_id: adjustment.id,
+            actor_id: currentEmployee.id
+          });
+        }
+      }
 
       toast.success("Leave adjustment updated successfully");
       onOpenChange(false);

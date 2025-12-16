@@ -2357,6 +2357,8 @@ export type Database = {
           organization_id: string | null
           previous_balance: number
           reason: string | null
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           change_amount: number
@@ -2370,6 +2372,8 @@ export type Database = {
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           change_amount?: number
@@ -2383,6 +2387,8 @@ export type Database = {
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -2418,6 +2424,20 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -2496,6 +2516,7 @@ export type Database = {
           start_date: string
           status: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
@@ -2512,6 +2533,7 @@ export type Database = {
           start_date: string
           status?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
@@ -2528,6 +2550,7 @@ export type Database = {
           start_date?: string
           status?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -2561,6 +2584,20 @@ export type Database = {
           {
             foreignKeyName: "leave_requests_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
