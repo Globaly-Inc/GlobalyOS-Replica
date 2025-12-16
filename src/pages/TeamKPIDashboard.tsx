@@ -103,8 +103,6 @@ const TeamKPIDashboard = () => {
   // Edit/Delete state
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
   const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null);
-  
-  const canManageKPIs = isAdmin;
 
   // Get current employee
   const { data: currentEmployee } = useQuery({
@@ -113,7 +111,7 @@ const TeamKPIDashboard = () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
         .from("employees")
-        .select("id, organization_id")
+        .select("id, organization_id, manager_id")
         .eq("user_id", user.id)
         .single();
       if (error) throw error;
@@ -122,29 +120,69 @@ const TeamKPIDashboard = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch team members (direct reports for managers, all for HR/Admin)
-  const { data: teamMembers = [], isLoading: loadingTeam } = useQuery({
-    queryKey: ["team-kpi-members", currentEmployee?.id, isAdmin, isHR, currentOrg?.id],
+  // Check if current user has direct reports (is a manager)
+  const { data: directReportsCount = 0 } = useQuery({
+    queryKey: ["has-direct-reports", currentEmployee?.id],
     queryFn: async () => {
-      if (!currentEmployee?.id) return [];
-      
-      let query = supabase
+      if (!currentEmployee?.id) return 0;
+      const { count } = await supabase
         .from("employees")
-        .select("id, position, department, profiles(full_name, avatar_url)")
-        .eq("organization_id", currentEmployee.organization_id)
+        .select("id", { count: "exact", head: true })
+        .eq("manager_id", currentEmployee.id)
         .eq("status", "active");
-
-      // If not HR/Admin, only show direct reports
-      if (!isAdmin && !isHR) {
-        query = query.eq("manager_id", currentEmployee.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      return count || 0;
     },
     enabled: !!currentEmployee?.id,
   });
+
+  const isManager = directReportsCount > 0;
+
+  // Fetch team members based on role:
+  // - Owner/Admin/HR: See all employees
+  // - Manager: See self + direct reports
+  // - User: See only self
+  const { data: teamMembers = [], isLoading: loadingTeam } = useQuery({
+    queryKey: ["team-kpi-members", currentEmployee?.id, isAdmin, isHR, isManager, currentOrg?.id],
+    queryFn: async () => {
+      if (!currentEmployee?.id) return [];
+      
+      if (isAdmin || isHR) {
+        // Admin/HR: See all employees
+        const { data, error } = await supabase
+          .from("employees")
+          .select("id, position, department, manager_id, profiles(full_name, avatar_url)")
+          .eq("organization_id", currentEmployee.organization_id)
+          .eq("status", "active");
+        if (error) throw error;
+        return data;
+      } else {
+        // Manager/User: See self + direct reports (if any)
+        const { data, error } = await supabase
+          .from("employees")
+          .select("id, position, department, manager_id, profiles(full_name, avatar_url)")
+          .eq("organization_id", currentEmployee.organization_id)
+          .eq("status", "active")
+          .or(`id.eq.${currentEmployee.id},manager_id.eq.${currentEmployee.id}`);
+        if (error) throw error;
+        return data;
+      }
+    },
+    enabled: !!currentEmployee?.id,
+  });
+
+  // Helper to determine if user can edit a specific KPI
+  const canEditKpi = (kpi: Kpi) => {
+    if (isAdmin) return true; // Owner/Admin can edit all
+    
+    // User can always edit their own KPIs
+    if (kpi.employee_id === currentEmployee?.id) return true;
+    
+    // Manager can edit their direct reports' KPIs
+    const employee = teamMembers.find(m => m.id === kpi.employee_id);
+    if (employee?.manager_id === currentEmployee?.id) return true;
+    
+    return false;
+  };
 
   // Fetch projects for filter
   const { data: projects = [] } = useQuery({
@@ -435,7 +473,11 @@ const TeamKPIDashboard = () => {
               Team KPI Dashboard
             </h1>
             <p className="text-muted-foreground">
-              {isAdmin || isHR ? "Organization-wide" : "Your direct reports'"} KPI overview
+              {isAdmin || isHR
+                ? "Organization-wide KPI overview"
+                : isManager
+                ? "Your KPIs and direct reports' overview"
+                : "Your personal KPI overview"}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -497,12 +539,12 @@ const TeamKPIDashboard = () => {
           </div>
         ) : teamMembers.length === 0 ? (
           <Card className="p-12 text-center">
-            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-lg font-medium mb-2">No Team Members</h3>
+            <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="text-lg font-medium mb-2">No KPIs Found</h3>
             <p className="text-muted-foreground">
               {isAdmin || isHR
                 ? "No active employees in the organization."
-                : "You don't have any direct reports assigned."}
+                : "Unable to load your KPI data. Please try again."}
             </p>
           </Card>
         ) : (
@@ -795,7 +837,7 @@ const TeamKPIDashboard = () => {
                               </span>
                             </div>
                           )}
-                          {canManageKPIs && (
+                          {canEditKpi(kpi as Kpi) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
