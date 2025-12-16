@@ -86,7 +86,8 @@ export const PostVisibilitySelector = ({
 
   const handleScopeChange = (scope: AccessScope) => {
     onAccessScopeChange(scope);
-    // Clear selections when scope changes
+    // Close popover and clear selections when scope changes
+    setPopoverOpen(false);
     if (scope !== 'offices') onOfficeIdsChange([]);
     if (scope !== 'departments') onDepartmentsChange([]);
     if (scope !== 'projects') onProjectIdsChange([]);
