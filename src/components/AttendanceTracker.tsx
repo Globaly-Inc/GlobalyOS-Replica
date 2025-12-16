@@ -3,20 +3,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight, Home, Building2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks, isSameWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
-import { useWfhDays } from "@/services/useWfh";
+import { useWfhDays, useEmployeeWorkLocation } from "@/services/useWfh";
+import { AddWfhRequestDialog } from "@/components/dialogs/AddWfhRequestDialog";
+import { WorkLocation, WORK_LOCATION_CONFIG } from "@/types/wfh";
 
 interface AttendanceTrackerProps {
   employeeId: string;
   showCheckIn?: boolean;
+  organizationId?: string;
 }
 
-export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
+export const AttendanceTracker = ({ employeeId, showCheckIn = false, organizationId }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
   const currentDate = new Date();
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -74,6 +78,9 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       return data;
     },
   });
+
+  // Fetch work location for WFH request button
+  const { data: workLocation } = useEmployeeWorkLocation(employeeId);
 
   // Fetch WFH days for the week
   const { data: wfhDaysCount = 0 } = useWfhDays(
@@ -290,7 +297,20 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       {/* Weekly Summary */}
       <div>
         <div className="flex items-center justify-between mb-3 gap-2">
-          <p className="font-semibold text-sm shrink-0">{isCurrentWeek ? "This Week" : "Weekly Summary"}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-sm shrink-0">{isCurrentWeek ? "This Week" : "Weekly Summary"}</p>
+            {workLocation === 'office' && organizationId && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-6 text-xs px-2"
+                onClick={() => setWfhDialogOpen(true)}
+              >
+                <Home className="h-3 w-3 mr-1" />
+                Request WFH
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-0.5 sm:gap-1">
             <Button 
               variant="ghost" 
@@ -401,6 +421,11 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
         </div>
       </div>
 
+      {/* WFH Request Dialog */}
+      <AddWfhRequestDialog
+        open={wfhDialogOpen}
+        onOpenChange={setWfhDialogOpen}
+      />
     </div>
   );
 };
