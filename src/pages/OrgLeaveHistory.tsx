@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,14 +42,34 @@ interface LeaveTransaction {
   half_day_type?: string;
   previous_balance?: number;
   new_balance?: number;
+  balance_after?: number;
   employee: {
     id: string;
+    position?: string;
     profiles: {
       full_name: string;
       avatar_url: string | null;
     };
   };
 }
+
+// Format days with negative as (X) in red
+const formatDays = (days: number, showSign: boolean = true) => {
+  if (days === 0) return <span className="text-muted-foreground">0</span>;
+  if (days < 0) {
+    return <span className="text-destructive font-medium">({Math.abs(days)})</span>;
+  }
+  return <span className="text-green-600 font-medium">{showSign ? '+' : ''}{days}</span>;
+};
+
+// Format balance with color
+const formatBalance = (balance: number | undefined) => {
+  if (balance === undefined) return <span className="text-muted-foreground">-</span>;
+  if (balance < 0) {
+    return <span className="text-destructive font-medium">({Math.abs(balance)})</span>;
+  }
+  return <span className={balance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{balance}</span>;
+};
 
 const OrgLeaveHistory = () => {
   const { currentOrg } = useOrganization();
@@ -70,6 +90,8 @@ const OrgLeaveHistory = () => {
   const [editRequest, setEditRequest] = useState<any>(null);
   const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
+  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
+  const [canceling, setCanceling] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -101,6 +123,7 @@ const OrgLeaveHistory = () => {
           created_at,
           employee:employees!leave_requests_employee_id_fkey(
             id,
+            position,
             profiles!inner(full_name, avatar_url)
           )
         `)
@@ -125,6 +148,7 @@ const OrgLeaveHistory = () => {
           created_at,
           employee:employees!leave_balance_logs_employee_id_fkey(
             id,
+            position,
             profiles!inner(full_name, avatar_url)
           )
         `)
@@ -162,10 +186,29 @@ const OrgLeaveHistory = () => {
         employee: l.employee
       }));
 
-      const allTransactions = [...requestTransactions, ...adjustmentTransactions]
-        .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime());
+      const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
-      setTransactions(allTransactions);
+      // ====== Running balance calculation per employee per leave type ======
+      // Step 1: Sort chronologically (oldest first)
+      const sortedChronologically = [...allTransactions].sort((a, b) => 
+        new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
+      );
+
+      // Step 2: Process transactions chronologically, tracking per employee per leave type
+      const runningBalance: Record<string, Record<string, number>> = {};
+      const transactionsWithBalance = sortedChronologically.map(t => {
+        const empId = t.employee?.id || 'unknown';
+        if (!runningBalance[empId]) {
+          runningBalance[empId] = {};
+        }
+        if (t.type === 'adjustment' || t.status === 'approved') {
+          runningBalance[empId][t.leave_type] = (runningBalance[empId][t.leave_type] || 0) + t.days;
+        }
+        return { ...t, balance_after: runningBalance[empId][t.leave_type] || 0 };
+      });
+
+      // Step 3: Reverse to show newest first
+      setTransactions(transactionsWithBalance.reverse());
       
       // Extract unique leave types
       const types = [...new Set(allTransactions.map(t => t.leave_type))];
@@ -291,6 +334,27 @@ const OrgLeaveHistory = () => {
 
     setDeletingAdjustment(false);
     setDeleteAdjustmentDialog({ open: false, adjustment: null });
+  };
+
+  const handleCancelRequest = async () => {
+    if (!cancelDialog.request) return;
+    setCanceling(true);
+
+    const { error } = await supabase
+      .from("leave_requests")
+      .delete()
+      .eq("id", cancelDialog.request.id);
+
+    if (error) {
+      toast.error("Failed to cancel leave request");
+    } else {
+      toast.success("Leave request cancelled");
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+    }
+
+    setCanceling(false);
+    setCancelDialog({ open: false, request: null });
   };
 
   // Helper to map LeaveTransaction to EditLeaveAdjustmentDialog format
@@ -503,9 +567,10 @@ const OrgLeaveHistory = () => {
                     <TableHead className="min-w-[140px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[100px]">Type</TableHead>
                     <TableHead className="min-w-[120px]">Leave Type</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Days</TableHead>
-                    <TableHead className="min-w-[90px]">Status</TableHead>
-                    <TableHead className="min-w-[200px]">Reason</TableHead>
+                    <TableHead className="text-right min-w-[70px]">Days</TableHead>
+                    <TableHead className="min-w-[85px]">Status</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Balance</TableHead>
+                    <TableHead className="min-w-[140px]">Reason</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -523,16 +588,35 @@ const OrgLeaveHistory = () => {
                               {getInitials(t.employee?.profiles?.full_name || "")}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium text-sm truncate max-w-[120px]">
-                            {t.employee?.profiles?.full_name}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm truncate block max-w-[120px]">
+                              {t.employee?.profiles?.full_name}
+                            </span>
+                            {t.employee?.position && (
+                              <span className="text-xs text-muted-foreground truncate block max-w-[120px]">
+                                {t.employee.position}
+                              </span>
+                            )}
+                          </div>
                         </OrgLink>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm">
                         {formatDate(t.effective_date)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatLeaveDates(t)}
+                      <TableCell className="text-sm">
+                        {t.type === 'leave_taken' && t.start_date ? (
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>
+                              {formatDate(t.start_date)}
+                              {t.end_date && t.start_date !== t.end_date && (
+                                <span className="text-muted-foreground"> → {formatDate(t.end_date)}</span>
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {t.type === 'leave_taken' ? (
@@ -550,14 +634,15 @@ const OrgLeaveHistory = () => {
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${t.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {t.days > 0 ? '+' : ''}{t.days}
+                      <TableCell className="text-right">
+                        {formatDays(t.days)}
                       </TableCell>
                       <TableCell>{getStatusBadge(t.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
-                        <p className="line-clamp-2" title={t.reason || ""}>
-                          {t.reason || "-"}
-                        </p>
+                      <TableCell className="text-right">
+                        {formatBalance(t.balance_after)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate max-w-[140px]" title={t.reason || ""}>
+                        {t.reason || "-"}
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
@@ -613,6 +698,23 @@ const OrgLeaveHistory = () => {
                                 <TooltipContent>Delete</TooltipContent>
                               </Tooltip>
                             )}
+                            
+                            {/* Cancel - For pending leave requests */}
+                            {canEdit && t.type === 'leave_taken' && t.status === 'pending' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => setCancelDialog({ open: true, request: t })}
+                                  >
+                                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Cancel Request</TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         </TooltipProvider>
                       </TableCell>
@@ -652,6 +754,37 @@ const OrgLeaveHistory = () => {
               className="bg-destructive hover:bg-destructive/90"
             >
               {deletingAdjustment ? "Deleting..." : "Delete Adjustment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Leave Request Dialog */}
+      <AlertDialog 
+        open={cancelDialog.open} 
+        onOpenChange={(open) => !open && setCancelDialog({ open: false, request: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Leave Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelDialog.request && (
+                <>
+                  Are you sure you want to cancel this {cancelDialog.request.leave_type} request for{" "}
+                  {Math.abs(cancelDialog.request.days)} {Math.abs(cancelDialog.request.days) === 1 ? "day" : "days"} 
+                  {" "}by {cancelDialog.request.employee?.profiles?.full_name}? This action cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={canceling}>Keep Request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelRequest}
+              disabled={canceling}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {canceling ? "Cancelling..." : "Cancel Request"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -18,15 +18,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { 
-  ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, MoreHorizontal,
+  ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, Eye,
   Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate, formatDateRange } from "@/lib/utils";
 import { toast } from "sonner";
@@ -624,49 +619,66 @@ const LeaveHistory = () => {
                         {t.reason || "-"}
                       </TableCell>
                       <TableCell>
-                        {(canEdit || (isOwnProfile && t.type === 'leave_taken' && t.status === 'pending')) && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {canEdit && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    if (t.type === 'adjustment') {
-                                      setEditAdjustment(mapToAdjustmentEdit(t));
-                                    } else {
-                                      setEditRequest(mapToRequestEdit(t));
-                                    }
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                              )}
-                              {canEdit && t.type === 'adjustment' && (
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                              {(isOwnProfile || canEdit) && t.type === 'leave_taken' && t.status === 'pending' && (
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setCancelDialog({ open: true, request: t })}
-                                >
-                                  <X className="h-4 w-4 mr-2" />
-                                  Cancel Request
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                        <TooltipProvider>
+                          <div className="flex items-center gap-1">
+                            {/* Edit - Only for canEdit users */}
+                            {canEdit && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => {
+                                      if (t.type === 'adjustment') {
+                                        setEditAdjustment(mapToAdjustmentEdit(t));
+                                      } else {
+                                        setEditRequest(mapToRequestEdit(t));
+                                      }
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit</TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {/* Delete - Only for adjustments and canEdit users */}
+                            {canEdit && t.type === 'adjustment' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete</TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {/* Cancel - For pending leave requests */}
+                            {(isOwnProfile || canEdit) && t.type === 'leave_taken' && t.status === 'pending' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => setCancelDialog({ open: true, request: t })}
+                                  >
+                                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Cancel Request</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
