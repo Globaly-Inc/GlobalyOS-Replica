@@ -344,6 +344,7 @@ export type Database = {
       }
       attendance_records: {
         Row: {
+          check_in_office_id: string | null
           check_in_time: string | null
           check_out_time: string | null
           created_at: string
@@ -357,6 +358,7 @@ export type Database = {
           work_hours: number | null
         }
         Insert: {
+          check_in_office_id?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           created_at?: string
@@ -370,6 +372,7 @@ export type Database = {
           work_hours?: number | null
         }
         Update: {
+          check_in_office_id?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           created_at?: string
@@ -383,6 +386,13 @@ export type Database = {
           work_hours?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_records_check_in_office_id_fkey"
+            columns: ["check_in_office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_records_employee_id_fkey"
             columns: ["employee_id"]
@@ -6603,6 +6613,15 @@ export type Database = {
               _qr_code: string
               _user_latitude?: number
               _user_longitude?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_action: string
+              p_latitude?: number
+              p_longitude?: number
+              p_qr_code: string
             }
             Returns: Json
           }
