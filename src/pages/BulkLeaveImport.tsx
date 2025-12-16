@@ -63,10 +63,15 @@ john.doe@company.com,Annual Leave,2025-01-15,2025-01-17,-3,Full Day,,Team offsit
 jane.smith@company.com,Annual Leave,,,20,Full Day,2025-01-01,Opening Balance 2025,
 jane.smith@company.com,Sick Leave,2025-02-10,2025-02-10,-0.5,First Half,,Doctor appointment,approved`;
 
-const parseDate = (dateStr: string): string | null => {
+type DateParseOptions = {
+  preferDayFirstForSlash?: boolean;
+};
+
+const parseDate = (dateStr: string, options?: DateParseOptions): string | null => {
   if (!dateStr || dateStr.trim() === '') return null;
   
   const cleanDate = dateStr.trim();
+  const preferDayFirstForSlash = options?.preferDayFirstForSlash ?? false;
   
   // Handle Excel serial dates (numbers like 45678)
   if (/^\d+$/.test(cleanDate)) {
@@ -124,7 +129,7 @@ const parseDate = (dateStr: string): string | null => {
             return format(date, 'yyyy-MM-dd');
           }
         }
-        // Both could be valid - prefer day-first for dot separator, month-first for slash
+        // Both could be valid - choose based on preference/heuristics
         else if (first <= 12 && second <= 12) {
           if (separator === '.') {
             // European format: dd.MM.yyyy
@@ -132,8 +137,14 @@ const parseDate = (dateStr: string): string | null => {
             if (isValid(date) && date.getDate() === first) {
               return format(date, 'yyyy-MM-dd');
             }
+          } else if (separator === '/' && preferDayFirstForSlash) {
+            // File-level hint: treat slash dates as dd/MM/yyyy
+            const date = new Date(year, second - 1, first);
+            if (isValid(date) && date.getDate() === first) {
+              return format(date, 'yyyy-MM-dd');
+            }
           } else {
-            // Default to month-first for ambiguous slash dates (US format common)
+            // Default: month-first for ambiguous slash dates (US common)
             const date = new Date(year, first - 1, second);
             if (isValid(date) && date.getDate() === second) {
               return format(date, 'yyyy-MM-dd');
@@ -630,11 +641,45 @@ const BulkLeaveImport = () => {
   const parseCSV = (text: string) => {
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) {
-      toast({ title: "Invalid CSV", description: "File must have a header row and at least one data row", variant: "destructive" });
+      toast({ title: 'Invalid CSV', description: 'File must have a header row and at least one data row', variant: 'destructive' });
       return;
     }
 
     const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, '_'));
+
+    // Detect date preference for slash-separated dates (dd/MM vs MM/dd) based on evidence in the file.
+    // If we see any slash date where the first segment > 12, we can safely assume dd/MM for the whole file.
+    let preferDayFirstForSlash = false;
+
+    const getIdx = (field: string) => headers.findIndex(h => h.includes(field.replace(/[^a-z_]/g, '_')));
+    const startIdx = getIdx('start_date');
+    const endIdx = getIdx('end_date');
+    const effectiveIdx = getIdx('effective_date');
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const candidates = [
+        startIdx >= 0 ? values[startIdx] : '',
+        endIdx >= 0 ? values[endIdx] : '',
+        effectiveIdx >= 0 ? values[effectiveIdx] : '',
+      ]
+        .map(v => (v || '').trim())
+        .filter(Boolean);
+
+      for (const c of candidates) {
+        const m = c.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (m) {
+          const first = parseInt(m[1], 10);
+          if (first > 12) {
+            preferDayFirstForSlash = true;
+            break;
+          }
+        }
+      }
+
+      if (preferDayFirstForSlash) break;
+    }
+
     const records: ParsedLeaveRecord[] = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -647,11 +692,18 @@ const BulkLeaveImport = () => {
 
       const employeeEmail = getValue('employee_email') || getValue('email');
       const leaveType = getValue('leave_type');
-      const startDate = getValue('start_date');
-      const endDate = getValue('end_date');
+
+      const rawStartDate = getValue('start_date');
+      const rawEndDate = getValue('end_date');
+      const rawEffectiveDate = getValue('effective_date');
+
+      // Normalize dates to yyyy-MM-dd when possible so the preview date pickers work
+      const startDate = parseDate(rawStartDate, { preferDayFirstForSlash }) || rawStartDate;
+      const endDate = parseDate(rawEndDate, { preferDayFirstForSlash }) || rawEndDate;
+      const effectiveDate = parseDate(rawEffectiveDate, { preferDayFirstForSlash }) || rawEffectiveDate;
+
       const days = parseFloat(getValue('days')) || 0;
       const dayType = getValue('day_type') || 'Full Day';
-      const effectiveDate = getValue('effective_date');
       const reason = getValue('reason');
       const status = getValue('status') || 'approved';
 
@@ -670,7 +722,7 @@ const BulkLeaveImport = () => {
         effective_date: effectiveDate,
         reason,
         status,
-        isOpeningBalance
+        isOpeningBalance,
       });
     }
 
