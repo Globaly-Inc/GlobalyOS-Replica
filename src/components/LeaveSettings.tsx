@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+import { BulkLeaveImportDialog } from "@/components/dialogs/BulkLeaveImportDialog";
 
 interface LeaveType {
   id: string;
@@ -564,7 +565,10 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
           <p className="text-sm text-muted-foreground">
             Configure leave types available in your organization
           </p>
-          {dialogContent}
+          <div className="flex gap-2">
+            <BulkLeaveImportDialog />
+            {dialogContent}
+          </div>
         </div>
         {tableContent}
       </div>
@@ -584,7 +588,10 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               Configure leave types available in your organization
             </CardDescription>
           </div>
-          {dialogContent}
+          <div className="flex gap-2">
+            <BulkLeaveImportDialog />
+            {dialogContent}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
