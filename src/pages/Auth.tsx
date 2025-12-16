@@ -33,20 +33,28 @@ const Auth = () => {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [accountNotFound, setAccountNotFound] = useState(false);
+  const [googleAuthEnabled, setGoogleAuthEnabled] = useState<boolean | null>(null);
 
-  // Fetch Turnstile site key on mount
+  // Fetch Turnstile site key and auth providers on mount
   useEffect(() => {
-    const fetchTurnstileConfig = async () => {
+    const fetchConfig = async () => {
       try {
-        const response = await supabase.functions.invoke('get-turnstile-config');
-        if (response.data?.siteKey) {
-          setTurnstileSiteKey(response.data.siteKey);
+        const [turnstileRes, providersRes] = await Promise.all([
+          supabase.functions.invoke('get-turnstile-config'),
+          supabase.functions.invoke('get-auth-providers'),
+        ]);
+        
+        if (turnstileRes.data?.siteKey) {
+          setTurnstileSiteKey(turnstileRes.data.siteKey);
         }
+        
+        setGoogleAuthEnabled(providersRes.data?.providers?.google ?? false);
       } catch (error) {
-        console.error('Failed to fetch Turnstile config:', error);
+        console.error('Failed to fetch config:', error);
+        setGoogleAuthEnabled(false);
       }
     };
-    fetchTurnstileConfig();
+    fetchConfig();
   }, []);
 
   useEffect(() => {
@@ -309,17 +317,21 @@ const Auth = () => {
 
         {!otpSent ? (
           <div className="space-y-4">
-            {/* Google SSO Button */}
-            <GoogleAuthButton mode="signin" className="w-full" />
-            
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
-              </div>
-            </div>
+            {/* Google SSO Button - only show if enabled */}
+            {googleAuthEnabled && (
+              <>
+                <GoogleAuthButton mode="signin" className="w-full" />
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div className="text-center mb-4">
