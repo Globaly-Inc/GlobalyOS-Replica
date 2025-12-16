@@ -564,7 +564,7 @@ const OrgLeaveHistory = () => {
                   <TableRow>
                     <TableHead className="min-w-[180px]">Employee</TableHead>
                     <TableHead className="min-w-[120px] whitespace-nowrap">Applied Date</TableHead>
-                    <TableHead className="min-w-[70px]">Leave Dates</TableHead>
+                    <TableHead className="w-[140px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[100px]">Type</TableHead>
                     <TableHead className="min-w-[120px]">Leave Type</TableHead>
                     <TableHead className="text-right min-w-[70px]">Days</TableHead>
@@ -603,7 +603,7 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-sm">
                         {formatDate(t.effective_date)}
                       </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
+                      <TableCell className="text-sm w-[140px]">
                         {t.type === 'leave_taken' && t.start_date ? (
                           <div className="flex items-center gap-1.5">
                             <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
