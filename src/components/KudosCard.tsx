@@ -118,18 +118,20 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
                 </AvatarFallback>
               </Avatar>
               
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
-                <VisibilityBadge 
-                  accessScope={kudos.accessScope}
-                  offices={kudos.kudosOffices}
-                  departments={kudos.kudosDepartments}
-                  projects={kudos.kudosProjects}
-                />
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
+                  <VisibilityBadge 
+                    accessScope={kudos.accessScope}
+                    offices={kudos.kudosOffices}
+                    departments={kudos.kudosDepartments}
+                    projects={kudos.kudosProjects}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDateTime(kudos.date)}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(kudos.date)}
-              </p>
             </OrgLink>
             
             {/* Post type icon on right with hover actions */}
