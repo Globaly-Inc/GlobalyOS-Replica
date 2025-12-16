@@ -473,6 +473,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "blog_post_keywords_blog_post_id_fkey"
+            columns: ["blog_post_id"]
+            isOneToOne: false
+            referencedRelation: "public_blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "blog_post_keywords_keyword_id_fkey"
             columns: ["keyword_id"]
             isOneToOne: false
@@ -5219,6 +5226,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      public_blog_posts: {
+        Row: {
+          author_avatar_url: string | null
+          author_name: string | null
+          canonical_url: string | null
+          category: string | null
+          content: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          id: string | null
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
+          published_at: string | null
+          reading_time_minutes: number | null
+          slug: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          author_avatar_url?: string | null
+          author_name?: string | null
+          canonical_url?: string | null
+          category?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          author_avatar_url?: string | null
+          author_name?: string | null
+          canonical_url?: string | null
+          category?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
