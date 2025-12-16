@@ -18,6 +18,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { OnboardingChecklist } from "@/components/onboarding";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
+import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
 type DateFilter = "all" | "today" | "week" | "month";
@@ -916,6 +917,7 @@ const Home = () => {
         {/* Mobile-only: Pending Leave & On Leave Today at top */}
         <div className="lg:hidden space-y-4 mb-6">
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+          <PendingWfhApprovals />
           
           {/* People on Leave Today - Mobile */}
           <Card className="p-4">
@@ -1092,6 +1094,9 @@ const Home = () => {
 
             {/* Pending Leave Approvals for Managers/HR */}
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+            
+            {/* Pending WFH Approvals for Managers/HR */}
+            <PendingWfhApprovals />
 
             {/* Current User Leave Balance */}
             {hasEmployeeProfile && <Card className="p-6">
