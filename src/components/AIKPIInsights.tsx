@@ -258,9 +258,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
       {/* KPIs Summary - Grouped by Quarter */}
       {groupedKpis.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
-            KPIs {isOwnProfile && <span className="text-primary">(click to update)</span>}
-          </h4>
           
           {groupedKpis.map(([quarterKey, quarterKpis]) => {
             const isExpanded = expandedQuarters.has(quarterKey);
