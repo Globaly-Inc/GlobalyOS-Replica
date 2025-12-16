@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.review-reminders]
 verify_jwt = false
+
+[functions.calculate-payroll]
+verify_jwt = true
