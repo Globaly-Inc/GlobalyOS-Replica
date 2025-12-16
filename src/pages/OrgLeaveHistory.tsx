@@ -564,13 +564,13 @@ const OrgLeaveHistory = () => {
                   <TableRow>
                     <TableHead className="min-w-[180px]">Employee</TableHead>
                     <TableHead className="min-w-[100px]">Applied Date</TableHead>
-                    <TableHead className="min-w-[140px]">Leave Dates</TableHead>
+                    <TableHead className="min-w-[100px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[100px]">Type</TableHead>
                     <TableHead className="min-w-[120px]">Leave Type</TableHead>
                     <TableHead className="text-right min-w-[70px]">Days</TableHead>
                     <TableHead className="min-w-[85px]">Status</TableHead>
                     <TableHead className="text-right min-w-[80px]">Balance</TableHead>
-                    <TableHead className="min-w-[140px]">Reason</TableHead>
+                    <TableHead className="min-w-[200px]">Reason</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -603,7 +603,7 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-sm">
                         {formatDate(t.effective_date)}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm whitespace-nowrap">
                         {t.type === 'leave_taken' && t.start_date ? (
                           <div className="flex items-center gap-1.5">
                             <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
@@ -641,8 +641,8 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-right">
                         {formatBalance(t.balance_after)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground truncate max-w-[140px]" title={t.reason || ""}>
-                        {t.reason || "-"}
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px]" title={t.reason || ""}>
+                        <span className="line-clamp-2">{t.reason || "-"}</span>
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
