@@ -98,3 +98,9 @@ verify_jwt = false
 
 [functions.fix-blog-seo]
 verify_jwt = false
+
+[functions.notify-review-stage]
+verify_jwt = false
+
+[functions.review-reminders]
+verify_jwt = false
