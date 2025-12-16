@@ -172,7 +172,12 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
       {sortedBalances.length > 0 ? (
         <div className="space-y-4">
           {/* Leave Type Balances */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div 
+            className="grid gap-3"
+            style={{ 
+              gridTemplateColumns: `repeat(auto-fit, minmax(${sortedBalances.length <= 2 ? '45%' : sortedBalances.length === 3 ? '30%' : '140px'}, 1fr))` 
+            }}
+          >
             {sortedBalances.map((item) => (
               <div 
                 key={item.leave_type_name} 
