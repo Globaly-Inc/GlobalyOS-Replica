@@ -31,11 +31,6 @@ const OrgAttendanceHistory = () => {
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode } = useOrgNavigation();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-  
-  // Only owner, admin, and HR can access org-wide attendance history
-  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
-    return <Navigate to={`/org/${orgCode}`} replace />;
-  }
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
@@ -77,6 +72,11 @@ const OrgAttendanceHistory = () => {
     },
     enabled: !!currentOrg?.id,
   });
+
+  // Only owner, admin, and HR can access org-wide attendance history - moved after all hooks
+  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
+    return <Navigate to={`/org/${orgCode}`} replace />;
+  }
 
   const filteredRecords = records?.filter((record) => {
     const employeeName = (record.employee as any)?.profiles?.full_name?.toLowerCase() || "";

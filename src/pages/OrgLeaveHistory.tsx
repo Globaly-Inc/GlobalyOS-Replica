@@ -86,11 +86,6 @@ const OrgLeaveHistory = () => {
   const { navigateOrg, orgCode } = useOrgNavigation();
   const canEdit = isOwner || isAdmin || isHR;
   
-  // Only owner, admin, and HR can access org-wide leave history
-  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
-    return <Navigate to={`/org/${orgCode}/leave`} replace />;
-  }
-  
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -121,6 +116,11 @@ const OrgLeaveHistory = () => {
       loadData();
     }
   }, [currentOrg?.id, yearFilter]);
+
+  // Only owner, admin, and HR can access org-wide leave history - moved after all hooks
+  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
+    return <Navigate to={`/org/${orgCode}/leave`} replace />;
+  }
 
   const loadData = async () => {
     if (!currentOrg?.id) return;
