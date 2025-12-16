@@ -181,29 +181,38 @@ export const GiveKudosDialogContent = ({
         if (insertedKudos && insertedKudos.length > 0) {
           for (const kudos of insertedKudos) {
             if (accessScope === 'offices' && selectedOfficeIds.length > 0) {
-              await supabase.from("kudos_offices").insert(
+              const { error: officesError } = await supabase.from("kudos_offices").insert(
                 selectedOfficeIds.map(officeId => ({
                   kudos_id: kudos.id,
                   office_id: officeId,
                   organization_id: giverEmployee.organization_id,
                 }))
               );
+              if (officesError) {
+                console.error('Error inserting kudos_offices:', officesError);
+              }
             } else if (accessScope === 'departments' && selectedDepartments.length > 0) {
-              await supabase.from("kudos_departments").insert(
+              const { error: deptsError } = await supabase.from("kudos_departments").insert(
                 selectedDepartments.map(department => ({
                   kudos_id: kudos.id,
                   department,
                   organization_id: giverEmployee.organization_id,
                 }))
               );
+              if (deptsError) {
+                console.error('Error inserting kudos_departments:', deptsError);
+              }
             } else if (accessScope === 'projects' && selectedProjectIds.length > 0) {
-              await supabase.from("kudos_projects").insert(
+              const { error: projectsError } = await supabase.from("kudos_projects").insert(
                 selectedProjectIds.map(projectId => ({
                   kudos_id: kudos.id,
                   project_id: projectId,
                   organization_id: giverEmployee.organization_id,
                 }))
               );
+              if (projectsError) {
+                console.error('Error inserting kudos_projects:', projectsError);
+              }
             }
           }
         }
