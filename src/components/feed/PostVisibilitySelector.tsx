@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Globe, Building2, Briefcase, FolderKanban, ChevronDown, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type AccessScope = 'company' | 'offices' | 'departments' | 'projects';
 
@@ -86,11 +91,14 @@ export const PostVisibilitySelector = ({
 
   const handleScopeChange = (scope: AccessScope) => {
     onAccessScopeChange(scope);
-    // Close popover and clear selections when scope changes
-    setPopoverOpen(false);
+    // Clear selections when scope changes
     if (scope !== 'offices') onOfficeIdsChange([]);
     if (scope !== 'departments') onDepartmentsChange([]);
     if (scope !== 'projects') onProjectIdsChange([]);
+    // Open popover for non-company scopes
+    if (scope !== 'company') {
+      setPopoverOpen(true);
+    }
   };
 
   const toggleOffice = (officeId: string) => {
@@ -173,39 +181,64 @@ export const PostVisibilitySelector = ({
     }
   };
 
-  const scopeOptions = [
-    { value: 'company' as const, label: 'Everyone', icon: Globe, description: 'Visible to all team members' },
-    { value: 'offices' as const, label: 'Offices', icon: Building2, description: 'Specific office locations' },
-    { value: 'departments' as const, label: 'Departments', icon: Briefcase, description: 'Specific departments' },
-    { value: 'projects' as const, label: 'Projects', icon: FolderKanban, description: 'Specific project teams' },
-  ];
+  const getScopeIcon = (scope: AccessScope) => {
+    switch (scope) {
+      case 'company': return <Globe className="h-4 w-4" />;
+      case 'offices': return <Building2 className="h-4 w-4" />;
+      case 'departments': return <Briefcase className="h-4 w-4" />;
+      case 'projects': return <FolderKanban className="h-4 w-4" />;
+    }
+  };
+
+  const getScopeLabel = (scope: AccessScope) => {
+    switch (scope) {
+      case 'company': return 'Everyone';
+      case 'offices': return 'Specific Offices';
+      case 'departments': return 'Specific Departments';
+      case 'projects': return 'Specific Projects';
+    }
+  };
 
   return (
     <div className="space-y-3">
       <Label>Who can see this?</Label>
       
-      <RadioGroup value={accessScope} onValueChange={(v) => handleScopeChange(v as AccessScope)}>
-        <div className="grid grid-cols-2 gap-2">
-          {scopeOptions.map(({ value, label, icon: Icon }) => (
-            <div
-              key={value}
-              className={cn(
-                "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all",
-                accessScope === value 
-                  ? "border-primary bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              )}
-              onClick={() => handleScopeChange(value)}
-            >
-              <RadioGroupItem value={value} id={`scope-${value}`} className="sr-only" />
-              <Icon className={cn("h-4 w-4", accessScope === value ? "text-primary" : "text-muted-foreground")} />
-              <span className={cn("text-sm font-medium", accessScope === value ? "text-primary" : "text-foreground")}>
-                {label}
-              </span>
+      <Select value={accessScope} onValueChange={(v) => handleScopeChange(v as AccessScope)}>
+        <SelectTrigger className="w-full">
+          <SelectValue>
+            <div className="flex items-center gap-2">
+              {getScopeIcon(accessScope)}
+              <span>{getScopeLabel(accessScope)}</span>
             </div>
-          ))}
-        </div>
-      </RadioGroup>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="company">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              <span>Everyone</span>
+            </div>
+          </SelectItem>
+          <SelectItem value="offices">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span>Specific Offices</span>
+            </div>
+          </SelectItem>
+          <SelectItem value="departments">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              <span>Specific Departments</span>
+            </div>
+          </SelectItem>
+          <SelectItem value="projects">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="h-4 w-4" />
+              <span>Specific Projects</span>
+            </div>
+          </SelectItem>
+        </SelectContent>
+      </Select>
 
       {/* Selection dropdowns for offices, departments, projects */}
       {accessScope !== 'company' && (
