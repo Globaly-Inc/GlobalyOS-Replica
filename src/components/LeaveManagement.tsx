@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane } from "lucide-react";
 
 interface LeaveManagementProps {
   employeeId: string;
@@ -21,6 +21,18 @@ interface HourBalance {
   overtime_minutes: number;
   undertime_minutes: number;
 }
+
+// Get icon for leave type
+const getLeaveTypeIcon = (leaveType: string) => {
+  const type = leaveType.toLowerCase();
+  if (type.includes('annual') || type.includes('vacation')) return <Sun className="h-3.5 w-3.5" />;
+  if (type.includes('sick') || type.includes('medical')) return <Heart className="h-3.5 w-3.5" />;
+  if (type.includes('menstrual') || type.includes('period')) return <Moon className="h-3.5 w-3.5" />;
+  if (type.includes('unpaid')) return <Clock className="h-3.5 w-3.5" />;
+  if (type.includes('maternity') || type.includes('paternity') || type.includes('parental')) return <Baby className="h-3.5 w-3.5" />;
+  if (type.includes('travel') || type.includes('holiday')) return <Plane className="h-3.5 w-3.5" />;
+  return <Briefcase className="h-3.5 w-3.5" />;
+};
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
@@ -62,14 +74,12 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  // Filter to only show leave types with balance > 0, sort paid first then unpaid
-  const balancesWithValue = balances
-    .filter((item) => item.balance > 0)
-    .sort((a, b) => {
-      if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
-      if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
-      return a.leave_type.name.localeCompare(b.leave_type.name);
-    });
+  // Show ALL balances (including zero/negative), sort paid first
+  const sortedBalances = balances.sort((a, b) => {
+    if (a.leave_type.category === 'paid' && b.leave_type.category !== 'paid') return -1;
+    if (a.leave_type.category !== 'paid' && b.leave_type.category === 'paid') return 1;
+    return a.leave_type.name.localeCompare(b.leave_type.name);
+  });
 
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -83,12 +93,20 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
 
   return (
     <div className="space-y-4">
-      {balancesWithValue.length > 0 ? (
+      {sortedBalances.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {balancesWithValue.map((item) => (
-            <div key={item.id} className="text-center p-3 rounded-lg bg-primary/5">
-              <div className="text-2xl font-bold text-primary">
-                {item.balance}
+          {sortedBalances.map((item) => (
+            <div 
+              key={item.id} 
+              className={`text-center p-3 rounded-lg ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/5'}`}
+            >
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <span className={item.balance < 0 ? 'text-destructive' : 'text-primary'}>
+                  {getLeaveTypeIcon(item.leave_type.name)}
+                </span>
+              </div>
+              <div className={`text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
+                {item.balance < 0 ? `(${Math.abs(item.balance)})` : item.balance}
               </div>
               <div className="text-xs text-muted-foreground mt-1 truncate">{item.leave_type.name}</div>
             </div>

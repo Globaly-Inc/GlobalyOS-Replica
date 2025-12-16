@@ -118,6 +118,8 @@ const LeaveHistory = () => {
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
   const [addLeaveOpen, setAddLeaveOpen] = useState(false);
+  const [totalTaken, setTotalTaken] = useState(0);
+  const [totalAdjustments, setTotalAdjustments] = useState(0);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -250,21 +252,43 @@ const LeaveHistory = () => {
         created_at: l.created_at
       }));
 
-      const allTransactions = [...requestTransactions, ...adjustmentTransactions]
-        .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime());
+      const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
-      // Calculate running balance per leave type
-      const balanceMap: Record<string, number> = {};
-      balances.forEach(b => { balanceMap[b.leave_type] = b.balance; });
+      // Calculate totals
+      const taken = requestTransactions
+        .filter(t => t.status === 'approved')
+        .reduce((sum, t) => sum + Math.abs(t.days), 0);
+      const adjustments = adjustmentTransactions.reduce((sum, t) => sum + t.days, 0);
+      setTotalTaken(taken);
+      setTotalAdjustments(adjustments);
 
-      // Process in reverse to calculate balance_after
-      const transactionsWithBalance = [...allTransactions].reverse().map(t => {
-        const currentBalance = balanceMap[t.leave_type] || 0;
-        balanceMap[t.leave_type] = currentBalance - t.days;
-        return { ...t, balance_after: currentBalance };
-      }).reverse();
+      // ====== FIX: Correct running balance calculation ======
+      // Step 1: Sort chronologically (oldest first)
+      const sortedChronologically = [...allTransactions].sort((a, b) => 
+        new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
+      );
 
-      setTransactions(transactionsWithBalance);
+      // Step 2: Calculate starting balance per leave type
+      // Starting balance = Current balance - all transactions in the year
+      const startingBalances: Record<string, number> = {};
+      balances.forEach(b => {
+        const totalChange = allTransactions
+          .filter(t => t.leave_type === b.leave_type && (t.type === 'adjustment' || t.status === 'approved'))
+          .reduce((sum, t) => sum + t.days, 0);
+        startingBalances[b.leave_type] = b.balance - totalChange;
+      });
+
+      // Step 3: Process transactions chronologically and calculate running balance
+      const runningBalance: Record<string, number> = { ...startingBalances };
+      const transactionsWithBalance = sortedChronologically.map(t => {
+        if (t.type === 'adjustment' || t.status === 'approved') {
+          runningBalance[t.leave_type] = (runningBalance[t.leave_type] || 0) + t.days;
+        }
+        return { ...t, balance_after: runningBalance[t.leave_type] || 0 };
+      });
+
+      // Step 4: Reverse to show newest first
+      setTransactions(transactionsWithBalance.reverse());
       
       // Extract unique leave types
       const types = [...new Set(allTransactions.map(t => t.leave_type))];
@@ -387,13 +411,6 @@ const LeaveHistory = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
-  // Calculate summary stats
-  const totalTaken = filteredTransactions
-    .filter(t => t.type === 'leave_taken' && t.status === 'approved')
-    .reduce((sum, t) => sum + Math.abs(t.days), 0);
-  const totalAdjustments = filteredTransactions
-    .filter(t => t.type === 'adjustment')
-    .reduce((sum, t) => sum + t.days, 0);
   const pendingCount = filteredTransactions.filter(t => t.status === 'pending').length;
 
   return (
