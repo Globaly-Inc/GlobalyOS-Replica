@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustmentDialog";
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
+import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 
 interface LeaveTransaction {
   id: string;
@@ -51,6 +53,12 @@ interface LeaveTransaction {
       avatar_url: string | null;
     };
   };
+}
+
+interface SelectedTransaction {
+  type: 'leave_taken' | 'adjustment';
+  id: string;
+  status?: string;
 }
 
 // Format days with negative as (X) in red
@@ -92,6 +100,14 @@ const OrgLeaveHistory = () => {
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
   const [canceling, setCanceling] = useState(false);
+  
+  // Bulk selection state
+  const [selectedTransactions, setSelectedTransactions] = useState<SelectedTransaction[]>([]);
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [bulkCancelDialog, setBulkCancelDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkCanceling, setBulkCanceling] = useState(false);
+  
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -221,6 +237,11 @@ const OrgLeaveHistory = () => {
     }
   };
 
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedTransactions([]);
+  }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, searchQuery]);
+
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = t.employee?.profiles?.full_name
       ?.toLowerCase()
@@ -230,6 +251,123 @@ const OrgLeaveHistory = () => {
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
     return matchesSearch && matchesStatus && matchesType && matchesTransType;
   });
+
+  // Selection handlers
+  const isTransactionSelected = (id: string, type: string) => {
+    return selectedTransactions.some(s => s.id === id && s.type === type);
+  };
+
+  const toggleTransactionSelection = (t: LeaveTransaction) => {
+    const key = { id: t.id, type: t.type, status: t.status };
+    if (isTransactionSelected(t.id, t.type)) {
+      setSelectedTransactions(prev => prev.filter(s => !(s.id === t.id && s.type === t.type)));
+    } else {
+      setSelectedTransactions(prev => [...prev, key]);
+    }
+  };
+
+  const selectAllFiltered = () => {
+    const allFiltered = filteredTransactions.map(t => ({
+      id: t.id,
+      type: t.type,
+      status: t.status
+    }));
+    setSelectedTransactions(allFiltered);
+  };
+
+  const deselectAll = () => {
+    setSelectedTransactions([]);
+  };
+
+  const allFilteredSelected = filteredTransactions.length > 0 && 
+    filteredTransactions.every(t => isTransactionSelected(t.id, t.type));
+  const someFilteredSelected = selectedTransactions.length > 0 && !allFilteredSelected;
+
+  // Bulk action handlers
+  const handleBulkDeleteAdjustments = async () => {
+    const adjustmentIds = selectedTransactions
+      .filter(s => s.type === 'adjustment')
+      .map(s => s.id);
+    
+    if (adjustmentIds.length === 0) return;
+    
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("leave_balance_logs")
+        .delete()
+        .in("id", adjustmentIds);
+
+      if (error) throw error;
+
+      toast.success(`Deleted ${adjustmentIds.length} adjustment${adjustmentIds.length > 1 ? 's' : ''}`);
+      setSelectedTransactions([]);
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+    } catch (error) {
+      console.error("Error deleting adjustments:", error);
+      toast.error("Failed to delete some adjustments");
+    } finally {
+      setBulkDeleting(false);
+      setBulkDeleteDialog(false);
+    }
+  };
+
+  const handleBulkCancelRequests = async () => {
+    const pendingRequestIds = selectedTransactions
+      .filter(s => s.type === 'leave_taken' && s.status === 'pending')
+      .map(s => s.id);
+    
+    if (pendingRequestIds.length === 0) return;
+    
+    setBulkCanceling(true);
+    try {
+      const { error } = await supabase
+        .from("leave_requests")
+        .delete()
+        .in("id", pendingRequestIds);
+
+      if (error) throw error;
+
+      toast.success(`Cancelled ${pendingRequestIds.length} request${pendingRequestIds.length > 1 ? 's' : ''}`);
+      setSelectedTransactions([]);
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+    } catch (error) {
+      console.error("Error cancelling requests:", error);
+      toast.error("Failed to cancel some requests");
+    } finally {
+      setBulkCanceling(false);
+      setBulkCancelDialog(false);
+    }
+  };
+
+  const handleExportSelected = () => {
+    const selectedIds = new Set(selectedTransactions.map(s => `${s.type}-${s.id}`));
+    const selectedData = filteredTransactions.filter(t => selectedIds.has(`${t.type}-${t.id}`));
+    
+    const headers = ["Employee", "Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Reason"];
+    const rows = selectedData.map(t => [
+      t.employee?.profiles?.full_name || "",
+      t.effective_date,
+      t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-',
+      t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
+      t.leave_type,
+      t.days.toString(),
+      t.status || "-",
+      t.reason || ""
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leave-history-selected-${yearFilter}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${selectedData.length} transactions`);
+  };
 
   // Calculate employee leave totals for Most/Least cards
   const employeeLeaveTotals = useMemo(() => {
@@ -562,6 +700,27 @@ const OrgLeaveHistory = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {canEdit && (
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={allFilteredSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              selectAllFiltered();
+                            } else {
+                              deselectAll();
+                            }
+                          }}
+                          aria-label="Select all"
+                          className={someFilteredSelected ? "data-[state=checked]:bg-primary" : ""}
+                          ref={(ref) => {
+                            if (ref) {
+                              (ref as HTMLButtonElement).dataset.state = someFilteredSelected ? "indeterminate" : (allFilteredSelected ? "checked" : "unchecked");
+                            }
+                          }}
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="min-w-[180px]">Employee</TableHead>
                     <TableHead className="min-w-[120px] whitespace-nowrap">Applied Date</TableHead>
                     <TableHead className="w-[140px]">Leave Dates</TableHead>
@@ -576,7 +735,19 @@ const OrgLeaveHistory = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredTransactions.map((t) => (
-                    <TableRow key={`${t.type}-${t.id}`} className="group">
+                    <TableRow 
+                      key={`${t.type}-${t.id}`} 
+                      className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}
+                    >
+                      {canEdit && (
+                        <TableCell>
+                          <Checkbox
+                            checked={isTransactionSelected(t.id, t.type)}
+                            onCheckedChange={() => toggleTransactionSelection(t)}
+                            aria-label={`Select ${t.employee?.profiles?.full_name}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <OrgLink 
                           to={`/team/${t.employee?.id}`}
@@ -803,6 +974,65 @@ const OrgLeaveHistory = () => {
         onOpenChange={(open) => !open && setEditRequest(null)}
         onSuccess={loadData}
       />
+
+      {/* Bulk Actions Bar */}
+      {canEdit && selectedTransactions.length > 0 && (
+        <LeaveBulkActionsBar
+          selectedItems={selectedTransactions}
+          totalItems={filteredTransactions.length}
+          onSelectAll={selectAllFiltered}
+          onDeselectAll={deselectAll}
+          onDeleteAdjustments={() => setBulkDeleteDialog(true)}
+          onCancelRequests={() => setBulkCancelDialog(true)}
+          onExportSelected={handleExportSelected}
+        />
+      )}
+
+      {/* Bulk Delete Adjustments Dialog */}
+      <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Adjustments?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedTransactions.filter(s => s.type === 'adjustment').length} adjustment(s)?
+              This action cannot be undone and may affect leave balances.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteAdjustments}
+              disabled={bulkDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting..." : "Delete Adjustments"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Cancel Requests Dialog */}
+      <AlertDialog open={bulkCancelDialog} onOpenChange={setBulkCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Selected Requests?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel {selectedTransactions.filter(s => s.type === 'leave_taken' && s.status === 'pending').length} pending leave request(s)?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkCanceling}>Keep Requests</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkCancelRequests}
+              disabled={bulkCanceling}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {bulkCanceling ? "Cancelling..." : "Cancel Requests"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
