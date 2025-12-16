@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Github, Twitter, Linkedin, Mail } from "lucide-react";
+import globalyosFullLogo from "@/assets/globalyos-full-logo.png";
 
 export const WebsiteFooter = () => {
   const footerLinks = {
@@ -33,11 +34,8 @@ export const WebsiteFooter = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
-              </div>
-              <span className="font-bold text-xl text-foreground">GlobalyOS</span>
+            <Link to="/" className="flex items-center mb-4">
+              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" />
             </Link>
             <p className="text-muted-foreground text-sm max-w-xs mb-6">
               The all-in-one platform for growing teams. Manage HR, collaborate, and scale your business.
