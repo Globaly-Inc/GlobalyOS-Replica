@@ -1,22 +1,39 @@
-import { Home, Users, Target, Calendar, CalendarDays, Clock } from 'lucide-react';
+import { Home, Users, Target, Calendar, CalendarDays, Clock, DollarSign } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useUserRole } from '@/hooks/useUserRole';
 
-const teamSubNavItems = [
+interface SubNavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
+}
+
+const teamSubNavItems: SubNavItem[] = [
   { name: 'Overview', href: '/', icon: Home },
   { name: 'Directory', href: '/team', icon: Users },
   { name: 'KPIs', href: '/kpi-dashboard', icon: Target },
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
   { name: 'Leave', href: '/leave-history', icon: CalendarDays },
   { name: 'Attendance', href: '/attendance-history', icon: Clock },
+  { name: 'Payroll', href: '/payroll', icon: DollarSign, adminOnly: true },
 ];
 
 export const SubNav = () => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   
   const basePath = orgCode ? `/org/${orgCode}` : '';
+  const canAccessAdmin = isOwner || isAdmin || isHR;
+  
+  // Filter items based on role
+  const visibleItems = teamSubNavItems.filter(item => {
+    if (item.adminOnly && !canAccessAdmin) return false;
+    return true;
+  });
   
   // Show sub-nav on Team-related pages (including home which is now Overview)
   const isTeamSection = 
@@ -27,7 +44,9 @@ export const SubNav = () => {
     location.pathname === `${basePath}/kpi-dashboard` ||
     location.pathname === `${basePath}/calendar` ||
     location.pathname === `${basePath}/leave-history` ||
-    location.pathname === `${basePath}/attendance-history`;
+    location.pathname === `${basePath}/attendance-history` ||
+    location.pathname === `${basePath}/payroll` ||
+    location.pathname.startsWith(`${basePath}/payroll/`);
 
   if (!isTeamSection) return null;
 
@@ -35,7 +54,7 @@ export const SubNav = () => {
     <div className="hidden md:block sticky top-16 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container px-4 md:px-8">
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
-          {teamSubNavItems.map((item) => {
+          {visibleItems.map((item) => {
             const fullPath = item.href === '/' 
               ? basePath || '/'
               : `${basePath}${item.href}`;

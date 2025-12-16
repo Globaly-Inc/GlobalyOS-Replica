@@ -54,6 +54,7 @@ const WikiEditPage = lazy(() => import('./pages/WikiEditPage'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const Payroll = lazy(() => import('./pages/Payroll'));
+const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
@@ -140,6 +141,7 @@ const App = () => (
                   <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
                   <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><Payroll /></OrgProtectedRoute>} />
+                  <Route path="my-payslips" element={<OrgProtectedRoute><MyPayslips /></OrgProtectedRoute>} />
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}

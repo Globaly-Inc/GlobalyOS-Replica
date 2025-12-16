@@ -6,6 +6,8 @@ import {
   usePayrollRuns, usePayrollProfiles, useCreatePayrollRun, 
   useUpdatePayrollRunStatus, useCalculatePayroll, usePayrollRunItems 
 } from "@/services/usePayroll";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Calculator, Play, Check, Eye, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,8 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, addDays } from "date-fns";
-import type { PayrollRun, CreatePayrollRunInput, PayrollRunStatus } from "@/types/payroll";
+import type { PayrollRun, CreatePayrollRunInput, PayrollRunStatus, PayrollRunItem } from "@/types/payroll";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const PayrollRunsTab = () => {
   const { currentOrg } = useOrganization();
@@ -324,6 +327,13 @@ export const PayrollRunsTab = () => {
   );
 };
 
+interface EmployeeInfo {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  position: string;
+}
+
 const PayrollRunDetails = ({ 
   run, 
   open, 
@@ -333,9 +343,36 @@ const PayrollRunDetails = ({
   open: boolean; 
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { data: items, isLoading } = usePayrollRunItems(run?.id);
+  const { currentOrg } = useOrganization();
+  const { data: items, isLoading: itemsLoading } = usePayrollRunItems(run?.id);
+  
+  // Fetch employee details for all items
+  const employeeIds = items?.map(item => item.employee_id) || [];
+  const { data: employees, isLoading: employeesLoading } = useQuery({
+    queryKey: ['payroll-employees', employeeIds],
+    queryFn: async () => {
+      if (employeeIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('employee_directory')
+        .select('id, full_name, avatar_url, position')
+        .in('id', employeeIds);
+      if (error) throw error;
+      return data as EmployeeInfo[];
+    },
+    enabled: employeeIds.length > 0,
+  });
+
+  const getEmployeeInfo = (employeeId: string): EmployeeInfo | undefined => {
+    return employees?.find(e => e.id === employeeId);
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   if (!run) return null;
+
+  const isLoading = itemsLoading || employeesLoading;
 
   const getRunLabel = (run: PayrollRun) => {
     return `${format(new Date(run.period_start), 'MMM yyyy')} Payroll`;
@@ -369,15 +406,31 @@ const PayrollRunDetails = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items?.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.employee_id.slice(0, 8)}...</TableCell>
-                  <TableCell className="text-right">{item.gross_earnings.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{item.total_deductions.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-medium">{item.net_pay.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{item.employer_contributions_total.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
+              {items?.map((item) => {
+                const employee = getEmployeeInfo(item.employee_id);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={employee?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {employee ? getInitials(employee.full_name) : '??'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">{employee?.full_name || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">{employee?.position || ''}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{item.currency} {item.gross_earnings.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-red-600">-{item.currency} {item.total_deductions.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">{item.currency} {item.net_pay.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{item.currency} {item.employer_contributions_total.toLocaleString()}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
