@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
+import { toast } from 'sonner';
 import type { Json } from '@/integrations/supabase/types';
 import type {
   LegalEntity,
@@ -910,6 +911,31 @@ export function useDeleteEmployeeBankAccount() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-bank-accounts', data.employeeId] });
+    },
+  });
+}
+
+// ============ Payroll Calculation ============
+
+export function useCalculatePayroll() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ payrollRunId, employeeIds }: { payrollRunId: string; employeeIds?: string[] }) => {
+      const { data, error } = await supabase.functions.invoke('calculate-payroll', {
+        body: { payroll_run_id: payrollRunId, employee_ids: employeeIds },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-run', variables.payrollRunId] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-run-items', variables.payrollRunId] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
+      toast.success('Payroll calculated successfully');
+    },
+    onError: (error) => {
+      toast.error(`Calculation failed: ${error.message}`);
     },
   });
 }
