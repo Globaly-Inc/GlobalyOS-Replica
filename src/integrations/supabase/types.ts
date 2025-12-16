@@ -5171,8 +5171,6 @@ export type Database = {
       employee_directory: {
         Row: {
           avatar_url: string | null
-          city: string | null
-          country: string | null
           created_at: string | null
           department: string | null
           email: string | null
@@ -5181,12 +5179,10 @@ export type Database = {
           join_date: string | null
           manager_id: string | null
           office_id: string | null
-          office_name: string | null
           organization_id: string | null
           position: string | null
           status: string | null
           superpowers: string[] | null
-          updated_at: string | null
           user_id: string | null
         }
         Relationships: [
