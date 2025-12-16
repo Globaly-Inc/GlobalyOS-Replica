@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { OrgLink } from "@/components/OrgLink";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, MoreHorizontal } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, Trophy, ArrowDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,12 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/utils";
@@ -191,6 +186,49 @@ const OrgLeaveHistory = () => {
     return matchesSearch && matchesStatus && matchesType && matchesTransType;
   });
 
+  // Calculate employee leave totals for Most/Least cards
+  const employeeLeaveTotals = useMemo(() => {
+    const totals: Record<string, { employee: LeaveTransaction['employee']; totalDays: number }> = {};
+    
+    transactions
+      .filter(t => t.type === 'leave_taken' && t.status === 'approved')
+      .forEach(t => {
+        const empId = t.employee?.id;
+        if (!empId) return;
+        if (!totals[empId]) {
+          totals[empId] = { employee: t.employee, totalDays: 0 };
+        }
+        totals[empId].totalDays += Math.abs(t.days);
+      });
+    
+    return Object.values(totals);
+  }, [transactions]);
+
+  const mostLeaveTaken = useMemo(() => {
+    if (employeeLeaveTotals.length === 0) return null;
+    return employeeLeaveTotals.sort((a, b) => b.totalDays - a.totalDays)[0];
+  }, [employeeLeaveTotals]);
+
+  const leastLeaveTaken = useMemo(() => {
+    const withLeave = employeeLeaveTotals.filter(e => e.totalDays > 0);
+    if (withLeave.length === 0) return null;
+    return withLeave.sort((a, b) => a.totalDays - b.totalDays)[0];
+  }, [employeeLeaveTotals]);
+
+  // Leave distribution by type
+  const leaveByType = useMemo(() => {
+    const distribution: Record<string, number> = {};
+    
+    transactions
+      .filter(t => t.type === 'leave_taken' && t.status === 'approved')
+      .forEach(t => {
+        if (!distribution[t.leave_type]) distribution[t.leave_type] = 0;
+        distribution[t.leave_type] += Math.abs(t.days);
+      });
+    
+    return Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  }, [transactions]);
+
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case "approved":
@@ -208,11 +246,25 @@ const OrgLeaveHistory = () => {
     return name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   };
 
+  const formatLeaveDates = (t: LeaveTransaction) => {
+    if (t.type === 'adjustment') return "-";
+    if (!t.start_date) return "-";
+    
+    const start = formatDate(t.start_date);
+    const end = t.end_date ? formatDate(t.end_date) : start;
+    
+    if (t.start_date === t.end_date || !t.end_date) {
+      return start;
+    }
+    return `${start} → ${end}`;
+  };
+
   const handleExportCSV = () => {
-    const headers = ["Employee", "Date", "Type", "Leave Type", "Days", "Status", "Reason"];
+    const headers = ["Employee", "Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Reason"];
     const rows = filteredTransactions.map(t => [
       t.employee?.profiles?.full_name || "",
       t.effective_date,
+      t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-',
       t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
       t.leave_type,
       t.days.toString(),
@@ -301,7 +353,7 @@ const OrgLeaveHistory = () => {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card>
           <CardContent className="p-3 text-center">
             <div className="text-2xl font-bold text-amber-600">{pendingCount}</div>
@@ -326,7 +378,76 @@ const OrgLeaveHistory = () => {
             <div className="text-xs text-muted-foreground">Total</div>
           </CardContent>
         </Card>
+        
+        {/* Most Leave Taken Employee */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              <span className="text-xs text-muted-foreground">Most Leave</span>
+            </div>
+            {mostLeaveTaken ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={mostLeaveTaken.employee?.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(mostLeaveTaken.employee?.profiles?.full_name || "")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{mostLeaveTaken.employee?.profiles?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{mostLeaveTaken.totalDays} days</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Least Leave Taken Employee */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowDown className="h-4 w-4 text-blue-500" />
+              <span className="text-xs text-muted-foreground">Least Leave</span>
+            </div>
+            {leastLeaveTaken ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={leastLeaveTaken.employee?.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(leastLeaveTaken.employee?.profiles?.full_name || "")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{leastLeaveTaken.employee?.profiles?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{leastLeaveTaken.totalDays} days</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Leave Distribution by Type */}
+      {leaveByType.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium mb-3">Leave Distribution by Type</h3>
+            <div className="flex flex-wrap gap-3">
+              {leaveByType.map(([type, days]) => (
+                <div key={type} className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-1.5">
+                  <Badge variant="outline" className="text-xs">{type}</Badge>
+                  <span className="text-sm font-medium">{days} days</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -399,13 +520,14 @@ const OrgLeaveHistory = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[180px]">Employee</TableHead>
-                    <TableHead className="min-w-[100px]">Date</TableHead>
+                    <TableHead className="min-w-[100px]">Applied Date</TableHead>
+                    <TableHead className="min-w-[140px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[100px]">Type</TableHead>
                     <TableHead className="min-w-[120px]">Leave Type</TableHead>
                     <TableHead className="text-right min-w-[80px]">Days</TableHead>
                     <TableHead className="min-w-[90px]">Status</TableHead>
-                    <TableHead className="min-w-[150px]">Reason</TableHead>
-                    {canEdit && <TableHead className="w-[60px]"></TableHead>}
+                    <TableHead className="min-w-[200px]">Reason</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -430,6 +552,9 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(t.effective_date)}
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatLeaveDates(t)}
+                      </TableCell>
                       <TableCell>
                         {t.type === 'leave_taken' ? (
                           <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
@@ -450,43 +575,68 @@ const OrgLeaveHistory = () => {
                         {t.days > 0 ? '+' : ''}{t.days}
                       </TableCell>
                       <TableCell>{getStatusBadge(t.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground truncate max-w-[150px]" title={t.reason || ""}>
-                        {t.reason || "-"}
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                        <p className="line-clamp-2" title={t.reason || ""}>
+                          {t.reason || "-"}
+                        </p>
                       </TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  if (t.type === 'adjustment') {
-                                    setEditAdjustment(mapToAdjustmentEdit(t));
-                                  } else {
-                                    setEditRequest(mapToRequestEdit(t));
-                                  }
-                                }}
-                              >
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              {t.type === 'adjustment' && (
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-1">
+                            {/* View - Always visible - Links to individual leave history */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <OrgLink to={`/leave-history/${t.employee?.id}`}>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                  </Button>
+                                </OrgLink>
+                              </TooltipTrigger>
+                              <TooltipContent>View Leave History</TooltipContent>
+                            </Tooltip>
+                            
+                            {/* Edit - Only for canEdit users */}
+                            {canEdit && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => {
+                                      if (t.type === 'adjustment') {
+                                        setEditAdjustment(mapToAdjustmentEdit(t));
+                                      } else {
+                                        setEditRequest(mapToRequestEdit(t));
+                                      }
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit</TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {/* Delete - Only for adjustments and canEdit users */}
+                            {canEdit && t.type === 'adjustment' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                    onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
