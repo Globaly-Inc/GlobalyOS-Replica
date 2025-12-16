@@ -21,7 +21,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Overview', href: '/' },
-  { icon: CalendarDays, label: 'Leave', href: '/leave/history' },
+  { icon: CalendarDays, label: 'Leave', action: 'leave' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
   { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
   { icon: null, label: 'Profile', action: 'more' },
@@ -93,6 +93,12 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const handleNavClick = (item: NavItem) => {
     if (item.href) {
       navigateOrg(item.href);
+    } else if (item.action === 'leave') {
+      if (employeeId) {
+        navigateOrg(`/team/${employeeId}/leave-history`);
+      } else {
+        navigateOrg('/leave');
+      }
     } else if (item.action === 'scan') {
       if (shouldUseRemoteCheckIn) {
         setRemoteCheckInOpen(true);
@@ -107,6 +113,10 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const basePath = orgCode ? `/org/${orgCode}` : '';
 
   const isActive = (item: NavItem) => {
+    if (item.action === 'leave') {
+      return location.pathname.includes('/leave-history') || 
+             location.pathname.includes('/leave');
+    }
     if (item.href) {
       const fullPath = item.href === '/' ? basePath : `${basePath}${item.href}`;
       if (item.href === '/') {
