@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, Trophy, ArrowDown } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -370,7 +370,7 @@ const OrgLeaveHistory = () => {
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
               <span className="text-xs text-muted-foreground">Most Leave</span>
             </div>
             {mostLeaveTaken ? (
@@ -396,7 +396,7 @@ const OrgLeaveHistory = () => {
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <ArrowDown className="h-4 w-4 text-blue-500" />
+              <Award className="h-4 w-4 text-green-500" />
               <span className="text-xs text-muted-foreground">Least Leave</span>
             </div>
             {leastLeaveTaken ? (
