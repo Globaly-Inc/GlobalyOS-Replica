@@ -28,6 +28,7 @@ interface FeedItem {
   created_at: string;
   image_url: string | null;
   employee_id: string;
+  access_scope: string | null;
   employee: {
     profiles: {
       full_name: string;
@@ -45,12 +46,16 @@ interface FeedItem {
       };
     };
   }[];
+  update_offices?: Array<{ office: { name: string } }>;
+  update_departments?: Array<{ department: string }>;
+  update_projects?: Array<{ project: { name: string } }>;
 }
 interface KudosItem {
   id: string;
   comment: string;
   created_at: string;
   batch_id: string | null;
+  access_scope: string | null;
   employee: {
     id: string;
     profiles: {
@@ -65,6 +70,9 @@ interface KudosItem {
       avatar_url: string | null;
     };
   };
+  kudos_offices?: Array<{ office: { name: string } }>;
+  kudos_departments?: Array<{ department: string }>;
+  kudos_projects?: Array<{ project: { name: string } }>;
 }
 interface LeaveTypeBalance {
   id: string;
@@ -522,7 +530,7 @@ const Home = () => {
     if (!currentOrg?.id) return;
     setLoading(true);
 
-    // Load updates
+    // Load updates with visibility data
     const {
       data: updatesData
     } = await supabase.from("updates").select(`
@@ -532,6 +540,7 @@ const Home = () => {
         created_at,
         image_url,
         employee_id,
+        access_scope,
         employee:employees!inner(
           profiles!inner(
             full_name,
@@ -548,12 +557,15 @@ const Home = () => {
               avatar_url
             )
           )
-        )
+        ),
+        update_offices(office:offices(name)),
+        update_departments(department),
+        update_projects(project:projects(name))
       `).eq("organization_id", currentOrg.id).order("created_at", {
       ascending: false
     });
 
-    // Load kudos
+    // Load kudos with visibility data
     const {
       data: kudosData
     } = await supabase.from("kudos").select(`
@@ -561,6 +573,7 @@ const Home = () => {
         comment,
         created_at,
         batch_id,
+        access_scope,
         employee:employees!kudos_employee_id_fkey(
           id,
           profiles!inner(
@@ -574,7 +587,10 @@ const Home = () => {
             full_name,
             avatar_url
           )
-        )
+        ),
+        kudos_offices(office:offices(name)),
+        kudos_departments(department),
+        kudos_projects(project:projects(name))
       `).eq("organization_id", currentOrg.id).order("created_at", {
       ascending: false
     });
