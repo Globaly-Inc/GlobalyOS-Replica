@@ -7,7 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, MoreHorizontal } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -54,6 +71,9 @@ const OrgLeaveHistory = () => {
   
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
+  const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
+  const [deletingAdjustment, setDeletingAdjustment] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (currentOrg?.id) {
@@ -210,6 +230,50 @@ const OrgLeaveHistory = () => {
     URL.revokeObjectURL(url);
     toast.success("Export complete");
   };
+
+  const handleDeleteAdjustment = async () => {
+    if (!deleteAdjustmentDialog.adjustment) return;
+    setDeletingAdjustment(true);
+
+    const { error } = await supabase
+      .from("leave_balance_logs")
+      .delete()
+      .eq("id", deleteAdjustmentDialog.adjustment.id);
+
+    if (error) {
+      toast.error("Failed to delete adjustment");
+    } else {
+      toast.success("Adjustment deleted");
+      loadData();
+      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+    }
+
+    setDeletingAdjustment(false);
+    setDeleteAdjustmentDialog({ open: false, adjustment: null });
+  };
+
+  // Helper to map LeaveTransaction to EditLeaveAdjustmentDialog format
+  const mapToAdjustmentEdit = (t: LeaveTransaction) => ({
+    id: t.id,
+    leave_type: t.leave_type,
+    change_amount: t.days,
+    reason: t.reason || '',
+    effective_date: t.effective_date,
+    previous_balance: t.previous_balance || 0,
+    new_balance: t.new_balance || 0
+  });
+
+  // Helper to map LeaveTransaction to EditLeaveRequestDialog format
+  const mapToRequestEdit = (t: LeaveTransaction) => ({
+    id: t.id,
+    leave_type: t.leave_type,
+    start_date: t.start_date || t.effective_date,
+    end_date: t.end_date || t.start_date || t.effective_date,
+    days_count: Math.abs(t.days),
+    half_day_type: t.half_day_type || 'full',
+    reason: t.reason || '',
+    status: t.status || 'pending'
+  });
 
   const pendingCount = transactions.filter(r => r.status === "pending").length;
   const approvedCount = transactions.filter(r => r.status === "approved").length;
@@ -391,20 +455,36 @@ const OrgLeaveHistory = () => {
                       </TableCell>
                       {canEdit && (
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                            onClick={() => {
-                              if (t.type === 'adjustment') {
-                                setEditAdjustment(t);
-                              } else {
-                                setEditRequest(t);
-                              }
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (t.type === 'adjustment') {
+                                    setEditAdjustment(mapToAdjustmentEdit(t));
+                                  } else {
+                                    setEditRequest(mapToRequestEdit(t));
+                                  }
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              {t.type === 'adjustment' && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
@@ -415,6 +495,38 @@ const OrgLeaveHistory = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Adjustment Confirmation Dialog */}
+      <AlertDialog 
+        open={deleteAdjustmentDialog.open} 
+        onOpenChange={(open) => !open && setDeleteAdjustmentDialog({ open: false, adjustment: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Adjustment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAdjustmentDialog.adjustment && (
+                <>
+                  Are you sure you want to delete this {deleteAdjustmentDialog.adjustment.leave_type} adjustment of{" "}
+                  {deleteAdjustmentDialog.adjustment.days > 0 ? '+' : ''}{deleteAdjustmentDialog.adjustment.days} days
+                  for {deleteAdjustmentDialog.adjustment.employee?.profiles?.full_name}?
+                  This action cannot be undone and may affect leave balances.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAdjustment}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAdjustment}
+              disabled={deletingAdjustment}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deletingAdjustment ? "Deleting..." : "Delete Adjustment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialogs */}
       <EditLeaveAdjustmentDialog
