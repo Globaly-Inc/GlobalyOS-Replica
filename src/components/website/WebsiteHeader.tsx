@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import globalyosLogo from "@/assets/globalyos-logo.svg";
+import globalyosFullLogo from "@/assets/globalyos-full-logo.png";
 
 export const WebsiteHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,9 +22,8 @@ export const WebsiteHeader = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo + Nav Links */}
           <div className="flex items-center gap-8">
-            <Link to="/landing" className="flex items-center gap-2">
-              <img src={globalyosLogo} alt="GlobalyOS" className="w-8 h-8 rounded-lg" />
-              <span className="font-bold text-xl text-foreground">GlobalyOS</span>
+            <Link to="/landing" className="flex items-center">
+              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" />
             </Link>
 
             {/* Desktop Nav */}
