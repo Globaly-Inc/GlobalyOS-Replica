@@ -142,6 +142,10 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     return a.leave_type_name.localeCompare(b.leave_type_name);
   });
 
+  // Calculate totals for Taken and Adjusted cards
+  const totalTaken = leaveRequests.reduce((sum, req: any) => sum + req.days, 0);
+  const totalAdjustments = adjustments.reduce((sum, adj: any) => sum + adj.days_changed, 0);
+
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -155,23 +159,45 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   return (
     <div className="space-y-4">
       {sortedBalances.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {sortedBalances.map((item) => (
             <div 
               key={item.leave_type_id} 
-              className={`text-center p-3 rounded-lg ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/5'}`}
+              className={`text-center p-2 sm:p-3 rounded-lg ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/5'}`}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <span className={item.balance < 0 ? 'text-destructive' : 'text-primary'}>
                   {getLeaveTypeIcon(item.leave_type_name)}
                 </span>
               </div>
-              <div className={`text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
+              <div className={`text-xl sm:text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
                 {item.balance < 0 ? `(${Math.abs(item.balance)})` : item.balance}
               </div>
               <div className="text-xs text-muted-foreground mt-1 truncate">{item.leave_type_name}</div>
             </div>
           ))}
+          
+          {/* Taken Card */}
+          <div className="text-center p-2 sm:p-3 rounded-lg bg-destructive/10">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-destructive">
+              ({totalTaken})
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Taken</div>
+          </div>
+
+          {/* Adjusted Card */}
+          <div className={`text-center p-2 sm:p-3 rounded-lg ${totalAdjustments >= 0 ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <TrendingUp className={`h-3.5 w-3.5 ${totalAdjustments >= 0 ? 'text-green-600' : 'text-destructive'}`} />
+            </div>
+            <div className={`text-xl sm:text-2xl font-bold ${totalAdjustments >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              {totalAdjustments >= 0 ? `+${totalAdjustments}` : `(${Math.abs(totalAdjustments)})`}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Adjusted</div>
+          </div>
         </div>
       ) : (
         <p className="text-sm text-muted-foreground text-center py-4">
