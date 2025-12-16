@@ -319,7 +319,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {selectedType === "win" ? "Posting a Win" : 
@@ -359,31 +359,32 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
 
         {/* Win/Announcement Form */}
         {selectedType && selectedType !== "kudos" && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>
-                  {selectedType === "announcement" ? "Announcement" : "Your Win"} *
-                </Label>
-                <AIWritingAssist
-                  type={selectedType}
-                  currentText={formData.content}
-                  onTextGenerated={(text) => setFormData({ ...formData, content: text })}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>
+                    {selectedType === "announcement" ? "Announcement" : "Your Win"} *
+                  </Label>
+                  <AIWritingAssist
+                    type={selectedType}
+                    currentText={formData.content}
+                    onTextGenerated={(text) => setFormData({ ...formData, content: text })}
+                  />
+                </div>
+                <RichTextEditor
+                  value={formData.content}
+                  onChange={(value) => setFormData({ ...formData, content: value })}
+                  placeholder={
+                    selectedType === "announcement"
+                      ? "Share an important announcement with the team..."
+                      : "Share your win or achievement with the team..."
+                  }
+                  minHeight="100px"
                 />
+                {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
               </div>
-              <RichTextEditor
-                value={formData.content}
-                onChange={(value) => setFormData({ ...formData, content: value })}
-                placeholder={
-                  selectedType === "announcement"
-                    ? "Share an important announcement with the team..."
-                    : "Share your win or achievement with the team..."
-                }
-                minHeight="100px"
-              />
-              {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
-            </div>
 
             {/* Image Upload */}
             <div className="space-y-2">
@@ -517,8 +518,9 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
               selectedProjectIds={selectedProjectIds}
               onProjectIdsChange={setSelectedProjectIds}
             />
+            </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-4 border-t bg-background sticky bottom-0 -mx-6 px-6 pb-0 -mb-6">
               <Button type="button" variant="outline" onClick={() => handleClose(false)} className="flex-1">
                 Cancel
               </Button>
