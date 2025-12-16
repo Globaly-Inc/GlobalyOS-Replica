@@ -3273,56 +3273,92 @@ export type Database = {
       }
       performance_reviews: {
         Row: {
+          acknowledged_at: string | null
           ai_draft: Json | null
           ai_draft_generated_at: string | null
+          competencies: Json | null
           created_at: string
+          employee_comments: string | null
           employee_id: string
           goals_next_period: string | null
           id: string
+          last_reminder_sent_at: string | null
+          manager_submitted_at: string | null
           needs_improvement: string | null
           organization_id: string
           overall_rating: number | null
+          reminder_count: number | null
           review_period_end: string
           review_period_start: string
           reviewer_id: string
+          self_goals_next_period: string | null
+          self_needs_improvement: string | null
+          self_overall_rating: number | null
+          self_submitted_at: string | null
+          self_what_went_well: string | null
           status: string
           submitted_at: string | null
+          template_id: string | null
           updated_at: string
           what_went_well: string | null
         }
         Insert: {
+          acknowledged_at?: string | null
           ai_draft?: Json | null
           ai_draft_generated_at?: string | null
+          competencies?: Json | null
           created_at?: string
+          employee_comments?: string | null
           employee_id: string
           goals_next_period?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
+          manager_submitted_at?: string | null
           needs_improvement?: string | null
           organization_id: string
           overall_rating?: number | null
+          reminder_count?: number | null
           review_period_end: string
           review_period_start: string
           reviewer_id: string
+          self_goals_next_period?: string | null
+          self_needs_improvement?: string | null
+          self_overall_rating?: number | null
+          self_submitted_at?: string | null
+          self_what_went_well?: string | null
           status?: string
           submitted_at?: string | null
+          template_id?: string | null
           updated_at?: string
           what_went_well?: string | null
         }
         Update: {
+          acknowledged_at?: string | null
           ai_draft?: Json | null
           ai_draft_generated_at?: string | null
+          competencies?: Json | null
           created_at?: string
+          employee_comments?: string | null
           employee_id?: string
           goals_next_period?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
+          manager_submitted_at?: string | null
           needs_improvement?: string | null
           organization_id?: string
           overall_rating?: number | null
+          reminder_count?: number | null
           review_period_end?: string
           review_period_start?: string
           reviewer_id?: string
+          self_goals_next_period?: string | null
+          self_needs_improvement?: string | null
+          self_overall_rating?: number | null
+          self_submitted_at?: string | null
+          self_what_went_well?: string | null
           status?: string
           submitted_at?: string | null
+          template_id?: string | null
           updated_at?: string
           what_went_well?: string | null
         }
@@ -3360,6 +3396,13 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "review_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -3668,6 +3711,73 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      review_templates: {
+        Row: {
+          competencies: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          goals_prompts: string[] | null
+          id: string
+          is_default: boolean | null
+          name: string
+          needs_improvement_prompts: string[] | null
+          organization_id: string
+          updated_at: string
+          what_went_well_prompts: string[] | null
+        }
+        Insert: {
+          competencies?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goals_prompts?: string[] | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          needs_improvement_prompts?: string[] | null
+          organization_id: string
+          updated_at?: string
+          what_went_well_prompts?: string[] | null
+        }
+        Update: {
+          competencies?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goals_prompts?: string[] | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          needs_improvement_prompts?: string[] | null
+          organization_id?: string
+          updated_at?: string
+          what_went_well_prompts?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       security_test_results: {
         Row: {
