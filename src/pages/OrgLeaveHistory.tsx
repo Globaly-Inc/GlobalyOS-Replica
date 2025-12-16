@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { OrgLink } from "@/components/OrgLink";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,7 @@ interface LeaveTransaction {
 const OrgLeaveHistory = () => {
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR } = useUserRole();
+  const { navigateOrg } = useOrgNavigation();
   const canEdit = isOwner || isAdmin || isHR;
   
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
@@ -332,10 +334,16 @@ const OrgLeaveHistory = () => {
           <p className="text-muted-foreground">View all leave transactions across the organization</p>
         </div>
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Import
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         )}
       </div>
 

@@ -37,6 +37,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Join = lazy(() => import('./pages/Join'));
 const LeaveHistory = lazy(() => import('./pages/LeaveHistory'));
 const Leave = lazy(() => import('./pages/Leave'));
+const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
 const OrgLeaveHistory = lazy(() => import('./pages/OrgLeaveHistory'));
 const OrgAttendanceHistory = lazy(() => import('./pages/OrgAttendanceHistory'));
 const AttendanceHistory = lazy(() => import('./pages/AttendanceHistory'));
@@ -122,6 +123,7 @@ const App = () => (
                   <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} />
                   <Route path="leave" element={<OrgProtectedRoute><Leave /></OrgProtectedRoute>} />
                   <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} />
+                  <Route path="leave/import" element={<OrgProtectedRoute><BulkLeaveImport /></OrgProtectedRoute>} />
                   <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} />
                   
                   {/* Settings & Notifications */}
