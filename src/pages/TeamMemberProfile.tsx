@@ -33,7 +33,8 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home } from "lucide-react";
+import { WORK_LOCATION_CONFIG, WorkLocation } from "@/types/wfh";
 import { format } from "date-fns";
 import AIKPIInsights from "@/components/AIKPIInsights";
 import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
@@ -735,10 +736,25 @@ const TeamMemberProfile = () => {
             {canViewLeaveAndAttendance && <div className="lg:w-80 lg:border-l lg:pl-4">
                 <div className="hidden sm:block rounded-lg bg-card border overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2.5 border-b">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Clock className="h-4 w-4 text-primary" />
-                      Work Schedule
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Clock className="h-4 w-4 text-primary" />
+                        Work Schedule
+                      </h2>
+                      {employeeSchedule?.work_location && (
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.color} border-0`}
+                        >
+                          {employeeSchedule.work_location === 'office' ? (
+                            <Building2 className="h-3 w-3 mr-1" />
+                          ) : (
+                            <Home className="h-3 w-3 mr-1" />
+                          )}
+                          {WORK_LOCATION_CONFIG[employeeSchedule.work_location as WorkLocation]?.label}
+                        </Badge>
+                      )}
+                    </div>
                     {isAdminOrHR && employee?.organization_id && <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditScheduleOpen(true)}>
                         {employeeSchedule ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                       </Button>}
