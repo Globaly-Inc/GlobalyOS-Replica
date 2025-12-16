@@ -351,7 +351,7 @@ const AskAI = () => {
       </div>
 
       {/* Fixed Input Area */}
-      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-safe">
+      <div className="fixed left-0 right-0 bg-background border-t border-border px-4 py-3 md:bottom-0 md:pb-0" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="flex gap-2">
           <Input
             value={input}
