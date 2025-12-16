@@ -886,7 +886,8 @@ const BulkLeaveImport = () => {
             days_count: Math.abs(record.days),
             half_day_type: parseHalfDayType(record.day_type),
             reason: record.reason || '',
-            status: record.status || 'approved'
+            status: record.status || 'approved',
+            skip_notification: true // Disable notifications for bulk imports
           });
 
         results.push({

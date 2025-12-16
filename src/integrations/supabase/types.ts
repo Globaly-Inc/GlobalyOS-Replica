@@ -2648,6 +2648,7 @@ export type Database = {
           reason: string
           reviewed_at: string | null
           reviewed_by: string | null
+          skip_notification: boolean | null
           start_date: string
           status: string
           updated_at: string
@@ -2665,6 +2666,7 @@ export type Database = {
           reason: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          skip_notification?: boolean | null
           start_date: string
           status?: string
           updated_at?: string
@@ -2682,6 +2684,7 @@ export type Database = {
           reason?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          skip_notification?: boolean | null
           start_date?: string
           status?: string
           updated_at?: string
