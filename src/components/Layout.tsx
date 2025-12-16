@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck } from 'lucide-react';
-import globalyosLogo from "@/assets/globalyos-logo.svg";
+import globalyosLogo from "@/assets/globalyos-icon.png";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
