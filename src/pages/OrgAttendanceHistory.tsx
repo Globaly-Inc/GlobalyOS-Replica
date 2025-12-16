@@ -48,7 +48,10 @@ import {
   Download,
   ExternalLink,
   Pencil,
-  Trash2
+  Trash2,
+  Building2,
+  Home,
+  MapPin
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +59,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AttendanceRecord {
   id: string;
@@ -66,6 +70,7 @@ interface AttendanceRecord {
   status: string;
   notes: string | null;
   work_hours: number | null;
+  check_in_office_id: string | null;
 }
 
 const OrgAttendanceHistory = () => {
@@ -73,9 +78,11 @@ const OrgAttendanceHistory = () => {
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode } = useOrgNavigation();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
@@ -86,7 +93,7 @@ const OrgAttendanceHistory = () => {
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
 
-  // Fetch all attendance records for the organization
+  // Fetch all attendance records for the organization with office data
   const { data: records, isLoading } = useQuery({
     queryKey: ["org-attendance", currentOrg?.id, format(monthStart, "yyyy-MM"), statusFilter, dateFilter, departmentFilter],
     queryFn: async () => {
@@ -99,6 +106,10 @@ const OrgAttendanceHistory = () => {
             department,
             position,
             profiles!inner(full_name, avatar_url)
+          ),
+          check_in_office:offices!attendance_records_check_in_office_id_fkey(
+            id,
+            name
           )
         `)
         .eq("organization_id", currentOrg!.id)
@@ -133,6 +144,19 @@ const OrgAttendanceHistory = () => {
     return Array.from(depts).sort();
   }, [records]);
 
+  // Get unique offices for filter
+  const offices = useMemo(() => {
+    if (!records) return [];
+    const officeMap = new Map<string, string>();
+    records.forEach((r) => {
+      const office = r.check_in_office as any;
+      if (office?.id && office?.name) {
+        officeMap.set(office.id, office.name);
+      }
+    });
+    return Array.from(officeMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records]);
+
   // Filter records
   const filteredRecords = useMemo(() => {
     if (!records) return [];
@@ -141,9 +165,18 @@ const OrgAttendanceHistory = () => {
       const employeeName = employee?.profiles?.full_name?.toLowerCase() || "";
       const matchesSearch = employeeName.includes(searchQuery.toLowerCase());
       const matchesDepartment = departmentFilter === "all" || employee?.department === departmentFilter;
-      return matchesSearch && matchesDepartment;
+      
+      // Location filter
+      let matchesLocation = true;
+      if (locationFilter === "wfh") {
+        matchesLocation = record.status === "remote" || (!record.check_in_office_id && record.status !== "absent");
+      } else if (locationFilter !== "all") {
+        matchesLocation = record.check_in_office_id === locationFilter;
+      }
+      
+      return matchesSearch && matchesDepartment && matchesLocation;
     });
-  }, [records, searchQuery, departmentFilter]);
+  }, [records, searchQuery, departmentFilter, locationFilter]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -151,11 +184,38 @@ const OrgAttendanceHistory = () => {
       absent: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
       late: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
       half_day: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+      remote: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
     };
     return (
       <Badge className={cn("font-medium text-xs", variants[status] || "")}>
         {status.replace("_", " ")}
       </Badge>
+    );
+  };
+
+  const getLocationDisplay = (record: any) => {
+    const office = record.check_in_office as any;
+    if (record.status === "remote" || record.status === "absent") {
+      return (
+        <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+          <Home className="h-3.5 w-3.5" />
+          <span className="text-sm">WFH</span>
+        </div>
+      );
+    }
+    if (office?.name) {
+      return (
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Building2 className="h-3.5 w-3.5" />
+          <span className="text-sm truncate max-w-[100px]">{office.name}</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5 text-muted-foreground/50">
+        <MapPin className="h-3.5 w-3.5" />
+        <span className="text-sm">—</span>
+      </div>
     );
   };
 
@@ -207,15 +267,17 @@ const OrgAttendanceHistory = () => {
     setSelectedRecords(newSelected);
   };
 
-  // Export CSV
+  // Export CSV with Location column
   const exportCSV = () => {
     const dataToExport = selectedRecords.size > 0 
       ? filteredRecords.filter((r) => selectedRecords.has(r.id))
       : filteredRecords;
 
-    const headers = ["Employee", "Position", "Department", "Date", "Check In", "Check Out", "Work Hours", "Status"];
+    const headers = ["Employee", "Position", "Department", "Date", "Check In", "Check Out", "Work Hours", "Status", "Location"];
     const rows = dataToExport.map((record) => {
       const employee = record.employee as any;
+      const office = record.check_in_office as any;
+      const location = record.status === "remote" ? "WFH" : (office?.name || "Office");
       return [
         employee?.profiles?.full_name || "",
         employee?.position || "",
@@ -225,6 +287,7 @@ const OrgAttendanceHistory = () => {
         record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "",
         record.work_hours?.toFixed(2) || "",
         record.status,
+        location,
       ];
     });
 
@@ -264,6 +327,109 @@ const OrgAttendanceHistory = () => {
     }
   };
 
+  // Mobile Card Component
+  const MobileRecordCard = ({ record }: { record: any }) => {
+    const employee = record.employee as any;
+    const isSelected = selectedRecords.has(record.id);
+    
+    return (
+      <Card 
+        className={cn(
+          "p-4 transition-all active:scale-[0.98]",
+          isSelected && "bg-primary/5 border-primary/30"
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => toggleSelectRecord(record.id)}
+            className="mt-1"
+          />
+          <div className="flex-1 min-w-0">
+            {/* Header: Employee + Location */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <OrgLink 
+                to={`/team/${employee?.id}`}
+                className="flex items-center gap-2.5 min-w-0"
+              >
+                <Avatar className="h-9 w-9 flex-shrink-0">
+                  <AvatarImage src={employee?.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {getInitials(employee?.profiles?.full_name || "?")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{employee?.position}</p>
+                </div>
+              </OrgLink>
+              {getLocationDisplay(record)}
+            </div>
+            
+            {/* Date + Time Row */}
+            <div className="flex items-center justify-between text-sm mb-2">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                <span>{format(parseISO(record.date), "EEE, MMM d")}</span>
+              </div>
+              <span className="font-medium">{record.work_hours?.toFixed(1) || "0"}h</span>
+            </div>
+            
+            {/* Check In/Out + Status Row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                  <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                </div>
+                <span className="text-muted-foreground">→</span>
+                <div className="flex items-center gap-1">
+                  <XCircle className="h-3 w-3 text-red-500" />
+                  <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                </div>
+              </div>
+              {getStatusBadge(record.status)}
+            </div>
+            
+            {/* Actions Row - only for Owner/Admin */}
+            {(isOwner || isAdmin) && (
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1 h-9"
+                  onClick={() => setEditRecord({
+                    id: record.id,
+                    employee_id: record.employee_id,
+                    date: record.date,
+                    check_in_time: record.check_in_time,
+                    check_out_time: record.check_out_time,
+                    status: record.status,
+                    notes: record.notes,
+                    work_hours: record.work_hours,
+                    check_in_office_id: record.check_in_office_id,
+                  })}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1 h-9 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteDialog({ open: true, record })}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-6">
       <div className="space-y-4 md:space-y-6">
@@ -282,11 +448,11 @@ const OrgAttendanceHistory = () => {
           </Button>
         </div>
 
-        {/* Unified Filter Bar */}
-        <div className="px-4 md:px-0">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
-            {/* Search */}
-            <div className="relative flex-1 sm:max-w-[240px]">
+        {/* Sticky Filter Bar */}
+        <div className="px-4 md:px-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 -mt-2 pt-2">
+          <div className="flex flex-col gap-2">
+            {/* Search Row */}
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search employee..."
@@ -296,8 +462,8 @@ const OrgAttendanceHistory = () => {
               />
             </div>
             
-            {/* Filters Row */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Filters Row - Scrollable on mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {/* Month Selector */}
               <Select 
                 value={format(selectedMonth, "yyyy-MM")} 
@@ -306,7 +472,7 @@ const OrgAttendanceHistory = () => {
                   setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
                 }}
               >
-                <SelectTrigger className="w-[140px] h-10">
+                <SelectTrigger className="w-[130px] h-10 flex-shrink-0">
                   <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
@@ -319,10 +485,35 @@ const OrgAttendanceHistory = () => {
                 </SelectContent>
               </Select>
 
+              {/* Location Selector */}
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[110px] h-10 flex-shrink-0">
+                  <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="wfh">
+                    <div className="flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5" />
+                      WFH
+                    </div>
+                  </SelectItem>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id}>
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5" />
+                        {office.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {/* Department Selector */}
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[120px] h-10">
-                  <SelectValue placeholder="Department" />
+                <SelectTrigger className="w-[110px] h-10 flex-shrink-0">
+                  <SelectValue placeholder="Dept" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Depts</SelectItem>
@@ -334,15 +525,16 @@ const OrgAttendanceHistory = () => {
 
               {/* Status Selector */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[110px] h-10">
+                <SelectTrigger className="w-[100px] h-10 flex-shrink-0">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="present">Present</SelectItem>
                   <SelectItem value="late">Late</SelectItem>
                   <SelectItem value="absent">Absent</SelectItem>
                   <SelectItem value="half_day">Half Day</SelectItem>
+                  <SelectItem value="remote">Remote</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -352,7 +544,7 @@ const OrgAttendanceHistory = () => {
                   <Button 
                     variant="outline" 
                     className={cn(
-                      "h-10 px-3 gap-2",
+                      "h-10 px-3 gap-2 flex-shrink-0",
                       dateFilter && "bg-primary/10 border-primary/30"
                     )}
                   >
@@ -380,7 +572,7 @@ const OrgAttendanceHistory = () => {
               </Popover>
 
               {/* Mobile Export */}
-              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10">
+              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 flex-shrink-0">
                 <Download className="h-4 w-4" />
               </Button>
             </div>
@@ -393,7 +585,7 @@ const OrgAttendanceHistory = () => {
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:grid md:grid-cols-5 md:gap-3 scrollbar-hide">
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all hover:scale-[1.02]",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
                   statusFilter === "all" ? "bg-primary/10 border-primary/30 ring-1 ring-primary/20" : "bg-muted/30"
                 )}
                 onClick={() => handleStatClick("all")}
@@ -403,7 +595,7 @@ const OrgAttendanceHistory = () => {
               </Card>
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all hover:scale-[1.02]",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
                   statusFilter === "present" ? "ring-1 ring-green-500/30" : "",
                   "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50"
                 )}
@@ -414,7 +606,7 @@ const OrgAttendanceHistory = () => {
               </Card>
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all hover:scale-[1.02]",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
                   statusFilter === "late" ? "ring-1 ring-yellow-500/30" : "",
                   "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50"
                 )}
@@ -425,7 +617,7 @@ const OrgAttendanceHistory = () => {
               </Card>
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all hover:scale-[1.02]",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
                   statusFilter === "absent" ? "ring-1 ring-red-500/30" : "",
                   "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50"
                 )}
@@ -462,24 +654,43 @@ const OrgAttendanceHistory = () => {
           </div>
         )}
 
-        {/* Records Table */}
+        {/* Records - Mobile Cards or Desktop Table */}
         <div className="px-4 md:px-0">
-          <Card className="overflow-hidden">
-            <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
-              <h2 className="font-semibold text-sm">Attendance Records</h2>
-              <span className="text-xs text-muted-foreground">{filteredRecords.length} records</span>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-            
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          ) : filteredRecords.length === 0 ? (
+            <Card className="flex flex-col items-center justify-center py-12">
+              <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">No attendance records found</p>
+            </Card>
+          ) : isMobile ? (
+            // Mobile Card View
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">{filteredRecords.length} records</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={toggleSelectAll}
+                  className="h-8 text-xs"
+                >
+                  {allSelected ? "Deselect All" : "Select All"}
+                </Button>
               </div>
-            ) : filteredRecords.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">No attendance records found</p>
+              {filteredRecords.map((record) => (
+                <MobileRecordCard key={record.id} record={record} />
+              ))}
+            </div>
+          ) : (
+            // Desktop Table View
+            <Card className="overflow-hidden">
+              <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                <h2 className="font-semibold text-sm">Attendance Records</h2>
+                <span className="text-xs text-muted-foreground">{filteredRecords.length} records</span>
               </div>
-            ) : (
+              
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -493,12 +704,13 @@ const OrgAttendanceHistory = () => {
                         />
                       </TableHead>
                       <TableHead className="min-w-[180px]">Employee</TableHead>
-                      <TableHead className="hidden md:table-cell">Date</TableHead>
-                      <TableHead className="hidden sm:table-cell">Check In</TableHead>
-                      <TableHead className="hidden sm:table-cell">Check Out</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Check In</TableHead>
+                      <TableHead>Check Out</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -537,19 +749,20 @@ const OrgAttendanceHistory = () => {
                               </div>
                             </OrgLink>
                           </TableCell>
-                          <TableCell className="hidden md:table-cell">
+                          <TableCell>{getLocationDisplay(record)}</TableCell>
+                          <TableCell>
                             <div className="text-sm">
                               <span className="font-medium">{format(parseISO(record.date), "EEE")}</span>
                               <span className="text-muted-foreground ml-1">{format(parseISO(record.date), "MMM d")}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">
+                          <TableCell>
                             <div className="flex items-center gap-1.5 text-sm">
                               <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                               <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">
+                          <TableCell>
                             <div className="flex items-center gap-1.5 text-sm">
                               <XCircle className="h-3.5 w-3.5 text-red-500" />
                               <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
@@ -603,6 +816,7 @@ const OrgAttendanceHistory = () => {
                                             status: record.status,
                                             notes: record.notes,
                                             work_hours: record.work_hours,
+                                            check_in_office_id: record.check_in_office_id,
                                           })}
                                         >
                                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -635,8 +849,8 @@ const OrgAttendanceHistory = () => {
                   </TableBody>
                 </Table>
               </div>
-            )}
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
 
