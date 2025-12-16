@@ -70,7 +70,7 @@ const OrgAttendanceHistory = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!currentOrg?.id,
+    enabled: !!currentOrg?.id && !roleLoading && (isOwner || isAdmin || isHR),
   });
 
   // Only owner, admin, and HR can access org-wide attendance history - moved after all hooks
