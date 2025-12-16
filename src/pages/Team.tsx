@@ -566,19 +566,23 @@ const Team = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center gap-2">
-                        {project.color && (
-                          <span 
-                            className="w-2 h-2 rounded-full" 
-                            style={{ backgroundColor: project.color }}
-                          />
-                        )}
-                        <span>{project.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {projects.map((project) => {
+                    const memberCount = employeeProjects.filter(ep => ep.project_id === project.id).length;
+                    return (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          {project.color && (
+                            <span 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: project.color }}
+                            />
+                          )}
+                          <span>{project.name}</span>
+                          <span className="text-muted-foreground">({memberCount})</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             )}
