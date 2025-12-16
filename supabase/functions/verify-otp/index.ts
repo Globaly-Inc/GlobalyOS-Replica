@@ -248,11 +248,14 @@ serve(async (req) => {
       .update({ verified: true })
       .eq('id', otpRecord.id);
 
-    // Check if user exists
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
+    // Check if user exists by querying profiles table (mirrors auth.users, avoids pagination issues)
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+    
+    const existingUser = profileData ? { id: profileData.id, email: profileData.email } : null;
 
     let session = null;
     let user = null;
