@@ -415,142 +415,138 @@ const LeaveHistory = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Employee Card */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+      {/* Header Row: Title on left, Profile Card on right */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           <OrgLink to={`/team/${employeeId}`}>
-            <Button variant="ghost" size="icon" className="mt-1">
+            <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </OrgLink>
-          
-          {/* Employee Card */}
-          <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
-              <AvatarImage src={employeeInfo.avatar_url} alt={employeeInfo.name} />
-              <AvatarFallback className="text-sm font-medium">
-                {employeeInfo.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                {employeeInfo.name}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {employeeInfo.position}{employeeInfo.department && ` · ${employeeInfo.department}`}
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">Leave History</h1>
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 ml-12 sm:ml-0">
-          {canEdit && (
-            <>
-              <AddLeaveBalanceDialog employeeId={employeeId!} onSuccess={loadData} />
-              <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Leave</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </>
-          )}
+        
+        {/* Profile Card - Top Right */}
+        <div className="flex items-center gap-3 ml-10 sm:ml-0">
+          <div className="text-right hidden sm:block">
+            <p className="font-medium text-foreground">{employeeInfo.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {employeeInfo.position}{employeeInfo.department && ` · ${employeeInfo.department}`}
+            </p>
+          </div>
+          <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+            <AvatarImage src={employeeInfo.avatar_url} alt={employeeInfo.name} />
+            <AvatarFallback className="text-sm font-medium">
+              {employeeInfo.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* 6 Summary Cards in a row: Leave Balances + Taken + Adjusted */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {balances.map((b) => (
           <Card key={b.leave_type} className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1.5">
                 <div className={`p-1.5 rounded-md ${b.balance < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
                   {getLeaveTypeIcon(b.leave_type)}
                 </div>
-                <span className="text-sm font-medium text-muted-foreground truncate">{b.leave_type}</span>
+                <span className="text-xs font-medium text-muted-foreground truncate">{b.leave_type}</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className={`text-2xl font-bold ${b.balance < 0 ? 'text-destructive' : ''}`}>
+                <span className={`text-xl font-bold ${b.balance < 0 ? 'text-destructive' : ''}`}>
                   {b.balance < 0 ? `(${Math.abs(b.balance)})` : b.balance}
                 </span>
-                <span className="text-sm text-muted-foreground">days</span>
+                <span className="text-xs text-muted-foreground">days</span>
               </div>
             </CardContent>
           </Card>
         ))}
         
-        {/* Stats Summary */}
-        <Card className="col-span-2 sm:col-span-4 bg-muted/30">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-md bg-destructive/10">
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Taken: </span>
-                  <span className="font-semibold">{totalTaken} days</span>
-                </div>
+        {/* Taken Card */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="p-1.5 rounded-md bg-destructive/10">
+                <TrendingDown className="h-4 w-4 text-destructive" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-md bg-green-500/10">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Adjustments: </span>
-                  <span className="font-semibold">{totalAdjustments > 0 ? '+' : ''}{totalAdjustments} days</span>
-                </div>
+              <span className="text-xs font-medium text-muted-foreground">Taken</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-bold text-destructive">({totalTaken})</span>
+              <span className="text-xs text-muted-foreground">days</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Adjusted Card */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="p-1.5 rounded-md bg-green-500/10">
+                <TrendingUp className="h-4 w-4 text-green-600" />
               </div>
-              {pendingCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-amber-500/10">
-                    <Clock className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Pending: </span>
-                    <span className="font-semibold">{pendingCount}</span>
-                  </div>
-                </div>
-              )}
+              <span className="text-xs font-medium text-muted-foreground">Adjusted</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-xl font-bold ${totalAdjustments >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                {totalAdjustments >= 0 ? `+${totalAdjustments}` : `(${Math.abs(totalAdjustments)})`}
+              </span>
+              <span className="text-xs text-muted-foreground">days</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-28">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="leave_taken">Leave Taken</SelectItem>
-            <SelectItem value="adjustment">Adjustments</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Leave Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Leave Types</SelectItem>
-            {leaveTypes.map((type) => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Filters Row with Action Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-24 h-9">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+            <SelectTrigger className="w-32 h-9">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="leave_taken">Leave Taken</SelectItem>
+              <SelectItem value="adjustment">Adjustments</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+            <SelectTrigger className="w-36 h-9">
+              <SelectValue placeholder="Leave Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leave Types</SelectItem>
+              {leaveTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Action Buttons */}
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <AddLeaveBalanceDialog employeeId={employeeId!} onSuccess={loadData} />
+            <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-1.5 h-9">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Leave</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5 h-9">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Table */}
