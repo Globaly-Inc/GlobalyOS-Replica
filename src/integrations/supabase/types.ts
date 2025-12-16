@@ -1583,6 +1583,7 @@ export type Database = {
           organization_id: string | null
           updated_at: string
           work_end_time: string
+          work_location: string
           work_start_time: string
         }
         Insert: {
@@ -1593,6 +1594,7 @@ export type Database = {
           organization_id?: string | null
           updated_at?: string
           work_end_time?: string
+          work_location?: string
           work_start_time?: string
         }
         Update: {
@@ -1603,6 +1605,7 @@ export type Database = {
           organization_id?: string | null
           updated_at?: string
           work_end_time?: string
+          work_location?: string
           work_start_time?: string
         }
         Relationships: [
@@ -4545,6 +4548,87 @@ export type Database = {
           },
         ]
       }
+      wfh_requests: {
+        Row: {
+          created_at: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id: string
+          organization_id: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_count?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wfh_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wfh_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wfh_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wfh_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wfh_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wiki_favorites: {
         Row: {
           created_at: string
@@ -5615,6 +5699,14 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
+      record_remote_attendance: {
+        Args: {
+          _action: string
+          _user_latitude: number
+          _user_longitude: number
+        }
+        Returns: Json
+      }
       record_usage: {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined

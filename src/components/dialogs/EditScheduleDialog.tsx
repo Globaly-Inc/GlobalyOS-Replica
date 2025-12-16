@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, Globe } from "lucide-react";
+import { Clock, Globe, Building2, Home, Building } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WorkLocation, WORK_LOCATION_CONFIG } from "@/types/wfh";
 
 interface DaySchedule {
   enabled: boolean;
@@ -37,6 +38,7 @@ interface EditScheduleDialogProps {
     work_end_time: string;
     late_threshold_minutes: number;
     timezone?: string;
+    work_location?: WorkLocation;
   } | null;
   onSuccess?: () => void;
 }
@@ -106,6 +108,7 @@ export const EditScheduleDialog = ({
   const [loading, setLoading] = useState(false);
   const [lateThreshold, setLateThreshold] = useState(15);
   const [timezone, setTimezone] = useState(getLocalTimezone());
+  const [workLocation, setWorkLocation] = useState<WorkLocation>("office");
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(getDefaultWeekSchedule());
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export const EditScheduleDialog = ({
         const startTime = currentSchedule.work_start_time.substring(0, 5);
         const endTime = currentSchedule.work_end_time.substring(0, 5);
         setLateThreshold(currentSchedule.late_threshold_minutes);
+        setWorkLocation(currentSchedule.work_location || "office");
         
         setWeekSchedule({
           monday: { enabled: true, start: startTime, end: endTime },
@@ -128,6 +132,7 @@ export const EditScheduleDialog = ({
       } else {
         setWeekSchedule(getDefaultWeekSchedule());
         setLateThreshold(15);
+        setWorkLocation("office");
       }
     }
   }, [currentSchedule, open]);
@@ -179,6 +184,7 @@ export const EditScheduleDialog = ({
           work_start_time: `${primarySchedule.start}:00`,
           work_end_time: `${primarySchedule.end}:00`,
           late_threshold_minutes: lateThreshold,
+          work_location: workLocation,
         }, {
           onConflict: "employee_id",
         });
@@ -187,6 +193,7 @@ export const EditScheduleDialog = ({
 
       toast.success("Schedule updated successfully");
       queryClient.invalidateQueries({ queryKey: ["employee-schedule", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-work-location", employeeId] });
       onSuccess?.();
       onOpenChange(false);
     } catch (error: any) {
@@ -209,6 +216,38 @@ export const EditScheduleDialog = ({
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-2">
+            {/* Work Location Selector */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Work Location
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(WORK_LOCATION_CONFIG) as WorkLocation[]).map((location) => {
+                  const config = WORK_LOCATION_CONFIG[location];
+                  const isSelected = workLocation === location;
+                  return (
+                    <button
+                      key={location}
+                      type="button"
+                      onClick={() => setWorkLocation(location)}
+                      className={`p-3 rounded-lg border-2 transition-all text-center ${
+                        isSelected
+                          ? `${config.bgColor} ${config.borderColor} ${config.color}`
+                          : 'border-muted hover:border-muted-foreground/30 bg-background'
+                      }`}
+                    >
+                      <div className="text-lg mb-1">{config.icon}</div>
+                      <div className="text-sm font-medium">{config.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {WORK_LOCATION_CONFIG[workLocation].description}
+              </p>
+            </div>
+
             {/* Timezone Selector */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">

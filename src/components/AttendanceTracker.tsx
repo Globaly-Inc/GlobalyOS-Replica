@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, TrendingDown, TrendingUp, Timer, ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks, isSameWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
+import { useWfhDays } from "@/services/useWfh";
 
 interface AttendanceTrackerProps {
   employeeId: string;
@@ -73,6 +74,13 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       return data;
     },
   });
+
+  // Fetch WFH days for the week
+  const { data: wfhDaysCount = 0 } = useWfhDays(
+    employeeId,
+    format(weekStart, "yyyy-MM-dd"),
+    format(weekEnd, "yyyy-MM-dd")
+  );
 
   const checkInMutation = useMutation({
     mutationFn: async () => {
@@ -307,7 +315,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
           </div>
         </div>
         
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50">
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown className="h-4 w-4 text-red-500" />
@@ -345,6 +353,16 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
             </div>
             <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
               {metrics.totalWorkHours.toFixed(1)}h
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50">
+            <div className="flex items-center gap-2 mb-1">
+              <Home className="h-4 w-4 text-purple-500" />
+              <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">WFH Days</p>
+            </div>
+            <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+              {wfhDaysCount}
             </p>
           </div>
         </div>
