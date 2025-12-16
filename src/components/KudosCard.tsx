@@ -20,10 +20,16 @@ import {
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { EditKudosDialog } from "./dialogs/EditKudosDialog";
+import { VisibilityBadge } from "./feed/VisibilityBadge";
 
 
 interface KudosCardProps {
-  kudos: Kudos;
+  kudos: Kudos & {
+    accessScope?: string | null;
+    kudosOffices?: Array<{ office: { name: string } }>;
+    kudosDepartments?: Array<{ department: string }>;
+    kudosProjects?: Array<{ project: { name: string } }>;
+  };
   onDelete?: () => void;
 }
 
@@ -112,12 +118,18 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
                 </AvatarFallback>
               </Avatar>
               
-              <div>
+              <div className="flex items-center gap-2">
                 <p className="font-semibold text-sm text-foreground">{kudos.givenBy}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTime(kudos.date)}
-                </p>
+                <VisibilityBadge 
+                  accessScope={kudos.accessScope}
+                  offices={kudos.kudosOffices}
+                  departments={kudos.kudosDepartments}
+                  projects={kudos.kudosProjects}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">
+                {formatDateTime(kudos.date)}
+              </p>
             </OrgLink>
             
             {/* Post type icon on right with hover actions */}

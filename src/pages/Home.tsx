@@ -738,11 +738,20 @@ const Home = () => {
             avatar: kudosItem.employee.profiles?.avatar_url || undefined,
             batchId: kudosItem.batch_id || undefined,
             otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-            otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
+            otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
+            accessScope: (kudosItem as any).access_scope,
+            kudosOffices: (kudosItem as any).kudos_offices,
+            kudosDepartments: (kudosItem as any).kudos_departments,
+            kudosProjects: (kudosItem as any).kudos_projects,
           }} onDelete={loadFeed} />
         </div>;
       } else {
-        const updateItem = item as FeedItem;
+        const updateItem = item as FeedItem & {
+          access_scope?: string | null;
+          update_offices?: Array<{ office: { name: string } }>;
+          update_departments?: Array<{ department: string }>;
+          update_projects?: Array<{ project: { name: string } }>;
+        };
         // Skip if employee is null
         if (!updateItem.employee) return null;
         
@@ -761,7 +770,11 @@ const Home = () => {
               employeeId: m.employee_id,
               employeeName: m.employee?.profiles?.full_name || "Unknown",
               avatar: m.employee?.profiles?.avatar_url || undefined
-            }))
+            })),
+            accessScope: updateItem.access_scope,
+            updateOffices: updateItem.update_offices,
+            updateDepartments: updateItem.update_departments,
+            updateProjects: updateItem.update_projects,
           }} onDelete={loadFeed} />
         </div>;
       }
@@ -999,7 +1012,11 @@ const Home = () => {
                 date: update.created_at,
                 type: update.type as "win" | "achievement",
                 avatar: update.employee.profiles.avatar_url || undefined,
-                imageUrl: update.image_url || undefined
+                imageUrl: update.image_url || undefined,
+                accessScope: (update as any).access_scope,
+                updateOffices: (update as any).update_offices,
+                updateDepartments: (update as any).update_departments,
+                updateProjects: (update as any).update_projects,
               }} onDelete={loadFeed} />)}
                 {winsAndAchievements.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No wins yet!</p>
@@ -1019,7 +1036,11 @@ const Home = () => {
                 avatar: kudosItem.employee.profiles.avatar_url || undefined,
                 batchId: kudosItem.batch_id || undefined,
                 otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-                otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id)
+                otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
+                accessScope: (kudosItem as any).access_scope,
+                kudosOffices: (kudosItem as any).kudos_offices,
+                kudosDepartments: (kudosItem as any).kudos_departments,
+                kudosProjects: (kudosItem as any).kudos_projects,
               }} onDelete={loadFeed} />)}
                 {groupedKudos.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No kudos yet!</p>
@@ -1035,7 +1056,11 @@ const Home = () => {
                 date: update.created_at,
                 type: "announcement",
                 avatar: update.employee.profiles.avatar_url || undefined,
-                imageUrl: update.image_url || undefined
+                imageUrl: update.image_url || undefined,
+                accessScope: (update as any).access_scope,
+                updateOffices: (update as any).update_offices,
+                updateDepartments: (update as any).update_departments,
+                updateProjects: (update as any).update_projects,
               }} onDelete={loadFeed} />)}
                 {regularUpdates.length === 0 && <Card className="p-12 text-center">
                     <p className="text-muted-foreground">No announcements yet!</p>

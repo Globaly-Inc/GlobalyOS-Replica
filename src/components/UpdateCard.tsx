@@ -21,9 +21,15 @@ import {
 } from "./ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { EditUpdateDialog } from "./dialogs/EditUpdateDialog";
+import { VisibilityBadge } from "./feed/VisibilityBadge";
 
 interface UpdateCardProps {
-  update: Update;
+  update: Update & {
+    accessScope?: string | null;
+    updateOffices?: Array<{ office: { name: string } }>;
+    updateDepartments?: Array<{ department: string }>;
+    updateProjects?: Array<{ project: { name: string } }>;
+  };
   onDelete?: () => void;
   onEdit?: () => void;
 }
@@ -128,12 +134,18 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
                 </AvatarFallback>
               </Avatar>
               
-              <div>
+              <div className="flex items-center gap-2">
                 <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTime(update.date, true)}
-                </p>
+                <VisibilityBadge 
+                  accessScope={update.accessScope}
+                  offices={update.updateOffices}
+                  departments={update.updateDepartments}
+                  projects={update.updateProjects}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">
+                {formatDateTime(update.date, true)}
+              </p>
             </OrgLink>
             
             {/* Post type icon on right with hover actions */}
