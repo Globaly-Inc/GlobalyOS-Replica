@@ -38,7 +38,7 @@ import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Buildi
 import AIKPIInsights from "@/components/AIKPIInsights";
 import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
-import { ProfileAISummary } from "@/components/ProfileAISummary";
+
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -806,74 +806,36 @@ const TeamMemberProfile = () => {
               </div>
             </div>
 
-            {/* Right side - AI Summary */}
-            <div className="lg:w-96 lg:border-l lg:pl-4">
-              <ProfileAISummary 
-                employeeId={id!}
-                employee={{
-                  name: employee.profiles.full_name,
-                  position: employee.position,
-                  department: employee.department,
-                  joinDate: employee.join_date,
-                  office: employee.offices?.name,
-                  superpowers: employee.superpowers,
-                  projects: employeeProjects.map(ep => ep.project.name),
-                  kudosCount: kudos.length,
-                  recentKudos: kudos.slice(0, 3).map(k => k.comment),
-                  directReportsCount: directReports.length,
-                  managerName: manager?.profiles?.full_name,
-                  organizationId: employee.organization_id,
-                }}
-                compact
-              />
-            </div>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 contents lg:block">
-            {/* Work Schedule - visible to all with permission, editable by HR/Admin */}
+            {/* Right side - Work Schedule */}
             {canViewLeaveAndAttendance && (
-              <Card className="overflow-hidden order-1 lg:order-none">
-                <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                    <Clock className="h-5 w-5 text-primary" />
-                    Work Schedule
-                  </h2>
-                  {isAdminOrHR && employee?.organization_id && (
-                    <Button size="sm" variant="outline" onClick={() => setEditScheduleOpen(true)}>
-                      {employeeSchedule ? (
-                        <>
-                          <Pencil className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Edit Schedule</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Add Schedule</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-                <div className="p-4">
-                  {employeeSchedule ? (
-                    <div className="space-y-4">
-                      {/* 7-Day Schedule Grid */}
-                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              <div className="lg:w-80 lg:border-l lg:pl-4">
+                <div className="hidden sm:block rounded-lg bg-card border overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 border-b">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Clock className="h-4 w-4 text-primary" />
+                      Work Schedule
+                    </h2>
+                    {isAdminOrHR && employee?.organization_id && (
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditScheduleOpen(true)}>
+                        {employeeSchedule ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    {employeeSchedule ? (
+                      <div className="grid grid-cols-7 gap-1">
                         {[
-                          { key: 'mon', label: 'Mon', working: true },
-                          { key: 'tue', label: 'Tue', working: true },
-                          { key: 'wed', label: 'Wed', working: true },
-                          { key: 'thu', label: 'Thu', working: true },
-                          { key: 'fri', label: 'Fri', working: true },
-                          { key: 'sat', label: 'Sat', working: false },
-                          { key: 'sun', label: 'Sun', working: false },
+                          { key: 'mon', label: 'M', working: true },
+                          { key: 'tue', label: 'T', working: true },
+                          { key: 'wed', label: 'W', working: true },
+                          { key: 'thu', label: 'T', working: true },
+                          { key: 'fri', label: 'F', working: true },
+                          { key: 'sat', label: 'S', working: false },
+                          { key: 'sun', label: 'S', working: false },
                         ].map((day) => {
                           const formatTime12 = (time: string) => {
                             const [hours, minutes] = time.split(":");
                             const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? "PM" : "AM";
                             const hour12 = hour % 12 || 12;
                             return `${hour12}:${minutes}`;
                           };
@@ -881,51 +843,55 @@ const TeamMemberProfile = () => {
                           return (
                             <div 
                               key={day.key} 
-                              className={`rounded-lg p-2 text-center ${
+                              className={`rounded p-1.5 text-center ${
                                 day.working 
                                   ? 'bg-primary/10 border border-primary/20' 
-                                  : 'bg-muted/50 border border-transparent'
+                                  : 'bg-muted/50'
                               }`}
                             >
-                              <p className={`text-xs font-medium mb-1 ${day.working ? 'text-primary' : 'text-muted-foreground'}`}>
+                              <p className={`text-[10px] font-medium ${day.working ? 'text-primary' : 'text-muted-foreground'}`}>
                                 {day.label}
                               </p>
                               {day.working ? (
-                                <div className="space-y-0.5">
-                                  <p className="text-[10px] font-semibold text-foreground">
+                                <div className="mt-0.5">
+                                  <p className="text-[9px] font-semibold text-foreground leading-tight">
                                     {formatTime12(employeeSchedule.work_start_time)}
                                   </p>
-                                  <p className="text-[10px] text-muted-foreground">to</p>
-                                  <p className="text-[10px] font-semibold text-foreground">
+                                  <p className="text-[9px] font-semibold text-foreground leading-tight">
                                     {formatTime12(employeeSchedule.work_end_time)}
                                   </p>
                                 </div>
                               ) : (
-                                <p className="text-[10px] text-muted-foreground py-2">Off</p>
+                                <p className="text-[9px] text-muted-foreground mt-1">Off</p>
                               )}
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground">No schedule configured</p>
-                      {isAdminOrHR && employee?.organization_id && (
-                        <Button 
-                          variant="link" 
-                          size="sm" 
-                          className="mt-1 h-auto p-0"
-                          onClick={() => setEditScheduleOpen(true)}
-                        >
-                          Set up schedule
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-center py-2">
+                        <p className="text-xs text-muted-foreground">No schedule configured</p>
+                        {isAdminOrHR && employee?.organization_id && (
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            className="mt-1 h-auto p-0 text-xs"
+                            onClick={() => setEditScheduleOpen(true)}
+                          >
+                            Set up schedule
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </Card>
+              </div>
             )}
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 contents lg:block">
 
             {/* Position Timeline - visible to all, but salary and edit restricted */}
             {canViewPositionTimeline && (
