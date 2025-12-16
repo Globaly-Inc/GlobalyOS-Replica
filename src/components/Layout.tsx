@@ -20,6 +20,7 @@ import { SubNav } from "./SubNav";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import { GlobalAskAI } from "./GlobalAskAI";
+import { GlobalSearch } from "./GlobalSearch";
 import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
@@ -72,6 +73,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [sessionCount, setSessionCount] = useState<number>(0);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showWelcomeSurvey, setShowWelcomeSurvey] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
 
   // Check if user needs to see welcome survey (owners only)
   useEffect(() => {
@@ -97,6 +99,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
     checkSurveyStatus();
   }, [user?.id, currentOrg?.id, role]);
+
+  // Global search keyboard shortcut (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setGlobalSearchOpen(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Track online presence
   useEffect(() => {
@@ -447,7 +462,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Clock className="h-4 w-4" />
                 <span>{elapsedTime}</span>
               </div>
-            )}
+             )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setGlobalSearchOpen(true)}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Search <kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘K</kbd></p>
+              </TooltipContent>
+            </Tooltip>
             <GlobalAskAI organizationId={currentOrg?.id} />
             <Tooltip>
               <TooltipTrigger asChild>
@@ -687,6 +717,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         open={showWelcomeSurvey} 
         onComplete={() => setShowWelcomeSurvey(false)} 
       />
+
+      {/* Global Search Command Palette */}
+      <GlobalSearch open={globalSearchOpen} onOpenChange={setGlobalSearchOpen} />
 
       {/* Onboarding Checklist - only show floating version on non-home pages */}
       {!isHomePage && <OnboardingChecklist userRole={role} />}

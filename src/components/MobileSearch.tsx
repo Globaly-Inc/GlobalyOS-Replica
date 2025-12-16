@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, X, Users, BookOpen, MessageSquare, Clock } from "lucide-react";
+import { Search, X, Users, BookOpen, MessageSquare, Clock, Calendar } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +15,7 @@ interface MobileSearchProps {
 }
 
 interface SearchResult {
-  type: "team" | "wiki" | "chat";
+  type: "team" | "wiki" | "chat" | "event";
   id: string;
   title: string;
   subtitle?: string;
@@ -118,6 +118,31 @@ export const MobileSearch = ({ open, onOpenChange }: MobileSearchProps) => {
           });
         }
 
+        // Search calendar events
+        const { data: events } = await supabase
+          .from("calendar_events")
+          .select("id, title, start_date, event_type")
+          .eq("organization_id", currentOrg.id)
+          .ilike("title", `%${query}%`)
+          .order("start_date", { ascending: true })
+          .limit(5);
+
+        if (events) {
+          events.forEach((event: any) => {
+            const eventDate = new Date(event.start_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            });
+            searchResults.push({
+              type: "event",
+              id: event.id,
+              title: event.title,
+              subtitle: `${eventDate} • ${event.event_type || 'Event'}`,
+            });
+          });
+        }
+
         setResults(searchResults);
       } catch (error) {
         console.error("Search error:", error);
@@ -143,6 +168,9 @@ export const MobileSearch = ({ open, onOpenChange }: MobileSearchProps) => {
       case "chat":
         navigateOrg(`/chat?space=${result.id}`);
         break;
+      case "event":
+        navigateOrg(`/calendar`);
+        break;
     }
     
     onOpenChange(false);
@@ -157,6 +185,8 @@ export const MobileSearch = ({ open, onOpenChange }: MobileSearchProps) => {
         return BookOpen;
       case "chat":
         return MessageSquare;
+      case "event":
+        return Calendar;
     }
   };
 
@@ -167,9 +197,12 @@ export const MobileSearch = ({ open, onOpenChange }: MobileSearchProps) => {
       case "wiki":
         return "bg-purple-500/10 border-purple-500/20";
       case "chat":
+        return "bg-green-500/10 border-green-500/20";
+      case "event":
         return "bg-blue-500/10 border-blue-500/20";
     }
   };
+
 
   const getInitials = (name: string) => {
     return name
