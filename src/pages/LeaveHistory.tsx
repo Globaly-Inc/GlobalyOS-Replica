@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, Eye, Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays } from "lucide-react";
+import { ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, Eye, Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays, CalendarPlus } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate, formatDateRange } from "@/lib/utils";
@@ -19,6 +19,7 @@ import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustm
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
+import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 interface LeaveTransaction {
   id: string;
   type: 'leave_taken' | 'adjustment';
@@ -115,6 +116,7 @@ const LeaveHistory = () => {
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
   const [addLeaveOpen, setAddLeaveOpen] = useState(false);
+  const [requestLeaveOpen, setRequestLeaveOpen] = useState(false);
   const [totalTaken, setTotalTaken] = useState(0);
   const [totalAdjustments, setTotalAdjustments] = useState(0);
   const queryClient = useQueryClient();
@@ -457,6 +459,17 @@ const LeaveHistory = () => {
         </Card>
       </div>
 
+      {/* Mobile Request Leave Button */}
+      <div className="sm:hidden">
+        <Button 
+          onClick={() => setRequestLeaveOpen(true)} 
+          className="w-full h-12 gap-2 text-base font-medium"
+        >
+          <CalendarPlus className="h-5 w-5" />
+          Request Leave
+        </Button>
+      </div>
+
       {/* Filters Row with Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
@@ -468,16 +481,6 @@ const LeaveHistory = () => {
               {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-            <SelectTrigger className="w-32 h-9">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="leave_taken">Leave Taken</SelectItem>
-              <SelectItem value="adjustment">Adjustments</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
             <SelectTrigger className="w-36 h-9">
               <SelectValue placeholder="Leave Type" />
@@ -487,10 +490,20 @@ const LeaveHistory = () => {
               {leaveTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+            <SelectTrigger className="w-32 h-9 hidden sm:flex">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="leave_taken">Leave Taken</SelectItem>
+              <SelectItem value="adjustment">Adjustments</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         {/* Action Buttons */}
-        {canEdit && <div className="flex items-center gap-2">
+        {canEdit && <div className="hidden sm:flex items-center gap-2">
             <AddLeaveBalanceDialog employeeId={employeeId!} onSuccess={loadData} />
             <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-1.5 h-9">
               <Plus className="h-4 w-4" />
@@ -673,6 +686,9 @@ const LeaveHistory = () => {
       
       {/* Add Leave Dialog */}
       <AddLeaveForEmployeeDialog employeeId={employeeId!} employeeName={employeeInfo.name} open={addLeaveOpen} onOpenChange={setAddLeaveOpen} onSuccess={loadData} />
+      
+      {/* Request Leave Dialog */}
+      <AddLeaveRequestDialog employeeId={employeeId!} open={requestLeaveOpen} onOpenChange={setRequestLeaveOpen} onSuccess={loadData} trigger={null} />
     </div>;
 };
 export default LeaveHistory;
