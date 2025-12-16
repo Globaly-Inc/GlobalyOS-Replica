@@ -86,11 +86,9 @@ const Team = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [onlineFilter, setOnlineFilter] = useState<OnlineFilter>('all');
-  const [officeFilter, setOfficeFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [offices, setOffices] = useState<Office[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
@@ -163,17 +161,12 @@ const Team = () => {
     setLoading(true);
     
     // Fetch all data in parallel
-    const [employeeResult, officesResult, projectsResult, employeeProjectsResult] = await Promise.all([
+    const [employeeResult, projectsResult, employeeProjectsResult] = await Promise.all([
       supabase
         .from("employee_directory")
         .select("*")
         .eq("organization_id", currentOrg.id)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("offices")
-        .select("id, name")
-        .eq("organization_id", currentOrg.id)
-        .order("name"),
       supabase
         .from("projects")
         .select("id, name, color")
@@ -185,8 +178,7 @@ const Team = () => {
         .eq("organization_id", currentOrg.id)
     ]);
 
-    // Set offices and projects
-    if (officesResult.data) setOffices(officesResult.data as Office[]);
+    // Set projects
     if (projectsResult.data) setProjects(projectsResult.data as Project[]);
     if (employeeProjectsResult.data) setEmployeeProjects(employeeProjectsResult.data as EmployeeProject[]);
 
@@ -271,15 +263,13 @@ const Team = () => {
     let count = 0;
     if (statusFilter !== 'active') count++; // 'active' is default
     if (onlineFilter !== 'all') count++;
-    if (officeFilter !== 'all') count++;
     if (projectFilter !== 'all') count++;
     return count;
-  }, [statusFilter, onlineFilter, officeFilter, projectFilter]);
+  }, [statusFilter, onlineFilter, projectFilter]);
 
   const clearAllFilters = () => {
     setStatusFilter('active');
     setOnlineFilter('all');
-    setOfficeFilter('all');
     setProjectFilter('all');
   };
 
@@ -290,7 +280,6 @@ const Team = () => {
       const isOnline = onlineStatuses[employee.id] ?? false;
       return onlineFilter === 'online' ? isOnline : !isOnline;
     })
-    .filter((employee) => officeFilter === 'all' || employee.office_id === officeFilter)
     .filter((employee) => {
       if (projectFilter === 'all') return true;
       return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
@@ -563,29 +552,6 @@ const Team = () => {
               </SelectContent>
             </Select>
 
-            {/* Office Filter */}
-            {offices.length > 0 && (
-              <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                <SelectTrigger className={cn(
-                  "w-[150px] h-9",
-                  officeFilter !== 'all' && "border-primary bg-primary/5"
-                )}>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Office" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Offices</SelectItem>
-                  {offices.map((office) => (
-                    <SelectItem key={office.id} value={office.id}>
-                      {office.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
             {/* Project Filter */}
             {projects.length > 0 && (
               <Select value={projectFilter} onValueChange={setProjectFilter}>
@@ -629,16 +595,17 @@ const Team = () => {
                 Clear ({activeFilterCount})
               </Button>
             )}
-          </div>
 
-          <div className="relative w-full sm:w-auto sm:min-w-[280px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search name, position, department..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 w-full"
-            />
+            {/* Search - expands to fill available space */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search name, position, department, office..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 w-full"
+              />
+            </div>
           </div>
         </div>
 
