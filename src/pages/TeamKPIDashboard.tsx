@@ -480,19 +480,19 @@ const TeamKPIDashboard = () => {
                 : "Your personal KPI overview"}
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {(isAdmin || isHR) && (
               <KPITemplatesDialog>
-                <Button variant="outline" size="sm">
-                  <FileText className="h-4 w-4 mr-1" />
-                  Templates
+                <Button variant="outline" size="sm" className="px-2 sm:px-3">
+                  <FileText className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Templates</span>
                 </Button>
               </KPITemplatesDialog>
             )}
             
             {viewMode === "quarterly" && (
               <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-20 sm:w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -503,7 +503,7 @@ const TeamKPIDashboard = () => {
               </Select>
             )}
             <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-              <SelectTrigger className="w-28">
+              <SelectTrigger className="w-24 sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -519,11 +519,11 @@ const TeamKPIDashboard = () => {
               onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
               className="border rounded-lg"
             >
-              <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-3 gap-1.5">
+              <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5">
                 <Calendar className="h-4 w-4" />
                 <span className="hidden sm:inline">Quarterly</span>
               </ToggleGroupItem>
-              <ToggleGroupItem value="annual" aria-label="Annual view" className="px-3 gap-1.5">
+              <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5">
                 <CalendarDays className="h-4 w-4" />
                 <span className="hidden sm:inline">Annual</span>
               </ToggleGroupItem>
@@ -550,67 +550,67 @@ const TeamKPIDashboard = () => {
         ) : (
           <>
             {/* Summary Stats */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-4 sm:mb-6">
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Target className="h-5 w-5 text-primary" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                      <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats.totalKPIs}</p>
+                      <p className="text-xl sm:text-2xl font-bold">{stats.totalKPIs}</p>
                       <p className="text-xs text-muted-foreground">Total KPIs</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats.onTrack + stats.completed}</p>
+                      <p className="text-xl sm:text-2xl font-bold">{stats.onTrack + stats.completed}</p>
                       <p className="text-xs text-muted-foreground">On Track / Done</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats.atRisk}</p>
+                      <p className="text-xl sm:text-2xl font-bold">{stats.atRisk}</p>
                       <p className="text-xs text-muted-foreground">At Risk</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <XCircle className="h-5 w-5 text-red-600" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats.behind}</p>
+                      <p className="text-xl sm:text-2xl font-bold">{stats.behind}</p>
                       <p className="text-xs text-muted-foreground">Behind</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <TrendingUp className="h-5 w-5 text-blue-600" />
+              <Card className="col-span-2 md:col-span-1">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats.avgProgress}%</p>
+                      <p className="text-xl sm:text-2xl font-bold">{stats.avgProgress}%</p>
                       <p className="text-xs text-muted-foreground">Avg Progress</p>
                     </div>
                   </div>
@@ -620,7 +620,7 @@ const TeamKPIDashboard = () => {
 
             {/* Trend Charts */}
             {trendData.length > 0 && (
-              <div className="grid gap-6 md:grid-cols-2 mb-6">
+              <div className="grid gap-4 sm:gap-6 md:grid-cols-2 mb-4 sm:mb-6">
                 {/* Progress Trend Chart */}
                 <Card>
                   <CardHeader className="pb-2">
@@ -630,7 +630,7 @@ const TeamKPIDashboard = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <ChartContainer config={chartConfig} className="h-[180px] sm:h-[250px] w-full">
                       <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="progressGradient" x1="0" y1="0" x2="0" y2="1">
@@ -669,8 +669,8 @@ const TeamKPIDashboard = () => {
                   </CardContent>
                 </Card>
 
-                {/* Status Distribution Chart */}
-                <Card>
+                {/* Status Distribution Chart - Hidden on mobile */}
+                <Card className="hidden sm:block">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" />
@@ -708,16 +708,16 @@ const TeamKPIDashboard = () => {
             )}
 
             {/* Filter Bar */}
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 flex-wrap">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
                 <Filter className="h-4 w-4" />
                 <span>Filter by:</span>
               </div>
               
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="All Departments" />
+                <SelectTrigger className="w-[140px] sm:w-[180px]">
+                  <Building className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
@@ -730,9 +730,9 @@ const TeamKPIDashboard = () => {
               </Select>
 
               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <FolderKanban className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="All Projects" />
+                <SelectTrigger className="w-[140px] sm:w-[180px]">
+                  <FolderKanban className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Project" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
@@ -749,32 +749,32 @@ const TeamKPIDashboard = () => {
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground px-2"
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Clear filters
+                  <X className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Clear</span>
                 </Button>
               )}
 
               {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-auto">
-                  {filteredTeamMembers.length} of {teamMembers.length} members
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  {filteredTeamMembers.length}/{teamMembers.length}
                 </Badge>
               )}
             </div>
 
             {/* All KPIs - Now above Team Progress */}
-            <Card className="mb-6">
+            <Card className="mb-4 sm:mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Target className="h-4 w-4" />
                   All KPIs
                   <Badge variant="secondary" className="ml-2">
-                    {filteredTeamKPIs.length} KPIs
+                    {filteredTeamKPIs.length}
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {filteredTeamKPIs.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -787,7 +787,7 @@ const TeamKPIDashboard = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {filteredTeamKPIs.map((kpi) => {
                       const member = filteredTeamMembers.find(m => m.id === kpi.employee_id);
                       const progress = kpi.target_value
@@ -797,50 +797,78 @@ const TeamKPIDashboard = () => {
                       return (
                         <div
                           key={kpi.id}
-                          className="flex items-center gap-4 p-3 border rounded-lg"
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg"
                         >
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={(member?.profiles as any)?.avatar_url} />
-                            <AvatarFallback className="text-xs">
-                              {(member?.profiles as any)?.full_name?.charAt(0) || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-medium text-sm truncate">{kpi.title}</p>
-                              {viewMode === "annual" && (
-                                <Badge variant="outline" className="text-xs">
-                                  Q{kpi.quarter}
-                                </Badge>
-                              )}
-                              <Badge
-                                className={cn(
-                                  "text-xs",
-                                  kpi.status === "on_track" && "bg-green-100 text-green-700",
-                                  kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
-                                  kpi.status === "behind" && "bg-red-100 text-red-700",
-                                  kpi.status === "achieved" && "bg-blue-100 text-blue-700"
+                          {/* Mobile: Top row with avatar, name, status */}
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarImage src={(member?.profiles as any)?.avatar_url} />
+                              <AvatarFallback className="text-xs">
+                                {(member?.profiles as any)?.full_name?.charAt(0) || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
+                                <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
+                                {viewMode === "annual" && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Q{kpi.quarter}
+                                  </Badge>
                                 )}
-                              >
-                                {kpi.status.replace("_", " ")}
-                              </Badge>
+                                <Badge
+                                  className={cn(
+                                    "text-xs shrink-0",
+                                    kpi.status === "on_track" && "bg-green-100 text-green-700",
+                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
+                                    kpi.status === "behind" && "bg-red-100 text-red-700",
+                                    kpi.status === "achieved" && "bg-blue-100 text-blue-700"
+                                  )}
+                                >
+                                  {kpi.status.replace("_", " ")}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {(member?.profiles as any)?.full_name} • {member?.position}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {(member?.profiles as any)?.full_name} • {member?.position}
-                            </p>
+                            {/* Mobile: Menu button inline */}
+                            {canEditKpi(kpi as Kpi) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 sm:hidden">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditingKpi(kpi as Kpi)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => setDeletingKpiId(kpi.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
+                          {/* Mobile: Progress bar on second row */}
                           {kpi.target_value && (
-                            <div className="flex items-center gap-2 w-32">
+                            <div className="flex items-center gap-2 w-full sm:w-32 pl-11 sm:pl-0">
                               <Progress value={progress} className="h-2 flex-1" />
                               <span className="text-xs text-muted-foreground w-8 text-right">
                                 {progress}%
                               </span>
                             </div>
                           )}
+                          {/* Desktop: Menu button */}
                           {canEditKpi(kpi as Kpi) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hidden sm:flex">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -885,7 +913,7 @@ const TeamKPIDashboard = () => {
                     <p className="text-sm">No team members match the selected filters</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {kpisByEmployee.map((member) => (
                       <Card 
                         key={member.id} 
