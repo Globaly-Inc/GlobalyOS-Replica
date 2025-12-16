@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import DOMPurify from "dompurify";
 
 interface RichTextMessageProps {
   content: string;
@@ -6,11 +7,27 @@ interface RichTextMessageProps {
 }
 
 /**
+ * Escapes HTML special characters to prevent XSS
+ */
+const escapeHtml = (text: string): string => {
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char]);
+};
+
+/**
  * Renders message content with markdown-like formatting:
  * - **bold** or __bold__
  * - *italic* or _italic_
  * - `code`
  * - ~~strikethrough~~
+ * 
+ * Security: Escapes HTML first, then applies formatting, then sanitizes with DOMPurify
  */
 const RichTextMessage = ({ content, className = "" }: RichTextMessageProps) => {
   const formattedContent = useMemo(() => {
@@ -28,13 +45,13 @@ const RichTextMessage = ({ content, className = "" }: RichTextMessageProps) => {
             key={index}
             className="px-1.5 py-0.5 rounded bg-muted text-sm font-mono"
           >
-            {code}
+            {escapeHtml(code)}
           </code>
         );
       }
 
-      // Process other formatting
-      let processed = part;
+      // Escape HTML first to prevent XSS
+      let processed = escapeHtml(part);
 
       // Bold **text** or __text__
       processed = processed.replace(
@@ -54,11 +71,16 @@ const RichTextMessage = ({ content, className = "" }: RichTextMessageProps) => {
         '<del>$1</del>'
       );
 
-      if (processed !== part) {
+      if (processed !== escapeHtml(part)) {
+        // Sanitize with DOMPurify as defense-in-depth
+        const sanitized = DOMPurify.sanitize(processed, {
+          ALLOWED_TAGS: ['strong', 'em', 'del'],
+          ALLOWED_ATTR: [],
+        });
         return (
           <span
             key={index}
-            dangerouslySetInnerHTML={{ __html: processed }}
+            dangerouslySetInnerHTML={{ __html: sanitized }}
           />
         );
       }
