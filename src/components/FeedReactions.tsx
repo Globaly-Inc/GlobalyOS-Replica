@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { Smile } from "lucide-react";
 
 const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+const MAX_VISIBLE_AVATARS = 6;
 
 interface ReactionUser {
   id: string;
@@ -30,6 +32,8 @@ interface FeedReactionsProps {
 export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const { currentOrg } = useOrganization();
 
@@ -69,15 +73,20 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
 
     const { data } = await supabase
       .from("employees")
-      .select("id")
+      .select("id, profiles!inner(full_name, avatar_url)")
       .eq("user_id", user.id)
       .eq("organization_id", currentOrg.id)
       .maybeSingle();
 
-    if (data) setCurrentEmployeeId(data.id);
+    if (data) {
+      setCurrentEmployeeId(data.id);
+      const profile = data.profiles as { full_name: string; avatar_url: string | null };
+      setCurrentUserName(profile.full_name || "");
+      setCurrentUserAvatar(profile.avatar_url || undefined);
+    }
   };
 
-  const loadReactions = async () => {
+  const loadReactions = useCallback(async () => {
     if (!currentOrg) return;
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -131,73 +140,149 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
         }))
       );
     }
-  };
+  }, [currentOrg, targetType, targetId]);
 
+  // Optimistic update for instant UI feedback
   const toggleReaction = async (emoji: string) => {
     if (!currentEmployeeId || !currentOrg || loading) return;
+    
+    const existingReaction = reactions.find(r => r.emoji === emoji && r.hasReacted);
+    
+    // Optimistic update - immediately update UI
+    setReactions(prev => {
+      const existing = prev.find(r => r.emoji === emoji);
+      
+      if (existingReaction) {
+        // Removing reaction
+        if (existing) {
+          const newUsers = existing.users.filter(u => u.id !== currentEmployeeId);
+          if (newUsers.length === 0) {
+            return prev.filter(r => r.emoji !== emoji);
+          }
+          return prev.map(r => 
+            r.emoji === emoji 
+              ? { ...r, count: r.count - 1, hasReacted: false, users: newUsers }
+              : r
+          );
+        }
+        return prev;
+      } else {
+        // Adding reaction
+        const newUser: ReactionUser = {
+          id: currentEmployeeId,
+          name: currentUserName,
+          avatar: currentUserAvatar,
+        };
+        
+        if (existing) {
+          return prev.map(r =>
+            r.emoji === emoji
+              ? { ...r, count: r.count + 1, hasReacted: true, users: [...r.users, newUser] }
+              : r
+          );
+        } else {
+          return [...prev, { emoji, count: 1, hasReacted: true, users: [newUser] }];
+        }
+      }
+    });
+
     setLoading(true);
 
-    const existingReaction = reactions.find(r => r.emoji === emoji && r.hasReacted);
-
-    if (existingReaction) {
-      // Remove reaction
-      await supabase
-        .from("feed_reactions")
-        .delete()
-        .eq("target_type", targetType)
-        .eq("target_id", targetId)
-        .eq("employee_id", currentEmployeeId)
-        .eq("emoji", emoji);
-    } else {
-      // Add reaction
-      await supabase.from("feed_reactions").insert({
-        target_type: targetType,
-        target_id: targetId,
-        employee_id: currentEmployeeId,
-        emoji,
-        organization_id: currentOrg.id,
-      });
+    try {
+      if (existingReaction) {
+        // Remove reaction
+        await supabase
+          .from("feed_reactions")
+          .delete()
+          .eq("target_type", targetType)
+          .eq("target_id", targetId)
+          .eq("employee_id", currentEmployeeId)
+          .eq("emoji", emoji);
+      } else {
+        // Add reaction
+        await supabase.from("feed_reactions").insert({
+          target_type: targetType,
+          target_id: targetId,
+          employee_id: currentEmployeeId,
+          emoji,
+          organization_id: currentOrg.id,
+        });
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      await loadReactions();
     }
 
-    await loadReactions();
     setLoading(false);
   };
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {reactions.map((reaction) => (
-        <button
-          key={reaction.emoji}
-          onClick={() => toggleReaction(reaction.emoji)}
-          disabled={loading || !currentEmployeeId}
-          className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors",
-            reaction.hasReacted
-              ? "bg-primary/10 text-primary border border-primary/30"
-              : "bg-muted hover:bg-muted/80 text-muted-foreground border border-transparent"
-          )}
-        >
-          <span>{reaction.emoji}</span>
-          {reaction.users.length > 0 && (
-            <div className="flex items-center -space-x-1.5">
-              {reaction.users.slice(0, 3).map((user, idx) => (
-                <Avatar 
-                  key={user.id} 
-                  className="h-5 w-5 border-2 border-white dark:border-card"
-                  style={{ zIndex: reaction.users.length - idx }}
+        <div key={reaction.emoji} className="inline-flex items-center">
+          <button
+            onClick={() => toggleReaction(reaction.emoji)}
+            disabled={loading || !currentEmployeeId}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors",
+              reaction.hasReacted
+                ? "bg-primary/10 text-primary border border-primary/30"
+                : "bg-muted hover:bg-muted/80 text-muted-foreground border border-transparent"
+            )}
+          >
+            <span>{reaction.emoji}</span>
+            {reaction.users.length > 0 && (
+              <div className="flex items-center -space-x-1.5">
+                {reaction.users.slice(0, MAX_VISIBLE_AVATARS).map((user, idx) => (
+                  <Avatar 
+                    key={user.id} 
+                    className="h-5 w-5 border-2 border-background"
+                    style={{ zIndex: reaction.users.length - idx }}
+                  >
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="text-[8px] bg-muted">
+                      {user.name.split(" ").map(n => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+            )}
+          </button>
+          
+          {/* Clickable +N overflow with member list popover */}
+          {reaction.users.length > MAX_VISIBLE_AVATARS && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button 
+                  className="ml-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="text-[8px] bg-muted">
-                    {user.name.split(" ").map(n => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-              {reaction.users.length > 3 && (
-                <span className="ml-1 text-xs text-muted-foreground">+{reaction.users.length - 3}</span>
-              )}
-            </div>
+                  +{reaction.users.length - MAX_VISIBLE_AVATARS}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Reacted with {reaction.emoji}
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-2">
+                    {reaction.users.map((user) => (
+                      <div key={user.id} className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={user.avatar} alt={user.name} />
+                          <AvatarFallback className="text-[10px] bg-muted">
+                            {user.name.split(" ").map(n => n[0]).join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm truncate">{user.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
           )}
-        </button>
+        </div>
       ))}
       
       <Popover>
