@@ -7,20 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { 
-  ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, Eye,
-  Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays
-} from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, History, TrendingUp, TrendingDown, Calendar, Pencil, Download, X, Trash2, Eye, Sun, Heart, Moon, Clock, Briefcase, Baby, Plane, Plus, CalendarDays } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate, formatDateRange } from "@/lib/utils";
@@ -31,7 +19,6 @@ import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustm
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
-
 interface LeaveTransaction {
   id: string;
   type: 'leave_taken' | 'adjustment';
@@ -48,12 +35,10 @@ interface LeaveTransaction {
   balance_after?: number;
   created_at?: string;
 }
-
 interface LeaveBalance {
   leave_type: string;
   balance: number;
 }
-
 interface EmployeeInfo {
   name: string;
   avatar_url?: string;
@@ -90,24 +75,41 @@ const formatBalance = (balance: number | undefined) => {
   }
   return <span className={balance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{balance}</span>;
 };
-
 const LeaveHistory = () => {
-  const { id: employeeId } = useParams();
-  const { isOwner, isAdmin, isHR } = useUserRole();
+  const {
+    id: employeeId
+  } = useParams();
+  const {
+    isOwner,
+    isAdmin,
+    isHR
+  } = useUserRole();
   const canEdit = isOwner || isAdmin || isHR;
-  
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo>({ name: "" });
+  const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo>({
+    name: ""
+  });
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
-  
-  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
-  const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
+  const [cancelDialog, setCancelDialog] = useState<{
+    open: boolean;
+    request: LeaveTransaction | null;
+  }>({
+    open: false,
+    request: null
+  });
+  const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{
+    open: boolean;
+    adjustment: LeaveTransaction | null;
+  }>({
+    open: false,
+    adjustment: null
+  });
   const [canceling, setCanceling] = useState(false);
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
@@ -116,43 +118,36 @@ const LeaveHistory = () => {
   const [totalTaken, setTotalTaken] = useState(0);
   const [totalAdjustments, setTotalAdjustments] = useState(0);
   const queryClient = useQueryClient();
-
   useEffect(() => {
     if (employeeId) {
       loadData();
       checkIsOwnProfile();
     }
   }, [employeeId, yearFilter]);
-
   const checkIsOwnProfile = async () => {
     if (!employeeId) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
-    
-    const { data: employeeData } = await supabase
-      .from("employees")
-      .select("user_id")
-      .eq("id", employeeId)
-      .single();
-    
+    const {
+      data: employeeData
+    } = await supabase.from("employees").select("user_id").eq("id", employeeId).single();
     setIsOwnProfile(employeeData?.user_id === user.id);
   };
-
   const loadData = async () => {
     if (!employeeId) return;
     setLoading(true);
-    
     try {
       const startOfYear = `${yearFilter}-01-01`;
       const endOfYear = `${yearFilter}-12-31`;
 
       // Load employee info
-      const { data: empData } = await supabase
-        .from("employees")
-        .select("position, department, profiles!inner(full_name, avatar_url)")
-        .eq("id", employeeId)
-        .single();
-      
+      const {
+        data: empData
+      } = await supabase.from("employees").select("position, department, profiles!inner(full_name, avatar_url)").eq("id", employeeId).single();
       if (empData) {
         setEmployeeInfo({
           name: (empData.profiles as any).full_name,
@@ -163,9 +158,10 @@ const LeaveHistory = () => {
       }
 
       // Load leave requests
-      const { data: requestsData, error: requestsError } = await supabase
-        .from("leave_requests")
-        .select(`
+      const {
+        data: requestsData,
+        error: requestsError
+      } = await supabase.from("leave_requests").select(`
           id,
           leave_type,
           start_date,
@@ -175,18 +171,16 @@ const LeaveHistory = () => {
           reason,
           status,
           created_at
-        `)
-        .eq("employee_id", employeeId)
-        .gte("start_date", startOfYear)
-        .lte("start_date", endOfYear)
-        .order("start_date", { ascending: false });
-
+        `).eq("employee_id", employeeId).gte("start_date", startOfYear).lte("start_date", endOfYear).order("start_date", {
+        ascending: false
+      });
       if (requestsError) throw requestsError;
 
       // Load leave balance logs (adjustments)
-      const { data: logsData, error: logsError } = await supabase
-        .from("leave_balance_logs")
-        .select(`
+      const {
+        data: logsData,
+        error: logsError
+      } = await supabase.from("leave_balance_logs").select(`
           id,
           leave_type,
           change_amount,
@@ -195,12 +189,9 @@ const LeaveHistory = () => {
           reason,
           effective_date,
           created_at
-        `)
-        .eq("employee_id", employeeId)
-        .gte("effective_date", startOfYear)
-        .lte("effective_date", endOfYear)
-        .order("effective_date", { ascending: false });
-
+        `).eq("employee_id", employeeId).gte("effective_date", startOfYear).lte("effective_date", endOfYear).order("effective_date", {
+        ascending: false
+      });
       if (logsError) throw logsError;
 
       // Combine and format transactions
@@ -217,7 +208,6 @@ const LeaveHistory = () => {
         half_day_type: r.half_day_type,
         created_at: r.created_at
       }));
-
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
@@ -229,49 +219,35 @@ const LeaveHistory = () => {
         new_balance: l.new_balance,
         created_at: l.created_at
       }));
-
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
       // Calculate totals
-      const taken = requestTransactions
-        .filter(t => t.status === 'approved')
-        .reduce((sum, t) => sum + Math.abs(t.days), 0);
+      const taken = requestTransactions.filter(t => t.status === 'approved').reduce((sum, t) => sum + Math.abs(t.days), 0);
       const adjustmentsTotal = adjustmentTransactions.reduce((sum, t) => sum + t.days, 0);
       setTotalTaken(taken);
       setTotalAdjustments(adjustmentsTotal);
 
       // ====== FIX: Calculate actual balances from transactions ======
       // Formula: Sum(Adjustments) - Sum(Approved Leave Taken)
-      const uniqueLeaveTypes = [...new Set([
-        ...requestTransactions.map(t => t.leave_type),
-        ...adjustmentTransactions.map(t => t.leave_type)
-      ])];
-
+      const uniqueLeaveTypes = [...new Set([...requestTransactions.map(t => t.leave_type), ...adjustmentTransactions.map(t => t.leave_type)])];
       const calculatedBalances: LeaveBalance[] = uniqueLeaveTypes.map(leaveType => {
         // Sum all adjustments for this leave type
-        const adjustmentSum = adjustmentTransactions
-          .filter(t => t.leave_type === leaveType)
-          .reduce((sum, t) => sum + t.days, 0);
-        
+        const adjustmentSum = adjustmentTransactions.filter(t => t.leave_type === leaveType).reduce((sum, t) => sum + t.days, 0);
+
         // Sum all approved leave taken for this leave type
-        const leaveTakenSum = requestTransactions
-          .filter(t => t.leave_type === leaveType && t.status === 'approved')
-          .reduce((sum, t) => sum + Math.abs(t.days), 0);
-        
+        const leaveTakenSum = requestTransactions.filter(t => t.leave_type === leaveType && t.status === 'approved').reduce((sum, t) => sum + Math.abs(t.days), 0);
+
         // Balance = Adjustments - Leave Taken
         return {
           leave_type: leaveType,
           balance: adjustmentSum - leaveTakenSum
         };
       });
-
       setBalances(calculatedBalances);
 
       // ====== Running balance calculation ======
       // Step 1: Sort chronologically (oldest first)
-      const sortedChronologically = [...allTransactions].sort((a, b) => 
-        new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
-      );
+      const sortedChronologically = [...allTransactions].sort((a, b) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime());
 
       // Step 2: Process transactions chronologically, starting from 0
       const runningBalance: Record<string, number> = {};
@@ -279,12 +255,15 @@ const LeaveHistory = () => {
         if (t.type === 'adjustment' || t.status === 'approved') {
           runningBalance[t.leave_type] = (runningBalance[t.leave_type] || 0) + t.days;
         }
-        return { ...t, balance_after: runningBalance[t.leave_type] || 0 };
+        return {
+          ...t,
+          balance_after: runningBalance[t.leave_type] || 0
+        };
       });
 
       // Step 3: Reverse to show newest first
       setTransactions(transactionsWithBalance.reverse());
-      
+
       // Extract unique leave types for filter
       setLeaveTypes(uniqueLeaveTypes);
     } catch (error) {
@@ -294,53 +273,52 @@ const LeaveHistory = () => {
       setLoading(false);
     }
   };
-
-  const filteredTransactions = transactions.filter((t) => {
+  const filteredTransactions = transactions.filter(t => {
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
     return matchesType && matchesTransType;
   });
-
   const handleCancelRequest = async () => {
     if (!cancelDialog.request) return;
     setCanceling(true);
-
-    const { error } = await supabase
-      .from("leave_requests")
-      .delete()
-      .eq("id", cancelDialog.request.id);
-
+    const {
+      error
+    } = await supabase.from("leave_requests").delete().eq("id", cancelDialog.request.id);
     if (error) {
       toast.error("Failed to cancel leave request");
     } else {
       toast.success("Leave request cancelled");
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-requests"]
+      });
     }
-
     setCanceling(false);
-    setCancelDialog({ open: false, request: null });
+    setCancelDialog({
+      open: false,
+      request: null
+    });
   };
-
   const handleDeleteAdjustment = async () => {
     if (!deleteAdjustmentDialog.adjustment) return;
     setDeletingAdjustment(true);
-
-    const { error } = await supabase
-      .from("leave_balance_logs")
-      .delete()
-      .eq("id", deleteAdjustmentDialog.adjustment.id);
-
+    const {
+      error
+    } = await supabase.from("leave_balance_logs").delete().eq("id", deleteAdjustmentDialog.adjustment.id);
     if (error) {
       toast.error("Failed to delete adjustment");
     } else {
       toast.success("Adjustment deleted");
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-balance-logs"]
+      });
     }
-
     setDeletingAdjustment(false);
-    setDeleteAdjustmentDialog({ open: false, adjustment: null });
+    setDeleteAdjustmentDialog({
+      open: false,
+      adjustment: null
+    });
   };
 
   // Helper to map LeaveTransaction to EditLeaveAdjustmentDialog format
@@ -365,7 +343,6 @@ const LeaveHistory = () => {
     reason: t.reason || '',
     status: t.status || 'pending'
   });
-
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case "approved":
@@ -378,22 +355,13 @@ const LeaveHistory = () => {
         return <span className="text-muted-foreground text-xs">-</span>;
     }
   };
-
   const handleExportCSV = () => {
     const headers = ["Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Balance", "Reason"];
-    const rows = filteredTransactions.map(t => [
-      t.effective_date,
-      t.type === 'leave_taken' && t.start_date ? `${t.start_date} - ${t.end_date || t.start_date}` : '-',
-      t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
-      t.leave_type,
-      t.days.toString(),
-      t.status || "-",
-      t.balance_after?.toString() || "-",
-      t.reason || ""
-    ]);
-    
+    const rows = filteredTransactions.map(t => [t.effective_date, t.type === 'leave_taken' && t.start_date ? `${t.start_date} - ${t.end_date || t.start_date}` : '-', t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment', t.leave_type, t.days.toString(), t.status || "-", t.balance_after?.toString() || "-", t.reason || ""]);
     const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const blob = new Blob([csvContent], {
+      type: "text/csv"
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -402,13 +370,11 @@ const LeaveHistory = () => {
     URL.revokeObjectURL(url);
     toast.success("Export complete");
   };
-
-  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-
+  const years = Array.from({
+    length: 5
+  }, (_, i) => (new Date().getFullYear() - i).toString());
   const pendingCount = filteredTransactions.filter(t => t.status === 'pending').length;
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header Row: Title on left, Profile Card on right */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -417,7 +383,7 @@ const LeaveHistory = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </OrgLink>
-          <h1 className="text-2xl font-bold text-foreground">Leave History</h1>
+          <h1 className="text-2xl font-bold text-foreground">My Leave History</h1>
         </div>
         
         {/* Profile Card - Top Right */}
@@ -439,8 +405,7 @@ const LeaveHistory = () => {
 
       {/* 6 Summary Cards in a row: Leave Balances + Taken + Adjusted */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {balances.map((b) => (
-          <Card key={b.leave_type} className="overflow-hidden">
+        {balances.map(b => <Card key={b.leave_type} className="overflow-hidden">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className={`p-1.5 rounded-md ${b.balance < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
@@ -455,8 +420,7 @@ const LeaveHistory = () => {
                 <span className="text-xs text-muted-foreground">days</span>
               </div>
             </CardContent>
-          </Card>
-        ))}
+          </Card>)}
         
         {/* Taken Card */}
         <Card className="overflow-hidden">
@@ -520,16 +484,13 @@ const LeaveHistory = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Leave Types</SelectItem>
-              {leaveTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
+              {leaveTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         
         {/* Action Buttons */}
-        {canEdit && (
-          <div className="flex items-center gap-2">
+        {canEdit && <div className="flex items-center gap-2">
             <AddLeaveBalanceDialog employeeId={employeeId!} onSuccess={loadData} />
             <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-1.5 h-9">
               <Plus className="h-4 w-4" />
@@ -539,24 +500,18 @@ const LeaveHistory = () => {
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Export</span>
             </Button>
-          </div>
-        )}
+          </div>}
       </div>
 
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
+          {loading ? <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : filteredTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
+            </div> : filteredTransactions.length === 0 ? <div className="flex flex-col items-center justify-center py-12">
               <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">No leave transactions found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+            </div> : <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -572,38 +527,27 @@ const LeaveHistory = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransactions.map((t) => (
-                    <TableRow key={`${t.type}-${t.id}`} className="group">
+                  {filteredTransactions.map(t => <TableRow key={`${t.type}-${t.id}`} className="group">
                       <TableCell className="text-sm">
                         {formatDate(t.effective_date)}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {t.type === 'leave_taken' && t.start_date ? (
-                          <div className="flex items-center gap-1.5">
+                        {t.type === 'leave_taken' && t.start_date ? <div className="flex items-center gap-1.5">
                             <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>
                               {formatDate(t.start_date)}
-                              {t.end_date && t.start_date !== t.end_date && (
-                                <span className="text-muted-foreground"> → {formatDate(t.end_date)}</span>
-                              )}
+                              {t.end_date && t.start_date !== t.end_date && <span className="text-muted-foreground"> → {formatDate(t.end_date)}</span>}
                             </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                          </div> : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell>
-                        {t.type === 'leave_taken' ? (
-                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs gap-1">
+                        {t.type === 'leave_taken' ? <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs gap-1">
                             <TrendingDown className="h-3 w-3" />
                             Taken
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
+                          </Badge> : <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
                             <TrendingUp className="h-3 w-3" />
                             Adjust
-                          </Badge>
-                        )}
+                          </Badge>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
@@ -622,99 +566,76 @@ const LeaveHistory = () => {
                         <TooltipProvider>
                           <div className="flex items-center gap-1">
                             {/* Edit - Only for canEdit users */}
-                            {canEdit && (
-                              <Tooltip>
+                            {canEdit && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => {
-                                      if (t.type === 'adjustment') {
-                                        setEditAdjustment(mapToAdjustmentEdit(t));
-                                      } else {
-                                        setEditRequest(mapToRequestEdit(t));
-                                      }
-                                    }}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                            if (t.type === 'adjustment') {
+                              setEditAdjustment(mapToAdjustmentEdit(t));
+                            } else {
+                              setEditRequest(mapToRequestEdit(t));
+                            }
+                          }}>
                                     <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Edit</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                             
                             {/* Delete - Only for adjustments and canEdit users */}
-                            {canEdit && t.type === 'adjustment' && (
-                              <Tooltip>
+                            {canEdit && t.type === 'adjustment' && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteAdjustmentDialog({
+                            open: true,
+                            adjustment: t
+                          })}>
                                     <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Delete</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                             
                             {/* Cancel - For pending leave requests */}
-                            {(isOwnProfile || canEdit) && t.type === 'leave_taken' && t.status === 'pending' && (
-                              <Tooltip>
+                            {(isOwnProfile || canEdit) && t.type === 'leave_taken' && t.status === 'pending' && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => setCancelDialog({ open: true, request: t })}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCancelDialog({
+                            open: true,
+                            request: t
+                          })}>
                                     <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Cancel Request</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                           </div>
                         </TooltipProvider>
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
               </Table>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
 
       {/* Cancel Confirmation Dialog */}
-      <AlertDialog 
-        open={cancelDialog.open} 
-        onOpenChange={(open) => !open && setCancelDialog({ open: false, request: null })}
-      >
+      <AlertDialog open={cancelDialog.open} onOpenChange={open => !open && setCancelDialog({
+      open: false,
+      request: null
+    })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Leave Request?</AlertDialogTitle>
             <AlertDialogDescription>
-              {cancelDialog.request && (
-                <>
+              {cancelDialog.request && <>
                   Are you sure you want to cancel this {cancelDialog.request.leave_type} request for{" "}
                   {Math.abs(cancelDialog.request.days)} {Math.abs(cancelDialog.request.days) === 1 ? "day" : "days"} (
                   {formatDateRange(cancelDialog.request.start_date!, cancelDialog.request.end_date || cancelDialog.request.start_date!)}
                   )? This action cannot be undone.
-                </>
-              )}
+                </>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={canceling}>Keep Request</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelRequest}
-              disabled={canceling}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleCancelRequest} disabled={canceling} className="bg-destructive hover:bg-destructive/90">
               {canceling ? "Cancelling..." : "Cancel Request"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -722,30 +643,24 @@ const LeaveHistory = () => {
       </AlertDialog>
 
       {/* Delete Adjustment Confirmation Dialog */}
-      <AlertDialog 
-        open={deleteAdjustmentDialog.open} 
-        onOpenChange={(open) => !open && setDeleteAdjustmentDialog({ open: false, adjustment: null })}
-      >
+      <AlertDialog open={deleteAdjustmentDialog.open} onOpenChange={open => !open && setDeleteAdjustmentDialog({
+      open: false,
+      adjustment: null
+    })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Adjustment?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteAdjustmentDialog.adjustment && (
-                <>
+              {deleteAdjustmentDialog.adjustment && <>
                   Are you sure you want to delete this {deleteAdjustmentDialog.adjustment.leave_type} adjustment of{" "}
                   {deleteAdjustmentDialog.adjustment.days > 0 ? '+' : ''}{deleteAdjustmentDialog.adjustment.days} days?
                   This action cannot be undone and may affect leave balances.
-                </>
-              )}
+                </>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingAdjustment}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAdjustment}
-              disabled={deletingAdjustment}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteAdjustment} disabled={deletingAdjustment} className="bg-destructive hover:bg-destructive/90">
               {deletingAdjustment ? "Deleting..." : "Delete Adjustment"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -753,31 +668,11 @@ const LeaveHistory = () => {
       </AlertDialog>
 
       {/* Edit Dialogs */}
-      <EditLeaveAdjustmentDialog
-        adjustment={editAdjustment}
-        open={!!editAdjustment}
-        onOpenChange={(open) => !open && setEditAdjustment(null)}
-        onSuccess={loadData}
-        employeeId={employeeId}
-      />
-      <EditLeaveRequestDialog
-        request={editRequest}
-        open={!!editRequest}
-        onOpenChange={(open) => !open && setEditRequest(null)}
-        onSuccess={loadData}
-        employeeId={employeeId}
-      />
+      <EditLeaveAdjustmentDialog adjustment={editAdjustment} open={!!editAdjustment} onOpenChange={open => !open && setEditAdjustment(null)} onSuccess={loadData} employeeId={employeeId} />
+      <EditLeaveRequestDialog request={editRequest} open={!!editRequest} onOpenChange={open => !open && setEditRequest(null)} onSuccess={loadData} employeeId={employeeId} />
       
       {/* Add Leave Dialog */}
-      <AddLeaveForEmployeeDialog
-        employeeId={employeeId!}
-        employeeName={employeeInfo.name}
-        open={addLeaveOpen}
-        onOpenChange={setAddLeaveOpen}
-        onSuccess={loadData}
-      />
-    </div>
-  );
+      <AddLeaveForEmployeeDialog employeeId={employeeId!} employeeName={employeeInfo.name} open={addLeaveOpen} onOpenChange={setAddLeaveOpen} onSuccess={loadData} />
+    </div>;
 };
-
 export default LeaveHistory;
