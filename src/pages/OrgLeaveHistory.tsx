@@ -563,7 +563,7 @@ const OrgLeaveHistory = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[180px]">Employee</TableHead>
-                    <TableHead className="min-w-[100px]">Applied Date</TableHead>
+                    <TableHead className="min-w-[120px] whitespace-nowrap">Applied Date</TableHead>
                     <TableHead className="min-w-[100px]">Leave Dates</TableHead>
                     <TableHead className="min-w-[100px]">Type</TableHead>
                     <TableHead className="min-w-[120px]">Leave Type</TableHead>
