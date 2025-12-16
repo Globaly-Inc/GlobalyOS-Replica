@@ -475,6 +475,29 @@ const BulkLeaveImport = () => {
     reader.readAsText(selectedFile);
   };
 
+  // Proper CSV line parser that handles multi-word values and empty fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim()); // Push last value
+    
+    return result;
+  };
+
   const parseCSV = (text: string) => {
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) {
@@ -482,12 +505,11 @@ const BulkLeaveImport = () => {
       return;
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, '_'));
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, '_'));
     const records: ParsedLeaveRecord[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      // Handle CSV values with potential commas in quotes
-      const values = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || lines[i].split(',').map(v => v.trim());
+      const values = parseCSVLine(lines[i]);
       
       const getValue = (field: string) => {
         const idx = headers.findIndex(h => h.includes(field.replace(/[^a-z_]/g, '_')));
