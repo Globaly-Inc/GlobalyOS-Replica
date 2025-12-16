@@ -1,13 +1,13 @@
 import { Kudos } from "@/types/employee";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { RichTextContent } from "./ui/rich-text-editor";
-import { formatDateTime } from "@/lib/utils";
 import { FeedReactions } from "./FeedReactions";
 import { Heart, Pencil, Trash2 } from "lucide-react";
 import { OrgLink } from "./OrgLink";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +36,7 @@ interface KudosCardProps {
 export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
   const getFirstName = (fullName: string) => fullName.split(" ")[0];
   const { toast } = useToast();
+  const { formatDateTime } = useFormattedDate();
   const { isAdmin, isHR } = useUserRole();
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -129,7 +130,7 @@ export const KudosCard = ({ kudos, onDelete }: KudosCardProps) => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {formatDateTime(kudos.date)}
+                  {formatDateTime(kudos.date, true)}
                 </p>
               </div>
             </OrgLink>
