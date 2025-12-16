@@ -167,23 +167,6 @@ const LeaveHistory = () => {
         });
       }
 
-      // Load current balances
-      const { data: balanceData } = await supabase
-        .from("leave_type_balances")
-        .select(`
-          balance,
-          leave_type:leave_types!inner(name)
-        `)
-        .eq("employee_id", employeeId)
-        .eq("year", parseInt(yearFilter));
-
-      if (balanceData) {
-        setBalances(balanceData.map((b: any) => ({
-          leave_type: b.leave_type.name,
-          balance: b.balance
-        })));
-      }
-
       // Load leave requests
       const { data: requestsData, error: requestsError } = await supabase
         .from("leave_requests")
@@ -258,28 +241,45 @@ const LeaveHistory = () => {
       const taken = requestTransactions
         .filter(t => t.status === 'approved')
         .reduce((sum, t) => sum + Math.abs(t.days), 0);
-      const adjustments = adjustmentTransactions.reduce((sum, t) => sum + t.days, 0);
+      const adjustmentsTotal = adjustmentTransactions.reduce((sum, t) => sum + t.days, 0);
       setTotalTaken(taken);
-      setTotalAdjustments(adjustments);
+      setTotalAdjustments(adjustmentsTotal);
 
-      // ====== FIX: Correct running balance calculation ======
+      // ====== FIX: Calculate actual balances from transactions ======
+      // Formula: Sum(Adjustments) - Sum(Approved Leave Taken)
+      const uniqueLeaveTypes = [...new Set([
+        ...requestTransactions.map(t => t.leave_type),
+        ...adjustmentTransactions.map(t => t.leave_type)
+      ])];
+
+      const calculatedBalances: LeaveBalance[] = uniqueLeaveTypes.map(leaveType => {
+        // Sum all adjustments for this leave type
+        const adjustmentSum = adjustmentTransactions
+          .filter(t => t.leave_type === leaveType)
+          .reduce((sum, t) => sum + t.days, 0);
+        
+        // Sum all approved leave taken for this leave type
+        const leaveTakenSum = requestTransactions
+          .filter(t => t.leave_type === leaveType && t.status === 'approved')
+          .reduce((sum, t) => sum + Math.abs(t.days), 0);
+        
+        // Balance = Adjustments - Leave Taken
+        return {
+          leave_type: leaveType,
+          balance: adjustmentSum - leaveTakenSum
+        };
+      });
+
+      setBalances(calculatedBalances);
+
+      // ====== Running balance calculation ======
       // Step 1: Sort chronologically (oldest first)
       const sortedChronologically = [...allTransactions].sort((a, b) => 
         new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
       );
 
-      // Step 2: Calculate starting balance per leave type
-      // Starting balance = Current balance - all transactions in the year
-      const startingBalances: Record<string, number> = {};
-      balances.forEach(b => {
-        const totalChange = allTransactions
-          .filter(t => t.leave_type === b.leave_type && (t.type === 'adjustment' || t.status === 'approved'))
-          .reduce((sum, t) => sum + t.days, 0);
-        startingBalances[b.leave_type] = b.balance - totalChange;
-      });
-
-      // Step 3: Process transactions chronologically and calculate running balance
-      const runningBalance: Record<string, number> = { ...startingBalances };
+      // Step 2: Process transactions chronologically, starting from 0
+      const runningBalance: Record<string, number> = {};
       const transactionsWithBalance = sortedChronologically.map(t => {
         if (t.type === 'adjustment' || t.status === 'approved') {
           runningBalance[t.leave_type] = (runningBalance[t.leave_type] || 0) + t.days;
@@ -287,12 +287,11 @@ const LeaveHistory = () => {
         return { ...t, balance_after: runningBalance[t.leave_type] || 0 };
       });
 
-      // Step 4: Reverse to show newest first
+      // Step 3: Reverse to show newest first
       setTransactions(transactionsWithBalance.reverse());
       
-      // Extract unique leave types
-      const types = [...new Set(allTransactions.map(t => t.leave_type))];
-      setLeaveTypes(types);
+      // Extract unique leave types for filter
+      setLeaveTypes(uniqueLeaveTypes);
     } catch (error) {
       console.error("Error loading leave data:", error);
       toast.error("Failed to load leave history");
