@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import globalyosLogo from "@/assets/globalyos-logo.svg";
 
 export const WebsiteHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,9 +23,7 @@ export const WebsiteHeader = () => {
           {/* Logo + Nav Links */}
           <div className="flex items-center gap-8">
             <Link to="/landing" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
-              </div>
+              <img src={globalyosLogo} alt="GlobalyOS" className="w-8 h-8 rounded-lg" />
               <span className="font-bold text-xl text-foreground">GlobalyOS</span>
             </Link>
 
