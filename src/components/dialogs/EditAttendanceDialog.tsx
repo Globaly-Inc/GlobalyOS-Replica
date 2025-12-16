@@ -45,9 +45,9 @@ export const EditAttendanceDialog = ({
   const [checkOutTime, setCheckOutTime] = useState("");
   const [status, setStatus] = useState("present");
   const [notes, setNotes] = useState("");
+  const [recordDate, setRecordDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const isEditing = !!record;
-  const recordDate = record?.date || date || format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
     if (open) {
@@ -57,15 +57,17 @@ export const EditAttendanceDialog = ({
         setCheckOutTime(record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "");
         setStatus(record.status || "present");
         setNotes(record.notes || "");
+        setRecordDate(record.date);
       } else {
         // Reset for new record
         setCheckInTime("09:00");
         setCheckOutTime("");
         setStatus("present");
         setNotes("");
+        setRecordDate(date || format(new Date(), "yyyy-MM-dd"));
       }
     }
-  }, [open, record]);
+  }, [open, record, date]);
 
   const calculateWorkHours = (checkIn: string, checkOut: string): number | null => {
     if (!checkIn || !checkOut) return null;
@@ -99,6 +101,7 @@ export const EditAttendanceDialog = ({
         const { error } = await supabase
           .from("attendance_records")
           .update({
+            date: recordDate,
             check_in_time: checkInDateTime,
             check_out_time: checkOutDateTime,
             status,
@@ -130,6 +133,7 @@ export const EditAttendanceDialog = ({
 
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-month"] });
+      queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving attendance:", error);
@@ -155,8 +159,7 @@ export const EditAttendanceDialog = ({
             <Input
               type="date"
               value={recordDate}
-              disabled={isEditing}
-              className="bg-muted"
+              onChange={(e) => setRecordDate(e.target.value)}
             />
           </div>
 
