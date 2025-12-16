@@ -127,25 +127,30 @@ export const UpdateCard = ({ update, onDelete, onEdit }: UpdateCardProps) => {
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <OrgLink to={`/team/${update.employeeId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <Avatar className="h-10 w-10 border border-border/50">
-                <AvatarImage src={update.avatar} alt={update.employeeName} />
-                <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-                  {update.employeeName.split(" ").map((n) => n[0]).join("")}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
-                <VisibilityBadge 
-                  accessScope={update.accessScope}
-                  offices={update.updateOffices}
-                  departments={update.updateDepartments}
-                  projects={update.updateProjects}
-                />
+              <div className="relative">
+                <Avatar className="h-10 w-10 border border-border/50">
+                  <AvatarImage src={update.avatar} alt={update.employeeName} />
+                  <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                    {update.employeeName.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-card" />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(update.date, true)}
-              </p>
+              
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm text-foreground">{update.employeeName}</p>
+                  <VisibilityBadge 
+                    accessScope={update.accessScope}
+                    offices={update.updateOffices}
+                    departments={update.updateDepartments}
+                    projects={update.updateProjects}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDateTime(update.date, true)}
+                </p>
+              </div>
             </OrgLink>
             
             {/* Post type icon on right with hover actions */}
