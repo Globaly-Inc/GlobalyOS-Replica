@@ -387,7 +387,7 @@ const LeaveHistory = () => {
         </div>
         
         {/* Profile Card - Top Right */}
-        <div className="flex items-center gap-3 ml-10 sm:ml-0">
+        <div className="hidden sm:flex items-center gap-3 sm:ml-0">
           <div className="text-right hidden sm:block">
             <p className="font-medium text-foreground">{employeeInfo.name}</p>
             <p className="text-sm text-muted-foreground">
