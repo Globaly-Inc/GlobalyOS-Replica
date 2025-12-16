@@ -76,16 +76,14 @@ export const usePushNotifications = () => {
     }
   }, [user]);
 
-  // Register service worker
-  const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
+  // Get service worker registration (use existing vite-pwa SW)
+  const getServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration | null> => {
     try {
-      const registration = await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-      });
-      console.log("Service Worker registered:", registration);
+      // Wait for the vite-pwa service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
       return registration;
     } catch (error) {
-      console.error("Service Worker registration failed:", error);
+      console.error("Service Worker not available:", error);
       return null;
     }
   };
@@ -108,14 +106,11 @@ export const usePushNotifications = () => {
         return false;
       }
 
-      // Register service worker
-      let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) {
-        registration = await registerServiceWorker();
-      }
+      // Get existing service worker registration (vite-pwa)
+      const registration = await getServiceWorkerRegistration();
 
       if (!registration) {
-        toast.error("Failed to register service worker");
+        toast.error("Service worker not available");
         setState((prev) => ({ ...prev, loading: false }));
         return false;
       }
@@ -215,12 +210,10 @@ export const usePushNotifications = () => {
     }
   };
 
-  // Initialize on mount
+  // Initialize on mount - just check subscription status
   useEffect(() => {
     if (isSupported()) {
-      registerServiceWorker().then(() => {
-        checkSubscription();
-      });
+      checkSubscription();
     } else {
       setState((prev) => ({ ...prev, loading: false }));
     }
