@@ -215,19 +215,6 @@ const OrgLeaveHistory = () => {
     return withLeave.sort((a, b) => a.totalDays - b.totalDays)[0];
   }, [employeeLeaveTotals]);
 
-  // Leave distribution by type
-  const leaveByType = useMemo(() => {
-    const distribution: Record<string, number> = {};
-    
-    transactions
-      .filter(t => t.type === 'leave_taken' && t.status === 'approved')
-      .forEach(t => {
-        if (!distribution[t.leave_type]) distribution[t.leave_type] = 0;
-        distribution[t.leave_type] += Math.abs(t.days);
-      });
-    
-    return Object.entries(distribution).sort((a, b) => b[1] - a[1]);
-  }, [transactions]);
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -432,22 +419,6 @@ const OrgLeaveHistory = () => {
         </Card>
       </div>
 
-      {/* Leave Distribution by Type */}
-      {leaveByType.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium mb-3">Leave Distribution by Type</h3>
-            <div className="flex flex-wrap gap-3">
-              {leaveByType.map(([type, days]) => (
-                <div key={type} className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-1.5">
-                  <Badge variant="outline" className="text-xs">{type}</Badge>
-                  <span className="text-sm font-medium">{days} days</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
