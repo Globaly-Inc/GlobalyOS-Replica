@@ -176,7 +176,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
       setLoading(true);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (!user || !currentOrg?.id) {
         toast({
           title: "Error",
           description: "You must be logged in to post",
@@ -189,6 +189,7 @@ export const PostUpdateDialog = ({ open, onOpenChange, onSuccess, canPostAnnounc
         .from("employees")
         .select("id, organization_id")
         .eq("user_id", user.id)
+        .eq("organization_id", currentOrg?.id)
         .maybeSingle();
 
       if (employeeError || !employee) {
