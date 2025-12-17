@@ -202,38 +202,6 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
             ))}
           </div>
           
-          {/* Summary Stats Row */}
-          <div className="flex gap-3 pt-2 border-t border-border/50">
-            {/* Taken Card */}
-            <div className="flex-1 flex items-center gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-              <div className="p-2 rounded-full bg-destructive/10">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-destructive">
-                  {totalTaken} days
-                </div>
-                <div className="text-xs text-muted-foreground">Total Taken</div>
-              </div>
-            </div>
-
-            {/* Adjusted Card */}
-            <div className={`flex-1 flex items-center gap-3 p-3 rounded-lg border ${
-              totalAdjustments >= 0 
-                ? 'bg-green-500/5 border-green-500/10' 
-                : 'bg-destructive/5 border-destructive/10'
-            }`}>
-              <div className={`p-2 rounded-full ${totalAdjustments >= 0 ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
-                <TrendingUp className={`h-4 w-4 ${totalAdjustments >= 0 ? 'text-green-600' : 'text-destructive'}`} />
-              </div>
-              <div>
-                <div className={`text-lg font-bold ${totalAdjustments >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {totalAdjustments >= 0 ? `+${totalAdjustments}` : `(${Math.abs(totalAdjustments)})`} days
-                </div>
-                <div className="text-xs text-muted-foreground">Adjustments</div>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <p className="text-sm text-muted-foreground text-center py-6">
