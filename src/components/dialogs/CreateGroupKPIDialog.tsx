@@ -21,12 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Badge } from "@/components/ui/badge";
 import { Building, MapPin, FolderKanban, Target, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCreateGroupKpi } from "@/services/useKpi";
 import { cn } from "@/lib/utils";
+import { AIKPIAssist } from "@/components/AIKPIAssist";
 
 interface CreateGroupKPIDialogProps {
   children: React.ReactNode;
@@ -189,6 +189,31 @@ export function CreateGroupKPIDialog({
     }
   };
 
+  const getScopeDisplayName = () => {
+    if (scopeType === "department") return scopeValue;
+    if (scopeType === "office") {
+      const office = offices.find((o) => o.id === scopeValue);
+      return office?.name || scopeValue;
+    }
+    if (scopeType === "project") {
+      const project = projects.find((p) => p.id === scopeValue);
+      return project?.name || scopeValue;
+    }
+    return scopeValue;
+  };
+
+  const handleAISuggestion = (suggestion: {
+    title?: string;
+    description?: string;
+    suggestedTarget?: number | null;
+    suggestedUnit?: string | null;
+  }) => {
+    if (suggestion.title) setTitle(suggestion.title);
+    if (suggestion.description) setDescription(suggestion.description);
+    if (suggestion.suggestedTarget) setTargetValue(suggestion.suggestedTarget.toString());
+    if (suggestion.suggestedUnit) setUnit(suggestion.suggestedUnit);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -258,7 +283,18 @@ export function CreateGroupKPIDialog({
 
           {/* KPI Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">KPI Title *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="title">KPI Title *</Label>
+              <AIKPIAssist
+                type="group"
+                field="both"
+                currentTitle={title}
+                currentDescription={description}
+                scopeType={scopeType}
+                scopeValue={getScopeDisplayName()}
+                onSuggestion={handleAISuggestion}
+              />
+            </div>
             <Input
               id="title"
               value={title}
@@ -269,7 +305,18 @@ export function CreateGroupKPIDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description">Description</Label>
+              <AIKPIAssist
+                type="group"
+                field="description"
+                currentTitle={title}
+                currentDescription={description}
+                scopeType={scopeType}
+                scopeValue={getScopeDisplayName()}
+                onSuggestion={handleAISuggestion}
+              />
+            </div>
             <Textarea
               id="description"
               value={description}

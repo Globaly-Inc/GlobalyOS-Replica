@@ -23,10 +23,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AIKPIAssist } from "@/components/AIKPIAssist";
 
 interface ManageKPIsDialogProps {
   employeeId: string;
   organizationId: string;
+  employeeRole?: string;
+  department?: string;
 }
 
 interface KPI {
@@ -44,7 +47,7 @@ interface KPI {
 const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 const getCurrentYear = () => new Date().getFullYear();
 
-const ManageKPIsDialog = ({ employeeId, organizationId }: ManageKPIsDialogProps) => {
+const ManageKPIsDialog = ({ employeeId, organizationId, employeeRole, department }: ManageKPIsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -76,6 +79,21 @@ const ManageKPIsDialog = ({ employeeId, organizationId }: ManageKPIsDialogProps)
     },
     enabled: open,
   });
+
+  const handleAISuggestion = (suggestion: {
+    title?: string;
+    description?: string;
+    suggestedTarget?: number | null;
+    suggestedUnit?: string | null;
+  }) => {
+    setFormData((prev) => ({
+      ...prev,
+      title: suggestion.title || prev.title,
+      description: suggestion.description || prev.description,
+      target_value: suggestion.suggestedTarget?.toString() || prev.target_value,
+      unit: suggestion.suggestedUnit || prev.unit,
+    }));
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -235,7 +253,18 @@ const ManageKPIsDialog = ({ employeeId, organizationId }: ManageKPIsDialogProps)
           <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label>Title *</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Title *</Label>
+                  <AIKPIAssist
+                    type="individual"
+                    field="both"
+                    currentTitle={formData.title}
+                    currentDescription={formData.description}
+                    employeeRole={employeeRole}
+                    department={department}
+                    onSuggestion={handleAISuggestion}
+                  />
+                </div>
                 <Input
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -243,7 +272,18 @@ const ManageKPIsDialog = ({ employeeId, organizationId }: ManageKPIsDialogProps)
                 />
               </div>
               <div className="col-span-2">
-                <Label>Description</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Description</Label>
+                  <AIKPIAssist
+                    type="individual"
+                    field="description"
+                    currentTitle={formData.title}
+                    currentDescription={formData.description}
+                    employeeRole={employeeRole}
+                    department={department}
+                    onSuggestion={handleAISuggestion}
+                  />
+                </div>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}

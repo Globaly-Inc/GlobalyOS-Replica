@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.calculate-payroll]
 verify_jwt = true
+
+[functions.suggest-kpi-content]
+verify_jwt = false
