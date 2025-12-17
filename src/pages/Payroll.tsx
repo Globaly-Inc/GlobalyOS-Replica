@@ -11,49 +11,71 @@ import { PayrollProfilesTab } from "@/components/payroll/PayrollProfilesTab";
 import { SalaryStructuresTab } from "@/components/payroll/SalaryStructuresTab";
 import { TaxConfigTab } from "@/components/payroll/TaxConfigTab";
 import { PayrollRunsTab } from "@/components/payroll/PayrollRunsTab";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 const Payroll = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const { isOwner, isAdmin, isHR } = useUserRole();
+  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode } = useOrgNavigation();
 
-  // Only owner, admin, and HR can access payroll
+  // Show loading skeleton while role is being determined
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageHeader title="Payroll Management" />
+        <div className="container mx-auto px-4 py-6 space-y-6">
+          <Skeleton className="h-12 w-full" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-6 w-24 mb-2" />
+                  <Skeleton className="h-10 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only redirect AFTER loading is complete
   if (!isOwner && !isAdmin && !isHR) {
     return <Navigate to={`/org/${orgCode}`} replace />;
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader
-        title="Payroll Management"
-      />
+      <PageHeader title="Payroll Management" />
 
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 gap-2 h-auto p-1">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2 py-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
+          <TabsList className="flex flex-wrap w-full gap-1 h-auto p-1.5 bg-muted/50">
+            <TabsTrigger value="dashboard" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <DollarSign className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="runs" className="flex items-center gap-2 py-2">
-              <Calculator className="h-4 w-4" />
-              <span className="hidden sm:inline">Payroll Runs</span>
+            <TabsTrigger value="runs" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <Calculator className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Runs</span>
             </TabsTrigger>
-            <TabsTrigger value="salaries" className="flex items-center gap-2 py-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Salaries</span>
+            <TabsTrigger value="salaries" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <Users className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Salaries</span>
             </TabsTrigger>
-            <TabsTrigger value="tax" className="flex items-center gap-2 py-2">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Tax Config</span>
+            <TabsTrigger value="tax" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Tax</span>
             </TabsTrigger>
-            <TabsTrigger value="profiles" className="flex items-center gap-2 py-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Profiles</span>
+            <TabsTrigger value="profiles" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <Settings className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Profiles</span>
             </TabsTrigger>
-            <TabsTrigger value="entities" className="flex items-center gap-2 py-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Legal Entities</span>
+            <TabsTrigger value="entities" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm truncate">Entities</span>
             </TabsTrigger>
           </TabsList>
 
