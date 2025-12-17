@@ -12,12 +12,41 @@ const corsHeaders = {
 
 interface AttendanceMetrics {
   totalRecords: number;
+  missing: number;
+  onLeave: number;
+  lateArrivals: { count: number; totalMinutes: number; change: number };
+  earlyCheckouts: { count: number; totalMinutes: number; change: number };
+  onTime: { count: number; percent: number; change: number };
+  belowTime: { count: number; totalMinutes: number; change: number };
+  overTime: { count: number; totalMinutes: number; change: number };
+  netHours: { totalMinutes: number; avgMinutesPerPerson: number; change: number };
+  wfh: { count: number; percent: number };
+}
+
+interface DailyData {
+  date: string;
+  total: number;
   onTime: number;
-  lateArrivals: number;
-  earlyDepartures: number;
-  avgNetHours: number;
-  wfhCount: number;
-  attendanceRate: number;
+}
+
+// Helper function to format minutes as "Xh Ym"
+function formatMinutes(minutes: number): string {
+  if (minutes === 0) return "0m";
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const mins = Math.round(Math.abs(minutes) % 60);
+  const sign = minutes < 0 ? "-" : "";
+  if (hours === 0) return `${sign}${mins}m`;
+  if (mins === 0) return `${sign}${hours}h`;
+  return `${sign}${hours}h ${mins}m`;
+}
+
+// Helper to get trend indicator HTML
+function getTrendIndicator(change: number): string {
+  if (change === 0) return "";
+  const isPositive = change > 0;
+  const arrow = isPositive ? "▲" : "▼";
+  const color = isPositive ? "#22c55e" : "#ef4444";
+  return `<span style="font-size: 10px; color: ${color}; margin-left: 4px;">${arrow} ${Math.abs(change).toFixed(0)}%</span>`;
 }
 
 serve(async (req) => {
@@ -62,19 +91,28 @@ serve(async (req) => {
 
     console.log("Schedule settings:", schedule);
 
-    // Calculate date range (last 7 days for weekly, last 30 for monthly)
+    // Calculate date range
     const now = new Date();
     const endDate = new Date(now);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(now);
-    startDate.setDate(startDate.getDate() - (schedule?.frequency === "monthly" ? 30 : 7));
+    const periodDays = schedule?.frequency === "monthly" ? 30 : 7;
+    startDate.setDate(startDate.getDate() - periodDays);
     startDate.setHours(0, 0, 0, 0);
 
     const startDateStr = startDate.toISOString().split("T")[0];
     const endDateStr = endDate.toISOString().split("T")[0];
     console.log("Date range:", startDateStr, "to", endDateStr);
 
-    // Fetch attendance records
+    // Calculate previous period for comparison
+    const prevEndDate = new Date(startDate);
+    prevEndDate.setDate(prevEndDate.getDate() - 1);
+    const prevStartDate = new Date(prevEndDate);
+    prevStartDate.setDate(prevStartDate.getDate() - periodDays);
+    const prevStartDateStr = prevStartDate.toISOString().split("T")[0];
+    const prevEndDateStr = prevEndDate.toISOString().split("T")[0];
+
+    // Fetch attendance records with employee schedules
     console.log("Fetching attendance records...");
     const { data: records, error: recordsError } = await supabase
       .from("attendance_records")
@@ -83,7 +121,7 @@ serve(async (req) => {
         employee:employees!attendance_records_employee_id_fkey(
           id,
           profiles:user_id(full_name, avatar_url),
-          employee_schedules(work_start_time, work_end_time, late_threshold_minutes)
+          employee_schedules(work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time)
         )
       `)
       .eq("organization_id", organizationId)
@@ -96,6 +134,19 @@ serve(async (req) => {
     }
     console.log("Records found:", records?.length || 0);
 
+    // Fetch previous period records for comparison
+    const { data: prevRecords } = await supabase
+      .from("attendance_records")
+      .select(`
+        *,
+        employee:employees!attendance_records_employee_id_fkey(
+          employee_schedules(work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time)
+        )
+      `)
+      .eq("organization_id", organizationId)
+      .gte("date", prevStartDateStr)
+      .lte("date", prevEndDateStr);
+
     // Fetch active employees count
     const { count: activeEmployeeCount } = await supabase
       .from("employees")
@@ -103,91 +154,204 @@ serve(async (req) => {
       .eq("organization_id", organizationId)
       .eq("status", "active");
 
+    // Fetch approved leave requests for the period
+    const { data: leaveRequests } = await supabase
+      .from("leave_requests")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("status", "approved")
+      .gte("start_date", startDateStr)
+      .lte("end_date", endDateStr);
+
     console.log("Active employees:", activeEmployeeCount);
 
-    // Calculate metrics
-    const metrics: AttendanceMetrics = {
-      totalRecords: records?.length || 0,
-      onTime: 0,
-      lateArrivals: 0,
-      earlyDepartures: 0,
-      avgNetHours: 0,
-      wfhCount: 0,
-      attendanceRate: 0,
+    // Calculate expected schedule minutes per day (default 8h = 480 mins)
+    const getExpectedMinutes = (empSchedule: any): number => {
+      if (!empSchedule?.work_start_time || !empSchedule?.work_end_time) return 480;
+      const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+      const [endH, endM] = empSchedule.work_end_time.split(":").map(Number);
+      let totalMins = (endH * 60 + endM) - (startH * 60 + startM);
+      // Subtract break if configured
+      if (empSchedule.break_start_time && empSchedule.break_end_time) {
+        const [breakStartH, breakStartM] = empSchedule.break_start_time.split(":").map(Number);
+        const [breakEndH, breakEndM] = empSchedule.break_end_time.split(":").map(Number);
+        totalMins -= (breakEndH * 60 + breakEndM) - (breakStartH * 60 + breakStartM);
+      }
+      return totalMins > 0 ? totalMins : 480;
     };
 
-    let totalHours = 0;
+    // Calculate metrics for a set of records
+    const calculateMetricsFromRecords = (recs: any[]) => {
+      let totalRecords = recs?.length || 0;
+      let lateCount = 0, lateMinutes = 0;
+      let earlyCount = 0, earlyMinutes = 0;
+      let onTimeCount = 0;
+      let belowCount = 0, belowMinutes = 0;
+      let overCount = 0, overMinutes = 0;
+      let totalNetMinutes = 0;
+      let wfhCount = 0;
+
+      recs?.forEach((record: any) => {
+        const empSchedule = record.employee?.employee_schedules?.[0];
+        const expectedMinutes = getExpectedMinutes(empSchedule);
+
+        // WFH count
+        if (record.status === "remote") {
+          wfhCount++;
+        }
+
+        // Net hours calculation
+        const workMinutes = (record.work_hours || 0) * 60;
+        totalNetMinutes += workMinutes;
+
+        // Below/Over time
+        if (workMinutes > 0 && expectedMinutes > 0) {
+          const diff = workMinutes - expectedMinutes;
+          if (diff < -5) { // Below time (more than 5 mins under)
+            belowCount++;
+            belowMinutes += Math.abs(diff);
+          } else if (diff > 5) { // Over time (more than 5 mins over)
+            overCount++;
+            overMinutes += diff;
+          }
+        }
+
+        // Late arrivals
+        if (record.check_in_time && empSchedule?.work_start_time) {
+          const checkInTime = new Date(record.check_in_time);
+          const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+          const threshold = empSchedule.late_threshold_minutes || 0;
+          const expectedStart = new Date(checkInTime);
+          expectedStart.setHours(startH, startM + threshold, 0, 0);
+
+          if (checkInTime > expectedStart) {
+            lateCount++;
+            lateMinutes += Math.round((checkInTime.getTime() - expectedStart.getTime()) / 60000);
+          } else {
+            onTimeCount++;
+          }
+        }
+
+        // Early departures
+        if (record.check_out_time && empSchedule?.work_end_time) {
+          const checkOutTime = new Date(record.check_out_time);
+          const [endH, endM] = empSchedule.work_end_time.split(":").map(Number);
+          const expectedEnd = new Date(checkOutTime);
+          expectedEnd.setHours(endH, endM, 0, 0);
+
+          if (checkOutTime < expectedEnd) {
+            earlyCount++;
+            earlyMinutes += Math.round((expectedEnd.getTime() - checkOutTime.getTime()) / 60000);
+          }
+        }
+      });
+
+      const uniqueEmployees = new Set(recs?.map((r: any) => r.employee_id) || []).size;
+
+      return {
+        totalRecords,
+        lateArrivals: { count: lateCount, totalMinutes: lateMinutes },
+        earlyCheckouts: { count: earlyCount, totalMinutes: earlyMinutes },
+        onTime: { count: onTimeCount, percent: totalRecords > 0 ? Math.round((onTimeCount / totalRecords) * 100) : 0 },
+        belowTime: { count: belowCount, totalMinutes: belowMinutes },
+        overTime: { count: overCount, totalMinutes: overMinutes },
+        netHours: { totalMinutes: totalNetMinutes, avgMinutesPerPerson: uniqueEmployees > 0 ? Math.round(totalNetMinutes / uniqueEmployees) : 0 },
+        wfh: { count: wfhCount, percent: totalRecords > 0 ? Math.round((wfhCount / totalRecords) * 100) : 0 },
+      };
+    };
+
+    // Calculate current and previous period metrics
+    const currentMetrics = calculateMetricsFromRecords(records || []);
+    const prevMetricsRaw = calculateMetricsFromRecords(prevRecords || []);
+
+    // Calculate percentage changes
+    const calcChange = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const expectedTotalRecords = (activeEmployeeCount || 0) * periodDays;
+    const missing = Math.max(0, expectedTotalRecords - (records?.length || 0) - (leaveRequests?.length || 0));
+
+    const metrics: AttendanceMetrics = {
+      totalRecords: currentMetrics.totalRecords,
+      missing,
+      onLeave: leaveRequests?.length || 0,
+      lateArrivals: { ...currentMetrics.lateArrivals, change: calcChange(currentMetrics.lateArrivals.count, prevMetricsRaw.lateArrivals.count) },
+      earlyCheckouts: { ...currentMetrics.earlyCheckouts, change: calcChange(currentMetrics.earlyCheckouts.count, prevMetricsRaw.earlyCheckouts.count) },
+      onTime: { ...currentMetrics.onTime, change: calcChange(currentMetrics.onTime.count, prevMetricsRaw.onTime.count) },
+      belowTime: { ...currentMetrics.belowTime, change: calcChange(currentMetrics.belowTime.count, prevMetricsRaw.belowTime.count) },
+      overTime: { ...currentMetrics.overTime, change: calcChange(currentMetrics.overTime.count, prevMetricsRaw.overTime.count) },
+      netHours: { ...currentMetrics.netHours, change: calcChange(currentMetrics.netHours.totalMinutes, prevMetricsRaw.netHours.totalMinutes) },
+      wfh: currentMetrics.wfh,
+    };
+
+    console.log("Metrics calculated:", metrics);
+
+    // Calculate daily data for trend chart
+    const dailyDataMap: Record<string, DailyData> = {};
+    records?.forEach((record: any) => {
+      const date = record.date;
+      if (!dailyDataMap[date]) {
+        dailyDataMap[date] = { date, total: 0, onTime: 0 };
+      }
+      dailyDataMap[date].total++;
+      
+      const empSchedule = record.employee?.employee_schedules?.[0];
+      if (record.check_in_time && empSchedule?.work_start_time) {
+        const checkInTime = new Date(record.check_in_time);
+        const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+        const threshold = empSchedule.late_threshold_minutes || 0;
+        const expectedStart = new Date(checkInTime);
+        expectedStart.setHours(startH, startM + threshold, 0, 0);
+        if (checkInTime <= expectedStart) {
+          dailyDataMap[date].onTime++;
+        }
+      }
+    });
+
+    const dailyData: DailyData[] = Object.values(dailyDataMap).sort((a, b) => a.date.localeCompare(b.date));
+    const avgDaily = dailyData.length > 0 ? Math.round(dailyData.reduce((sum, d) => sum + d.total, 0) / dailyData.length) : 0;
+    const peakDay = dailyData.reduce((max, d) => d.total > max.total ? d : max, { date: "", total: 0, onTime: 0 });
+    const lowDay = dailyData.filter(d => d.total > 0).reduce((min, d) => d.total < min.total ? d : min, dailyData[0] || { date: "", total: 999, onTime: 0 });
+
+    // Identify employees needing attention and recognition
     const lateEmployees: string[] = [];
-    const earlyDepartureEmployees: string[] = [];
     const perfectAttendance: string[] = [];
-    const employeeRecordCount: Record<string, number> = {};
+    const employeeStats: Record<string, { name: string; lateCount: number; onTimeCount: number }> = {};
 
     records?.forEach((record: any) => {
-      const schedule = record.employee?.employee_schedules?.[0];
       const employeeName = record.employee?.profiles?.full_name || "Unknown";
-
-      // Track employee record counts
-      employeeRecordCount[employeeName] = (employeeRecordCount[employeeName] || 0) + 1;
-
-      // WFH count
-      if (record.status === "remote") {
-        metrics.wfhCount++;
+      const employeeId = record.employee_id;
+      
+      if (!employeeStats[employeeId]) {
+        employeeStats[employeeId] = { name: employeeName, lateCount: 0, onTimeCount: 0 };
       }
 
-      // Work hours
-      if (record.work_hours) {
-        totalHours += record.work_hours;
-      }
-
-      // Late arrivals
-      if (record.check_in_time && schedule?.work_start_time) {
+      const empSchedule = record.employee?.employee_schedules?.[0];
+      if (record.check_in_time && empSchedule?.work_start_time) {
         const checkInTime = new Date(record.check_in_time);
-        const [startH, startM] = schedule.work_start_time.split(":").map(Number);
-        const threshold = schedule.late_threshold_minutes || 0;
+        const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+        const threshold = empSchedule.late_threshold_minutes || 0;
         const expectedStart = new Date(checkInTime);
         expectedStart.setHours(startH, startM + threshold, 0, 0);
 
         if (checkInTime > expectedStart) {
-          metrics.lateArrivals++;
-          if (!lateEmployees.includes(employeeName)) {
-            lateEmployees.push(employeeName);
-          }
+          employeeStats[employeeId].lateCount++;
         } else {
-          metrics.onTime++;
-        }
-      }
-
-      // Early departures
-      if (record.check_out_time && schedule?.work_end_time) {
-        const checkOutTime = new Date(record.check_out_time);
-        const [endH, endM] = schedule.work_end_time.split(":").map(Number);
-        const expectedEnd = new Date(checkOutTime);
-        expectedEnd.setHours(endH, endM, 0, 0);
-
-        if (checkOutTime < expectedEnd) {
-          metrics.earlyDepartures++;
-          if (!earlyDepartureEmployees.includes(employeeName)) {
-            earlyDepartureEmployees.push(employeeName);
-          }
+          employeeStats[employeeId].onTimeCount++;
         }
       }
     });
 
-    metrics.avgNetHours = metrics.totalRecords > 0 ? totalHours / metrics.totalRecords : 0;
-    
-    const expectedDays = (schedule?.frequency === "monthly" ? 30 : 7);
-    metrics.attendanceRate = activeEmployeeCount && activeEmployeeCount > 0 
-      ? Math.round((metrics.totalRecords / (activeEmployeeCount * expectedDays)) * 100)
-      : 0;
-
-    // Find perfect attendance employees
-    Object.entries(employeeRecordCount).forEach(([name, count]) => {
-      if (count >= expectedDays - 2 && !lateEmployees.includes(name)) {
-        perfectAttendance.push(name);
+    Object.values(employeeStats).forEach((stats) => {
+      if (stats.lateCount >= 2 && !lateEmployees.includes(stats.name)) {
+        lateEmployees.push(stats.name);
+      }
+      if (stats.lateCount === 0 && stats.onTimeCount >= 3 && !perfectAttendance.includes(stats.name)) {
+        perfectAttendance.push(stats.name);
       }
     });
-
-    console.log("Metrics calculated:", metrics);
 
     // Generate AI summary
     let aiSummary = "";
@@ -196,8 +360,8 @@ serve(async (req) => {
       try {
         const summaryPrompt = `Generate a brief, friendly attendance summary for ${org.name}. 
 Period: ${startDateStr} to ${endDateStr}
-Metrics: ${metrics.totalRecords} total records, ${metrics.onTime} on-time, ${metrics.lateArrivals} late arrivals, ${metrics.earlyDepartures} early departures, ${metrics.wfhCount} WFH days, ${metrics.avgNetHours.toFixed(1)}h average.
-Late employees: ${lateEmployees.slice(0, 3).join(", ") || "None"}
+Metrics: ${metrics.totalRecords} total records, ${metrics.onTime.count} on-time (${metrics.onTime.percent}%), ${metrics.lateArrivals.count} late arrivals, ${metrics.earlyCheckouts.count} early departures, ${metrics.wfh.count} WFH days, ${formatMinutes(metrics.netHours.totalMinutes)} total hours.
+Late employees (2+ incidents): ${lateEmployees.slice(0, 3).join(", ") || "None"}
 Perfect attendance: ${perfectAttendance.slice(0, 3).join(", ") || "None"}
 
 Write 2-3 sentences highlighting key insights. Be encouraging but mention areas needing attention. Use employee first names only.`;
@@ -226,11 +390,11 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
         }
       } catch (aiError) {
         console.error("AI summary generation failed:", aiError);
-        aiSummary = `Your team had ${metrics.totalRecords} attendance records this period with ${metrics.attendanceRate}% attendance rate.`;
+        aiSummary = `Your team logged ${metrics.totalRecords} attendance records this period with ${metrics.onTime.percent}% on-time rate.`;
       }
     }
 
-    // Get recipients - FIXED: Query employees table first, then check user_roles
+    // Get recipients
     console.log("Fetching recipients...");
     const recipientRoles = schedule?.recipients || { owner: true, admin: true, hr: true };
     const roles: string[] = [];
@@ -240,7 +404,6 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
     
     console.log("Looking for roles:", roles);
 
-    // First get all employees in this organization
     const { data: orgEmployees, error: empError } = await supabase
       .from("employees")
       .select(`
@@ -258,7 +421,6 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
 
     console.log("Organization employees found:", orgEmployees?.length || 0);
 
-    // Then get user roles for these users
     const userIds = orgEmployees?.map(e => e.user_id).filter(Boolean) || [];
     
     if (userIds.length === 0) {
@@ -281,7 +443,6 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
 
     console.log("User roles found:", userRoles?.length || 0);
 
-    // Build recipients list by matching employees with roles
     const roleUserIds = new Set(userRoles?.map(r => r.user_id) || []);
     const recipients = orgEmployees?.filter(e => roleUserIds.has(e.user_id)) || [];
 
@@ -323,6 +484,10 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
         lateEmployees: lateEmployees.slice(0, 3),
         perfectAttendance: perfectAttendance.slice(0, 3),
         orgCode: org.slug,
+        dailyData,
+        avgDaily,
+        peakDay,
+        lowDay,
       });
 
       try {
@@ -373,6 +538,10 @@ function generateEmailHtml(params: {
   lateEmployees: string[];
   perfectAttendance: string[];
   orgCode: string;
+  dailyData: DailyData[];
+  avgDaily: number;
+  peakDay: DailyData;
+  lowDay: DailyData;
 }) {
   const {
     recipientName,
@@ -382,24 +551,45 @@ function generateEmailHtml(params: {
     dateRangeText,
     metrics,
     aiSummary,
+    includeCharts,
     lateEmployees,
     perfectAttendance,
     orgCode,
+    dailyData,
+    avgDaily,
+    peakDay,
+    lowDay,
   } = params;
 
   const needsAttentionHtml = lateEmployees.length > 0 
-    ? `<div style="margin-top: 12px;">
-        <p style="color: #dc2626; font-weight: 600; margin: 0 0 4px 0;">⚠️ Needs Attention:</p>
-        <p style="color: #666; margin: 0;">${lateEmployees.map(n => `• ${n} - multiple late arrivals`).join('<br>')}</p>
-      </div>`
+    ? `<p style="color: #dc2626; margin: 8px 0 0 0; font-size: 13px;"><strong>⚠️ Needs Attention:</strong> ${lateEmployees.map(n => n.split(" ")[0]).join(", ")} - multiple late arrivals</p>`
     : "";
 
   const recognitionHtml = perfectAttendance.length > 0
-    ? `<div style="margin-top: 12px;">
-        <p style="color: #16a34a; font-weight: 600; margin: 0 0 4px 0;">🌟 Recognition:</p>
-        <p style="color: #666; margin: 0;">${perfectAttendance.map(n => `• ${n} - excellent attendance`).join('<br>')}</p>
-      </div>`
+    ? `<p style="color: #16a34a; margin: 8px 0 0 0; font-size: 13px;"><strong>🌟 Recognition:</strong> ${perfectAttendance.map(n => n.split(" ")[0]).join(", ")} - excellent attendance</p>`
     : "";
+
+  // Generate trend chart bars
+  const maxTotal = Math.max(...dailyData.map(d => d.total), 1);
+  const trendBarsHtml = dailyData.slice(-7).map(d => {
+    const totalHeight = Math.round((d.total / maxTotal) * 60);
+    const onTimeHeight = Math.round((d.onTime / maxTotal) * 60);
+    const dateLabel = new Date(d.date).toLocaleDateString("en-US", { weekday: "short" });
+    return `
+      <td style="vertical-align: bottom; padding: 0 4px; text-align: center;">
+        <div style="position: relative; height: 60px; display: flex; flex-direction: column; justify-content: flex-end;">
+          <div style="background: #3b82f6; height: ${totalHeight}px; border-radius: 3px 3px 0 0; position: relative;">
+            <div style="background: #22c55e; height: ${onTimeHeight}px; border-radius: 3px 3px 0 0; position: absolute; bottom: 0; left: 0; right: 0;"></div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">${dateLabel}</div>
+      </td>
+    `;
+  }).join("");
+
+  const trendChangePercent = metrics.netHours.change;
+  const trendArrow = trendChangePercent >= 0 ? "▲" : "▼";
+  const trendColor = trendChangePercent >= 0 ? "#22c55e" : "#ef4444";
 
   return `
     <!DOCTYPE html>
@@ -409,20 +599,23 @@ function generateEmailHtml(params: {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
-      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 24px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            ${orgLogo 
-              ? `<img src="${orgLogo}" alt="${orgName}" style="max-height: 40px; max-width: 150px;" />`
-              : `<span style="color: white; font-size: 20px; font-weight: bold;">${orgName}</span>`
-            }
-          </div>
-          <div style="text-align: right;">
-            <span style="color: rgba(255,255,255,0.8); font-size: 12px;">Powered by</span>
-            <div style="color: white; font-weight: 600;">GlobalyOS</div>
-          </div>
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 20px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                ${orgLogo 
+                  ? `<img src="${orgLogo}" alt="${orgName}" style="max-height: 36px; max-width: 140px;" />`
+                  : `<span style="color: white; font-size: 18px; font-weight: bold;">${orgName}</span>`
+                }
+              </td>
+              <td style="text-align: right;">
+                <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="height: 32px; width: 32px; border-radius: 6px;" />
+              </td>
+            </tr>
+          </table>
         </div>
 
         <!-- Content -->
@@ -432,68 +625,151 @@ function generateEmailHtml(params: {
             Here's your <strong>${periodLabel}</strong> attendance summary for <strong>${dateRangeText}</strong>:
           </p>
 
-          <!-- AI Summary -->
+          <!-- AI Summary - Clean styling -->
           ${aiSummary ? `
-            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <span style="font-size: 16px;">🤖</span>
-                <span style="font-weight: 600; color: #92400e;">AI Summary</span>
-              </div>
-              <p style="color: #78350f; margin: 0; font-size: 14px; line-height: 1.5;">${aiSummary}</p>
+            <div style="margin-bottom: 24px; line-height: 1.6;">
+              <p style="color: #374151; font-size: 14px; margin: 0;">${aiSummary}</p>
               ${needsAttentionHtml}
               ${recognitionHtml}
             </div>
           ` : ""}
 
-          <!-- Metrics Cards -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+          <!-- 8 Metric Cards - Row 1 -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
             <tr>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #eff6ff; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #3b82f6;">
-                  <div style="font-size: 24px; font-weight: bold; color: #1e40af;">${metrics.totalRecords}</div>
-                  <div style="font-size: 11px; color: #6b7280;">Total</div>
+              <!-- Total Records -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #eff6ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">📋</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #1e40af;">${metrics.totalRecords}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Total Records</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${metrics.missing} missing · ${metrics.onLeave} on leave</div>
                 </div>
               </td>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #f0fdf4; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #22c55e;">
-                  <div style="font-size: 24px; font-weight: bold; color: #166534;">${metrics.onTime}</div>
-                  <div style="font-size: 11px; color: #6b7280;">On Time</div>
+              <!-- Late Arrivals -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #fffbeb; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">🕐</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #b45309;">${metrics.lateArrivals.count}${getTrendIndicator(metrics.lateArrivals.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Late Arrivals</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${formatMinutes(metrics.lateArrivals.totalMinutes)} total</div>
                 </div>
               </td>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #fffbeb; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #f59e0b;">
-                  <div style="font-size: 24px; font-weight: bold; color: #b45309;">${metrics.lateArrivals}</div>
-                  <div style="font-size: 11px; color: #6b7280;">Late</div>
+              <!-- Early Checkouts -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #fef2f2; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">↗️</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #dc2626;">${metrics.earlyCheckouts.count}${getTrendIndicator(metrics.earlyCheckouts.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Early Checkouts</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${formatMinutes(metrics.earlyCheckouts.totalMinutes)} total</div>
                 </div>
               </td>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #fef2f2; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #ef4444;">
-                  <div style="font-size: 24px; font-weight: bold; color: #dc2626;">${metrics.earlyDepartures}</div>
-                  <div style="font-size: 11px; color: #6b7280;">Early</div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #f5f3ff; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #8b5cf6;">
-                  <div style="font-size: 24px; font-weight: bold; color: #6d28d9;">${metrics.wfhCount}</div>
-                  <div style="font-size: 11px; color: #6b7280;">WFH</div>
-                </div>
-              </td>
-              <td width="25%" style="padding: 6px;">
-                <div style="background: #f8fafc; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #64748b;">
-                  <div style="font-size: 24px; font-weight: bold; color: #334155;">${metrics.avgNetHours.toFixed(1)}h</div>
-                  <div style="font-size: 11px; color: #6b7280;">Avg Hours</div>
-                </div>
-              </td>
-              <td width="50%" colspan="2" style="padding: 6px;">
-                <div style="background: #ecfdf5; border-radius: 8px; padding: 12px; text-align: center; border-left: 4px solid #10b981;">
-                  <div style="font-size: 24px; font-weight: bold; color: #059669;">${metrics.attendanceRate}%</div>
-                  <div style="font-size: 11px; color: #6b7280;">Attendance Rate</div>
+              <!-- On Time -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #f0fdf4; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">✓</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #166534;">${metrics.onTime.count}${getTrendIndicator(metrics.onTime.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">On Time</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${metrics.onTime.percent}% of check-ins</div>
                 </div>
               </td>
             </tr>
           </table>
+
+          <!-- 8 Metric Cards - Row 2 -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+            <tr>
+              <!-- Below Time -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #fff7ed; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">⏱️</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #c2410c;">${metrics.belowTime.count}${getTrendIndicator(metrics.belowTime.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Below Time</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${formatMinutes(metrics.belowTime.totalMinutes)} deficit</div>
+                </div>
+              </td>
+              <!-- Over Time -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #eff6ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">📈</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #1e40af;">${metrics.overTime.count}${getTrendIndicator(metrics.overTime.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Over Time</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${formatMinutes(metrics.overTime.totalMinutes)} extra</div>
+                </div>
+              </td>
+              <!-- Net Hours -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #eef2ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">⏱️</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #4338ca;">${formatMinutes(metrics.netHours.totalMinutes)}${getTrendIndicator(metrics.netHours.change)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Net Hours</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">avg ${formatMinutes(metrics.netHours.avgMinutesPerPerson)}/person</div>
+                </div>
+              </td>
+              <!-- WFH -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #faf5ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">🏠</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #7c3aed;">${metrics.wfh.count}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">WFH</div>
+                  <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">${metrics.wfh.percent}% of check-ins</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Attendance Trends -->
+          ${includeCharts && dailyData.length > 0 ? `
+            <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: 600; color: #374151; font-size: 14px;">📊 Attendance Trends</span>
+                <span style="background: #e0e7ff; color: #3730a3; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">${periodLabel}</span>
+              </div>
+              
+              <!-- Summary Stats -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td width="25%" style="padding: 4px;">
+                    <div style="background: #ffffff; border-radius: 6px; padding: 8px; text-align: center;">
+                      <div style="font-size: 9px; color: #6b7280;">Avg Daily</div>
+                      <div style="font-size: 16px; font-weight: bold; color: #374151;">${avgDaily}</div>
+                    </div>
+                  </td>
+                  <td width="25%" style="padding: 4px;">
+                    <div style="background: #ffffff; border-radius: 6px; padding: 8px; text-align: center;">
+                      <div style="font-size: 9px; color: #6b7280;">Peak</div>
+                      <div style="font-size: 16px; font-weight: bold; color: #374151;">${peakDay.total}</div>
+                    </div>
+                  </td>
+                  <td width="25%" style="padding: 4px;">
+                    <div style="background: #ffffff; border-radius: 6px; padding: 8px; text-align: center;">
+                      <div style="font-size: 9px; color: #6b7280;">Low</div>
+                      <div style="font-size: 16px; font-weight: bold; color: #374151;">${lowDay.total || 0}</div>
+                    </div>
+                  </td>
+                  <td width="25%" style="padding: 4px;">
+                    <div style="background: #ffffff; border-radius: 6px; padding: 8px; text-align: center;">
+                      <div style="font-size: 9px; color: #6b7280;">Trend</div>
+                      <div style="font-size: 16px; font-weight: bold; color: ${trendColor};">${trendArrow} ${Math.abs(trendChangePercent)}%</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Chart -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  ${trendBarsHtml}
+                </tr>
+              </table>
+              
+              <!-- Legend -->
+              <div style="display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 10px;">
+                <span style="color: #6b7280;"><span style="display: inline-block; width: 10px; height: 10px; background: #3b82f6; border-radius: 2px; margin-right: 4px;"></span>Total</span>
+                <span style="color: #6b7280;"><span style="display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 2px; margin-right: 4px;"></span>On Time</span>
+              </div>
+            </div>
+          ` : ""}
 
           <!-- CTA Button -->
           <div style="text-align: center; margin-top: 24px;">
@@ -507,7 +783,7 @@ function generateEmailHtml(params: {
         <!-- Footer -->
         <div style="background: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
           <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-            GlobalyOS - HRMS & Social Intranet
+            GlobalyOS - Operating System for Ambitious Teams
           </p>
           <p style="color: #cbd5e1; font-size: 11px; margin: 4px 0 0 0;">
             You're receiving this because you're set as a recipient for attendance reports.
