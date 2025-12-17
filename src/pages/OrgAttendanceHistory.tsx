@@ -201,45 +201,34 @@ const OrgAttendanceHistory = () => {
   const getLocationDisplay = (record: any) => {
     const office = record.check_in_office as any;
     
-    // Remote/WFH check-in - show stored location name if available
+    // Remote/WFH check-in - show stored location name (address only)
     if (record.status === "remote" || (!record.check_in_office_id && record.status !== "absent")) {
       const locationName = record.check_in_location_name;
+      if (!locationName) {
+        return <span className="text-sm text-muted-foreground/50">—</span>;
+      }
       return (
-        <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-          <Home className="h-3.5 w-3.5" />
-          <span className="text-sm truncate max-w-[120px]">{locationName || "WFH"}</span>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-sm truncate max-w-[150px]" title={locationName}>{locationName}</span>
         </div>
       );
     }
     
-    // Office check-in - show city, country if available
+    // Office check-in - show city, country
     if (office?.name) {
       const locationParts = [office.city, office.country].filter(Boolean);
       const locationText = locationParts.length > 0 ? locationParts.join(", ") : office.name;
       return (
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Building2 className="h-3.5 w-3.5" />
-          <span className="text-sm truncate max-w-[120px]" title={locationText}>{locationText}</span>
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-sm truncate max-w-[150px]" title={locationText}>{locationText}</span>
         </div>
       );
     }
     
     // Absent or no location
-    if (record.status === "absent") {
-      return (
-        <div className="flex items-center gap-1.5 text-muted-foreground/50">
-          <MapPin className="h-3.5 w-3.5" />
-          <span className="text-sm">—</span>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="flex items-center gap-1.5 text-muted-foreground/50">
-        <MapPin className="h-3.5 w-3.5" />
-        <span className="text-sm">—</span>
-      </div>
-    );
+    return <span className="text-sm text-muted-foreground/50">—</span>;
   };
 
   const getInitials = (name: string) => {
@@ -405,7 +394,18 @@ const OrgAttendanceHistory = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                    {record.status === "remote" ? (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
+                        <Home className="h-2 w-2 mr-0.5" />WFH
+                      </Badge>
+                    ) : record.check_in_office_id && (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
+                        <Building2 className="h-2 w-2 mr-0.5" />Office
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{employee?.position}</p>
                 </div>
               </OrgLink>
@@ -776,8 +776,19 @@ const OrgAttendanceHistory = () => {
                                   {getInitials(employee?.profiles?.full_name || "?")}
                                 </AvatarFallback>
                               </Avatar>
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
+                                  {record.status === "remote" ? (
+                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
+                                      <Home className="h-2.5 w-2.5 mr-0.5" />WFH
+                                    </Badge>
+                                  ) : record.check_in_office_id && (
+                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
+                                      <Building2 className="h-2.5 w-2.5 mr-0.5" />Office
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground truncate">{employee?.position}</p>
                               </div>
                             </OrgLink>

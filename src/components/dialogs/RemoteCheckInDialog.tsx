@@ -121,6 +121,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
         action: currentAction,
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
+        locationName: locationName || undefined,
       });
       setResult({
         success: true,
