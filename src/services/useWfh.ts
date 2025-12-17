@@ -244,15 +244,18 @@ export const useRemoteAttendance = () => {
       action,
       latitude,
       longitude,
+      locationName,
     }: {
       action: 'check_in' | 'check_out';
       latitude: number;
       longitude: number;
+      locationName?: string;
     }) => {
       const { data, error } = await supabase.rpc("record_remote_attendance", {
         _action: action,
         _user_latitude: latitude,
         _user_longitude: longitude,
+        _location_name: locationName,
       });
 
       if (error) throw error;
