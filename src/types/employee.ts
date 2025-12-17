@@ -20,6 +20,7 @@ export interface Employee {
   status?: 'invited' | 'active' | 'inactive';
   officeName?: string;
   officeEmployeeCount?: number;
+  workLocation?: 'office' | 'hybrid' | 'remote';
 }
 
 // Display type for kudos

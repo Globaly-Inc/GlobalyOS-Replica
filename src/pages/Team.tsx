@@ -33,6 +33,7 @@ interface Employee {
   manager_id: string | null;
   status: 'invited' | 'active' | 'inactive';
   office_id: string | null;
+  work_location?: 'office' | 'hybrid' | 'remote' | null;
   profiles: {
     full_name: string;
     email: string;
@@ -196,6 +197,7 @@ const Team = () => {
         manager_id: e.manager_id,
         status: e.status,
         office_id: e.office_id,
+        work_location: e.work_location,
         profiles: {
           full_name: e.full_name,
           email: e.email,
@@ -651,6 +653,7 @@ const Team = () => {
                       status: employee.status,
                       officeName: employee.offices?.name,
                       officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
+                      workLocation: employee.work_location || undefined,
                     }}
                     showResendInvite={isHR}
                     role={userRoles[employee.user_id]}

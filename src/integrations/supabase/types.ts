@@ -344,6 +344,9 @@ export type Database = {
       }
       attendance_records: {
         Row: {
+          check_in_latitude: number | null
+          check_in_location_name: string | null
+          check_in_longitude: number | null
           check_in_office_id: string | null
           check_in_time: string | null
           check_out_time: string | null
@@ -358,6 +361,9 @@ export type Database = {
           work_hours: number | null
         }
         Insert: {
+          check_in_latitude?: number | null
+          check_in_location_name?: string | null
+          check_in_longitude?: number | null
           check_in_office_id?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
@@ -372,6 +378,9 @@ export type Database = {
           work_hours?: number | null
         }
         Update: {
+          check_in_latitude?: number | null
+          check_in_location_name?: string | null
+          check_in_longitude?: number | null
           check_in_office_id?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
@@ -6295,6 +6304,8 @@ export type Database = {
       employee_directory: {
         Row: {
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string | null
           department: string | null
           email: string | null
@@ -6303,11 +6314,12 @@ export type Database = {
           join_date: string | null
           manager_id: string | null
           office_id: string | null
+          office_name: string | null
           organization_id: string | null
           position: string | null
           status: string | null
-          superpowers: string[] | null
           user_id: string | null
+          work_location: string | null
         }
         Relationships: [
           {

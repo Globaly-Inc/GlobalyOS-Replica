@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Mail, Calendar, Send, MapPin, Building2, Users } from "lucide-react";
+import { Mail, Calendar, Send, MapPin, Building2, Users, Home, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { WORK_LOCATION_CONFIG, WorkLocationDisplay } from "@/types/wfh";
 
 interface EmployeeCardProps {
   employee: Employee;
@@ -129,7 +130,24 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
             </div>
             
             <div className="space-y-2 w-full">
-              <h3 className="font-bold text-lg text-foreground">{employee.name}</h3>
+              <div className="flex items-center justify-center gap-2">
+                <h3 className="font-bold text-lg text-foreground">{employee.name}</h3>
+                {employee.workLocation && (
+                  <Badge 
+                    variant="secondary" 
+                    className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employee.workLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employee.workLocation]?.color} border-0`}
+                  >
+                    {employee.workLocation === 'office' ? (
+                      <Building2 className="h-3 w-3 mr-0.5" />
+                    ) : employee.workLocation === 'hybrid' ? (
+                      <RefreshCw className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <Home className="h-3 w-3 mr-0.5" />
+                    )}
+                    {WORK_LOCATION_CONFIG[employee.workLocation]?.label}
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm font-medium text-primary">{employee.position}</p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-normal">
