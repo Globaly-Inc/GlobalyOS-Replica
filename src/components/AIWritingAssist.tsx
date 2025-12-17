@@ -59,16 +59,16 @@ export const AIWritingAssist = ({
       <TooltipTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="h-7 gap-1.5 text-xs ai-gradient-border"
+          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-primary"
         >
           {isGenerating ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Sparkles className="h-3.5 w-3.5 ai-gradient-icon" />
+            <Sparkles className="h-3.5 w-3.5" />
           )}
           {getButtonLabel()}
         </Button>

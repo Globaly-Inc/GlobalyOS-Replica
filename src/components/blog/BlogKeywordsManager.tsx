@@ -211,7 +211,7 @@ export const BlogKeywordsManager = () => {
               <Button 
                 onClick={handleResearchKeywords} 
                 disabled={isResearching}
-                className="w-full ai-gradient-border"
+                className="w-full"
               >
                 {isResearching ? (
                   <>
@@ -220,7 +220,7 @@ export const BlogKeywordsManager = () => {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4 mr-2 ai-gradient-icon" />
+                    <RefreshCw className="h-4 w-4 mr-2" />
                     Research New Keywords
                   </>
                 )}
