@@ -975,8 +975,8 @@ const OrgAttendanceHistory = () => {
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
-              <Sparkles className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2 ai-gradient-border">
+              <Sparkles className="h-4 w-4 ai-gradient-icon" />
               AI Email Reports
             </Button>
             <DropdownMenu>

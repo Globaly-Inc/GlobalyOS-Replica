@@ -71,8 +71,8 @@ export const WikiAskAI = ({ organizationId }: WikiAskAIProps) => {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Sparkles className="h-4 w-4" />
+        <Button variant="outline" className="gap-2 ai-gradient-border">
+          <Sparkles className="h-4 w-4 ai-gradient-icon" />
           Ask AI
         </Button>
       </SheetTrigger>
