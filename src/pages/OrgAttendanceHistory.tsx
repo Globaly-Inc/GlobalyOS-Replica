@@ -51,12 +51,7 @@ import {
   Trash2,
   Building2,
   Home,
-  MapPin,
-  TrendingUp,
-  LogOut,
-  Timer,
-  UserCheck,
-  Percent
+  MapPin
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,7 +75,6 @@ interface AttendanceRecord {
 }
 
 type DateRangeOption = 'today' | 'last7days' | 'last14days' | 'last30days' | 'thisMonth' | 'lastMonth' | 'custom';
-type AttendanceFilterOption = 'all' | 'onTime' | 'lateArrival' | 'earlyDeparture' | 'office' | 'remote';
 
 const OrgAttendanceHistory = () => {
   const { currentOrg } = useOrganization();
@@ -90,7 +84,7 @@ const OrgAttendanceHistory = () => {
   const isMobile = useIsMobile();
   const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeOption>('today');
   const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
-  const [attendanceFilter, setAttendanceFilter] = useState<AttendanceFilterOption>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,9 +236,9 @@ const OrgAttendanceHistory = () => {
 
   // Fetch all attendance records for the organization with office data and employee schedule
   const { data: records, isLoading } = useQuery({
-    queryKey: ["org-attendance", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd"), departmentFilter],
+    queryKey: ["org-attendance", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd"), statusFilter, departmentFilter],
     queryFn: async () => {
-      const query = supabase
+      let query = supabase
         .from("attendance_records")
         .select(`
           *,
@@ -273,6 +267,10 @@ const OrgAttendanceHistory = () => {
         .gte("date", format(dateRange.start, "yyyy-MM-dd"))
         .lte("date", format(dateRange.end, "yyyy-MM-dd"))
         .order("date", { ascending: false });
+
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -306,7 +304,7 @@ const OrgAttendanceHistory = () => {
     return Array.from(officeMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [records]);
 
-  // Filter records with enhanced attendance filter
+  // Filter records
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     return records.filter((record) => {
@@ -322,31 +320,8 @@ const OrgAttendanceHistory = () => {
       } else if (locationFilter !== "all") {
         matchesLocation = record.check_in_office_id === locationFilter;
       }
-
-      // Attendance filter (for stat cards)
-      let matchesAttendance = true;
-      if (attendanceFilter !== "all") {
-        const scheduleData = employee?.employee_schedules;
-        switch (attendanceFilter) {
-          case "onTime":
-            matchesAttendance = record.check_in_time && !isLateArrival(record, scheduleData);
-            break;
-          case "lateArrival":
-            matchesAttendance = isLateArrival(record, scheduleData);
-            break;
-          case "earlyDeparture":
-            matchesAttendance = isEarlyDeparture(record, scheduleData);
-            break;
-          case "office":
-            matchesAttendance = record.status !== "remote" && record.check_in_office_id !== null;
-            break;
-          case "remote":
-            matchesAttendance = record.status === "remote";
-            break;
-        }
-      }
       
-      return matchesSearch && matchesDepartment && matchesLocation && matchesAttendance;
+      return matchesSearch && matchesDepartment && matchesLocation;
     });
   }, [records, searchQuery, departmentFilter, locationFilter]);
 
@@ -421,63 +396,20 @@ const OrgAttendanceHistory = () => {
       .slice(0, 2);
   };
 
-  // Calculate enhanced stats (using all records, not filtered, to show totals)
+  // Calculate stats
   const stats = useMemo(() => {
-    if (!records) return null;
-    
-    let onTime = 0;
-    let lateArrivals = 0;
-    let earlyDepartures = 0;
-    let inOffice = 0;
-    let remote = 0;
-    let totalNetHours = 0;
-    
-    records.forEach((r) => {
-      const employee = r.employee as any;
-      const scheduleData = employee?.employee_schedules;
-      
-      // On Time vs Late
-      if (r.check_in_time) {
-        if (isLateArrival(r, scheduleData)) {
-          lateArrivals++;
-        } else {
-          onTime++;
-        }
-      }
-      
-      // Early Departure
-      if (r.check_out_time && isEarlyDeparture(r, scheduleData)) {
-        earlyDepartures++;
-      }
-      
-      // Office vs Remote
-      if (r.status === "remote") {
-        remote++;
-      } else if (r.check_in_office_id) {
-        inOffice++;
-      }
-      
-      // Net hours
-      totalNetHours += getNetHours(r.work_hours, scheduleData);
-    });
-    
-    const totalRecords = records.length;
-    const uniqueEmployees = new Set(records.map(r => r.employee_id)).size;
-    const avgNetHours = uniqueEmployees > 0 ? totalNetHours / uniqueEmployees : 0;
-    const attendanceRate = totalRecords > 0 ? Math.round((onTime + lateArrivals) / totalRecords * 100) : 0;
-    
+    if (!filteredRecords) return null;
     return {
-      total: totalRecords,
-      attendanceRate,
-      onTime,
-      lateArrivals,
-      earlyDepartures,
-      inOffice,
-      remote,
-      avgNetHours,
-      totalNetHours,
+      total: filteredRecords.length,
+      present: filteredRecords.filter((r) => r.status === "present").length,
+      absent: filteredRecords.filter((r) => r.status === "absent").length,
+      late: filteredRecords.filter((r) => r.status === "late").length,
+      totalNetHours: filteredRecords.reduce((sum, r) => {
+        const employee = r.employee as any;
+        return sum + getNetHours(r.work_hours, employee?.employee_schedules);
+      }, 0),
     };
-  }, [records]);
+  }, [filteredRecords]);
 
   const dateRangeOptions: { value: DateRangeOption; label: string }[] = [
     { value: 'today', label: 'Today' },
@@ -548,8 +480,8 @@ const OrgAttendanceHistory = () => {
   };
 
   // Click on stat card to filter
-  const handleStatClick = (filter: AttendanceFilterOption) => {
-    setAttendanceFilter(filter === attendanceFilter ? "all" : filter);
+  const handleStatClick = (status: string) => {
+    setStatusFilter(status === statusFilter ? "all" : status);
   };
 
   // Delete handler
@@ -902,138 +834,56 @@ const OrgAttendanceHistory = () => {
           </div>
         </div>
 
-        {/* Enhanced Stats Cards - 8 Metrics with Clickable Filtering */}
+        {/* Stats Cards - Clickable Filters */}
         {stats && (
           <div className="px-4 md:px-0">
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:grid md:grid-cols-4 lg:grid-cols-8 md:gap-2 scrollbar-hide">
-              {/* Attendance Rate */}
+            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:grid md:grid-cols-5 md:gap-3 scrollbar-hide">
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "all" ? "ring-2 ring-primary/40" : "",
-                  "bg-primary/5 border-primary/20"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "all" ? "bg-primary/10 border-primary/30 ring-1 ring-primary/20" : "bg-muted/30"
                 )}
                 onClick={() => handleStatClick("all")}
               >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-primary/10">
-                    <Percent className="h-3 w-3 text-primary" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-primary">{stats.attendanceRate}%</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Attendance Rate</div>
+                <div className="text-lg md:text-2xl font-bold text-primary">{stats.total}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Records</div>
               </Card>
-
-              {/* On Time */}
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "onTime" ? "ring-2 ring-green-500/40" : "",
-                  "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "present" ? "ring-1 ring-green-500/30" : "",
+                  "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50"
                 )}
-                onClick={() => handleStatClick("onTime")}
+                onClick={() => handleStatClick("present")}
               >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-green-100 dark:bg-green-900/50">
-                    <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-green-600 dark:text-green-400">{stats.onTime}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">On Time</div>
+                <div className="text-lg md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Present</div>
               </Card>
-
-              {/* Late Arrivals */}
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "lateArrival" ? "ring-2 ring-amber-500/40" : "",
-                  "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "late" ? "ring-1 ring-yellow-500/30" : "",
+                  "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50"
                 )}
-                onClick={() => handleStatClick("lateArrival")}
+                onClick={() => handleStatClick("late")}
               >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-amber-100 dark:bg-amber-900/50">
-                    <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-amber-600 dark:text-amber-400">{stats.lateArrivals}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Late Arrivals</div>
+                <div className="text-lg md:text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Late</div>
               </Card>
-
-              {/* Early Departures */}
               <Card 
                 className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "earlyDeparture" ? "ring-2 ring-orange-500/40" : "",
-                  "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "absent" ? "ring-1 ring-red-500/30" : "",
+                  "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50"
                 )}
-                onClick={() => handleStatClick("earlyDeparture")}
+                onClick={() => handleStatClick("absent")}
               >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-orange-100 dark:bg-orange-900/50">
-                    <LogOut className="h-3 w-3 text-orange-600 dark:text-orange-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-orange-600 dark:text-orange-400">{stats.earlyDepartures}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Early Departures</div>
+                <div className="text-lg md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Absent</div>
               </Card>
-
-              {/* In Office */}
-              <Card 
-                className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "office" ? "ring-2 ring-slate-500/40" : "",
-                  "bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800"
-                )}
-                onClick={() => handleStatClick("office")}
-              >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-slate-100 dark:bg-slate-800">
-                    <Building2 className="h-3 w-3 text-slate-600 dark:text-slate-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-slate-600 dark:text-slate-400">{stats.inOffice}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">In Office</div>
-              </Card>
-
-              {/* Remote/WFH */}
-              <Card 
-                className={cn(
-                  "flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  attendanceFilter === "remote" ? "ring-2 ring-purple-500/40" : "",
-                  "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50"
-                )}
-                onClick={() => handleStatClick("remote")}
-              >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-purple-100 dark:bg-purple-900/50">
-                    <Home className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-purple-600 dark:text-purple-400">{stats.remote}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Remote/WFH</div>
-              </Card>
-
-              {/* Avg Net Hours */}
-              <Card className="flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-blue-100 dark:bg-blue-900/50">
-                    <Timer className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.avgNetHours)}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Avg Net Hours</div>
-              </Card>
-
-              {/* Total Records */}
-              <Card className="flex-shrink-0 w-[90px] md:w-auto p-2.5 md:p-3 bg-muted/30 border-border">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className="p-1 rounded bg-muted">
-                    <UserCheck className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-foreground">{stats.total}</div>
-                <div className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Total Records</div>
+              <Card className="flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
+                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.totalNetHours)}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Net Hours</div>
               </Card>
             </div>
           </div>
