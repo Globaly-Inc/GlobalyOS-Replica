@@ -108,8 +108,15 @@ const OrgAttendanceHistory = () => {
             id,
             department,
             position,
+            office_id,
             profiles!inner(full_name, avatar_url),
-            employee_schedules(work_location)
+            employee_schedules(work_location),
+            office:offices!employees_office_id_fkey(
+              id,
+              name,
+              city,
+              country
+            )
           ),
           check_in_office:offices!attendance_records_check_in_office_id_fkey(
             id,
@@ -175,7 +182,7 @@ const OrgAttendanceHistory = () => {
       // Location filter
       let matchesLocation = true;
       if (locationFilter === "wfh") {
-        matchesLocation = record.status === "remote" || (!record.check_in_office_id && record.status !== "absent");
+        matchesLocation = record.status === "remote";
       } else if (locationFilter !== "all") {
         matchesLocation = record.check_in_office_id === locationFilter;
       }
@@ -201,9 +208,11 @@ const OrgAttendanceHistory = () => {
 
   const getLocationDisplay = (record: any) => {
     const office = record.check_in_office as any;
-    
-    // Remote/WFH check-in - show stored location name (address only)
-    if (record.status === "remote" || (!record.check_in_office_id && record.status !== "absent")) {
+    const employee = record.employee as any;
+    const employeeOffice = employee?.office as any;
+
+    // Remote/WFH check-in - show stored location name
+    if (record.status === "remote") {
       const locationName = record.check_in_location_name;
       if (!locationName) {
         return <span className="text-sm text-muted-foreground/50">—</span>;
@@ -215,7 +224,7 @@ const OrgAttendanceHistory = () => {
         </div>
       );
     }
-    
+
     // Office check-in - show city, country
     if (office?.name) {
       const locationParts = [office.city, office.country].filter(Boolean);
@@ -227,8 +236,20 @@ const OrgAttendanceHistory = () => {
         </div>
       );
     }
-    
-    // Absent or no location
+
+    // Fallback for older records: show employee's assigned office (if available)
+    if (employeeOffice?.name) {
+      const locationParts = [employeeOffice.city, employeeOffice.country].filter(Boolean);
+      const locationText = locationParts.length > 0 ? locationParts.join(", ") : employeeOffice.name;
+      return (
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-sm truncate max-w-[150px]" title={locationText}>{locationText}</span>
+        </div>
+      );
+    }
+
+    // Default: show dash
     return <span className="text-sm text-muted-foreground/50">—</span>;
   };
 
@@ -398,22 +419,31 @@ const OrgAttendanceHistory = () => {
                   <div className="flex items-center gap-1.5">
                     <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
                     {record.status === "remote" ? (
-                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className="text-[8px] px-1 py-0 h-3.5 bg-accent/50 text-accent-foreground shrink-0"
+                      >
                         <Home className="h-2 w-2 mr-0.5" />WFH
                       </Badge>
                     ) : record.check_in_office_id ? (
-                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className="text-[8px] px-1 py-0 h-3.5 bg-primary/10 text-primary shrink-0"
+                      >
                         <Building2 className="h-2 w-2 mr-0.5" />Office
                       </Badge>
-                    ) : employee?.employee_schedules?.[0]?.work_location && (
-                      <Badge variant="secondary" className={cn(
-                        "text-[8px] px-1 py-0 h-3.5 shrink-0",
-                        employee.employee_schedules[0].work_location === "remote" 
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-                          : employee.employee_schedules[0].work_location === "hybrid"
-                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      )}>
+                    ) : employee?.employee_schedules?.[0]?.work_location ? (
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[8px] px-1 py-0 h-3.5 shrink-0",
+                          employee.employee_schedules[0].work_location === "remote"
+                            ? "bg-accent/50 text-accent-foreground"
+                            : employee.employee_schedules[0].work_location === "hybrid"
+                              ? "bg-secondary text-secondary-foreground"
+                              : "bg-primary/10 text-primary"
+                        )}
+                      >
                         {employee.employee_schedules[0].work_location === "remote" ? (
                           <><Home className="h-2 w-2 mr-0.5" />Remote</>
                         ) : employee.employee_schedules[0].work_location === "hybrid" ? (
@@ -422,7 +452,14 @@ const OrgAttendanceHistory = () => {
                           <><Building2 className="h-2 w-2 mr-0.5" />Office</>
                         )}
                       </Badge>
-                    )}
+                    ) : record.status === "present" ? (
+                      <Badge
+                        variant="secondary"
+                        className="text-[8px] px-1 py-0 h-3.5 bg-primary/10 text-primary shrink-0"
+                      >
+                        <Building2 className="h-2 w-2 mr-0.5" />Office
+                      </Badge>
+                    ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{employee?.position}</p>
                 </div>
@@ -798,22 +835,31 @@ const OrgAttendanceHistory = () => {
                                 <div className="flex items-center gap-2">
                                   <p className="font-medium text-sm truncate">{employee?.profiles?.full_name}</p>
                                   {record.status === "remote" ? (
-                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] px-1.5 py-0 h-4 bg-accent/50 text-accent-foreground shrink-0"
+                                    >
                                       <Home className="h-2.5 w-2.5 mr-0.5" />WFH
                                     </Badge>
                                   ) : record.check_in_office_id ? (
-                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary shrink-0"
+                                    >
                                       <Building2 className="h-2.5 w-2.5 mr-0.5" />Office
                                     </Badge>
-                                  ) : employee?.employee_schedules?.[0]?.work_location && (
-                                    <Badge variant="secondary" className={cn(
-                                      "text-[9px] px-1.5 py-0 h-4 shrink-0",
-                                      employee.employee_schedules[0].work_location === "remote" 
-                                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-                                        : employee.employee_schedules[0].work_location === "hybrid"
-                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                    )}>
+                                  ) : employee?.employee_schedules?.[0]?.work_location ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className={cn(
+                                        "text-[9px] px-1.5 py-0 h-4 shrink-0",
+                                        employee.employee_schedules[0].work_location === "remote"
+                                          ? "bg-accent/50 text-accent-foreground"
+                                          : employee.employee_schedules[0].work_location === "hybrid"
+                                            ? "bg-secondary text-secondary-foreground"
+                                            : "bg-primary/10 text-primary"
+                                      )}
+                                    >
                                       {employee.employee_schedules[0].work_location === "remote" ? (
                                         <><Home className="h-2.5 w-2.5 mr-0.5" />Remote</>
                                       ) : employee.employee_schedules[0].work_location === "hybrid" ? (
@@ -822,7 +868,14 @@ const OrgAttendanceHistory = () => {
                                         <><Building2 className="h-2.5 w-2.5 mr-0.5" />Office</>
                                       )}
                                     </Badge>
-                                  )}
+                                  ) : record.status === "present" ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary shrink-0"
+                                    >
+                                      <Building2 className="h-2.5 w-2.5 mr-0.5" />Office
+                                    </Badge>
+                                  ) : null}
                                 </div>
                                 <p className="text-xs text-muted-foreground truncate">{employee?.position}</p>
                               </div>

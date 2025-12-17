@@ -6628,7 +6628,6 @@ export type Database = {
         Returns: boolean
       }
       validate_qr_and_record_attendance:
-        | { Args: { _action: string; _qr_code: string }; Returns: Json }
         | {
             Args: {
               _action: string
