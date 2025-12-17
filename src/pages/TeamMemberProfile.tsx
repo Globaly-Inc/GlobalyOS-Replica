@@ -873,7 +873,7 @@ const TeamMemberProfile = () => {
                     <Target className="h-5 w-5 text-primary" />
                     KPIs
                   </h2>
-                  {isAdminOrHR && <ManageKPIsDialog employeeId={id!} organizationId={employee.organization_id} />}
+                  {isAdminOrHR && <ManageKPIsDialog employeeId={id!} organizationId={employee.organization_id} employeeRole={employee.position} department={employee.department} />}
                 </div>
                 <div className="p-0">
                   <AIKPIInsights employeeId={id!} embedded />
