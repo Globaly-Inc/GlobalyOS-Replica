@@ -1000,7 +1000,7 @@ const OrgAttendanceHistory = () => {
             </DropdownMenu>
             <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4" />
-              Auto
+              AI Email Reports
             </Button>
           </div>
         </div>
