@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -506,10 +507,19 @@ const TeamKPIDashboard = () => {
         )
       : 0;
     
+    // Find the most recent updated_at from KPIs
+    const lastUpdated = memberKPIs.length > 0
+      ? memberKPIs.reduce((latest, kpi) => {
+          const kpiDate = new Date(kpi.updated_at);
+          return kpiDate > latest ? kpiDate : latest;
+        }, new Date(0))
+      : null;
+    
     return {
       ...member,
       kpis: memberKPIs,
       avgProgress,
+      lastUpdated,
       onTrack: memberKPIs.filter(k => k.status === "on_track").length,
       atRisk: memberKPIs.filter(k => k.status === "at_risk").length,
       behind: memberKPIs.filter(k => k.status === "behind").length,
@@ -1318,27 +1328,34 @@ const TeamKPIDashboard = () => {
                               <Progress value={member.avgProgress} className="h-2" />
                             </div>
 
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {member.onTrack + member.completed > 0 && (
-                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
-                                  <CheckCircle className="h-3 w-3" />
-                                  {member.onTrack + member.completed}
-                                </Badge>
-                              )}
-                              {member.atRisk > 0 && (
-                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  {member.atRisk}
-                                </Badge>
-                              )}
-                              {member.behind > 0 && (
-                                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
-                                  <XCircle className="h-3 w-3" />
-                                  {member.behind}
-                                </Badge>
-                              )}
-                              {member.kpis.length === 0 && (
-                                <span className="text-xs text-muted-foreground">No KPIs</span>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {member.onTrack + member.completed > 0 && (
+                                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    {member.onTrack + member.completed}
+                                  </Badge>
+                                )}
+                                {member.atRisk > 0 && (
+                                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {member.atRisk}
+                                  </Badge>
+                                )}
+                                {member.behind > 0 && (
+                                  <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    {member.behind}
+                                  </Badge>
+                                )}
+                                {member.kpis.length === 0 && (
+                                  <span className="text-xs text-muted-foreground">No KPIs</span>
+                                )}
+                              </div>
+                              {member.lastUpdated && (
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(member.lastUpdated, "MMM d")}
+                                </span>
                               )}
                             </div>
                           </Card>
