@@ -419,7 +419,7 @@ export const AttendanceReportScheduleDialog = ({
                 <Label>Schedules</Label>
                 <Card className="p-3">
                   {/* Header Row */}
-                  <div className="grid grid-cols-[100px_1fr_70px_36px] gap-2 mb-2 text-xs font-medium text-muted-foreground px-1">
+                  <div className="grid grid-cols-[100px_1fr_96px_36px] gap-3 mb-2 text-xs font-medium text-muted-foreground px-1">
                     <span>Frequency</span>
                     <span>Day</span>
                     <span>Time</span>
@@ -429,7 +429,7 @@ export const AttendanceReportScheduleDialog = ({
                   {/* Schedule Rows */}
                   <div className="space-y-2">
                     {schedules.map((item) => (
-                      <div key={item.id} className="grid grid-cols-[100px_1fr_70px_36px] gap-2 items-center">
+                      <div key={item.id} className="grid grid-cols-[100px_1fr_96px_36px] gap-3 items-center">
                         <Select 
                           value={item.frequency} 
                           onValueChange={(val: ScheduleItem["frequency"]) => updateSchedule(item.id, { frequency: val })}
