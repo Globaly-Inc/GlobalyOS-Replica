@@ -142,6 +142,15 @@ const OrgAttendanceHistory = () => {
     return Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
   };
 
+  // Helper to format hours as "Xh Ym"
+  const formatHoursMinutes = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    if (h === 0) return `${m}m`;
+    return `${h}h ${m}m`;
+  };
+
   // Helper: Calculate break duration in hours from schedule
   const getBreakDuration = (scheduleData: any): number => {
     const schedule = getSchedule(scheduleData);
@@ -608,7 +617,7 @@ const OrgAttendanceHistory = () => {
                 <span>{format(parseISO(record.date), "EEE, MMM d")}</span>
               </div>
               <div className="flex flex-col items-end gap-0.5">
-                <span className="font-medium">{getNetHours(record.work_hours, employee?.employee_schedules).toFixed(1)}h</span>
+                <span className="font-medium">{formatHoursMinutes(getNetHours(record.work_hours, employee?.employee_schedules))}</span>
                 {record.work_hours && (() => {
                   const variance = getTimeVariance(record.work_hours, employee?.employee_schedules);
                   if (variance.status === 'onTime') {
@@ -873,7 +882,7 @@ const OrgAttendanceHistory = () => {
                 <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Absent</div>
               </Card>
               <Card className="flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
-                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalNetHours.toFixed(1)}h</div>
+                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.totalNetHours)}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Net Hours</div>
               </Card>
             </div>
@@ -1064,7 +1073,7 @@ const OrgAttendanceHistory = () => {
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{getNetHours(record.work_hours, employee?.employee_schedules).toFixed(1)}h</span>
+                                <span className="text-sm font-medium">{formatHoursMinutes(getNetHours(record.work_hours, employee?.employee_schedules))}</span>
                                 {record.work_hours && (
                                   <div className="hidden lg:block w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                                     <div 
