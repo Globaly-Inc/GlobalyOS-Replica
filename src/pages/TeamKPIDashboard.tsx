@@ -62,6 +62,7 @@ import {
   Calendar,
   CalendarDays,
   Plus,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
@@ -1240,32 +1241,179 @@ const TeamKPIDashboard = () => {
 
             {/* Overall Progress - Now with Individual/Group tabs */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Overall Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="individual" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="individual" className="gap-2">
-                      <Users className="h-4 w-4" />
-                      Individual
-                      <Badge variant="secondary" className="ml-1">
-                        {filteredTeamMembers.length}
-                      </Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="group" className="gap-2">
-                      <Building className="h-4 w-4" />
-                      Group
-                      <Badge variant="secondary" className="ml-1">
-                        {groupKpisByScope.length}
-                      </Badge>
-                    </TabsTrigger>
-                  </TabsList>
+              <Tabs defaultValue="all" className="w-full">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Overall Progress
+                    </CardTitle>
+                    <TabsList className="grid grid-cols-3 h-8">
+                      <TabsTrigger value="all" className="gap-1.5 text-xs px-2 sm:px-3">
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">All</span>
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5">
+                          {kpisByEmployee.length + groupKpisByScope.length}
+                        </Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="individual" className="gap-1.5 text-xs px-2 sm:px-3">
+                        <Users className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Individual</span>
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5">
+                          {kpisByEmployee.length}
+                        </Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="group" className="gap-1.5 text-xs px-2 sm:px-3">
+                        <Building className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Group</span>
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5">
+                          {groupKpisByScope.length}
+                        </Badge>
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <TabsContent value="all" className="mt-0">
+                    {kpisByEmployee.length === 0 && groupKpisByScope.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <LayoutGrid className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No KPIs found</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {/* Individual KPI cards */}
+                        {kpisByEmployee.map((member) => (
+                          <Card 
+                            key={`individual-${member.id}`} 
+                            className="p-4 hover:shadow-md transition-shadow border bg-card"
+                          >
+                            <div className="flex items-start gap-3 mb-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={(member.profiles as any)?.avatar_url} />
+                                <AvatarFallback>
+                                  {(member.profiles as any)?.full_name?.charAt(0) || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">
+                                  {(member.profiles as any)?.full_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {member.department}
+                                </p>
+                              </div>
+                              <OrgLink to={`/team/${member.id}`}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </OrgLink>
+                            </div>
+
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
+                                <span className="font-medium">{member.avgProgress}%</span>
+                              </div>
+                              <Progress value={member.avgProgress} className="h-2" />
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {member.onTrack + member.completed > 0 && (
+                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {member.onTrack + member.completed}
+                                </Badge>
+                              )}
+                              {member.atRisk > 0 && (
+                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {member.atRisk}
+                                </Badge>
+                              )}
+                              {member.behind > 0 && (
+                                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                                  <XCircle className="h-3 w-3" />
+                                  {member.behind}
+                                </Badge>
+                              )}
+                              {member.kpis.length === 0 && (
+                                <span className="text-xs text-muted-foreground">No KPIs</span>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                        {/* Group KPI cards */}
+                        {groupKpisByScope.map((group) => {
+                          const ScopeIcon = group.scopeType === 'department' 
+                            ? Building 
+                            : group.scopeType === 'office' 
+                              ? MapPin 
+                              : FolderKanban;
+                          const scopeLabel = group.scopeType === 'department'
+                            ? 'Department'
+                            : group.scopeType === 'office'
+                              ? 'Office'
+                              : 'Project';
+                          
+                          return (
+                            <Card 
+                              key={`group-${group.scopeId}`} 
+                              className="p-4 hover:shadow-md transition-shadow border bg-card"
+                            >
+                              <div className="flex items-start gap-3 mb-3">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <ScopeIcon className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">
+                                    {group.scopeName}
+                                  </p>
+                                  <Badge variant="outline" className="text-[10px] mt-0.5">
+                                    {scopeLabel}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="text-muted-foreground">{group.kpis.length} KPIs</span>
+                                  <span className="font-medium">{group.avgProgress}%</span>
+                                </div>
+                                <Progress value={group.avgProgress} className="h-2" />
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {group.onTrack + group.completed > 0 && (
+                                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    {group.onTrack + group.completed}
+                                  </Badge>
+                                )}
+                                {group.atRisk > 0 && (
+                                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {group.atRisk}
+                                  </Badge>
+                                )}
+                                {group.behind > 0 && (
+                                  <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    {group.behind}
+                                  </Badge>
+                                )}
+                                {group.kpis.length === 0 && (
+                                  <span className="text-xs text-muted-foreground">No KPIs</span>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
                   
-                  <TabsContent value="individual">
+                  <TabsContent value="individual" className="mt-0">
                     {kpisByEmployee.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1413,8 +1561,8 @@ const TeamKPIDashboard = () => {
                       </div>
                     )}
                   </TabsContent>
-                </Tabs>
-              </CardContent>
+                </CardContent>
+              </Tabs>
             </Card>
           </>
         )}
