@@ -142,6 +142,53 @@ const OrgAttendanceHistory = () => {
     return Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
   };
 
+  // Helper: Calculate break duration in hours from schedule
+  const getBreakDuration = (scheduleData: any): number => {
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.break_start_time || !schedule?.break_end_time) return 1; // default 1 hour
+    
+    const [startH, startM] = schedule.break_start_time.split(':').map(Number);
+    const [endH, endM] = schedule.break_end_time.split(':').map(Number);
+    
+    return (endH * 60 + endM - startH * 60 - startM) / 60;
+  };
+
+  // Helper: Calculate net hours (work_hours - break_duration)
+  const getNetHours = (workHours: number | null, scheduleData: any): number => {
+    if (!workHours) return 0;
+    const breakDuration = getBreakDuration(scheduleData);
+    return Math.max(0, workHours - breakDuration);
+  };
+
+  // Helper: Calculate expected net hours from schedule
+  const getExpectedNetHours = (scheduleData: any): number => {
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.work_start_time || !schedule?.work_end_time) return 8; // default 8 hours
+    
+    const [startH, startM] = schedule.work_start_time.split(':').map(Number);
+    const [endH, endM] = schedule.work_end_time.split(':').map(Number);
+    
+    const totalWorkHours = (endH * 60 + endM - startH * 60 - startM) / 60;
+    const breakDuration = getBreakDuration(scheduleData);
+    
+    return totalWorkHours - breakDuration;
+  };
+
+  // Helper: Get time variance status comparing actual vs expected net hours
+  const getTimeVariance = (workHours: number | null, scheduleData: any) => {
+    const netHours = getNetHours(workHours, scheduleData);
+    const expectedHours = getExpectedNetHours(scheduleData);
+    const diffMinutes = Math.round((netHours - expectedHours) * 60);
+    
+    if (Math.abs(diffMinutes) <= 5) {
+      return { status: 'onTime' as const, diff: null };
+    } else if (diffMinutes > 0) {
+      return { status: 'overTime' as const, diff: `+${diffMinutes}m` };
+    } else {
+      return { status: 'belowTime' as const, diff: `${diffMinutes}m` };
+    }
+  };
+
   // Helper function to check if check-in is late
   const isLateArrival = (record: any, scheduleData: any) => {
     if (!record.check_in_time || !scheduleData) return false;
@@ -192,7 +239,7 @@ const OrgAttendanceHistory = () => {
             position,
             office_id,
             profiles!inner(full_name, avatar_url),
-            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes),
+            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time),
             office:offices!employees_office_id_fkey(
               id,
               name,
@@ -348,7 +395,10 @@ const OrgAttendanceHistory = () => {
       present: filteredRecords.filter((r) => r.status === "present").length,
       absent: filteredRecords.filter((r) => r.status === "absent").length,
       late: filteredRecords.filter((r) => r.status === "late").length,
-      totalHours: filteredRecords.reduce((sum, r) => sum + (r.work_hours || 0), 0),
+      totalNetHours: filteredRecords.reduce((sum, r) => {
+        const employee = r.employee as any;
+        return sum + getNetHours(r.work_hours, employee?.employee_schedules);
+      }, 0),
     };
   }, [filteredRecords]);
 
@@ -390,11 +440,12 @@ const OrgAttendanceHistory = () => {
       ? filteredRecords.filter((r) => selectedRecords.has(r.id))
       : filteredRecords;
 
-    const headers = ["Employee", "Position", "Department", "Date", "Check In", "Check Out", "Work Hours", "Status", "Location"];
+    const headers = ["Employee", "Position", "Department", "Date", "Check In", "Check Out", "Net Hours", "Status", "Location"];
     const rows = dataToExport.map((record) => {
       const employee = record.employee as any;
       const office = record.check_in_office as any;
       const location = record.status === "remote" ? "WFH" : (office?.name || "Office");
+      const netHours = getNetHours(record.work_hours, employee?.employee_schedules);
       return [
         employee?.profiles?.full_name || "",
         employee?.position || "",
@@ -402,7 +453,7 @@ const OrgAttendanceHistory = () => {
         format(parseISO(record.date), "yyyy-MM-dd"),
         record.check_in_time ? format(new Date(record.check_in_time), "HH:mm") : "",
         record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "",
-        record.work_hours?.toFixed(2) || "",
+        netHours.toFixed(2),
         record.status,
         location,
       ];
@@ -556,7 +607,31 @@ const OrgAttendanceHistory = () => {
                 <CalendarIcon className="h-3.5 w-3.5" />
                 <span>{format(parseISO(record.date), "EEE, MMM d")}</span>
               </div>
-              <span className="font-medium">{record.work_hours?.toFixed(1) || "0"}h</span>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="font-medium">{getNetHours(record.work_hours, employee?.employee_schedules).toFixed(1)}h</span>
+                {record.work_hours && (() => {
+                  const variance = getTimeVariance(record.work_hours, employee?.employee_schedules);
+                  if (variance.status === 'onTime') {
+                    return (
+                      <Badge className="text-[8px] px-1 py-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        On Time
+                      </Badge>
+                    );
+                  } else if (variance.status === 'overTime') {
+                    return (
+                      <Badge className="text-[8px] px-1 py-0 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        Over Time {variance.diff}
+                      </Badge>
+                    );
+                  } else {
+                    return (
+                      <Badge className="text-[8px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        Below Time {variance.diff}
+                      </Badge>
+                    );
+                  }
+                })()}
+              </div>
             </div>
             
             {/* Check In/Out + Status Row */}
@@ -798,8 +873,8 @@ const OrgAttendanceHistory = () => {
                 <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Absent</div>
               </Card>
               <Card className="flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
-                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalHours.toFixed(1)}h</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Hours</div>
+                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalNetHours.toFixed(1)}h</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Net Hours</div>
               </Card>
             </div>
           </div>
@@ -864,7 +939,7 @@ const OrgAttendanceHistory = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Check In</TableHead>
                       <TableHead>Check Out</TableHead>
-                      <TableHead>Hours</TableHead>
+                      <TableHead>Net Hours</TableHead>
                       
                       <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
@@ -987,19 +1062,47 @@ const OrgAttendanceHistory = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{record.work_hours?.toFixed(1) || "0"}h</span>
-                              {record.work_hours && (
-                                <div className="hidden lg:block w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div 
-                                    className={cn(
-                                      "h-full rounded-full",
-                                      record.work_hours >= 8 ? "bg-green-500" : record.work_hours >= 6 ? "bg-yellow-500" : "bg-red-500"
-                                    )}
-                                    style={{ width: `${Math.min(100, (record.work_hours / 8) * 100)}%` }}
-                                  />
-                                </div>
-                              )}
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{getNetHours(record.work_hours, employee?.employee_schedules).toFixed(1)}h</span>
+                                {record.work_hours && (
+                                  <div className="hidden lg:block w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                      className={cn(
+                                        "h-full rounded-full",
+                                        getNetHours(record.work_hours, employee?.employee_schedules) >= getExpectedNetHours(employee?.employee_schedules) 
+                                          ? "bg-green-500" 
+                                          : getNetHours(record.work_hours, employee?.employee_schedules) >= getExpectedNetHours(employee?.employee_schedules) * 0.9 
+                                            ? "bg-yellow-500" 
+                                            : "bg-red-500"
+                                      )}
+                                      style={{ width: `${Math.min(100, (getNetHours(record.work_hours, employee?.employee_schedules) / getExpectedNetHours(employee?.employee_schedules)) * 100)}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              {record.work_hours && (() => {
+                                const variance = getTimeVariance(record.work_hours, employee?.employee_schedules);
+                                if (variance.status === 'onTime') {
+                                  return (
+                                    <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                      On Time
+                                    </Badge>
+                                  );
+                                } else if (variance.status === 'overTime') {
+                                  return (
+                                    <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                      Over Time {variance.diff}
+                                    </Badge>
+                                  );
+                                } else {
+                                  return (
+                                    <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                      Below Time {variance.diff}
+                                    </Badge>
+                                  );
+                                }
+                              })()}
                             </div>
                           </TableCell>
                           
