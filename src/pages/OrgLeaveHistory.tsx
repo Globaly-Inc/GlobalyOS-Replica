@@ -32,6 +32,7 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustmentDialog";
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
+import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 
 interface LeaveTransaction {
   id: string;
@@ -702,6 +703,23 @@ const OrgLeaveHistory = () => {
         </Card>
       </div>
 
+      {/* Leave Analytics Chart */}
+      <LeaveAnalyticsChart 
+        transactions={transactions.map(t => ({
+          id: t.id,
+          type: t.type,
+          leave_type: t.leave_type,
+          effective_date: t.effective_date,
+          end_date: t.end_date,
+          days: t.days,
+          reason: t.reason || '',
+          status: t.status || '',
+          employee_id: t.employee.id,
+          employee_name: t.employee.profiles.full_name,
+          employee_avatar: t.employee.profiles.avatar_url || undefined,
+        }))}
+        yearFilter={yearFilter}
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
