@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -496,6 +497,78 @@ const TeamKPIDashboard = () => {
       completed: memberKPIs.filter(k => k.status === "completed").length,
     };
   }).sort((a, b) => b.kpis.length - a.kpis.length);
+
+  // Aggregate group KPIs by scope (department/office/project)
+  const groupKpisByScope = useMemo(() => {
+    const scopeMap = new Map<string, {
+      scopeType: 'department' | 'office' | 'project';
+      scopeName: string;
+      scopeId: string;
+      kpis: typeof groupKpis;
+      avgProgress: number;
+      onTrack: number;
+      atRisk: number;
+      behind: number;
+      completed: number;
+    }>();
+
+    groupKpis.forEach(kpi => {
+      let key: string;
+      let name: string;
+      let scopeType: 'department' | 'office' | 'project';
+      
+      if (kpi.scope_type === 'department') {
+        key = `department-${kpi.scope_department}`;
+        name = kpi.scope_department || 'Unknown';
+        scopeType = 'department';
+      } else if (kpi.scope_type === 'office') {
+        key = `office-${kpi.scope_office_id}`;
+        name = (kpi as any).office?.name || offices.find(o => o.id === kpi.scope_office_id)?.name || 'Unknown Office';
+        scopeType = 'office';
+      } else {
+        key = `project-${kpi.scope_project_id}`;
+        name = (kpi as any).project?.name || projects.find(p => p.id === kpi.scope_project_id)?.name || 'Unknown Project';
+        scopeType = 'project';
+      }
+      
+      if (!scopeMap.has(key)) {
+        scopeMap.set(key, {
+          scopeType,
+          scopeName: name,
+          scopeId: key,
+          kpis: [],
+          avgProgress: 0,
+          onTrack: 0,
+          atRisk: 0,
+          behind: 0,
+          completed: 0,
+        });
+      }
+      
+      const group = scopeMap.get(key)!;
+      group.kpis.push(kpi);
+      
+      // Update status counts
+      if (kpi.status === 'on_track') group.onTrack++;
+      else if (kpi.status === 'at_risk') group.atRisk++;
+      else if (kpi.status === 'behind') group.behind++;
+      else if (kpi.status === 'completed' || kpi.status === 'achieved') group.completed++;
+    });
+
+    // Calculate average progress for each group
+    scopeMap.forEach(group => {
+      const kpisWithTarget = group.kpis.filter(k => k.target_value);
+      group.avgProgress = kpisWithTarget.length > 0
+        ? Math.round(
+            kpisWithTarget.reduce((acc, kpi) => {
+              return acc + ((kpi.current_value || 0) / (kpi.target_value || 1)) * 100;
+            }, 0) / kpisWithTarget.length
+          )
+        : 0;
+    });
+
+    return Array.from(scopeMap.values()).sort((a, b) => b.kpis.length - a.kpis.length);
+  }, [groupKpis, offices, projects]);
 
   const isLoading = loadingTeam || loadingKPIs;
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all";
@@ -1147,87 +1220,182 @@ const TeamKPIDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Team Progress Overview - Now as 3-column grid */}
+            {/* Overall Progress - Now with Individual/Group tabs */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Team Progress
-                  <Badge variant="secondary" className="ml-2">
-                    {filteredTeamMembers.length} members
-                  </Badge>
+                  <BarChart3 className="h-4 w-4" />
+                  Overall Progress
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {kpisByEmployee.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No team members match the selected filters</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {kpisByEmployee.map((member) => (
-                      <Card 
-                        key={member.id} 
-                        className="p-4 hover:shadow-md transition-shadow border bg-card"
-                      >
-                        <div className="flex items-start gap-3 mb-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={(member.profiles as any)?.avatar_url} />
-                            <AvatarFallback>
-                              {(member.profiles as any)?.full_name?.charAt(0) || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">
-                              {(member.profiles as any)?.full_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {member.department}
-                            </p>
-                          </div>
-                          <OrgLink to={`/team/${member.id}`}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </OrgLink>
-                        </div>
+                <Tabs defaultValue="individual" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="individual" className="gap-2">
+                      <Users className="h-4 w-4" />
+                      Individual
+                      <Badge variant="secondary" className="ml-1">
+                        {filteredTeamMembers.length}
+                      </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="group" className="gap-2">
+                      <Building className="h-4 w-4" />
+                      Group
+                      <Badge variant="secondary" className="ml-1">
+                        {groupKpisByScope.length}
+                      </Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="individual">
+                    {kpisByEmployee.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No team members match the selected filters</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {kpisByEmployee.map((member) => (
+                          <Card 
+                            key={member.id} 
+                            className="p-4 hover:shadow-md transition-shadow border bg-card"
+                          >
+                            <div className="flex items-start gap-3 mb-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={(member.profiles as any)?.avatar_url} />
+                                <AvatarFallback>
+                                  {(member.profiles as any)?.full_name?.charAt(0) || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">
+                                  {(member.profiles as any)?.full_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {member.department}
+                                </p>
+                              </div>
+                              <OrgLink to={`/team/${member.id}`}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </OrgLink>
+                            </div>
 
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
-                            <span className="font-medium">{member.avgProgress}%</span>
-                          </div>
-                          <Progress value={member.avgProgress} className="h-2" />
-                        </div>
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
+                                <span className="font-medium">{member.avgProgress}%</span>
+                              </div>
+                              <Progress value={member.avgProgress} className="h-2" />
+                            </div>
 
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {member.onTrack + member.completed > 0 && (
-                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              {member.onTrack + member.completed}
-                            </Badge>
-                          )}
-                          {member.atRisk > 0 && (
-                            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {member.atRisk}
-                            </Badge>
-                          )}
-                          {member.behind > 0 && (
-                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
-                              <XCircle className="h-3 w-3" />
-                              {member.behind}
-                            </Badge>
-                          )}
-                          {member.kpis.length === 0 && (
-                            <span className="text-xs text-muted-foreground">No KPIs</span>
-                          )}
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {member.onTrack + member.completed > 0 && (
+                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {member.onTrack + member.completed}
+                                </Badge>
+                              )}
+                              {member.atRisk > 0 && (
+                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {member.atRisk}
+                                </Badge>
+                              )}
+                              {member.behind > 0 && (
+                                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                                  <XCircle className="h-3 w-3" />
+                                  {member.behind}
+                                </Badge>
+                              )}
+                              {member.kpis.length === 0 && (
+                                <span className="text-xs text-muted-foreground">No KPIs</span>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="group">
+                    {groupKpisByScope.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Building className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No group KPIs found</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {groupKpisByScope.map((group) => {
+                          const ScopeIcon = group.scopeType === 'department' 
+                            ? Building 
+                            : group.scopeType === 'office' 
+                              ? MapPin 
+                              : FolderKanban;
+                          const scopeLabel = group.scopeType === 'department'
+                            ? 'Department'
+                            : group.scopeType === 'office'
+                              ? 'Office'
+                              : 'Project';
+                          
+                          return (
+                            <Card 
+                              key={group.scopeId} 
+                              className="p-4 hover:shadow-md transition-shadow border bg-card"
+                            >
+                              <div className="flex items-start gap-3 mb-3">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <ScopeIcon className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">
+                                    {group.scopeName}
+                                  </p>
+                                  <Badge variant="outline" className="text-[10px] mt-0.5">
+                                    {scopeLabel}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="text-muted-foreground">{group.kpis.length} KPIs</span>
+                                  <span className="font-medium">{group.avgProgress}%</span>
+                                </div>
+                                <Progress value={group.avgProgress} className="h-2" />
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {group.onTrack + group.completed > 0 && (
+                                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    {group.onTrack + group.completed}
+                                  </Badge>
+                                )}
+                                {group.atRisk > 0 && (
+                                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {group.atRisk}
+                                  </Badge>
+                                )}
+                                {group.behind > 0 && (
+                                  <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    {group.behind}
+                                  </Badge>
+                                )}
+                                {group.kpis.length === 0 && (
+                                  <span className="text-xs text-muted-foreground">No KPIs</span>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </>
