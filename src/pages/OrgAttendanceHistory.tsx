@@ -96,6 +96,36 @@ const OrgAttendanceHistory = () => {
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
 
+  // Helper function to check if check-in is late
+  const isLateArrival = (record: any, schedules: any[]) => {
+    if (!record.check_in_time || !schedules?.[0]) return false;
+    const schedule = schedules[0];
+    if (!schedule.work_start_time || schedule.late_threshold_minutes === null) return false;
+    
+    const checkInTime = new Date(record.check_in_time);
+    const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
+    
+    const workStartWithThreshold = new Date(checkInTime);
+    workStartWithThreshold.setHours(startHours, startMinutes + (schedule.late_threshold_minutes || 0), 0, 0);
+    
+    return checkInTime > workStartWithThreshold;
+  };
+
+  // Helper function to check if check-out is early
+  const isEarlyDeparture = (record: any, schedules: any[]) => {
+    if (!record.check_out_time || !schedules?.[0]) return false;
+    const schedule = schedules[0];
+    if (!schedule.work_end_time) return false;
+    
+    const checkOutTime = new Date(record.check_out_time);
+    const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
+    
+    const workEndTime = new Date(checkOutTime);
+    workEndTime.setHours(endHours, endMinutes, 0, 0);
+    
+    return checkOutTime < workEndTime;
+  };
+
   // Fetch all attendance records for the organization with office data and employee schedule
   const { data: records, isLoading } = useQuery({
     queryKey: ["org-attendance", currentOrg?.id, format(monthStart, "yyyy-MM"), statusFilter, dateFilter, departmentFilter],
@@ -110,7 +140,7 @@ const OrgAttendanceHistory = () => {
             position,
             office_id,
             profiles!inner(full_name, avatar_url),
-            employee_schedules(work_location),
+            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes),
             office:offices!employees_office_id_fkey(
               id,
               name,
@@ -482,11 +512,21 @@ const OrgAttendanceHistory = () => {
                 <div className="flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
                   <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                  {isLateArrival(record, employee?.employee_schedules) && (
+                    <Badge variant="secondary" className="text-[7px] px-0.5 py-0 h-3 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      Late
+                    </Badge>
+                  )}
                 </div>
                 <span className="text-muted-foreground">→</span>
                 <div className="flex items-center gap-1">
                   <XCircle className="h-3 w-3 text-red-500" />
                   <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                  {isEarlyDeparture(record, employee?.employee_schedules) && (
+                    <Badge variant="secondary" className="text-[7px] px-0.5 py-0 h-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                      Early
+                    </Badge>
+                  )}
                 </div>
               </div>
               {getStatusBadge(record.status)}
@@ -892,12 +932,22 @@ const OrgAttendanceHistory = () => {
                             <div className="flex items-center gap-1.5 text-sm">
                               <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                               <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                              {isLateArrival(record, employee?.employee_schedules) && (
+                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                  <Clock className="h-2 w-2 mr-0.5" />Late
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5 text-sm">
                               <XCircle className="h-3.5 w-3.5 text-red-500" />
                               <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                              {isEarlyDeparture(record, employee?.employee_schedules) && (
+                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                  <Clock className="h-2 w-2 mr-0.5" />Early
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
