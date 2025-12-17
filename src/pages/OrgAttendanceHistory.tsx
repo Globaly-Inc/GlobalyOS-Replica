@@ -51,11 +51,7 @@ import {
   Trash2,
   Building2,
   Home,
-  MapPin,
-  TrendingUp,
-  LogOut,
-  Activity,
-  Timer
+  MapPin
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,7 +75,6 @@ interface AttendanceRecord {
 }
 
 type DateRangeOption = 'today' | 'last7days' | 'last14days' | 'last30days' | 'thisMonth' | 'lastMonth' | 'custom';
-type StatusFilter = 'all' | 'onTime' | 'late' | 'early' | 'office' | 'remote' | 'absent';
 
 const OrgAttendanceHistory = () => {
   const { currentOrg } = useOrganization();
@@ -89,7 +84,7 @@ const OrgAttendanceHistory = () => {
   const isMobile = useIsMobile();
   const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeOption>('today');
   const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -309,7 +304,7 @@ const OrgAttendanceHistory = () => {
     return Array.from(officeMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [records]);
 
-  // Filter records based on status filter and other criteria
+  // Filter records
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     return records.filter((record) => {
@@ -325,36 +320,10 @@ const OrgAttendanceHistory = () => {
       } else if (locationFilter !== "all") {
         matchesLocation = record.check_in_office_id === locationFilter;
       }
-
-      // Status filter based on new metrics
-      let matchesStatus = true;
-      if (statusFilter !== "all") {
-        const scheduleData = employee?.employee_schedules;
-        switch (statusFilter) {
-          case "onTime":
-            matchesStatus = record.check_in_time && !isLateArrival(record, scheduleData);
-            break;
-          case "late":
-            matchesStatus = isLateArrival(record, scheduleData);
-            break;
-          case "early":
-            matchesStatus = isEarlyDeparture(record, scheduleData);
-            break;
-          case "office":
-            matchesStatus = record.status !== "remote" && record.status !== "absent";
-            break;
-          case "remote":
-            matchesStatus = record.status === "remote";
-            break;
-          case "absent":
-            matchesStatus = record.status === "absent";
-            break;
-        }
-      }
       
-      return matchesSearch && matchesDepartment && matchesLocation && matchesStatus;
+      return matchesSearch && matchesDepartment && matchesLocation;
     });
-  }, [records, searchQuery, departmentFilter, locationFilter, statusFilter]);
+  }, [records, searchQuery, departmentFilter, locationFilter]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -427,69 +396,20 @@ const OrgAttendanceHistory = () => {
       .slice(0, 2);
   };
 
-  // Calculate stats - 8 industry-standard metrics
+  // Calculate stats
   const stats = useMemo(() => {
-    if (!records) return null;
-    
-    let onTime = 0, lateArrivals = 0, earlyDepartures = 0;
-    let inOffice = 0, remote = 0, absent = 0;
-    let totalNetHours = 0;
-    let employeesWithCheckIn = 0;
-    
-    records.forEach((r) => {
-      const employee = r.employee as any;
-      const scheduleData = employee?.employee_schedules;
-      
-      // Absent check
-      if (r.status === "absent") {
-        absent++;
-        return;
-      }
-      
-      // Calculate net hours
-      totalNetHours += getNetHours(r.work_hours, scheduleData);
-      
-      // Punctuality metrics (only for records with check-in)
-      if (r.check_in_time) {
-        employeesWithCheckIn++;
-        if (isLateArrival(r, scheduleData)) {
-          lateArrivals++;
-        } else {
-          onTime++;
-        }
-      }
-      
-      // Early departure (only for records with check-out)
-      if (r.check_out_time && isEarlyDeparture(r, scheduleData)) {
-        earlyDepartures++;
-      }
-      
-      // Location metrics
-      if (r.status === "remote") {
-        remote++;
-      } else {
-        inOffice++;
-      }
-    });
-    
-    const total = records.length;
-    const present = total - absent;
-    const attendanceRate = total > 0 ? Math.round((present / total) * 100) : 0;
-    const avgNetHours = employeesWithCheckIn > 0 ? totalNetHours / employeesWithCheckIn : 0;
-    
+    if (!filteredRecords) return null;
     return {
-      total,
-      attendanceRate,
-      onTime,
-      lateArrivals,
-      earlyDepartures,
-      inOffice,
-      remote,
-      avgNetHours,
-      absent,
-      totalNetHours,
+      total: filteredRecords.length,
+      present: filteredRecords.filter((r) => r.status === "present").length,
+      absent: filteredRecords.filter((r) => r.status === "absent").length,
+      late: filteredRecords.filter((r) => r.status === "late").length,
+      totalNetHours: filteredRecords.reduce((sum, r) => {
+        const employee = r.employee as any;
+        return sum + getNetHours(r.work_hours, employee?.employee_schedules);
+      }, 0),
     };
-  }, [records]);
+  }, [filteredRecords]);
 
   const dateRangeOptions: { value: DateRangeOption; label: string }[] = [
     { value: 'today', label: 'Today' },
@@ -560,7 +480,7 @@ const OrgAttendanceHistory = () => {
   };
 
   // Click on stat card to filter
-  const handleStatClick = (status: StatusFilter) => {
+  const handleStatClick = (status: string) => {
     setStatusFilter(status === statusFilter ? "all" : status);
   };
 
@@ -914,133 +834,56 @@ const OrgAttendanceHistory = () => {
           </div>
         </div>
 
-        {/* Stats Cards - 8 Industry-Standard Metrics */}
+        {/* Stats Cards - Clickable Filters */}
         {stats && (
           <div className="px-4 md:px-0">
-            {/* Row 1: Attendance Rate, On Time, Late Arrivals, Early Departures */}
-            <div className="grid grid-cols-4 gap-2 md:gap-3 mb-2 md:mb-3">
-              {/* Attendance Rate */}
+            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:grid md:grid-cols-5 md:gap-3 scrollbar-hide">
               <Card 
                 className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "all" ? "ring-1 ring-primary/30" : "",
-                  "bg-primary/5 border-primary/20"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "all" ? "bg-primary/10 border-primary/30 ring-1 ring-primary/20" : "bg-muted/30"
                 )}
                 onClick={() => handleStatClick("all")}
               >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Activity className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-primary">{stats.attendanceRate}%</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Attendance</div>
+                <div className="text-lg md:text-2xl font-bold text-primary">{stats.total}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Records</div>
               </Card>
-              
-              {/* On Time */}
               <Card 
                 className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "onTime" ? "ring-1 ring-green-500/30" : "",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "present" ? "ring-1 ring-green-500/30" : "",
                   "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50"
                 )}
-                onClick={() => handleStatClick("onTime")}
+                onClick={() => handleStatClick("present")}
               >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-green-600 dark:text-green-400">{stats.onTime}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">On Time</div>
+                <div className="text-lg md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Present</div>
               </Card>
-              
-              {/* Late Arrivals */}
               <Card 
                 className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "late" ? "ring-1 ring-amber-500/30" : "",
-                  "bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900/50"
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  statusFilter === "late" ? "ring-1 ring-yellow-500/30" : "",
+                  "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50"
                 )}
                 onClick={() => handleStatClick("late")}
               >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Clock className="h-3 w-3 md:h-4 md:w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-amber-600 dark:text-amber-400">{stats.lateArrivals}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Late</div>
+                <div className="text-lg md:text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Late</div>
               </Card>
-              
-              {/* Early Departures */}
               <Card 
                 className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "early" ? "ring-1 ring-orange-500/30" : "",
-                  "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900/50"
-                )}
-                onClick={() => handleStatClick("early")}
-              >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <LogOut className="h-3 w-3 md:h-4 md:w-4 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-orange-600 dark:text-orange-400">{stats.earlyDepartures}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Early Out</div>
-              </Card>
-            </div>
-            
-            {/* Row 2: In Office, Remote/WFH, Avg Net Hours, Absent */}
-            <div className="grid grid-cols-4 gap-2 md:gap-3">
-              {/* In Office */}
-              <Card 
-                className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "office" ? "ring-1 ring-slate-500/30" : "",
-                  "bg-slate-50 dark:bg-slate-950/30 border-slate-100 dark:border-slate-900/50"
-                )}
-                onClick={() => handleStatClick("office")}
-              >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Building2 className="h-3 w-3 md:h-4 md:w-4 text-slate-600 dark:text-slate-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-slate-600 dark:text-slate-400">{stats.inOffice}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">In Office</div>
-              </Card>
-              
-              {/* Remote/WFH */}
-              <Card 
-                className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
-                  statusFilter === "remote" ? "ring-1 ring-purple-500/30" : "",
-                  "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900/50"
-                )}
-                onClick={() => handleStatClick("remote")}
-              >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Home className="h-3 w-3 md:h-4 md:w-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-purple-600 dark:text-purple-400">{stats.remote}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Remote</div>
-              </Card>
-              
-              {/* Avg Net Hours */}
-              <Card className="p-2 md:p-3 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.avgNetHours)}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Avg Hours</div>
-              </Card>
-              
-              {/* Absent */}
-              <Card 
-                className={cn(
-                  "p-2 md:p-3 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
+                  "flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]",
                   statusFilter === "absent" ? "ring-1 ring-red-500/30" : "",
                   "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50"
                 )}
                 onClick={() => handleStatClick("absent")}
               >
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <XCircle className="h-3 w-3 md:h-4 md:w-4 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="text-base md:text-xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
-                <div className="text-[9px] md:text-xs text-muted-foreground">Absent</div>
+                <div className="text-lg md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Absent</div>
+              </Card>
+              <Card className="flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
+                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.totalNetHours)}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Net Hours</div>
               </Card>
             </div>
           </div>

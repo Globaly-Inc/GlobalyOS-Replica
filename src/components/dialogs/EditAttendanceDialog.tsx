@@ -90,9 +90,10 @@ export const EditAttendanceDialog = ({
       // Construct full datetime strings
       const checkInDateTime = checkInTime ? `${recordDate}T${checkInTime}:00` : null;
       const checkOutDateTime = checkOutTime ? `${recordDate}T${checkOutTime}:00` : null;
+      const workHours = calculateWorkHours(checkInTime, checkOutTime);
 
       if (isEditing && record) {
-        // Update existing record - do NOT include work_hours as it's auto-calculated
+        // Update existing record
         const { error } = await supabase
           .from("attendance_records")
           .update({
@@ -101,13 +102,14 @@ export const EditAttendanceDialog = ({
             check_out_time: checkOutDateTime,
             status: "present",
             notes: notes || null,
+            work_hours: workHours,
           })
           .eq("id", record.id);
 
         if (error) throw error;
         toast.success("Attendance record updated");
       } else {
-        // Insert new record - do NOT include work_hours as it's auto-calculated
+        // Insert new record
         const { error } = await supabase
           .from("attendance_records")
           .insert({
@@ -118,6 +120,7 @@ export const EditAttendanceDialog = ({
             check_out_time: checkOutDateTime,
             status: "present",
             notes: notes || null,
+            work_hours: workHours,
           });
 
         if (error) throw error;
