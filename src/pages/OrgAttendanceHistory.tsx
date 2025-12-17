@@ -96,27 +96,30 @@ const OrgAttendanceHistory = () => {
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  // Calculate date range based on filter option
+  // Calculate date range based on filter option - use UTC dates to match database storage
   const dateRange = useMemo(() => {
-    const today = new Date();
+    const now = new Date();
+    // Create UTC-based "today" to match how attendance records are stored
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    
     switch (dateRangeFilter) {
       case 'today':
-        return { start: today, end: today };
+        return { start: todayUTC, end: todayUTC };
       case 'last7days':
-        return { start: subDays(today, 6), end: today };
+        return { start: subDays(todayUTC, 6), end: todayUTC };
       case 'last14days':
-        return { start: subDays(today, 13), end: today };
+        return { start: subDays(todayUTC, 13), end: todayUTC };
       case 'last30days':
-        return { start: subDays(today, 29), end: today };
+        return { start: subDays(todayUTC, 29), end: todayUTC };
       case 'thisMonth':
-        return { start: startOfMonth(today), end: endOfMonth(today) };
+        return { start: startOfMonth(todayUTC), end: endOfMonth(todayUTC) };
       case 'lastMonth':
-        const lastMonth = subMonths(today, 1);
+        const lastMonth = subMonths(todayUTC, 1);
         return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
       case 'custom':
-        return { start: customDateRange.from || today, end: customDateRange.to || today };
+        return { start: customDateRange.from || todayUTC, end: customDateRange.to || todayUTC };
       default:
-        return { start: today, end: today };
+        return { start: todayUTC, end: todayUTC };
     }
   }, [dateRangeFilter, customDateRange]);
 
