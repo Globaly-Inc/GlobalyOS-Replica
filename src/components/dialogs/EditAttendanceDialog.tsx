@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -43,7 +42,6 @@ export const EditAttendanceDialog = ({
   const [saving, setSaving] = useState(false);
   const [checkInTime, setCheckInTime] = useState("");
   const [checkOutTime, setCheckOutTime] = useState("");
-  const [status, setStatus] = useState("present");
   const [notes, setNotes] = useState("");
   const [recordDate, setRecordDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
@@ -55,14 +53,12 @@ export const EditAttendanceDialog = ({
         // Extract time from datetime for existing record
         setCheckInTime(record.check_in_time ? format(new Date(record.check_in_time), "HH:mm") : "");
         setCheckOutTime(record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "");
-        setStatus(record.status || "present");
         setNotes(record.notes || "");
         setRecordDate(record.date);
       } else {
         // Reset for new record
         setCheckInTime("09:00");
         setCheckOutTime("");
-        setStatus("present");
         setNotes("");
         setRecordDate(date || format(new Date(), "yyyy-MM-dd"));
       }
@@ -104,7 +100,7 @@ export const EditAttendanceDialog = ({
             date: recordDate,
             check_in_time: checkInDateTime,
             check_out_time: checkOutDateTime,
-            status,
+            status: "present",
             notes: notes || null,
             work_hours: workHours,
           })
@@ -122,7 +118,7 @@ export const EditAttendanceDialog = ({
             date: recordDate,
             check_in_time: checkInDateTime,
             check_out_time: checkOutDateTime,
-            status,
+            status: "present",
             notes: notes || null,
             work_hours: workHours,
           });
@@ -180,21 +176,6 @@ export const EditAttendanceDialog = ({
                 onChange={(e) => setCheckOutTime(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="present">Present</SelectItem>
-                <SelectItem value="late">Late</SelectItem>
-                <SelectItem value="half_day">Half Day</SelectItem>
-                <SelectItem value="absent">Absent</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +18,7 @@ import { toast } from "sonner";
 import { Camera, Loader2, CheckCircle2, XCircle, MapPin, AlertTriangle, Clock } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface QRScannerDialogProps {
   open: boolean;
@@ -24,17 +27,21 @@ interface QRScannerDialogProps {
 
 export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) => {
   const { user } = useAuth();
+  const { currentOrg } = useOrganization();
   const [isScanning, setIsScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [loading, setLoading] = useState(true);
   const [sessionCount, setSessionCount] = useState(0);
+  const [maxSessions, setMaxSessions] = useState(3);
   const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied" | "unavailable">("pending");
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [employeeSchedule, setEmployeeSchedule] = useState<{ work_end_time: string } | null>(null);
   const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false);
   const [pendingQrCode, setPendingQrCode] = useState<string | null>(null);
+  const [earlyCheckoutReason, setEarlyCheckoutReason] = useState("");
+  const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +82,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     requestLocation();
   }, [open]);
 
-  // Determine current action based on today's attendance and fetch schedule
+  // Determine current action based on today's attendance and fetch schedule + org settings
   useEffect(() => {
     const fetchAttendanceStatus = async () => {
       if (!open || !user?.id) return;
@@ -84,13 +91,25 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
       try {
         const { data: employee } = await supabase
           .from("employees")
-          .select("id")
+          .select("id, organization_id")
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (!employee) {
           setLoading(false);
           return;
+        }
+
+        // Fetch organization settings
+        const { data: orgSettings } = await supabase
+          .from("organizations")
+          .select("max_sessions_per_day, early_checkout_reason_required")
+          .eq("id", employee.organization_id)
+          .single();
+
+        if (orgSettings) {
+          setMaxSessions(orgSettings.max_sessions_per_day ?? 3);
+          setEarlyCheckoutReasonRequired(orgSettings.early_checkout_reason_required ?? true);
         }
 
         // Fetch employee schedule
@@ -160,6 +179,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
       setEmployeeSchedule(null);
       setShowEarlyCheckoutWarning(false);
       setPendingQrCode(null);
+      setEarlyCheckoutReason("");
     }
   }, [open]);
 
@@ -231,15 +251,16 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     await processCheckout(qrCode);
   };
 
-  const processCheckout = async (qrCode: string) => {
+  const processCheckout = async (qrCode: string, reason?: string) => {
     setProcessing(true);
     try {
-      // Include location in the RPC call
+      // Include location and early checkout reason in the RPC call
       const { data, error } = await supabase.rpc("validate_qr_and_record_attendance", {
         _qr_code: qrCode,
         _action: currentAction,
         _user_latitude: userLocation?.latitude ?? null,
         _user_longitude: userLocation?.longitude ?? null,
+        _early_checkout_reason: reason || null,
       });
 
       if (error) throw error;
@@ -280,16 +301,22 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   };
 
   const handleProceedWithEarlyCheckout = async () => {
+    if (earlyCheckoutReasonRequired && !earlyCheckoutReason.trim()) {
+      toast.error("Please provide a reason for early checkout");
+      return;
+    }
     setShowEarlyCheckoutWarning(false);
     if (pendingQrCode) {
-      await processCheckout(pendingQrCode);
+      await processCheckout(pendingQrCode, earlyCheckoutReason.trim() || undefined);
       setPendingQrCode(null);
+      setEarlyCheckoutReason("");
     }
   };
 
   const handleCancelEarlyCheckout = () => {
     setShowEarlyCheckoutWarning(false);
     setPendingQrCode(null);
+    setEarlyCheckoutReason("");
     // Restart scanner
     startScanner();
   };
@@ -327,14 +354,14 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
                 <Camera className="h-5 w-5" />
                 {currentAction === "check_in" ? "Check In" : "Check Out"}
               </span>
-              {currentAction === "check_in" && sessionCount < 3 && (
+              {currentAction === "check_in" && sessionCount < maxSessions && (
                 <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
-                  Session {sessionCount + 1}/3
+                  Session {sessionCount + 1}/{maxSessions}
                 </span>
               )}
               {currentAction === "check_out" && (
                 <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
-                  Session {sessionCount}/3
+                  Session {sessionCount}/{maxSessions}
                 </span>
               )}
             </DialogTitle>
@@ -430,17 +457,39 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-amber-500" />
-              Early Check-out Warning
+              Early Check-out
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              You are checking out before your scheduled end time ({employeeSchedule?.work_end_time}). 
-              This will be recorded as an early departure. Are you sure you want to proceed?
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  You are checking out before your scheduled end time ({employeeSchedule?.work_end_time}). 
+                  This will be recorded as an early departure.
+                </p>
+                {earlyCheckoutReasonRequired && (
+                  <div className="space-y-2">
+                    <Label htmlFor="early-reason" className="text-foreground">
+                      Reason for early checkout <span className="text-destructive">*</span>
+                    </Label>
+                    <Textarea
+                      id="early-reason"
+                      value={earlyCheckoutReason}
+                      onChange={(e) => setEarlyCheckoutReason(e.target.value)}
+                      placeholder="Please provide a reason..."
+                      rows={3}
+                      className="resize-none"
+                    />
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelEarlyCheckout}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleProceedWithEarlyCheckout}>
-              Check Out Anyway
+            <AlertDialogAction 
+              onClick={handleProceedWithEarlyCheckout}
+              disabled={earlyCheckoutReasonRequired && !earlyCheckoutReason.trim()}
+            >
+              Check Out
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

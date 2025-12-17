@@ -352,6 +352,7 @@ export type Database = {
           check_out_time: string | null
           created_at: string
           date: string
+          early_checkout_reason: string | null
           employee_id: string
           id: string
           notes: string | null
@@ -369,6 +370,7 @@ export type Database = {
           check_out_time?: string | null
           created_at?: string
           date?: string
+          early_checkout_reason?: string | null
           employee_id: string
           id?: string
           notes?: string | null
@@ -386,6 +388,7 @@ export type Database = {
           check_out_time?: string | null
           created_at?: string
           date?: string
+          early_checkout_reason?: string | null
           employee_id?: string
           id?: string
           notes?: string | null
@@ -3364,10 +3367,13 @@ export type Database = {
           billing_cycle: string | null
           company_size: string | null
           created_at: string
+          early_checkout_reason_required: boolean | null
           id: string
           industry: string | null
           logo_url: string | null
           max_day_in_lieu_days: number | null
+          max_sessions_per_day: number | null
+          multi_session_enabled: boolean | null
           name: string
           owner_email: string | null
           owner_name: string | null
@@ -3387,10 +3393,13 @@ export type Database = {
           billing_cycle?: string | null
           company_size?: string | null
           created_at?: string
+          early_checkout_reason_required?: boolean | null
           id?: string
           industry?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
+          max_sessions_per_day?: number | null
+          multi_session_enabled?: boolean | null
           name: string
           owner_email?: string | null
           owner_name?: string | null
@@ -3410,10 +3419,13 @@ export type Database = {
           billing_cycle?: string | null
           company_size?: string | null
           created_at?: string
+          early_checkout_reason_required?: boolean | null
           id?: string
           industry?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
+          max_sessions_per_day?: number | null
+          multi_session_enabled?: boolean | null
           name?: string
           owner_email?: string | null
           owner_name?: string | null
@@ -6682,6 +6694,16 @@ export type Database = {
             }
             Returns: Json
           }
+        | {
+            Args: {
+              _action: string
+              _early_checkout_reason?: string
+              _location_name?: string
+              _user_latitude: number
+              _user_longitude: number
+            }
+            Returns: Json
+          }
       record_usage: {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined
@@ -6694,6 +6716,16 @@ export type Database = {
         | {
             Args: {
               _action: string
+              _qr_code: string
+              _user_latitude?: number
+              _user_longitude?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _action: string
+              _early_checkout_reason?: string
               _qr_code: string
               _user_latitude?: number
               _user_longitude?: number
