@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,6 +114,36 @@ const TeamKPIDashboard = () => {
 
   // Get current employee using centralized hook
   const { data: currentEmployee, isLoading: loadingCurrentEmployee } = useCurrentEmployee();
+
+  // Real-time subscription for instant KPI updates
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+
+    const channel = supabase
+      .channel('kpis-dashboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kpis',
+          filter: `organization_id=eq.${currentOrg.id}`,
+        },
+        () => {
+          // Invalidate all KPI-related queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
+          queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
+          queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
+          queryClient.invalidateQueries({ queryKey: ['team-kpis-historical'] });
+          queryClient.invalidateQueries({ queryKey: ['employee-inherited-kpis'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrg?.id, queryClient]);
 
   // Check if current user has direct reports (is a manager)
   const { data: directReportsCount = 0 } = useQuery({
