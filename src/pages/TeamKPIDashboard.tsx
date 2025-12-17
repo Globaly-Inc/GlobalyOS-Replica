@@ -52,6 +52,7 @@ import {
   FolderKanban,
   X,
   Filter,
+  MapPin,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -99,6 +100,7 @@ const TeamKPIDashboard = () => {
   const [year, setYear] = useState(getCurrentYear());
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [officeFilter, setOfficeFilter] = useState<string>("all");
   
   // Edit/Delete state
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
@@ -150,7 +152,7 @@ const TeamKPIDashboard = () => {
         // Admin/HR: See all employees
         const { data, error } = await supabase
           .from("employees")
-          .select("id, position, department, manager_id, profiles(full_name, avatar_url)")
+          .select("id, position, department, manager_id, office_id, profiles(full_name, avatar_url)")
           .eq("organization_id", currentEmployee.organization_id)
           .eq("status", "active");
         if (error) throw error;
@@ -159,7 +161,7 @@ const TeamKPIDashboard = () => {
         // Manager/User: See self + direct reports (if any)
         const { data, error } = await supabase
           .from("employees")
-          .select("id, position, department, manager_id, profiles(full_name, avatar_url)")
+          .select("id, position, department, manager_id, office_id, profiles(full_name, avatar_url)")
           .eq("organization_id", currentEmployee.organization_id)
           .eq("status", "active")
           .or(`id.eq.${currentEmployee.id},manager_id.eq.${currentEmployee.id}`);
@@ -191,6 +193,22 @@ const TeamKPIDashboard = () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("projects")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch offices for filter
+  const { data: offices = [] } = useQuery({
+    queryKey: ["offices", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("offices")
         .select("id, name")
         .eq("organization_id", currentOrg.id)
         .order("name");
@@ -308,7 +326,18 @@ const TeamKPIDashboard = () => {
     return counts;
   }, [employeeProjects, teamMembers]);
 
-  // Filter team members based on department and project filters
+  // Get member count per office
+  const officeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    teamMembers.forEach(m => {
+      if (m.office_id) {
+        counts[m.office_id] = (counts[m.office_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [teamMembers]);
+
+  // Filter team members based on department, project, and office filters
   const filteredTeamMembers = useMemo(() => {
     return teamMembers.filter(member => {
       if (departmentFilter !== "all" && member.department !== departmentFilter) {
@@ -322,9 +351,12 @@ const TeamKPIDashboard = () => {
           return false;
         }
       }
+      if (officeFilter !== "all" && member.office_id !== officeFilter) {
+        return false;
+      }
       return true;
     });
-  }, [teamMembers, departmentFilter, projectFilter, employeeProjects]);
+  }, [teamMembers, departmentFilter, projectFilter, officeFilter, employeeProjects]);
 
   // Filter KPIs based on filtered team members
   const filteredTeamKPIs = useMemo(() => {
@@ -455,11 +487,12 @@ const TeamKPIDashboard = () => {
   }).sort((a, b) => b.kpis.length - a.kpis.length);
 
   const isLoading = loadingTeam || loadingKPIs;
-  const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all";
+  const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all";
 
   const clearFilters = () => {
     setDepartmentFilter("all");
     setProjectFilter("all");
+    setOfficeFilter("all");
   };
 
   return (
@@ -739,6 +772,21 @@ const TeamKPIDashboard = () => {
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name} ({projectCounts[project.id] || 0})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                <SelectTrigger className="w-[140px] sm:w-[180px]">
+                  <MapPin className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Office" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Offices</SelectItem>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id}>
+                      {office.name} ({officeCounts[office.id] || 0})
                     </SelectItem>
                   ))}
                 </SelectContent>
