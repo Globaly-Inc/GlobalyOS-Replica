@@ -64,6 +64,7 @@ const OrgAttendanceHistory = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [workStatusFilter, setWorkStatusFilter] = useState<string>("all");
+  const [officeFilter, setOfficeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
@@ -441,6 +442,12 @@ const OrgAttendanceHistory = () => {
         matchesWorkStatus = record.status === 'remote' || workLocation === 'remote';
       }
 
+      // Office filter
+      let matchesOffice = true;
+      if (officeFilter !== "all") {
+        matchesOffice = record.check_in_office_id === officeFilter || employee?.office_id === officeFilter;
+      }
+
       // Projects filter
       let matchesProject = true;
       if (projectFilter !== "all") {
@@ -450,9 +457,9 @@ const OrgAttendanceHistory = () => {
         matchesProject = employeeProjectIds.includes(projectFilter);
       }
 
-      return matchesSearch && matchesDepartment && matchesWorkStatus && matchesProject;
+      return matchesSearch && matchesDepartment && matchesWorkStatus && matchesOffice && matchesProject;
     });
-  }, [records, searchQuery, departmentFilter, workStatusFilter, projectFilter, employeeProjects]);
+  }, [records, searchQuery, departmentFilter, workStatusFilter, officeFilter, projectFilter, employeeProjects]);
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       present: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -1038,6 +1045,20 @@ const OrgAttendanceHistory = () => {
                       WFH
                     </div>
                   </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Office Selector */}
+              <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                <SelectTrigger className="w-[140px] h-10">
+                  <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <SelectValue placeholder="Office" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Offices</SelectItem>
+                  {offices.map(office => (
+                    <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
