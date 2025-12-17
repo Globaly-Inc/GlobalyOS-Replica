@@ -568,27 +568,30 @@ export const AttendanceReportScheduleDialog = ({
                 </Card>
               </div>
 
-              {/* Send Test */}
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleSendTestReport}
-                disabled={sendingTest}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {sendingTest ? "Sending..." : "Send Test Report"}
-              </Button>
             </>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+        <DialogFooter className="flex justify-between w-full sm:justify-between">
+          {/* Left side - Test Report */}
+          <Button
+            variant="outline"
+            onClick={handleSendTestReport}
+            disabled={sendingTest || !enabled}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {sendingTest ? "Sending..." : "Send Test Report"}
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Settings"}
-          </Button>
+          
+          {/* Right side - Cancel & Save */}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Settings"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
