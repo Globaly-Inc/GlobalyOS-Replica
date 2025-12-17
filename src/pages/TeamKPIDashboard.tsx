@@ -62,6 +62,8 @@ import {
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
 import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
+import { CreateGroupKPIDialog } from "@/components/dialogs/CreateGroupKPIDialog";
+import { useGroupKpis } from "@/services/useKpi";
 import {
   ChartContainer,
   ChartTooltip,
@@ -233,6 +235,12 @@ const TeamKPIDashboard = () => {
     enabled: !!currentOrg?.id,
   });
 
+  // Fetch group KPIs
+  const { data: groupKpis = [], isLoading: loadingGroupKpis } = useGroupKpis(
+    viewMode === "quarterly" ? quarter : undefined,
+    year
+  );
+
   // Fetch all KPIs for the team (based on view mode)
   const { data: teamKPIs = [], isLoading: loadingKPIs } = useQuery({
     queryKey: ["team-kpis", teamMembers.map(t => t.id), viewMode, quarter, year],
@@ -252,7 +260,8 @@ const TeamKPIDashboard = () => {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      // Filter to only individual KPIs
+      return (data || []).filter((kpi: any) => !kpi.scope_type || kpi.scope_type === 'individual');
     },
     enabled: teamMembers.length > 0,
   });
@@ -515,12 +524,20 @@ const TeamKPIDashboard = () => {
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {(isAdmin || isHR) && (
-              <KPITemplatesDialog>
-                <Button variant="outline" size="sm" className="px-2 sm:px-3">
-                  <FileText className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Templates</span>
-                </Button>
-              </KPITemplatesDialog>
+              <>
+                <CreateGroupKPIDialog defaultQuarter={quarter} defaultYear={year}>
+                  <Button variant="outline" size="sm" className="px-2 sm:px-3">
+                    <Users className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Group KPI</span>
+                  </Button>
+                </CreateGroupKPIDialog>
+                <KPITemplatesDialog>
+                  <Button variant="outline" size="sm" className="px-2 sm:px-3">
+                    <FileText className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Templates</span>
+                  </Button>
+                </KPITemplatesDialog>
+              </>
             )}
             
             {viewMode === "quarterly" && (
@@ -810,6 +827,118 @@ const TeamKPIDashboard = () => {
                 </Badge>
               )}
             </div>
+
+            {/* Group KPIs Section */}
+            {(isAdmin || isHR) && groupKpis.length > 0 && (
+              <Card className="mb-4 sm:mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Group KPIs
+                    <Badge variant="secondary" className="ml-2">
+                      {groupKpis.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6">
+                  <div className="space-y-2 sm:space-y-3">
+                    {groupKpis.map((kpi) => {
+                      const progress = kpi.target_value
+                        ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
+                        : 0;
+                      
+                      // Determine scope display
+                      const getScopeDisplay = () => {
+                        if (kpi.scope_type === 'department') {
+                          return { icon: Building, label: kpi.scope_department, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30' };
+                        } else if (kpi.scope_type === 'office') {
+                          return { icon: MapPin, label: kpi.office?.name, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' };
+                        } else if (kpi.scope_type === 'project') {
+                          return { icon: FolderKanban, label: kpi.project?.name, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30' };
+                        }
+                        return { icon: Target, label: 'Unknown', color: 'text-gray-600 bg-gray-100' };
+                      };
+                      
+                      const scope = getScopeDisplay();
+                      const ScopeIcon = scope.icon;
+                      
+                      return (
+                        <div
+                          key={kpi.id}
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30"
+                        >
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                            <div className={cn("p-2 rounded-lg shrink-0", scope.color)}>
+                              <ScopeIcon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
+                                <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
+                                {viewMode === "annual" && (
+                                  <Badge variant="outline" className="text-xs">Q{kpi.quarter}</Badge>
+                                )}
+                                <Badge variant="secondary" className="text-xs">
+                                  {scope.label}
+                                </Badge>
+                                <Badge
+                                  className={cn(
+                                    "text-xs shrink-0",
+                                    kpi.status === "on_track" && "bg-green-100 text-green-700",
+                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
+                                    kpi.status === "behind" && "bg-red-100 text-red-700",
+                                    kpi.status === "completed" && "bg-blue-100 text-blue-700"
+                                  )}
+                                >
+                                  {kpi.status?.replace("_", " ")}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate hidden sm:block">
+                                {kpi.description || "No description"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="flex items-center gap-2 min-w-[120px] sm:min-w-[150px]">
+                              <Progress value={progress} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground w-10 text-right">
+                                {progress}%
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground hidden sm:inline w-24 text-right">
+                              {kpi.current_value || 0} / {kpi.target_value || 0} {kpi.unit || ""}
+                            </span>
+                            
+                            {isAdmin && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditingKpi(kpi)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setDeletingKpiId(kpi.id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* All KPIs - Now above Team Progress */}
             <Card className="mb-4 sm:mb-6">

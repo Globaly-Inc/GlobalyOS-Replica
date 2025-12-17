@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X, Building, MapPin, FolderKanban, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useEmployeeInheritedKpis } from "@/services/useKpi";
+import type { GroupKpiWithScope } from "@/types";
 
 interface AIKPIInsightsProps {
   employeeId: string;
@@ -82,6 +84,45 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
     enabled: !!user?.id && !!employeeId,
   });
 
+  // Fetch employee details for inherited KPIs
+  const { data: employeeDetails } = useQuery({
+    queryKey: ["employee-details-for-kpi", employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("department, office_id")
+        .eq("id", employeeId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!employeeId,
+  });
+
+  // Fetch employee projects for inherited KPIs
+  const { data: employeeProjects = [] } = useQuery({
+    queryKey: ["employee-project-ids", employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_projects")
+        .select("project_id")
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+      return data.map(ep => ep.project_id);
+    },
+    enabled: !!employeeId,
+  });
+
+  // Fetch inherited group KPIs
+  const { data: inheritedKpis = [] } = useEmployeeInheritedKpis(
+    employeeId,
+    employeeDetails?.department,
+    employeeDetails?.office_id,
+    employeeProjects,
+    currentQuarter,
+    currentYear
+  );
+
   // Fetch cached insights
   const { data: cachedInsights, isLoading } = useQuery({
     queryKey: ["kpi-insights", employeeId, currentQuarter, currentYear],
@@ -110,7 +151,8 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
         .order("year", { ascending: true })
         .order("quarter", { ascending: true });
       if (error) throw error;
-      return data as Kpi[];
+      // Filter to individual KPIs only
+      return (data || []).filter((kpi: any) => !kpi.scope_type || kpi.scope_type === 'individual') as Kpi[];
     },
   });
 
@@ -335,10 +377,66 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
         </div>
       )}
 
-      {(!kpis || kpis.length === 0) && (
+      {(!kpis || kpis.length === 0) && inheritedKpis.length === 0 && (
         <div className="text-center py-4 text-muted-foreground">
           <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No KPIs assigned yet.</p>
+        </div>
+      )}
+
+      {/* Inherited Group KPIs */}
+      {inheritedKpis.length > 0 && (
+        <div className="space-y-2 border-t pt-4 mt-4">
+          <div className="flex items-center gap-2 py-1.5 px-2">
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              Group KPIs
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              ({inheritedKpis.length} inherited)
+            </span>
+          </div>
+          <div className="grid gap-2 pl-2">
+            {inheritedKpis.map((kpi) => {
+              const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+              const getScopeIcon = () => {
+                if (kpi.scope_type === 'department') return <Building className="h-3 w-3 text-purple-600" />;
+                if (kpi.scope_type === 'office') return <MapPin className="h-3 w-3 text-orange-600" />;
+                if (kpi.scope_type === 'project') return <FolderKanban className="h-3 w-3 text-blue-600" />;
+                return null;
+              };
+              const getScopeName = () => {
+                if (kpi.scope_type === 'department') return kpi.scope_department;
+                if (kpi.scope_type === 'office') return kpi.office?.name;
+                if (kpi.scope_type === 'project') return kpi.project?.name;
+                return '';
+              };
+              
+              return (
+                <div key={kpi.id} className="flex items-start justify-between text-sm gap-2 bg-muted/30 rounded p-2">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm leading-tight break-words">{kpi.title}</span>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {getScopeIcon()}
+                      <span className="text-xs text-muted-foreground">{getScopeName()}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
+                        )}
+                        style={{ width: `${Math.min(progress, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
