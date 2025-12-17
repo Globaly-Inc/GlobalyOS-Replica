@@ -16,13 +16,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
+import { AddAttendanceDialog } from "@/components/dialogs/AddAttendanceDialog";
+import { AttendanceReportScheduleDialog } from "@/components/dialogs/AttendanceReportScheduleDialog";
+import { AttendancePDFExport } from "@/components/attendance/AttendancePDFExport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
 import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
@@ -963,10 +967,35 @@ const OrgAttendanceHistory = () => {
             </h1>
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
-          <Button onClick={exportCSV} variant="outline" size="sm" className="hidden sm:flex gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="hidden sm:flex items-center gap-2">
+            <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Auto
+            </Button>
+          </div>
         </div>
 
         {/* Sticky Filter Bar */}

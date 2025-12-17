@@ -428,6 +428,62 @@ export type Database = {
           },
         ]
       }
+      attendance_report_schedules: {
+        Row: {
+          created_at: string | null
+          day_of_month: number | null
+          day_of_week: number | null
+          enabled: boolean | null
+          frequency: string | null
+          id: string
+          include_ai_summary: boolean | null
+          include_charts: boolean | null
+          last_sent_at: string | null
+          organization_id: string
+          recipients: Json | null
+          time_of_day: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          enabled?: boolean | null
+          frequency?: string | null
+          id?: string
+          include_ai_summary?: boolean | null
+          include_charts?: boolean | null
+          last_sent_at?: string | null
+          organization_id: string
+          recipients?: Json | null
+          time_of_day?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          enabled?: boolean | null
+          frequency?: string | null
+          id?: string
+          include_ai_summary?: boolean | null
+          include_charts?: boolean | null
+          last_sent_at?: string | null
+          organization_id?: string
+          recipients?: Json | null
+          time_of_day?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_report_schedules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_keywords: {
         Row: {
           category: string | null
