@@ -454,7 +454,7 @@ export const AttendanceReportScheduleDialog = ({
                           type="time"
                           value={item.time_of_day}
                           onChange={(e) => updateSchedule(item.id, { time_of_day: e.target.value })}
-                          className="w-[70px] h-9"
+                          className="w-24 h-9"
                         />
                         
                         <Button
