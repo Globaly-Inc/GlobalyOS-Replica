@@ -248,32 +248,31 @@ export const EditScheduleDialog = ({
               </p>
             </div>
 
-            {/* Timezone Selector */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                Timezone
-              </Label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex justify-end">
+            {/* Timezone & Quick Actions Row */}
+            <div className="flex items-end gap-3">
+              <div className="flex-1 space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Timezone
+                </Label>
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button 
                 type="button" 
                 variant="outline" 
                 size="sm"
+                className="whitespace-nowrap"
                 onClick={applyToAllWeekdays}
               >
                 Apply Mon to all weekdays
