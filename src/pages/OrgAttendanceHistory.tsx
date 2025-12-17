@@ -51,7 +51,8 @@ import {
   Trash2,
   Building2,
   Home,
-  MapPin
+  MapPin,
+  Eye
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -1120,13 +1121,13 @@ const OrgAttendanceHistory = () => {
                               <div className="flex items-center gap-0.5">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <OrgLink to={`/team/${employee?.id}`}>
+                                    <OrgLink to={`/team/${employee?.id}/attendance`}>
                                       <Button variant="ghost" size="icon" className="h-7 w-7">
-                                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                       </Button>
                                     </OrgLink>
                                   </TooltipTrigger>
-                                  <TooltipContent>View Profile</TooltipContent>
+                                  <TooltipContent>View Attendance History</TooltipContent>
                                 </Tooltip>
                                 
                                 {(isOwner || isAdmin) && (
