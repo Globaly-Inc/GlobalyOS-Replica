@@ -1354,7 +1354,7 @@ const TeamKPIDashboard = () => {
                               </div>
                               {member.lastUpdated && (
                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                  {format(member.lastUpdated, "MMM d")}
+                                  {format(member.lastUpdated, "d MMM yyyy . hh:mm a")}
                                 </span>
                               )}
                             </div>
