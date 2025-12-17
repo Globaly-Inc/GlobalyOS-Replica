@@ -442,6 +442,7 @@ export type Database = {
           last_sent_at: string | null
           organization_id: string
           recipients: Json | null
+          schedules: Json | null
           time_of_day: string | null
           updated_at: string | null
         }
@@ -458,6 +459,7 @@ export type Database = {
           last_sent_at?: string | null
           organization_id: string
           recipients?: Json | null
+          schedules?: Json | null
           time_of_day?: string | null
           updated_at?: string | null
         }
@@ -474,6 +476,7 @@ export type Database = {
           last_sent_at?: string | null
           organization_id?: string
           recipients?: Json | null
+          schedules?: Json | null
           time_of_day?: string | null
           updated_at?: string | null
         }
