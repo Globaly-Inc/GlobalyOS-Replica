@@ -112,7 +112,9 @@ const OrgAttendanceHistory = () => {
           ),
           check_in_office:offices!attendance_records_check_in_office_id_fkey(
             id,
-            name
+            name,
+            city,
+            country
           )
         `)
         .eq("organization_id", currentOrg!.id)
@@ -198,22 +200,40 @@ const OrgAttendanceHistory = () => {
 
   const getLocationDisplay = (record: any) => {
     const office = record.check_in_office as any;
-    if (record.status === "remote" || record.status === "absent") {
+    
+    // Remote/WFH check-in - show stored location name if available
+    if (record.status === "remote" || (!record.check_in_office_id && record.status !== "absent")) {
+      const locationName = record.check_in_location_name;
       return (
         <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
           <Home className="h-3.5 w-3.5" />
-          <span className="text-sm">WFH</span>
+          <span className="text-sm truncate max-w-[120px]">{locationName || "WFH"}</span>
         </div>
       );
     }
+    
+    // Office check-in - show city, country if available
     if (office?.name) {
+      const locationParts = [office.city, office.country].filter(Boolean);
+      const locationText = locationParts.length > 0 ? locationParts.join(", ") : office.name;
       return (
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Building2 className="h-3.5 w-3.5" />
-          <span className="text-sm truncate max-w-[100px]">{office.name}</span>
+          <span className="text-sm truncate max-w-[120px]" title={locationText}>{locationText}</span>
         </div>
       );
     }
+    
+    // Absent or no location
+    if (record.status === "absent") {
+      return (
+        <div className="flex items-center gap-1.5 text-muted-foreground/50">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-sm">—</span>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex items-center gap-1.5 text-muted-foreground/50">
         <MapPin className="h-3.5 w-3.5" />
