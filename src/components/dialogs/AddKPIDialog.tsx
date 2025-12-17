@@ -20,9 +20,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building, MapPin, FolderKanban, Target, Users, User } from "lucide-react";
+import { Building, MapPin, FolderKanban, Target, Users, User, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/hooks/useAuth";
@@ -59,6 +72,7 @@ export function AddKPIDialog({
   // Form state
   const [kpiType, setKpiType] = useState<"individual" | "group">(defaultType);
   const [employeeId, setEmployeeId] = useState<string>("");
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [scopeType, setScopeType] = useState<"department" | "office" | "project">("department");
   const [scopeValue, setScopeValue] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -382,30 +396,82 @@ export function AddKPIDialog({
           {kpiType === "individual" && (
             <div className="space-y-2">
               <Label>Assign to</Label>
-              <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map((member) => {
-                    const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
-                    return (
-                      <SelectItem key={member.id} value={member.id}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={profile?.avatar_url || undefined} />
-                            <AvatarFallback className="text-[10px]">
-                              {profile?.full_name?.charAt(0) || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{profile?.full_name}</span>
-                          <span className="text-muted-foreground text-xs">· {member.position}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={employeePopoverOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {employeeId ? (
+                      (() => {
+                        const selectedMember = teamMembers.find((m) => m.id === employeeId);
+                        const profile = selectedMember
+                          ? Array.isArray(selectedMember.profiles)
+                            ? selectedMember.profiles[0]
+                            : selectedMember.profiles
+                          : null;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={profile?.avatar_url || undefined} />
+                              <AvatarFallback className="text-[10px]">
+                                {profile?.full_name?.charAt(0) || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{profile?.full_name}</span>
+                            <span className="text-muted-foreground text-xs">· {selectedMember?.position}</span>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-muted-foreground">Select employee...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search employee..." />
+                    <CommandList>
+                      <CommandEmpty>No employee found.</CommandEmpty>
+                      <CommandGroup>
+                        {teamMembers.map((member) => {
+                          const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+                          return (
+                            <CommandItem
+                              key={member.id}
+                              value={profile?.full_name || member.id}
+                              onSelect={() => {
+                                setEmployeeId(member.id);
+                                setEmployeePopoverOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2 flex-1">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={profile?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {profile?.full_name?.charAt(0) || "?"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{profile?.full_name}</span>
+                                <span className="text-muted-foreground text-xs">· {member.position}</span>
+                              </div>
+                              <Check
+                                className={cn(
+                                  "ml-auto h-4 w-4",
+                                  employeeId === member.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
