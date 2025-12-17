@@ -27,6 +27,11 @@ serve(async (req) => {
 
   try {
     const { organizationId, isTest, includeAISummary, includeCharts } = await req.json();
+    
+    console.log("=== Starting send-attendance-report ===");
+    console.log("Organization ID:", organizationId);
+    console.log("Is Test:", isTest);
+    console.log("Include AI Summary:", includeAISummary);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,15 +40,18 @@ serve(async (req) => {
     });
 
     // Fetch organization details
+    console.log("Fetching organization details...");
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, name, logo_url, org_code")
+      .select("id, name, logo_url, slug")
       .eq("id", organizationId)
       .single();
 
     if (orgError || !org) {
+      console.error("Organization fetch error:", orgError);
       throw new Error("Organization not found");
     }
+    console.log("Organization found:", org.name);
 
     // Get schedule settings
     const { data: schedule } = await supabase
@@ -51,6 +59,8 @@ serve(async (req) => {
       .select("*")
       .eq("organization_id", organizationId)
       .maybeSingle();
+
+    console.log("Schedule settings:", schedule);
 
     // Calculate date range (last 7 days for weekly, last 30 for monthly)
     const now = new Date();
@@ -62,15 +72,17 @@ serve(async (req) => {
 
     const startDateStr = startDate.toISOString().split("T")[0];
     const endDateStr = endDate.toISOString().split("T")[0];
+    console.log("Date range:", startDateStr, "to", endDateStr);
 
     // Fetch attendance records
+    console.log("Fetching attendance records...");
     const { data: records, error: recordsError } = await supabase
       .from("attendance_records")
       .select(`
         *,
         employee:employees!attendance_records_employee_id_fkey(
           id,
-          profiles!inner(full_name, avatar_url),
+          profiles:user_id(full_name, avatar_url),
           employee_schedules(work_start_time, work_end_time, late_threshold_minutes)
         )
       `)
@@ -78,7 +90,11 @@ serve(async (req) => {
       .gte("date", startDateStr)
       .lte("date", endDateStr);
 
-    if (recordsError) throw recordsError;
+    if (recordsError) {
+      console.error("Records fetch error:", recordsError);
+      throw recordsError;
+    }
+    console.log("Records found:", records?.length || 0);
 
     // Fetch active employees count
     const { count: activeEmployeeCount } = await supabase
@@ -86,6 +102,8 @@ serve(async (req) => {
       .select("id", { count: "exact" })
       .eq("organization_id", organizationId)
       .eq("status", "active");
+
+    console.log("Active employees:", activeEmployeeCount);
 
     // Calculate metrics
     const metrics: AttendanceMetrics = {
@@ -169,9 +187,12 @@ serve(async (req) => {
       }
     });
 
+    console.log("Metrics calculated:", metrics);
+
     // Generate AI summary
     let aiSummary = "";
     if (includeAISummary && LOVABLE_API_KEY) {
+      console.log("Generating AI summary...");
       try {
         const summaryPrompt = `Generate a brief, friendly attendance summary for ${org.name}. 
 Period: ${startDateStr} to ${endDateStr}
@@ -199,6 +220,9 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           aiSummary = aiData.choices?.[0]?.message?.content || "";
+          console.log("AI summary generated successfully");
+        } else {
+          console.error("AI response not OK:", aiResponse.status);
         }
       } catch (aiError) {
         console.error("AI summary generation failed:", aiError);
@@ -206,26 +230,66 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
       }
     }
 
-    // Get recipients
+    // Get recipients - FIXED: Query employees table first, then check user_roles
+    console.log("Fetching recipients...");
     const recipientRoles = schedule?.recipients || { owner: true, admin: true, hr: true };
-    const roles = [];
+    const roles: string[] = [];
     if (recipientRoles.owner) roles.push("owner");
     if (recipientRoles.admin) roles.push("admin");
     if (recipientRoles.hr) roles.push("hr");
+    
+    console.log("Looking for roles:", roles);
 
-    const { data: recipients } = await supabase
-      .from("user_roles")
+    // First get all employees in this organization
+    const { data: orgEmployees, error: empError } = await supabase
+      .from("employees")
       .select(`
+        id,
         user_id,
-        role,
         profiles:user_id(full_name, email)
       `)
-      .in("role", roles)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("status", "active");
 
-    if (!recipients || recipients.length === 0) {
-      console.log("No recipients found for report");
-      return new Response(JSON.stringify({ success: true, message: "No recipients" }), {
+    if (empError) {
+      console.error("Error fetching employees:", empError);
+      throw empError;
+    }
+
+    console.log("Organization employees found:", orgEmployees?.length || 0);
+
+    // Then get user roles for these users
+    const userIds = orgEmployees?.map(e => e.user_id).filter(Boolean) || [];
+    
+    if (userIds.length === 0) {
+      console.log("No active employees found in organization");
+      return new Response(JSON.stringify({ success: true, message: "No active employees" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: userRoles, error: rolesError } = await supabase
+      .from("user_roles")
+      .select("user_id, role")
+      .in("user_id", userIds)
+      .in("role", roles);
+
+    if (rolesError) {
+      console.error("Error fetching user roles:", rolesError);
+      throw rolesError;
+    }
+
+    console.log("User roles found:", userRoles?.length || 0);
+
+    // Build recipients list by matching employees with roles
+    const roleUserIds = new Set(userRoles?.map(r => r.user_id) || []);
+    const recipients = orgEmployees?.filter(e => roleUserIds.has(e.user_id)) || [];
+
+    console.log("Final recipients count:", recipients.length);
+
+    if (recipients.length === 0) {
+      console.log("No recipients found with required roles");
+      return new Response(JSON.stringify({ success: true, message: "No recipients with required roles" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -234,11 +298,18 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
     const periodLabel = schedule?.frequency === "monthly" ? "Monthly" : "Weekly";
     const dateRangeText = `${new Date(startDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(endDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
+    let successCount = 0;
+    let failCount = 0;
+
     for (const recipient of recipients) {
       const profile = recipient.profiles as any;
-      if (!profile?.email) continue;
+      if (!profile?.email) {
+        console.log("Skipping recipient without email:", recipient.id);
+        continue;
+      }
 
       const firstName = profile.full_name?.split(" ")[0] || "Team";
+      console.log(`Sending email to: ${profile.email} (${firstName})`);
 
       const emailHtml = generateEmailHtml({
         recipientName: firstName,
@@ -251,27 +322,38 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
         includeCharts,
         lateEmployees: lateEmployees.slice(0, 3),
         perfectAttendance: perfectAttendance.slice(0, 3),
-        orgCode: org.org_code,
+        orgCode: org.slug,
       });
 
       try {
-        await resend.emails.send({
-          from: `${org.name} <reports@globalyos.com>`,
+        const emailResult = await resend.emails.send({
+          from: `GlobalyOS <onboarding@resend.dev>`,
           to: [profile.email],
           subject: `${periodLabel} Attendance Report - ${dateRangeText}`,
           html: emailHtml,
         });
-        console.log(`Report sent to ${profile.email}`);
-      } catch (emailError) {
-        console.error(`Failed to send to ${profile.email}:`, emailError);
+        console.log(`Email sent successfully to ${profile.email}:`, emailResult);
+        successCount++;
+      } catch (emailError: any) {
+        console.error(`Failed to send email to ${profile.email}:`, emailError?.message || emailError);
+        failCount++;
       }
     }
 
-    return new Response(JSON.stringify({ success: true, recipientCount: recipients.length }), {
+    console.log(`=== Report complete: ${successCount} sent, ${failCount} failed ===`);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      recipientCount: recipients.length,
+      successCount,
+      failCount
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error in send-attendance-report:", error);
+    console.error("=== Error in send-attendance-report ===");
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
