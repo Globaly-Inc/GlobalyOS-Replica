@@ -23,6 +23,14 @@ interface AttendanceMetrics {
   wfh: { count: number; percent: number };
 }
 
+interface PersonalMetrics {
+  daysCheckedIn: number;
+  onTimeRate: number;
+  lateArrivals: number;
+  hoursWorked: number;
+  onTimeCount: number;
+}
+
 interface DailyData {
   date: string;
   total: number;
@@ -260,6 +268,44 @@ serve(async (req) => {
       };
     };
 
+    // Calculate personal metrics for a single employee
+    const calculatePersonalMetrics = (allRecords: any[], employeeId: string): PersonalMetrics => {
+      const personalRecords = allRecords?.filter(r => r.employee_id === employeeId) || [];
+      let onTimeCount = 0;
+      let lateCount = 0;
+      let totalMinutes = 0;
+
+      personalRecords.forEach((record: any) => {
+        const empSchedule = record.employee?.employee_schedules?.[0];
+        totalMinutes += (record.work_hours || 0) * 60;
+
+        if (record.check_in_time && empSchedule?.work_start_time) {
+          const checkInTime = new Date(record.check_in_time);
+          const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+          const threshold = empSchedule.late_threshold_minutes || 0;
+          const expectedStart = new Date(checkInTime);
+          expectedStart.setHours(startH, startM + threshold, 0, 0);
+
+          if (checkInTime > expectedStart) {
+            lateCount++;
+          } else {
+            onTimeCount++;
+          }
+        }
+      });
+
+      const daysCheckedIn = personalRecords.length;
+      const onTimeRate = daysCheckedIn > 0 ? Math.round((onTimeCount / daysCheckedIn) * 100) : 0;
+
+      return {
+        daysCheckedIn,
+        onTimeRate,
+        lateArrivals: lateCount,
+        hoursWorked: totalMinutes,
+        onTimeCount,
+      };
+    };
+
     // Calculate current and previous period metrics
     const currentMetrics = calculateMetricsFromRecords(records || []);
     const prevMetricsRaw = calculateMetricsFromRecords(prevRecords || []);
@@ -353,7 +399,7 @@ serve(async (req) => {
       }
     });
 
-    // Generate AI summary
+    // Generate AI summary for team reports
     let aiSummary = "";
     if (includeAISummary && LOVABLE_API_KEY) {
       console.log("Generating AI summary...");
@@ -394,6 +440,45 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
       }
     }
 
+    // Generate personal AI summary
+    const generatePersonalAISummary = async (employeeName: string, personalMetrics: PersonalMetrics): Promise<string> => {
+      if (!includeAISummary || !LOVABLE_API_KEY) {
+        return `You checked in ${personalMetrics.daysCheckedIn} days this period with a ${personalMetrics.onTimeRate}% on-time rate.`;
+      }
+
+      try {
+        const personalPrompt = `Generate a brief, friendly personal attendance summary for ${employeeName}.
+Period: ${startDateStr} to ${endDateStr}
+Your attendance: ${personalMetrics.daysCheckedIn} days checked in, ${personalMetrics.onTimeRate}% on-time rate, ${personalMetrics.lateArrivals} late arrivals, ${formatMinutes(personalMetrics.hoursWorked)} total hours worked.
+
+Write 2-3 sentences as if speaking directly to this employee about THEIR OWN attendance. Be encouraging and constructive. Use "you" and "your". Don't mention other employees.`;
+
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You are a friendly HR assistant writing personalized attendance summaries. Be encouraging and supportive. Address the employee directly using 'you' and 'your'." },
+              { role: "user", content: personalPrompt }
+            ],
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          return aiData.choices?.[0]?.message?.content || `You checked in ${personalMetrics.daysCheckedIn} days this period with a ${personalMetrics.onTimeRate}% on-time rate.`;
+        }
+      } catch (error) {
+        console.error("Personal AI summary generation failed:", error);
+      }
+
+      return `You checked in ${personalMetrics.daysCheckedIn} days this period with a ${personalMetrics.onTimeRate}% on-time rate.`;
+    };
+
     // Get recipients
     console.log("Fetching recipients...");
     const recipientRoles = schedule?.recipients || { owner: true, admin: true, hr: true };
@@ -402,7 +487,8 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
     if (recipientRoles.admin) roles.push("admin");
     if (recipientRoles.hr) roles.push("hr");
     
-    console.log("Looking for roles:", roles);
+    const includeUsers = recipientRoles.user === true;
+    console.log("Looking for roles:", roles, "Include users:", includeUsers);
 
     const { data: orgEmployees, error: empError } = await supabase
       .from("employees")
@@ -430,11 +516,11 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
       });
     }
 
+    // Fetch user roles for all employees
     const { data: userRoles, error: rolesError } = await supabase
       .from("user_roles")
       .select("user_id, role")
-      .in("user_id", userIds)
-      .in("role", roles);
+      .in("user_id", userIds);
 
     if (rolesError) {
       console.error("Error fetching user roles:", rolesError);
@@ -443,14 +529,31 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
 
     console.log("User roles found:", userRoles?.length || 0);
 
-    const roleUserIds = new Set(userRoles?.map(r => r.user_id) || []);
-    const recipients = orgEmployees?.filter(e => roleUserIds.has(e.user_id)) || [];
+    // Create a map of user_id to roles
+    const userRoleMap: Record<string, string[]> = {};
+    userRoles?.forEach(ur => {
+      if (!userRoleMap[ur.user_id]) userRoleMap[ur.user_id] = [];
+      userRoleMap[ur.user_id].push(ur.role);
+    });
 
-    console.log("Final recipients count:", recipients.length);
+    // Determine admin/HR recipients (those with owner, admin, or hr roles)
+    const adminRecipients = orgEmployees?.filter(e => {
+      const empRoles = userRoleMap[e.user_id] || [];
+      return empRoles.some(r => roles.includes(r));
+    }) || [];
 
-    if (recipients.length === 0) {
-      console.log("No recipients found with required roles");
-      return new Response(JSON.stringify({ success: true, message: "No recipients with required roles" }), {
+    // Determine user-level recipients (those WITHOUT owner, admin, or hr roles)
+    const userRecipients = includeUsers ? orgEmployees?.filter(e => {
+      const empRoles = userRoleMap[e.user_id] || [];
+      return !empRoles.some(r => ['owner', 'admin', 'hr'].includes(r));
+    }) || [] : [];
+
+    console.log("Admin recipients count:", adminRecipients.length);
+    console.log("User recipients count:", userRecipients.length);
+
+    if (adminRecipients.length === 0 && userRecipients.length === 0) {
+      console.log("No recipients found");
+      return new Response(JSON.stringify({ success: true, message: "No recipients found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -462,15 +565,16 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
     let successCount = 0;
     let failCount = 0;
 
-    for (const recipient of recipients) {
+    // Send team reports to admin/HR recipients
+    for (const recipient of adminRecipients) {
       const profile = recipient.profiles as any;
       if (!profile?.email) {
-        console.log("Skipping recipient without email:", recipient.id);
+        console.log("Skipping admin recipient without email:", recipient.id);
         continue;
       }
 
       const firstName = profile.full_name?.split(" ")[0] || "Team";
-      console.log(`Sending email to: ${profile.email} (${firstName})`);
+      console.log(`Sending team email to: ${profile.email} (${firstName})`);
 
       const emailHtml = generateEmailHtml({
         recipientName: firstName,
@@ -505,11 +609,80 @@ Write 2-3 sentences highlighting key insights. Be encouraging but mention areas 
       }
     }
 
+    // Send personal reports to user-level recipients
+    for (const recipient of userRecipients) {
+      const profile = recipient.profiles as any;
+      if (!profile?.email) {
+        console.log("Skipping user recipient without email:", recipient.id);
+        continue;
+      }
+
+      const firstName = profile.full_name?.split(" ")[0] || "there";
+      const fullName = profile.full_name || "Team Member";
+      console.log(`Sending personal email to: ${profile.email} (${firstName})`);
+
+      // Calculate personal metrics
+      const personalMetrics = calculatePersonalMetrics(records || [], recipient.id);
+      
+      // Calculate personal daily data
+      const personalDailyDataMap: Record<string, DailyData> = {};
+      records?.filter(r => r.employee_id === recipient.id).forEach((record: any) => {
+        const date = record.date;
+        if (!personalDailyDataMap[date]) {
+          personalDailyDataMap[date] = { date, total: 0, onTime: 0 };
+        }
+        personalDailyDataMap[date].total++;
+        
+        const empSchedule = record.employee?.employee_schedules?.[0];
+        if (record.check_in_time && empSchedule?.work_start_time) {
+          const checkInTime = new Date(record.check_in_time);
+          const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
+          const threshold = empSchedule.late_threshold_minutes || 0;
+          const expectedStart = new Date(checkInTime);
+          expectedStart.setHours(startH, startM + threshold, 0, 0);
+          if (checkInTime <= expectedStart) {
+            personalDailyDataMap[date].onTime++;
+          }
+        }
+      });
+      const personalDailyData = Object.values(personalDailyDataMap).sort((a, b) => a.date.localeCompare(b.date));
+
+      // Generate personal AI summary
+      const personalAISummary = await generatePersonalAISummary(fullName, personalMetrics);
+
+      const emailHtml = generatePersonalEmailHtml({
+        recipientName: firstName,
+        orgName: org.name,
+        orgLogo: org.logo_url,
+        periodLabel,
+        dateRangeText,
+        personalMetrics,
+        aiSummary: personalAISummary,
+        includeCharts,
+        orgCode: org.slug,
+        dailyData: personalDailyData,
+      });
+
+      try {
+        const emailResult = await resend.emails.send({
+          from: `GlobalyOS <onboarding@resend.dev>`,
+          to: [profile.email],
+          subject: `Your ${periodLabel} Attendance Summary - ${dateRangeText}`,
+          html: emailHtml,
+        });
+        console.log(`Personal email sent successfully to ${profile.email}:`, emailResult);
+        successCount++;
+      } catch (emailError: any) {
+        console.error(`Failed to send personal email to ${profile.email}:`, emailError?.message || emailError);
+        failCount++;
+      }
+    }
+
     console.log(`=== Report complete: ${successCount} sent, ${failCount} failed ===`);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      recipientCount: recipients.length,
+      recipientCount: adminRecipients.length + userRecipients.length,
       successCount,
       failCount
     }), {
@@ -786,7 +959,175 @@ function generateEmailHtml(params: {
             GlobalyOS - Operating System for Ambitious Teams
           </p>
           <p style="color: #cbd5e1; font-size: 11px; margin: 4px 0 0 0;">
-            You're receiving this because you're set as a recipient for attendance reports.
+            Report generated on ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function generatePersonalEmailHtml(params: {
+  recipientName: string;
+  orgName: string;
+  orgLogo: string | null;
+  periodLabel: string;
+  dateRangeText: string;
+  personalMetrics: PersonalMetrics;
+  aiSummary: string;
+  includeCharts: boolean;
+  orgCode: string;
+  dailyData: DailyData[];
+}) {
+  const {
+    recipientName,
+    orgName,
+    orgLogo,
+    periodLabel,
+    dateRangeText,
+    personalMetrics,
+    aiSummary,
+    includeCharts,
+    orgCode,
+    dailyData,
+  } = params;
+
+  // Generate personal trend chart bars
+  const maxTotal = Math.max(...dailyData.map(d => d.total), 1);
+  const trendBarsHtml = dailyData.slice(-7).map(d => {
+    const totalHeight = Math.round((d.total / maxTotal) * 60);
+    const onTimeHeight = Math.round((d.onTime / maxTotal) * 60);
+    const dateLabel = new Date(d.date).toLocaleDateString("en-US", { weekday: "short" });
+    return `
+      <td style="vertical-align: bottom; padding: 0 4px; text-align: center;">
+        <div style="position: relative; height: 60px; display: flex; flex-direction: column; justify-content: flex-end;">
+          <div style="background: #3b82f6; height: ${totalHeight}px; border-radius: 3px 3px 0 0; position: relative;">
+            <div style="background: #22c55e; height: ${onTimeHeight}px; border-radius: 3px 3px 0 0; position: absolute; bottom: 0; left: 0; right: 0;"></div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">${dateLabel}</div>
+      </td>
+    `;
+  }).join("");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
+      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 20px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                ${orgLogo 
+                  ? `<img src="${orgLogo}" alt="${orgName}" style="max-height: 36px; max-width: 140px;" />`
+                  : `<span style="color: white; font-size: 18px; font-weight: bold;">${orgName}</span>`
+                }
+              </td>
+              <td style="text-align: right;">
+                <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="height: 36px; width: auto;" />
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 24px;">
+          <p style="color: #333; font-size: 16px; margin: 0 0 8px 0;">Hi ${recipientName},</p>
+          <p style="color: #666; font-size: 14px; margin: 0 0 20px 0;">
+            Here's your personal <strong>${periodLabel}</strong> attendance summary for <strong>${dateRangeText}</strong>:
+          </p>
+
+          <!-- AI Summary - Personal focus -->
+          ${aiSummary ? `
+            <div style="margin-bottom: 24px; line-height: 1.6; background: #f0f9ff; border-radius: 8px; padding: 16px; border-left: 4px solid #3b82f6;">
+              <p style="color: #374151; font-size: 14px; margin: 0;">${aiSummary}</p>
+            </div>
+          ` : ""}
+
+          <!-- 4 Personal Metric Cards -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+            <tr>
+              <!-- Days Checked In -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #eff6ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">📋</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #1e40af;">${personalMetrics.daysCheckedIn}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Days Checked In</div>
+                </div>
+              </td>
+              <!-- On Time Rate -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #f0fdf4; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">✓</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #166534;">${personalMetrics.onTimeRate}%</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">On Time Rate</div>
+                </div>
+              </td>
+              <!-- Late Arrivals -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #fffbeb; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">🕐</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #b45309;">${personalMetrics.lateArrivals}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Late Arrivals</div>
+                </div>
+              </td>
+              <!-- Hours Worked -->
+              <td width="25%" style="padding: 4px;">
+                <div style="background: #eef2ff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 14px; margin-bottom: 4px;">⏱️</div>
+                  <div style="font-size: 22px; font-weight: bold; color: #4338ca;">${formatMinutes(personalMetrics.hoursWorked)}</div>
+                  <div style="font-size: 11px; color: #374151; font-weight: 500;">Hours Worked</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Personal Attendance Trends -->
+          ${includeCharts && dailyData.length > 0 ? `
+            <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: 600; color: #374151; font-size: 14px;">📊 Your Attendance This ${periodLabel === "Weekly" ? "Week" : "Month"}</span>
+              </div>
+
+              <!-- Chart -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  ${trendBarsHtml}
+                </tr>
+              </table>
+              
+              <!-- Legend -->
+              <div style="display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 10px;">
+                <span style="color: #6b7280;"><span style="display: inline-block; width: 10px; height: 10px; background: #3b82f6; border-radius: 2px; margin-right: 4px;"></span>Checked In</span>
+                <span style="color: #6b7280;"><span style="display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 2px; margin-right: 4px;"></span>On Time</span>
+              </div>
+            </div>
+          ` : ""}
+
+          <!-- CTA Button -->
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://globalyos.com/org/${orgCode}/attendance" 
+               style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              View My Attendance
+            </a>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+            GlobalyOS - Operating System for Ambitious Teams
+          </p>
+          <p style="color: #cbd5e1; font-size: 11px; margin: 4px 0 0 0;">
+            Report generated on ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>
       </div>

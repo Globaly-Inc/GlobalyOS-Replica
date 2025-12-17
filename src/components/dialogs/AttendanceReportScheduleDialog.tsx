@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Calendar, Clock, Users, Sparkles, Send } from "lucide-react";
+import { Settings, Mail, Calendar, Clock, Users, User, Sparkles, Send } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 
 interface AttendanceReportScheduleDialogProps {
@@ -66,6 +66,7 @@ export const AttendanceReportScheduleDialog = ({
     admin: true,
     hr: true,
     manager: false,
+    user: false,
   });
 
   // Fetch existing schedule
@@ -102,6 +103,7 @@ export const AttendanceReportScheduleDialog = ({
           admin: r.admin ?? true,
           hr: r.hr ?? true,
           manager: r.manager ?? false,
+          user: r.user ?? false,
         });
       }
     }
@@ -322,6 +324,16 @@ export const AttendanceReportScheduleDialog = ({
                     <Checkbox
                       checked={recipients.manager}
                       onCheckedChange={(checked) => setRecipients(prev => ({ ...prev, manager: !!checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Users (their own attendance only)</span>
+                    </div>
+                    <Checkbox
+                      checked={recipients.user}
+                      onCheckedChange={(checked) => setRecipients(prev => ({ ...prev, user: !!checked }))}
                     />
                   </div>
                 </Card>
