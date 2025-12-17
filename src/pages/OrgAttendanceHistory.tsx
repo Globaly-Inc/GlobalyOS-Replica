@@ -608,9 +608,9 @@ const OrgAttendanceHistory = () => {
 
         {/* Sticky Filter Bar */}
         <div className="px-4 md:px-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 -mt-2 pt-2">
-          <div className="flex flex-col gap-2">
-            {/* Search Row */}
-            <div className="relative">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Search */}
+            <div className="relative flex-shrink-0 w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search employee..."
@@ -619,9 +619,6 @@ const OrgAttendanceHistory = () => {
                 className="pl-9 h-10"
               />
             </div>
-            
-            {/* Filters Row - Scrollable on mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {/* Month Selector */}
               <Select 
                 value={format(selectedMonth, "yyyy-MM")} 
@@ -733,7 +730,6 @@ const OrgAttendanceHistory = () => {
               <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 flex-shrink-0">
                 <Download className="h-4 w-4" />
               </Button>
-            </div>
           </div>
         </div>
 
