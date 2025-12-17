@@ -865,7 +865,7 @@ const OrgAttendanceHistory = () => {
                       <TableHead>Check In</TableHead>
                       <TableHead>Check Out</TableHead>
                       <TableHead>Hours</TableHead>
-                      <TableHead>Status</TableHead>
+                      
                       <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1002,7 +1002,7 @@ const OrgAttendanceHistory = () => {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>{getStatusBadge(record.status)}</TableCell>
+                          
                           <TableCell>
                             <TooltipProvider>
                               <div className="flex items-center gap-0.5">
