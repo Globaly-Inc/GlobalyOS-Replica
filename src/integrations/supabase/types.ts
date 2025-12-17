@@ -1656,6 +1656,8 @@ export type Database = {
       }
       employee_schedules: {
         Row: {
+          break_end_time: string | null
+          break_start_time: string | null
           created_at: string
           employee_id: string
           id: string
@@ -1667,6 +1669,8 @@ export type Database = {
           work_start_time: string
         }
         Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string
           employee_id: string
           id?: string
@@ -1678,6 +1682,8 @@ export type Database = {
           work_start_time?: string
         }
         Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string
           employee_id?: string
           id?: string
@@ -3126,6 +3132,8 @@ export type Database = {
       }
       office_schedules: {
         Row: {
+          break_end_time: string | null
+          break_start_time: string | null
           created_at: string
           id: string
           late_threshold_minutes: number
@@ -3137,6 +3145,8 @@ export type Database = {
           work_start_time: string
         }
         Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string
           id?: string
           late_threshold_minutes?: number
@@ -3148,6 +3158,8 @@ export type Database = {
           work_start_time?: string
         }
         Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string
           id?: string
           late_threshold_minutes?: number
