@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import {
   Target,
   TrendingUp,
@@ -96,7 +97,7 @@ const getCurrentYear = () => new Date().getFullYear();
 
 const TeamKPIDashboard = () => {
   const { user } = useAuth();
-  const { isAdmin, isHR } = useUserRole();
+  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   
@@ -111,21 +112,8 @@ const TeamKPIDashboard = () => {
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
   const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null);
 
-  // Get current employee
-  const { data: currentEmployee } = useQuery({
-    queryKey: ["current-employee", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, organization_id, manager_id")
-        .eq("user_id", user.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // Get current employee using centralized hook
+  const { data: currentEmployee, isLoading: loadingCurrentEmployee } = useCurrentEmployee();
 
   // Check if current user has direct reports (is a manager)
   const { data: directReportsCount = 0 } = useQuery({
@@ -149,7 +137,7 @@ const TeamKPIDashboard = () => {
   // - Manager: See self + direct reports
   // - User: See only self
   const { data: teamMembers = [], isLoading: loadingTeam } = useQuery({
-    queryKey: ["team-kpi-members", currentEmployee?.id, isAdmin, isHR, isManager, currentOrg?.id],
+    queryKey: ["team-kpi-members", currentEmployee?.id, isAdmin, isHR, isManager, currentOrg?.id, roleLoading],
     queryFn: async () => {
       if (!currentEmployee?.id) return [];
       
@@ -174,7 +162,7 @@ const TeamKPIDashboard = () => {
         return data;
       }
     },
-    enabled: !!currentEmployee?.id,
+    enabled: !!currentEmployee?.id && !roleLoading, // Wait for role to load
   });
 
   // Helper to determine if user can edit a specific KPI
@@ -570,7 +558,7 @@ const TeamKPIDashboard = () => {
     return Array.from(scopeMap.values()).sort((a, b) => b.kpis.length - a.kpis.length);
   }, [groupKpis, offices, projects]);
 
-  const isLoading = loadingTeam || loadingKPIs;
+  const isLoading = loadingTeam || loadingKPIs || roleLoading || loadingCurrentEmployee;
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all";
 
   const clearFilters = () => {
