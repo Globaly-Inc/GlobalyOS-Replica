@@ -1015,12 +1015,12 @@ const TeamKPIDashboard = () => {
               </Card>
             )}
 
-            {/* All KPIs - Now above Team Progress */}
+            {/* Individual KPIs - Now above Team Progress */}
             <Card className="mb-4 sm:mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Target className="h-4 w-4" />
-                  All KPIs
+                  Individual KPIs
                   <Badge variant="secondary" className="ml-2">
                     {filteredTeamKPIs.length}
                   </Badge>
