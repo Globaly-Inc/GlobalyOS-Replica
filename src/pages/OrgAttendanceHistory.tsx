@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -64,6 +64,8 @@ const OrgAttendanceHistory = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
+  const [workStatusFilter, setWorkStatusFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
@@ -359,6 +361,35 @@ const OrgAttendanceHistory = () => {
     enabled: !!currentOrg?.id
   });
 
+  // Fetch projects for filter
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("projects")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!currentOrg?.id
+  });
+
+  // Fetch employee-project mappings
+  const { data: employeeProjects = [] } = useQuery({
+    queryKey: ["employee-projects", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("employee_projects")
+        .select("employee_id, project_id")
+        .eq("organization_id", currentOrg.id);
+      return data || [];
+    },
+    enabled: !!currentOrg?.id
+  });
+
   // Only owner, admin, and HR can access org-wide attendance history
   if (!roleLoading && !isOwner && !isAdmin && !isHR) {
     return <Navigate to={`/org/${orgCode}`} replace />;
@@ -393,19 +424,44 @@ const OrgAttendanceHistory = () => {
     return records.filter(record => {
       const employee = record.employee as any;
       const employeeName = employee?.profiles?.full_name?.toLowerCase() || "";
+      const schedule = getSchedule(employee?.employee_schedules);
+      const workLocation = schedule?.work_location || 'office';
+      
       const matchesSearch = employeeName.includes(searchQuery.toLowerCase());
       const matchesDepartment = departmentFilter === "all" || employee?.department === departmentFilter;
 
-      // Location filter
+      // Location filter (enhanced with "all_offices")
       let matchesLocation = true;
       if (locationFilter === "wfh") {
         matchesLocation = record.status === "remote";
+      } else if (locationFilter === "all_offices") {
+        matchesLocation = record.check_in_office_id !== null;
       } else if (locationFilter !== "all") {
         matchesLocation = record.check_in_office_id === locationFilter;
       }
-      return matchesSearch && matchesDepartment && matchesLocation;
+
+      // Work Status filter (matches Work Schedule card)
+      let matchesWorkStatus = true;
+      if (workStatusFilter === "office") {
+        matchesWorkStatus = workLocation === 'office';
+      } else if (workStatusFilter === "remote") {
+        matchesWorkStatus = workLocation === 'remote' || record.status === 'remote';
+      } else if (workStatusFilter === "hybrid") {
+        matchesWorkStatus = workLocation === 'hybrid';
+      }
+
+      // Projects filter
+      let matchesProject = true;
+      if (projectFilter !== "all") {
+        const employeeProjectIds = employeeProjects
+          .filter(ep => ep.employee_id === record.employee_id)
+          .map(ep => ep.project_id);
+        matchesProject = employeeProjectIds.includes(projectFilter);
+      }
+
+      return matchesSearch && matchesDepartment && matchesLocation && matchesWorkStatus && matchesProject;
     });
-  }, [records, searchQuery, departmentFilter, locationFilter]);
+  }, [records, searchQuery, departmentFilter, locationFilter, workStatusFilter, projectFilter, employeeProjects]);
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       present: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -960,14 +1016,48 @@ const OrgAttendanceHistory = () => {
                   </PopoverContent>
                 </Popover>}
 
-              {/* Location Selector */}
+              {/* Status Selector (Work Schedule type) */}
+              <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
+                <SelectTrigger className="w-[100px] h-10">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="office">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-primary" />
+                      Office
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="remote">
+                    <div className="flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5 text-purple-600" />
+                      Remote
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="hybrid">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                      Hybrid
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Location Selector (enhanced with All Offices) */}
               <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[110px] h-10">
+                <SelectTrigger className="w-[120px] h-10">
                   <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all_offices">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5" />
+                      All Offices
+                    </div>
+                  </SelectItem>
                   <SelectItem value="wfh">
                     <div className="flex items-center gap-1.5">
                       <Home className="h-3.5 w-3.5" />
@@ -993,6 +1083,20 @@ const OrgAttendanceHistory = () => {
                   {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
                 </SelectContent>
               </Select>
+
+              {/* Projects Selector */}
+              {projects.length > 0 && (
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger className="w-[120px] h-10">
+                    <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <SelectValue placeholder="Project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
 
               {/* Mobile Export */}
               <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10">
