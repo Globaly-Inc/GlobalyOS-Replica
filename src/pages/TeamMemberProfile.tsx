@@ -752,7 +752,15 @@ const TeamMemberProfile = () => {
                         <Clock className="h-4 w-4 text-primary" />
                         Work Schedule
                       </h2>
-                      {employeeSchedule?.work_location && (
+                      {currentLeave ? (
+                        <Badge 
+                          variant="secondary" 
+                          className="text-[10px] px-1.5 py-0 h-5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-0"
+                        >
+                          <Palmtree className="h-3 w-3 mr-1" />
+                          On Leave
+                        </Badge>
+                      ) : employeeSchedule?.work_location && (
                         <Badge 
                           variant="secondary" 
                           className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[displayLocation]?.bgColor} ${WORK_LOCATION_CONFIG[displayLocation]?.color} border-0`}

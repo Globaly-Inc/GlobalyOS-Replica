@@ -223,7 +223,7 @@ export const EditScheduleDialog = ({
                 Work Location
               </Label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(WORK_LOCATION_CONFIG) as WorkLocation[]).map((location) => {
+                {(['office', 'hybrid', 'remote'] as const).map((location) => {
                   const config = WORK_LOCATION_CONFIG[location];
                   const isSelected = workLocation === location;
                   return (
