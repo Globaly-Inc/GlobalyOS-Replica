@@ -224,6 +224,7 @@ export const BlogAIGenerateDialog = ({ open, onOpenChange }: BlogAIGenerateDialo
           <Button 
             onClick={handleGenerate} 
             disabled={isGenerating || selectedKeywords.length === 0}
+            className="ai-gradient-border"
           >
             {isGenerating ? (
               <>
@@ -232,7 +233,7 @@ export const BlogAIGenerateDialog = ({ open, onOpenChange }: BlogAIGenerateDialo
               </>
             ) : (
               <>
-                <FileText className="h-4 w-4 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2 ai-gradient-icon" />
                 Generate 5 Posts
               </>
             )}

@@ -119,16 +119,16 @@ export const AIKPIAssist = ({
       <TooltipTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={handleGenerate}
           disabled={isGenerating || disabled || (type === "group" && !scopeValue)}
-          className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-primary"
+          className="h-7 gap-1 px-2 text-xs ai-gradient-border"
         >
           {isGenerating ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3.5 w-3.5 ai-gradient-icon" />
           )}
           <span className="hidden sm:inline">{getButtonLabel()}</span>
         </Button>

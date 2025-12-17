@@ -116,13 +116,13 @@ const AIReviewPrep = ({ employeeId, reviewId, periodStart, periodEnd, onDraftApp
               </Button>
             )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => generateMutation.mutate()}
               disabled={generateMutation.isPending}
-              className="h-8"
+              className="h-8 ai-gradient-border"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5 mr-1", generateMutation.isPending && "animate-spin")} />
+              <RefreshCw className={cn("h-3.5 w-3.5 mr-1 ai-gradient-icon", generateMutation.isPending && "animate-spin")} />
               {draft ? "Regenerate" : "Generate Draft"}
             </Button>
           </div>

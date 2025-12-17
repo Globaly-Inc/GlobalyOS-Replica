@@ -52,11 +52,11 @@ const FailedTestCard = ({ test, onFixWithAI, isFixing }: FailedTestCardProps) =>
             <Button
               size="sm"
               variant="outline"
-              className="shrink-0 gap-1.5 border-primary/30 hover:border-primary hover:bg-primary/10"
+              className="shrink-0 gap-1.5 ai-gradient-border"
               onClick={() => onFixWithAI(test)}
               disabled={isFixing}
             >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Sparkles className="h-3.5 w-3.5 ai-gradient-icon" />
               <span className="hidden sm:inline">Fix with AI</span>
               <span className="sm:hidden">Fix</span>
             </Button>

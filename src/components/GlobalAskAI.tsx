@@ -473,10 +473,10 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
             <Button 
               variant="outline" 
               size="icon"
-              className="h-10 w-10"
+              className="h-10 w-10 ai-gradient-border"
               disabled={!organizationId}
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 ai-gradient-icon" />
             </Button>
           </SheetTrigger>
         </TooltipTrigger>
