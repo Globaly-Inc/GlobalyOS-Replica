@@ -83,6 +83,13 @@ const OrgAttendanceHistory = () => {
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [addAttendanceOpen, setAddAttendanceOpen] = useState(false);
+  const [reportScheduleOpen, setReportScheduleOpen] = useState(false);
+
+  // PDF Export handler
+  const handleExportPDF = () => {
+    window.print();
+  };
 
   // Calculate date range based on filter option - use UTC dates to match database storage
   const dateRange = useMemo(() => {
@@ -1548,6 +1555,18 @@ const OrgAttendanceHistory = () => {
 
       {/* Floating Bulk Actions Bar */}
       {selectedRecords.size > 0 && (isOwner || isAdmin) && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} canDelete={isOwner || isAdmin} />}
+
+      {/* Add Attendance Dialog */}
+      <AddAttendanceDialog
+        open={addAttendanceOpen}
+        onOpenChange={setAddAttendanceOpen}
+      />
+
+      {/* Auto Report Schedule Dialog */}
+      <AttendanceReportScheduleDialog
+        open={reportScheduleOpen}
+        onOpenChange={setReportScheduleOpen}
+      />
     </div>;
 };
 export default OrgAttendanceHistory;
