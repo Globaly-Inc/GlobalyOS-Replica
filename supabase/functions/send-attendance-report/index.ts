@@ -100,18 +100,38 @@ serve(async (req) => {
 
     console.log("Schedule settings:", schedule);
 
-    // Calculate date range
+    // Get schedules array or use legacy single schedule
+    const schedulesArray = schedule?.schedules as { frequency: string }[] || [];
+    const primarySchedule = schedulesArray[0] || { frequency: schedule?.frequency || "weekly" };
+    const frequency = primarySchedule.frequency;
+
+    // Calculate date range based on frequency
     const now = new Date();
     const endDate = new Date(now);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(now);
-    const periodDays = schedule?.frequency === "monthly" ? 30 : 7;
+    
+    let periodDays: number;
+    switch (frequency) {
+      case "annual":
+        periodDays = 365;
+        break;
+      case "quarterly":
+        periodDays = 90;
+        break;
+      case "monthly":
+        periodDays = 30;
+        break;
+      default: // weekly
+        periodDays = 7;
+    }
+    
     startDate.setDate(startDate.getDate() - periodDays);
     startDate.setHours(0, 0, 0, 0);
 
     const startDateStr = startDate.toISOString().split("T")[0];
     const endDateStr = endDate.toISOString().split("T")[0];
-    console.log("Date range:", startDateStr, "to", endDateStr);
+    console.log("Date range:", startDateStr, "to", endDateStr, "Frequency:", frequency);
 
     // Calculate previous period for comparison
     const prevEndDate = new Date(startDate);
@@ -560,7 +580,13 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
     }
 
     // Generate email HTML
-    const periodLabel = schedule?.frequency === "monthly" ? "Monthly" : "Weekly";
+    const periodLabelMap: Record<string, string> = {
+      weekly: "Weekly",
+      monthly: "Monthly",
+      quarterly: "Quarterly",
+      annual: "Annual",
+    };
+    const periodLabel = periodLabelMap[frequency] || "Weekly";
     const dateRangeText = `${new Date(startDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(endDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
     const includeSummaryCards = isTest ? (requestIncludeSummaryCards ?? true) : (schedule?.include_summary_cards ?? true);
 
