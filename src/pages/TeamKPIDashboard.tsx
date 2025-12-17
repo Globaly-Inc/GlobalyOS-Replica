@@ -1248,7 +1248,7 @@ const TeamKPIDashboard = () => {
                       <BarChart3 className="h-4 w-4" />
                       Overall Progress
                     </CardTitle>
-                    <TabsList className="grid grid-cols-3 h-8">
+                    <TabsList className="grid grid-cols-3 h-9">
                       <TabsTrigger value="all" className="gap-1.5 text-xs px-2 sm:px-3">
                         <LayoutGrid className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">All</span>
