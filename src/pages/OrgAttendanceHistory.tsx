@@ -53,7 +53,7 @@ import {
   Home,
   MapPin
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -74,18 +74,20 @@ interface AttendanceRecord {
   check_in_office_id: string | null;
 }
 
+type DateRangeOption = 'today' | 'last7days' | 'last14days' | 'last30days' | 'thisMonth' | 'lastMonth' | 'custom';
+
 const OrgAttendanceHistory = () => {
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode } = useOrgNavigation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeOption>('today');
+  const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; record: any | null }>({ open: false, record: null });
@@ -93,8 +95,46 @@ const OrgAttendanceHistory = () => {
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const monthStart = startOfMonth(selectedMonth);
-  const monthEnd = endOfMonth(selectedMonth);
+  // Calculate date range based on filter option
+  const dateRange = useMemo(() => {
+    const today = new Date();
+    switch (dateRangeFilter) {
+      case 'today':
+        return { start: today, end: today };
+      case 'last7days':
+        return { start: subDays(today, 6), end: today };
+      case 'last14days':
+        return { start: subDays(today, 13), end: today };
+      case 'last30days':
+        return { start: subDays(today, 29), end: today };
+      case 'thisMonth':
+        return { start: startOfMonth(today), end: endOfMonth(today) };
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      case 'custom':
+        return { start: customDateRange.from || today, end: customDateRange.to || today };
+      default:
+        return { start: today, end: today };
+    }
+  }, [dateRangeFilter, customDateRange]);
+
+  const dateRangeLabel = useMemo(() => {
+    switch (dateRangeFilter) {
+      case 'today': return 'Today';
+      case 'last7days': return 'Last 7 days';
+      case 'last14days': return 'Last 14 days';
+      case 'last30days': return 'Last 30 days';
+      case 'thisMonth': return 'This Month';
+      case 'lastMonth': return 'Last Month';
+      case 'custom': 
+        if (customDateRange.from && customDateRange.to) {
+          return `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}`;
+        }
+        return 'Custom';
+      default: return 'Today';
+    }
+  }, [dateRangeFilter, customDateRange]);
 
   // Helper function to get schedule (handles both array and object structures)
   const getSchedule = (scheduleData: any) => {
@@ -140,7 +180,7 @@ const OrgAttendanceHistory = () => {
 
   // Fetch all attendance records for the organization with office data and employee schedule
   const { data: records, isLoading } = useQuery({
-    queryKey: ["org-attendance", currentOrg?.id, format(monthStart, "yyyy-MM"), statusFilter, dateFilter, departmentFilter],
+    queryKey: ["org-attendance", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd"), statusFilter, departmentFilter],
     queryFn: async () => {
       let query = supabase
         .from("attendance_records")
@@ -168,16 +208,12 @@ const OrgAttendanceHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg!.id)
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"))
+        .gte("date", format(dateRange.start, "yyyy-MM-dd"))
+        .lte("date", format(dateRange.end, "yyyy-MM-dd"))
         .order("date", { ascending: false });
 
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
-      }
-
-      if (dateFilter) {
-        query = query.eq("date", format(dateFilter, "yyyy-MM-dd"));
       }
 
       const { data, error } = await query;
@@ -316,10 +352,15 @@ const OrgAttendanceHistory = () => {
     };
   }, [filteredRecords]);
 
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const date = subMonths(new Date(), i);
-    return { label: format(date, "MMMM yyyy"), value: date };
-  });
+  const dateRangeOptions: { value: DateRangeOption; label: string }[] = [
+    { value: 'today', label: 'Today' },
+    { value: 'last7days', label: 'Last 7 days' },
+    { value: 'last14days', label: 'Last 14 days' },
+    { value: 'last30days', label: 'Last 30 days' },
+    { value: 'thisMonth', label: 'This Month' },
+    { value: 'lastMonth', label: 'Last Month' },
+    { value: 'custom', label: 'Custom Range' },
+  ];
 
   // Bulk selection handlers
   const allSelected = filteredRecords.length > 0 && selectedRecords.size === filteredRecords.length;
@@ -372,7 +413,7 @@ const OrgAttendanceHistory = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-${format(selectedMonth, "yyyy-MM")}.csv`;
+    a.download = `attendance-${format(dateRange.start, "yyyy-MM-dd")}-to-${format(dateRange.end, "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${dataToExport.length} records`);
@@ -608,9 +649,9 @@ const OrgAttendanceHistory = () => {
 
         {/* Sticky Filter Bar */}
         <div className="px-4 md:px-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 -mt-2 pt-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {/* Search */}
-            <div className="relative flex-shrink-0 w-[180px]">
+          <div className="flex items-center gap-2">
+            {/* Search - expanded on left */}
+            <div className="relative flex-1 min-w-[140px] max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search employee..."
@@ -619,30 +660,53 @@ const OrgAttendanceHistory = () => {
                 className="pl-9 h-10"
               />
             </div>
-              {/* Month Selector */}
-              <Select 
-                value={format(selectedMonth, "yyyy-MM")} 
-                onValueChange={(val) => {
-                  const [year, month] = val.split("-");
-                  setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-                }}
-              >
-                <SelectTrigger className="w-[130px] h-10 flex-shrink-0">
+
+            {/* Filters on right */}
+            <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto scrollbar-hide">
+              {/* Date Range Selector */}
+              <Select value={dateRangeFilter} onValueChange={(val) => setDateRangeFilter(val as DateRangeOption)}>
+                <SelectTrigger className="w-[130px] h-10">
                   <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <SelectValue />
+                  <SelectValue>{dateRangeLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={format(month.value, "yyyy-MM")} value={format(month.value, "yyyy-MM")}>
-                      {month.label}
+                  {dateRangeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
+              {/* Custom Date Range Picker */}
+              {dateRangeFilter === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 px-3 gap-1.5">
+                      <CalendarIcon className="h-4 w-4" />
+                      <span className="text-sm">
+                        {customDateRange.from && customDateRange.to 
+                          ? `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}`
+                          : "Select dates"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="range"
+                      selected={{ from: customDateRange.from, to: customDateRange.to }}
+                      onSelect={(range) => setCustomDateRange({ from: range?.from, to: range?.to })}
+                      initialFocus
+                      className="pointer-events-auto"
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
               {/* Location Selector */}
               <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[110px] h-10 flex-shrink-0">
+                <SelectTrigger className="w-[110px] h-10">
                   <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
@@ -667,7 +731,7 @@ const OrgAttendanceHistory = () => {
 
               {/* Department Selector */}
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[110px] h-10 flex-shrink-0">
+                <SelectTrigger className="w-[110px] h-10">
                   <SelectValue placeholder="Dept" />
                 </SelectTrigger>
                 <SelectContent>
@@ -678,58 +742,11 @@ const OrgAttendanceHistory = () => {
                 </SelectContent>
               </Select>
 
-              {/* Status Selector */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[100px] h-10 flex-shrink-0">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="late">Late</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                  <SelectItem value="half_day">Half Day</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Date Picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className={cn(
-                      "h-10 px-3 gap-2 flex-shrink-0",
-                      dateFilter && "bg-primary/10 border-primary/30"
-                    )}
-                  >
-                    <CalendarIcon className="h-4 w-4" />
-                    <span className="text-sm">{dateFilter ? format(dateFilter, "MMM d") : "Date"}</span>
-                    {dateFilter && (
-                      <X 
-                        className="h-3.5 w-3.5 opacity-60 hover:opacity-100" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDateFilter(undefined);
-                        }}
-                      />
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={dateFilter}
-                    onSelect={setDateFilter}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-
               {/* Mobile Export */}
-              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 flex-shrink-0">
+              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10">
                 <Download className="h-4 w-4" />
               </Button>
+            </div>
           </div>
         </div>
 
