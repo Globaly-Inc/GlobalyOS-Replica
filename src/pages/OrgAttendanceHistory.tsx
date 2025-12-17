@@ -975,9 +975,9 @@ const OrgAttendanceHistory = () => {
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
-            <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Add Attendance
+            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Email Reports
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -998,9 +998,9 @@ const OrgAttendanceHistory = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              AI Email Reports
+            <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add Attendance
             </Button>
           </div>
         </div>
