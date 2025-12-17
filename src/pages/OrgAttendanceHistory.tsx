@@ -975,7 +975,7 @@ const OrgAttendanceHistory = () => {
             <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto scrollbar-hide">
               {/* Date Range Selector */}
               <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
-                <SelectTrigger className="w-[130px] h-10">
+                <SelectTrigger className="w-[145px] h-10">
                   <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue>{dateRangeLabel}</SelectValue>
                 </SelectTrigger>
@@ -1009,7 +1009,7 @@ const OrgAttendanceHistory = () => {
 
               {/* Status Selector (Work Schedule type + WFH) */}
               <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
-                <SelectTrigger className="w-[130px] h-10">
+                <SelectTrigger className="w-[140px] h-10">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1043,11 +1043,11 @@ const OrgAttendanceHistory = () => {
 
               {/* Department Selector */}
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[110px] h-10">
-                  <SelectValue placeholder="Dept" />
+                <SelectTrigger className="w-[160px] h-10">
+                  <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Depts</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
                   {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -1055,7 +1055,7 @@ const OrgAttendanceHistory = () => {
               {/* Projects Selector */}
               {projects.length > 0 && (
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[120px] h-10">
+                  <SelectTrigger className="w-[150px] h-10">
                     <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
                     <SelectValue placeholder="Project" />
                   </SelectTrigger>
