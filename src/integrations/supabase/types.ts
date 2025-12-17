@@ -438,6 +438,7 @@ export type Database = {
           id: string
           include_ai_summary: boolean | null
           include_charts: boolean | null
+          include_summary_cards: boolean | null
           last_sent_at: string | null
           organization_id: string
           recipients: Json | null
@@ -453,6 +454,7 @@ export type Database = {
           id?: string
           include_ai_summary?: boolean | null
           include_charts?: boolean | null
+          include_summary_cards?: boolean | null
           last_sent_at?: string | null
           organization_id: string
           recipients?: Json | null
@@ -468,6 +470,7 @@ export type Database = {
           id?: string
           include_ai_summary?: boolean | null
           include_charts?: boolean | null
+          include_summary_cards?: boolean | null
           last_sent_at?: string | null
           organization_id?: string
           recipients?: Json | null
