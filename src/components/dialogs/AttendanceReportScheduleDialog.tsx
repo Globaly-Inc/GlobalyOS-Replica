@@ -318,7 +318,6 @@ export const AttendanceReportScheduleDialog = ({
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">Managers (their team only)</span>
-                      <Badge variant="outline" className="text-xs">Beta</Badge>
                     </div>
                     <Checkbox
                       checked={recipients.manager}
