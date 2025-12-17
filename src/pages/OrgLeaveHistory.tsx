@@ -894,7 +894,7 @@ const OrgLeaveHistory = () => {
                             {/* View - Always visible - Links to individual leave history */}
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <OrgLink to={`/leave-history/${t.employee?.id}`}>
+                                <OrgLink to={`/team/${t.employee?.id}/leave-history`}>
                                   <Button variant="ghost" size="icon" className="h-7 w-7">
                                     <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </Button>
