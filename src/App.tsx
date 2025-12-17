@@ -55,6 +55,7 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
+const ManageOffices = lazy(() => import('./pages/ManageOffices'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
@@ -112,6 +113,7 @@ const App = () => (
                   {/* Team section */}
                   <Route index element={<OrgProtectedRoute><Home /></OrgProtectedRoute>} />
                   <Route path="team" element={<OrgProtectedRoute><Team /></OrgProtectedRoute>} />
+                  <Route path="team/offices" element={<OrgProtectedRoute><ManageOffices /></OrgProtectedRoute>} />
                   <Route path="team/bulk-import" element={<OrgProtectedRoute><BulkImport /></OrgProtectedRoute>} />
                   <Route path="team/:id" element={<OrgProtectedRoute><TeamMemberProfile /></OrgProtectedRoute>} />
                   <Route path="team/:id/leave-history" element={<OrgProtectedRoute><LeaveHistory /></OrgProtectedRoute>} />

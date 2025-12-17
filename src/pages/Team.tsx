@@ -12,7 +12,7 @@ import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
-import { ManageOfficesDialog } from "@/components/dialogs/ManageOfficesDialog";
+
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphanedUsersDialog";
 import { cn } from "@/lib/utils";
@@ -95,7 +95,7 @@ const Team = () => {
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
-  const [officesDialogOpen, setOfficesDialogOpen] = useState(false);
+  
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [recoverDialogOpen, setRecoverDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
@@ -461,8 +461,8 @@ const Team = () => {
           )}
           {isHR && (
             <>
-              <Button variant="outline" onClick={() => setOfficesDialogOpen(true)} className="hidden sm:inline-flex gap-2">
-                <Settings className="h-4 w-4" />
+              <Button variant="outline" onClick={() => navigateOrg('/team/offices')} className="hidden sm:inline-flex gap-2">
+                <Building2 className="h-4 w-4" />
                 Manage Offices
               </Button>
               <Button variant="outline" onClick={() => navigateOrg('/team/bulk-import')} className="hidden sm:inline-flex gap-2">
@@ -741,11 +741,6 @@ const Team = () => {
         )}
       </div>
 
-      <ManageOfficesDialog
-        open={officesDialogOpen}
-        onOpenChange={setOfficesDialogOpen}
-        onOfficesChange={loadEmployees}
-      />
 
       <InviteTeamMemberDialog
         open={inviteDialogOpen}

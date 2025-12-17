@@ -3124,6 +3124,57 @@ export type Database = {
           },
         ]
       }
+      office_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          late_threshold_minutes: number
+          office_id: string
+          organization_id: string
+          timezone: string | null
+          updated_at: string
+          work_end_time: string
+          work_start_time: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          late_threshold_minutes?: number
+          office_id: string
+          organization_id: string
+          timezone?: string | null
+          updated_at?: string
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          late_threshold_minutes?: number
+          office_id?: string
+          organization_id?: string
+          timezone?: string | null
+          updated_at?: string
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_schedules_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: true
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_schedules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offices: {
         Row: {
           address: string | null
