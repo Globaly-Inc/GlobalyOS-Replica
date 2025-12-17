@@ -43,6 +43,34 @@ const AttendanceHistory = () => {
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
 
+  // Helper function to check if check-in is late
+  const isLateArrival = (record: any) => {
+    if (!record.check_in_time || !schedule) return false;
+    if (!schedule.work_start_time || schedule.late_threshold_minutes === null || schedule.late_threshold_minutes === undefined) return false;
+    
+    const checkInTime = new Date(record.check_in_time);
+    const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
+    
+    const workStartWithThreshold = new Date(checkInTime);
+    workStartWithThreshold.setHours(startHours, startMinutes + (schedule.late_threshold_minutes || 0), 0, 0);
+    
+    return checkInTime > workStartWithThreshold;
+  };
+
+  // Helper function to check if check-out is early
+  const isEarlyDeparture = (record: any) => {
+    if (!record.check_out_time || !schedule) return false;
+    if (!schedule.work_end_time) return false;
+    
+    const checkOutTime = new Date(record.check_out_time);
+    const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
+    
+    const workEndTime = new Date(checkOutTime);
+    workEndTime.setHours(endHours, endMinutes, 0, 0);
+    
+    return checkOutTime < workEndTime;
+  };
+
   // Fetch employee info
   const { data: employee } = useQuery({
     queryKey: ["employee-info", id],
@@ -322,17 +350,33 @@ const AttendanceHistory = () => {
                     {getStatusIcon(record.status)}
                     <div>
                       <p className="font-medium">{format(parseISO(record.date), "EEEE, MMMM d, yyyy")}</p>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
-                        <span>
-                          In: {record.check_in_time 
-                            ? format(new Date(record.check_in_time), "h:mm a") 
-                            : "-"}
-                        </span>
-                        <span>
-                          Out: {record.check_out_time 
-                            ? format(new Date(record.check_out_time), "h:mm a") 
-                            : "-"}
-                        </span>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <div className="flex flex-col gap-0.5">
+                          <span>
+                            In: {record.check_in_time 
+                              ? format(new Date(record.check_in_time), "h:mm a") 
+                              : "-"}
+                          </span>
+                          {isLateArrival(record) && (
+                            <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                              <Clock className="h-2.5 w-2.5 mr-1" />
+                              Late Arrival
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span>
+                            Out: {record.check_out_time 
+                              ? format(new Date(record.check_out_time), "h:mm a") 
+                              : "-"}
+                          </span>
+                          {isEarlyDeparture(record) && (
+                            <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                              <Clock className="h-2.5 w-2.5 mr-1" />
+                              Early Departure
+                            </Badge>
+                          )}
+                        </div>
                         {record.work_hours && (
                           <span className="font-medium text-foreground">
                             {record.work_hours.toFixed(1)} hours

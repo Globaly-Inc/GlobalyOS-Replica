@@ -96,11 +96,17 @@ const OrgAttendanceHistory = () => {
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
 
+  // Helper function to get schedule (handles both array and object structures)
+  const getSchedule = (scheduleData: any) => {
+    if (!scheduleData) return null;
+    return Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
+  };
+
   // Helper function to check if check-in is late
-  const isLateArrival = (record: any, schedules: any[]) => {
-    if (!record.check_in_time || !schedules?.[0]) return false;
-    const schedule = schedules[0];
-    if (!schedule.work_start_time || schedule.late_threshold_minutes === null) return false;
+  const isLateArrival = (record: any, scheduleData: any) => {
+    if (!record.check_in_time || !scheduleData) return false;
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.work_start_time || schedule.late_threshold_minutes === null || schedule.late_threshold_minutes === undefined) return false;
     
     const checkInTime = new Date(record.check_in_time);
     const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
@@ -112,10 +118,10 @@ const OrgAttendanceHistory = () => {
   };
 
   // Helper function to check if check-out is early
-  const isEarlyDeparture = (record: any, schedules: any[]) => {
-    if (!record.check_out_time || !schedules?.[0]) return false;
-    const schedule = schedules[0];
-    if (!schedule.work_end_time) return false;
+  const isEarlyDeparture = (record: any, scheduleData: any) => {
+    if (!record.check_out_time || !scheduleData) return false;
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.work_end_time) return false;
     
     const checkOutTime = new Date(record.check_out_time);
     const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
@@ -124,6 +130,12 @@ const OrgAttendanceHistory = () => {
     workEndTime.setHours(endHours, endMinutes, 0, 0);
     
     return checkOutTime < workEndTime;
+  };
+
+  // Helper to get work location from schedule
+  const getWorkLocation = (scheduleData: any) => {
+    const schedule = getSchedule(scheduleData);
+    return schedule?.work_location;
   };
 
   // Fetch all attendance records for the organization with office data and employee schedule
@@ -462,21 +474,21 @@ const OrgAttendanceHistory = () => {
                       >
                         <Building2 className="h-2 w-2 mr-0.5" />Office
                       </Badge>
-                    ) : employee?.employee_schedules?.[0]?.work_location ? (
+                    ) : getWorkLocation(employee?.employee_schedules) ? (
                       <Badge
                         variant="secondary"
                         className={cn(
                           "text-[8px] px-1 py-0 h-3.5 shrink-0",
-                          employee.employee_schedules[0].work_location === "remote"
+                          getWorkLocation(employee?.employee_schedules) === "remote"
                             ? "bg-accent/50 text-accent-foreground"
-                            : employee.employee_schedules[0].work_location === "hybrid"
+                            : getWorkLocation(employee?.employee_schedules) === "hybrid"
                               ? "bg-secondary text-secondary-foreground"
                               : "bg-primary/10 text-primary"
                         )}
                       >
-                        {employee.employee_schedules[0].work_location === "remote" ? (
+                        {getWorkLocation(employee?.employee_schedules) === "remote" ? (
                           <><Home className="h-2 w-2 mr-0.5" />Remote</>
-                        ) : employee.employee_schedules[0].work_location === "hybrid" ? (
+                        ) : getWorkLocation(employee?.employee_schedules) === "hybrid" ? (
                           <><Building2 className="h-2 w-2 mr-0.5" />Hybrid</>
                         ) : (
                           <><Building2 className="h-2 w-2 mr-0.5" />Office</>
@@ -508,23 +520,28 @@ const OrgAttendanceHistory = () => {
             
             {/* Check In/Out + Status Row */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    <span className="font-medium">In:</span>
+                    <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                  </div>
                   {isLateArrival(record, employee?.employee_schedules) && (
-                    <Badge variant="secondary" className="text-[7px] px-0.5 py-0 h-3 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      Late
+                    <Badge className="w-fit text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                      <Clock className="h-2 w-2 mr-0.5" />Late
                     </Badge>
                   )}
                 </div>
-                <span className="text-muted-foreground">→</span>
-                <div className="flex items-center gap-1">
-                  <XCircle className="h-3 w-3 text-red-500" />
-                  <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <XCircle className="h-3 w-3 text-red-500" />
+                    <span className="font-medium">Out:</span>
+                    <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                  </div>
                   {isEarlyDeparture(record, employee?.employee_schedules) && (
-                    <Badge variant="secondary" className="text-[7px] px-0.5 py-0 h-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                      Early
+                    <Badge className="w-fit text-[8px] px-1 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                      <Clock className="h-2 w-2 mr-0.5" />Early
                     </Badge>
                   )}
                 </div>
@@ -888,21 +905,21 @@ const OrgAttendanceHistory = () => {
                                     >
                                       <Building2 className="h-2.5 w-2.5 mr-0.5" />Office
                                     </Badge>
-                                  ) : employee?.employee_schedules?.[0]?.work_location ? (
+                                  ) : getWorkLocation(employee?.employee_schedules) ? (
                                     <Badge
                                       variant="secondary"
                                       className={cn(
                                         "text-[9px] px-1.5 py-0 h-4 shrink-0",
-                                        employee.employee_schedules[0].work_location === "remote"
+                                        getWorkLocation(employee?.employee_schedules) === "remote"
                                           ? "bg-accent/50 text-accent-foreground"
-                                          : employee.employee_schedules[0].work_location === "hybrid"
+                                          : getWorkLocation(employee?.employee_schedules) === "hybrid"
                                             ? "bg-secondary text-secondary-foreground"
                                             : "bg-primary/10 text-primary"
                                       )}
                                     >
-                                      {employee.employee_schedules[0].work_location === "remote" ? (
+                                      {getWorkLocation(employee?.employee_schedules) === "remote" ? (
                                         <><Home className="h-2.5 w-2.5 mr-0.5" />Remote</>
-                                      ) : employee.employee_schedules[0].work_location === "hybrid" ? (
+                                      ) : getWorkLocation(employee?.employee_schedules) === "hybrid" ? (
                                         <><Building2 className="h-2.5 w-2.5 mr-0.5" />Hybrid</>
                                       ) : (
                                         <><Building2 className="h-2.5 w-2.5 mr-0.5" />Office</>
@@ -929,23 +946,29 @@ const OrgAttendanceHistory = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                              <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                              </div>
                               {isLateArrival(record, employee?.employee_schedules) && (
-                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                  <Clock className="h-2 w-2 mr-0.5" />Late
+                                <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                                  <Clock className="h-2.5 w-2.5 mr-1" />
+                                  Late Arrival
                                 </Badge>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <XCircle className="h-3.5 w-3.5 text-red-500" />
-                              <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <XCircle className="h-3.5 w-3.5 text-red-500" />
+                                <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                              </div>
                               {isEarlyDeparture(record, employee?.employee_schedules) && (
-                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                  <Clock className="h-2 w-2 mr-0.5" />Early
+                                <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                                  <Clock className="h-2.5 w-2.5 mr-1" />
+                                  Early Departure
                                 </Badge>
                               )}
                             </div>
