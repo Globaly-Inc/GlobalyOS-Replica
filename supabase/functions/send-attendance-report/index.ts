@@ -612,7 +612,7 @@ function generateEmailHtml(params: {
                 }
               </td>
               <td style="text-align: right;">
-                <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="height: 32px; width: 32px; border-radius: 6px;" />
+                <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="height: 36px; width: auto;" />
               </td>
             </tr>
           </table>
