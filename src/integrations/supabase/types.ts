@@ -2169,10 +2169,14 @@ export type Database = {
           created_at: string
           current_value: number | null
           description: string | null
-          employee_id: string
+          employee_id: string | null
           id: string
           organization_id: string
           quarter: number
+          scope_department: string | null
+          scope_office_id: string | null
+          scope_project_id: string | null
+          scope_type: string
           status: string
           target_value: number | null
           title: string
@@ -2184,10 +2188,14 @@ export type Database = {
           created_at?: string
           current_value?: number | null
           description?: string | null
-          employee_id: string
+          employee_id?: string | null
           id?: string
           organization_id: string
           quarter: number
+          scope_department?: string | null
+          scope_office_id?: string | null
+          scope_project_id?: string | null
+          scope_type?: string
           status?: string
           target_value?: number | null
           title: string
@@ -2199,10 +2207,14 @@ export type Database = {
           created_at?: string
           current_value?: number | null
           description?: string | null
-          employee_id?: string
+          employee_id?: string | null
           id?: string
           organization_id?: string
           quarter?: number
+          scope_department?: string | null
+          scope_office_id?: string | null
+          scope_project_id?: string | null
+          scope_type?: string
           status?: string
           target_value?: number | null
           title?: string
@@ -2230,6 +2242,20 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_scope_office_id_fkey"
+            columns: ["scope_office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_scope_project_id_fkey"
+            columns: ["scope_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
