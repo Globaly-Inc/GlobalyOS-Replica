@@ -2226,6 +2226,154 @@ export type Database = {
           },
         ]
       }
+      kpi_update_settings: {
+        Row: {
+          created_at: string
+          created_by: string
+          day_of_month: number | null
+          day_of_week: number | null
+          frequency: string
+          id: string
+          is_enabled: boolean
+          kpi_id: string
+          last_reminder_at: string | null
+          next_reminder_at: string | null
+          organization_id: string
+          reminder_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          frequency?: string
+          id?: string
+          is_enabled?: boolean
+          kpi_id: string
+          last_reminder_at?: string | null
+          next_reminder_at?: string | null
+          organization_id: string
+          reminder_time?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          frequency?: string
+          id?: string
+          is_enabled?: boolean
+          kpi_id?: string
+          last_reminder_at?: string | null
+          next_reminder_at?: string | null
+          organization_id?: string
+          reminder_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_update_settings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_update_settings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_update_settings_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: true
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_update_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_updates: {
+        Row: {
+          attachments: Json | null
+          created_at: string
+          employee_id: string
+          id: string
+          kpi_id: string
+          new_value: number | null
+          notes: string
+          organization_id: string
+          previous_value: number | null
+          status_after: string | null
+          status_before: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          kpi_id: string
+          new_value?: number | null
+          notes: string
+          organization_id: string
+          previous_value?: number | null
+          status_after?: string | null
+          status_before?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          kpi_id?: string
+          new_value?: number | null
+          notes?: string
+          organization_id?: string
+          previous_value?: number | null
+          status_after?: string | null
+          status_before?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_updates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_updates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_updates_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_updates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpis: {
         Row: {
           created_at: string

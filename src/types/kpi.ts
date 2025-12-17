@@ -75,8 +75,58 @@ export interface KpiAiInsight {
 export interface KpiInsightData {
   trend: 'improving' | 'stable' | 'declining';
   summary: string;
-  focus_areas: string[];
-  recommendations: string[];
+}
+
+// KPI Updates
+export interface KpiUpdate {
+  id: string;
+  kpi_id: string;
+  employee_id: string;
+  organization_id: string;
+  previous_value: number | null;
+  new_value: number | null;
+  notes: string;
+  status_before: KpiStatus | null;
+  status_after: KpiStatus | null;
+  attachments: unknown[];
+  created_at: string;
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+}
+
+export type KpiReminderFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
+export interface KpiUpdateSettings {
+  id: string;
+  kpi_id: string;
+  organization_id: string;
+  frequency: KpiReminderFrequency;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  reminder_time: string;
+  is_enabled: boolean;
+  last_reminder_at: string | null;
+  next_reminder_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KpiWithUpdates extends Kpi {
+  updates?: KpiUpdate[];
+  update_settings?: KpiUpdateSettings | null;
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  } | null;
 }
 
 // Performance Review
