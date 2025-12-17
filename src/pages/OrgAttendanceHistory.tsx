@@ -16,8 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays } from "date-fns";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane } from "lucide-react";
+import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
+import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -292,6 +293,72 @@ const OrgAttendanceHistory = () => {
     enabled: !!currentOrg?.id && !roleLoading && (isOwner || isAdmin || isHR)
   });
 
+  // Calculate previous period based on current filter
+  const previousPeriod = useMemo(() => {
+    const diff = differenceInDays(dateRange.end, dateRange.start) + 1;
+    return {
+      start: subDays(dateRange.start, diff),
+      end: subDays(dateRange.end, diff)
+    };
+  }, [dateRange]);
+
+  // Fetch previous period attendance for comparison
+  const { data: previousRecords } = useQuery({
+    queryKey: ["org-attendance-previous", currentOrg?.id, format(previousPeriod.start, "yyyy-MM-dd"), format(previousPeriod.end, "yyyy-MM-dd")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("attendance_records")
+        .select(`
+          *,
+          employee:employees!attendance_records_employee_id_fkey(
+            id,
+            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time)
+          )
+        `)
+        .eq("organization_id", currentOrg!.id)
+        .gte("date", format(previousPeriod.start, "yyyy-MM-dd"))
+        .lte("date", format(previousPeriod.end, "yyyy-MM-dd"));
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id && !roleLoading && (isOwner || isAdmin || isHR)
+  });
+
+  // Fetch active employees for missing calculation
+  const { data: activeEmployees } = useQuery({
+    queryKey: ["active-employees-count", currentOrg?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("organization_id", currentOrg!.id)
+        .eq("status", "active");
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id
+  });
+
+  // Fetch approved leave for the selected period
+  const { data: leaveRecords } = useQuery({
+    queryKey: ["leave-for-period", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("employee_id, start_date, end_date")
+        .eq("organization_id", currentOrg!.id)
+        .eq("status", "approved")
+        .lte("start_date", format(dateRange.end, "yyyy-MM-dd"))
+        .gte("end_date", format(dateRange.start, "yyyy-MM-dd"));
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id
+  });
+
   // Only owner, admin, and HR can access org-wide attendance history
   if (!roleLoading && !isOwner && !isAdmin && !isHR) {
     return <Navigate to={`/org/${orgCode}`} replace />;
@@ -395,20 +462,199 @@ const OrgAttendanceHistory = () => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Calculate stats
+  // Helper: Calculate late arrival duration in minutes
+  const getLateMinutes = (record: any, scheduleData: any): number => {
+    if (!record.check_in_time || !scheduleData) return 0;
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.work_start_time) return 0;
+    
+    const checkInTime = new Date(record.check_in_time);
+    const [startH, startM] = schedule.work_start_time.split(':').map(Number);
+    const expectedStart = new Date(checkInTime);
+    expectedStart.setHours(startH, startM + (schedule.late_threshold_minutes || 0), 0, 0);
+    
+    const diff = (checkInTime.getTime() - expectedStart.getTime()) / (1000 * 60);
+    return Math.max(0, diff);
+  };
+
+  // Helper: Calculate early checkout duration in minutes
+  const getEarlyMinutes = (record: any, scheduleData: any): number => {
+    if (!record.check_out_time || !scheduleData) return 0;
+    const schedule = getSchedule(scheduleData);
+    if (!schedule?.work_end_time) return 0;
+    
+    const checkOutTime = new Date(record.check_out_time);
+    const [endH, endM] = schedule.work_end_time.split(':').map(Number);
+    const expectedEnd = new Date(checkOutTime);
+    expectedEnd.setHours(endH, endM, 0, 0);
+    
+    const diff = (expectedEnd.getTime() - checkOutTime.getTime()) / (1000 * 60);
+    return Math.max(0, diff);
+  };
+
+  // Helper: Format minutes as "Xh Ym"
+  const formatMinutes = (minutes: number): string => {
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  };
+
+  // Helper: Calculate percentage change
+  const calcChange = (current: number, previous: number): number => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  // Get employees on leave for the date range
+  const employeesOnLeave = useMemo(() => {
+    if (!leaveRecords) return new Set<string>();
+    return new Set(leaveRecords.map(l => l.employee_id));
+  }, [leaveRecords]);
+
+  // Calculate enhanced stats with 8 metrics
   const stats = useMemo(() => {
     if (!filteredRecords) return null;
+    
+    const total = filteredRecords.length;
+    
+    // Calculate missing employees (active - checked in - on leave)
+    const checkedInEmployeeIds = new Set(filteredRecords.map(r => r.employee_id));
+    const missingCount = (activeEmployees || []).filter(e => 
+      !checkedInEmployeeIds.has(e.id) && !employeesOnLeave.has(e.id)
+    ).length;
+    
+    // Late arrivals with duration
+    const lateRecords = filteredRecords.filter(r => {
+      const employee = r.employee as any;
+      return isLateArrival(r, employee?.employee_schedules);
+    });
+    const totalLateDuration = lateRecords.reduce((sum, r) => {
+      const employee = r.employee as any;
+      return sum + getLateMinutes(r, employee?.employee_schedules);
+    }, 0);
+    
+    // Early checkouts with duration
+    const earlyRecords = filteredRecords.filter(r => {
+      const employee = r.employee as any;
+      return isEarlyDeparture(r, employee?.employee_schedules);
+    });
+    const totalEarlyDuration = earlyRecords.reduce((sum, r) => {
+      const employee = r.employee as any;
+      return sum + getEarlyMinutes(r, employee?.employee_schedules);
+    }, 0);
+    
+    // On Time (not late)
+    const onTimeCount = filteredRecords.filter(r => {
+      const employee = r.employee as any;
+      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
+    }).length;
+    
+    // Below Time / Over Time
+    const belowTimeRecords = filteredRecords.filter(r => {
+      const employee = r.employee as any;
+      return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'belowTime';
+    });
+    const belowTimeDuration = belowTimeRecords.reduce((sum, r) => {
+      const employee = r.employee as any;
+      const netHours = getNetHours(r.work_hours, employee?.employee_schedules);
+      const expectedHours = getExpectedNetHours(employee?.employee_schedules);
+      return sum + Math.max(0, (expectedHours - netHours) * 60);
+    }, 0);
+    
+    const overTimeRecords = filteredRecords.filter(r => {
+      const employee = r.employee as any;
+      return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'overTime';
+    });
+    const overTimeDuration = overTimeRecords.reduce((sum, r) => {
+      const employee = r.employee as any;
+      const netHours = getNetHours(r.work_hours, employee?.employee_schedules);
+      const expectedHours = getExpectedNetHours(employee?.employee_schedules);
+      return sum + Math.max(0, (netHours - expectedHours) * 60);
+    }, 0);
+    
+    // WFH count
+    const wfhCount = filteredRecords.filter(r => r.status === 'remote').length;
+    
+    // Net Hours
+    const totalNetHours = filteredRecords.reduce((sum, r) => {
+      const employee = r.employee as any;
+      return sum + getNetHours(r.work_hours, employee?.employee_schedules);
+    }, 0);
+
+    // Calculate previous period stats for comparison
+    const prevLate = (previousRecords || []).filter(r => {
+      const employee = r.employee as any;
+      return isLateArrival(r, employee?.employee_schedules);
+    }).length;
+    
+    const prevEarly = (previousRecords || []).filter(r => {
+      const employee = r.employee as any;
+      return isEarlyDeparture(r, employee?.employee_schedules);
+    }).length;
+    
+    const prevOnTime = (previousRecords || []).filter(r => {
+      const employee = r.employee as any;
+      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
+    }).length;
+    
+    const prevBelowTime = (previousRecords || []).filter(r => {
+      const employee = r.employee as any;
+      return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'belowTime';
+    }).length;
+    
+    const prevOverTime = (previousRecords || []).filter(r => {
+      const employee = r.employee as any;
+      return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'overTime';
+    }).length;
+    
+    const prevWfh = (previousRecords || []).filter(r => r.status === 'remote').length;
+    
+    const prevNetHours = (previousRecords || []).reduce((sum, r) => {
+      const employee = r.employee as any;
+      return sum + getNetHours(r.work_hours, employee?.employee_schedules);
+    }, 0);
+
     return {
-      total: filteredRecords.length,
-      present: filteredRecords.filter(r => r.status === "present").length,
-      absent: filteredRecords.filter(r => r.status === "absent").length,
-      late: filteredRecords.filter(r => r.status === "late").length,
-      totalNetHours: filteredRecords.reduce((sum, r) => {
-        const employee = r.employee as any;
-        return sum + getNetHours(r.work_hours, employee?.employee_schedules);
-      }, 0)
+      total,
+      missing: missingCount,
+      onLeave: employeesOnLeave.size,
+      
+      late: { 
+        count: lateRecords.length, 
+        duration: totalLateDuration, 
+        change: calcChange(lateRecords.length, prevLate) 
+      },
+      early: { 
+        count: earlyRecords.length, 
+        duration: totalEarlyDuration, 
+        change: calcChange(earlyRecords.length, prevEarly) 
+      },
+      onTime: { 
+        count: onTimeCount, 
+        change: calcChange(onTimeCount, prevOnTime) 
+      },
+      belowTime: { 
+        count: belowTimeRecords.length, 
+        duration: belowTimeDuration, 
+        change: calcChange(belowTimeRecords.length, prevBelowTime) 
+      },
+      overTime: { 
+        count: overTimeRecords.length, 
+        duration: overTimeDuration, 
+        change: calcChange(overTimeRecords.length, prevOverTime) 
+      },
+      wfh: { 
+        count: wfhCount, 
+        change: calcChange(wfhCount, prevWfh) 
+      },
+      netHours: { 
+        total: totalNetHours, 
+        change: calcChange(Math.round(totalNetHours), Math.round(prevNetHours)) 
+      }
     };
-  }, [filteredRecords]);
+  }, [filteredRecords, previousRecords, activeEmployees, employeesOnLeave]);
   const dateRangeOptions: {
     value: DateRangeOption;
     label: string;
@@ -756,31 +1002,187 @@ const OrgAttendanceHistory = () => {
           </div>
         </div>
 
-        {/* Stats Cards - Clickable Filters */}
+        {/* Enhanced Stats Cards - 8 Metrics with Trend Indicators */}
         {stats && <div className="px-4 md:px-0">
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:grid md:grid-cols-5 md:gap-3 scrollbar-hide">
-              <Card className={cn("flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]", statusFilter === "all" ? "bg-primary/10 border-primary/30 ring-1 ring-primary/20" : "bg-muted/30")} onClick={() => handleStatClick("all")}>
-                <div className="text-lg md:text-2xl font-bold text-primary">{stats.total}</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Records</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
+              {/* Total Records */}
+              <Card className="p-3 md:p-4">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <ClipboardList className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Total Records</div>
+                <div className="text-[9px] md:text-[10px] text-muted-foreground/70 mt-0.5">
+                  {stats.missing > 0 && <span className="text-amber-600">{stats.missing} missing</span>}
+                  {stats.missing > 0 && stats.onLeave > 0 && " · "}
+                  {stats.onLeave > 0 && <span className="text-blue-600">{stats.onLeave} on leave</span>}
+                </div>
               </Card>
-              <Card className={cn("flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]", statusFilter === "present" ? "ring-1 ring-green-500/30" : "", "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50")} onClick={() => handleStatClick("present")}>
-                <div className="text-lg md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Present</div>
+
+              {/* Late Arrivals */}
+              <Card className="p-3 md:p-4 bg-amber-50/50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  {stats.late.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
+                      stats.late.change < 0 ? "text-green-600" : "text-red-600")}>
+                      {stats.late.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                      {Math.abs(stats.late.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.late.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Late Arrivals</div>
+                {stats.late.duration > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-amber-600/70 mt-0.5">{formatMinutes(stats.late.duration)} total</div>
+                )}
               </Card>
-              <Card className={cn("flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]", statusFilter === "late" ? "ring-1 ring-yellow-500/30" : "", "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50")} onClick={() => handleStatClick("late")}>
-                <div className="text-lg md:text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Late</div>
+
+              {/* Early Checkouts */}
+              <Card className="p-3 md:p-4 bg-red-50/50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-red-100 dark:bg-red-900/30">
+                    <LogOut className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                  </div>
+                  {stats.early.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
+                      stats.early.change < 0 ? "text-green-600" : "text-red-600")}>
+                      {stats.early.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                      {Math.abs(stats.early.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.early.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Early Checkouts</div>
+                {stats.early.duration > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-red-600/70 mt-0.5">{formatMinutes(stats.early.duration)} total</div>
+                )}
               </Card>
-              <Card className={cn("flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02]", statusFilter === "absent" ? "ring-1 ring-red-500/30" : "", "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50")} onClick={() => handleStatClick("absent")}>
-                <div className="text-lg md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Absent</div>
+
+              {/* On Time */}
+              <Card className="p-3 md:p-4 bg-green-50/50 dark:bg-green-950/20 border-green-100 dark:border-green-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  </div>
+                  {stats.onTime.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
+                      stats.onTime.change > 0 ? "text-green-600" : "text-red-600")}>
+                      {stats.onTime.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(stats.onTime.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.onTime.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">On Time</div>
+                {stats.total > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-green-600/70 mt-0.5">{Math.round((stats.onTime.count / stats.total) * 100)}% of check-ins</div>
+                )}
               </Card>
-              <Card className="flex-shrink-0 w-[100px] md:w-auto p-3 md:p-4 text-center bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50">
-                <div className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{formatHoursMinutes(stats.totalNetHours)}</div>
-                <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Net Hours</div>
+
+              {/* Below Time */}
+              <Card className="p-3 md:p-4 bg-orange-50/50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                    <Timer className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  {stats.belowTime.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
+                      stats.belowTime.change < 0 ? "text-green-600" : "text-red-600")}>
+                      {stats.belowTime.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                      {Math.abs(stats.belowTime.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.belowTime.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Below Time</div>
+                {stats.belowTime.duration > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-orange-600/70 mt-0.5">{formatMinutes(stats.belowTime.duration)} deficit</div>
+                )}
+              </Card>
+
+              {/* Over Time */}
+              <Card className="p-3 md:p-4 bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  {stats.overTime.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
+                      {stats.overTime.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(stats.overTime.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.overTime.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Over Time</div>
+                {stats.overTime.duration > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-blue-600/70 mt-0.5">{formatMinutes(stats.overTime.duration)} extra</div>
+                )}
+              </Card>
+
+              {/* Net Hours */}
+              <Card className="p-3 md:p-4 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                    <Timer className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  {stats.netHours.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
+                      stats.netHours.change > 0 ? "text-green-600" : "text-red-600")}>
+                      {stats.netHours.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(stats.netHours.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatHoursMinutes(stats.netHours.total)}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">Net Hours</div>
+                {stats.total > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-indigo-600/70 mt-0.5">avg {formatHoursMinutes(stats.netHours.total / stats.total)}/person</div>
+                )}
+              </Card>
+
+              {/* WFH */}
+              <Card className="p-3 md:p-4 bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/30">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <Home className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  {stats.wfh.change !== 0 && (
+                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
+                      {stats.wfh.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(stats.wfh.change)}%
+                    </div>
+                  )}
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.wfh.count}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">WFH</div>
+                {stats.total > 0 && (
+                  <div className="text-[9px] md:text-[10px] text-purple-600/70 mt-0.5">{Math.round((stats.wfh.count / stats.total) * 100)}% of check-ins</div>
+                )}
               </Card>
             </div>
           </div>}
+
+        {/* Attendance Analytics Chart */}
+        {records && records.length > 0 && dateRangeFilter !== 'today' && (
+          <div className="px-4 md:px-0">
+            <AttendanceAnalyticsChart
+              records={records}
+              dateRange={dateRange}
+              dateRangeLabel={dateRangeLabel}
+              getSchedule={getSchedule}
+              isLateArrival={isLateArrival}
+              isEarlyDeparture={isEarlyDeparture}
+              getNetHours={getNetHours}
+              getTimeVariance={getTimeVariance}
+            />
+          </div>
+        )}
 
 
         {/* Records - Mobile Cards or Desktop Table */}
