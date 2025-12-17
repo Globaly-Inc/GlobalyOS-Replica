@@ -93,7 +93,7 @@ export const EditAttendanceDialog = ({
       const workHours = calculateWorkHours(checkInTime, checkOutTime);
 
       if (isEditing && record) {
-        // Update existing record
+        // Update existing record (work_hours is auto-calculated by DB)
         const { error } = await supabase
           .from("attendance_records")
           .update({
@@ -102,14 +102,13 @@ export const EditAttendanceDialog = ({
             check_out_time: checkOutDateTime,
             status: "present",
             notes: notes || null,
-            work_hours: workHours,
           })
           .eq("id", record.id);
 
         if (error) throw error;
         toast.success("Attendance record updated");
       } else {
-        // Insert new record
+        // Insert new record (work_hours is auto-calculated by DB)
         const { error } = await supabase
           .from("attendance_records")
           .insert({
@@ -120,7 +119,6 @@ export const EditAttendanceDialog = ({
             check_out_time: checkOutDateTime,
             status: "present",
             notes: notes || null,
-            work_hours: workHours,
           });
 
         if (error) throw error;
