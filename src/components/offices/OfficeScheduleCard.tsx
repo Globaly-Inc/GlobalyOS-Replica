@@ -41,6 +41,8 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
   const [formData, setFormData] = useState({
     work_start_time: '09:00',
     work_end_time: '17:00',
+    break_start_time: '12:00',
+    break_end_time: '13:00',
     late_threshold_minutes: 15,
     timezone: 'UTC',
   });
@@ -63,6 +65,8 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
       setFormData({
         work_start_time: data.work_start_time?.slice(0, 5) || '09:00',
         work_end_time: data.work_end_time?.slice(0, 5) || '17:00',
+        break_start_time: data.break_start_time?.slice(0, 5) || '12:00',
+        break_end_time: data.break_end_time?.slice(0, 5) || '13:00',
         late_threshold_minutes: data.late_threshold_minutes || 15,
         timezone: data.timezone || 'UTC',
       });
@@ -108,6 +112,8 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
       organization_id: currentOrg.id,
       work_start_time: formData.work_start_time + ':00',
       work_end_time: formData.work_end_time + ':00',
+      break_start_time: formData.break_start_time + ':00',
+      break_end_time: formData.break_end_time + ':00',
       late_threshold_minutes: formData.late_threshold_minutes,
       timezone: formData.timezone,
     };
@@ -184,6 +190,8 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
       organization_id: currentOrg.id,
       work_start_time: formData.work_start_time + ':00',
       work_end_time: formData.work_end_time + ':00',
+      break_start_time: formData.break_start_time + ':00',
+      break_end_time: formData.break_end_time + ':00',
       late_threshold_minutes: formData.late_threshold_minutes,
       work_location: 'office' as const,
     }));
@@ -241,7 +249,7 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Work Start</Label>
               <Input
@@ -258,6 +266,25 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
                 onChange={(e) => setFormData(prev => ({ ...prev, work_end_time: e.target.value }))}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Break Start</Label>
+              <Input
+                type="time"
+                value={formData.break_start_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, break_start_time: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Break End</Label>
+              <Input
+                type="time"
+                value={formData.break_end_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, break_end_time: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Late Threshold (min)</Label>
               <Input
@@ -285,6 +312,19 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Break Duration</Label>
+              <div className="h-9 flex items-center text-sm">
+                {(() => {
+                  const [startH, startM] = formData.break_start_time.split(':').map(Number);
+                  const [endH, endM] = formData.break_end_time.split(':').map(Number);
+                  const mins = (endH * 60 + endM) - (startH * 60 + startM);
+                  if (mins <= 0) return '—';
+                  if (mins >= 60) return `${Math.floor(mins / 60)} hour${Math.floor(mins / 60) > 1 ? 's' : ''} ${mins % 60 > 0 ? `${mins % 60} min` : ''}`;
+                  return `${mins} min`;
+                })()}
+              </div>
             </div>
           </div>
 

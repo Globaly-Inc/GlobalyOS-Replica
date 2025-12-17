@@ -36,6 +36,8 @@ interface EditScheduleDialogProps {
   currentSchedule?: {
     work_start_time: string;
     work_end_time: string;
+    break_start_time?: string;
+    break_end_time?: string;
     late_threshold_minutes: number;
     timezone?: string;
     work_location?: WorkLocation;
@@ -110,6 +112,8 @@ export const EditScheduleDialog = ({
   const [timezone, setTimezone] = useState(getLocalTimezone());
   const [workLocation, setWorkLocation] = useState<WorkLocation>("office");
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(getDefaultWeekSchedule());
+  const [breakStartTime, setBreakStartTime] = useState("12:00");
+  const [breakEndTime, setBreakEndTime] = useState("13:00");
 
   useEffect(() => {
     if (open) {
@@ -119,6 +123,8 @@ export const EditScheduleDialog = ({
         const endTime = currentSchedule.work_end_time.substring(0, 5);
         setLateThreshold(currentSchedule.late_threshold_minutes);
         setWorkLocation(currentSchedule.work_location || "office");
+        setBreakStartTime(currentSchedule.break_start_time?.substring(0, 5) || "12:00");
+        setBreakEndTime(currentSchedule.break_end_time?.substring(0, 5) || "13:00");
         
         setWeekSchedule({
           monday: { enabled: true, start: startTime, end: endTime },
@@ -133,6 +139,8 @@ export const EditScheduleDialog = ({
         setWeekSchedule(getDefaultWeekSchedule());
         setLateThreshold(15);
         setWorkLocation("office");
+        setBreakStartTime("12:00");
+        setBreakEndTime("13:00");
       }
     }
   }, [currentSchedule, open]);
@@ -183,6 +191,8 @@ export const EditScheduleDialog = ({
           organization_id: organizationId,
           work_start_time: `${primarySchedule.start}:00`,
           work_end_time: `${primarySchedule.end}:00`,
+          break_start_time: `${breakStartTime}:00`,
+          break_end_time: `${breakEndTime}:00`,
           late_threshold_minutes: lateThreshold,
           work_location: workLocation,
         }, {
@@ -321,6 +331,46 @@ export const EditScheduleDialog = ({
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Break Time */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                ☕ Break Time
+              </Label>
+              <div className="flex items-center gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Start</Label>
+                  <Input
+                    type="time"
+                    value={breakStartTime}
+                    onChange={(e) => setBreakStartTime(e.target.value)}
+                    className="w-[110px] h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">End</Label>
+                  <Input
+                    type="time"
+                    value={breakEndTime}
+                    onChange={(e) => setBreakEndTime(e.target.value)}
+                    className="w-[110px] h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Duration</Label>
+                  <div className="h-8 flex items-center text-sm text-muted-foreground">
+                    {(() => {
+                      const [startH, startM] = breakStartTime.split(':').map(Number);
+                      const [endH, endM] = breakEndTime.split(':').map(Number);
+                      const mins = (endH * 60 + endM) - (startH * 60 + startM);
+                      if (mins <= 0) return '—';
+                      if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}`;
+                      return `${mins}m`;
+                    })()}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Late Threshold */}

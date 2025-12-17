@@ -25,6 +25,8 @@ export interface OfficeSchedule {
   organization_id: string;
   work_start_time: string;
   work_end_time: string;
+  break_start_time?: string;
+  break_end_time?: string;
   late_threshold_minutes: number;
   timezone: string;
 }
