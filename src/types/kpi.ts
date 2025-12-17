@@ -2,9 +2,11 @@
  * KPI and performance management type definitions
  */
 
+export type KpiScopeType = 'individual' | 'department' | 'office' | 'project';
+
 export interface Kpi {
   id: string;
-  employee_id: string;
+  employee_id: string | null;
   organization_id: string;
   title: string;
   description: string | null;
@@ -16,9 +18,14 @@ export interface Kpi {
   year: number;
   created_at: string;
   updated_at: string;
+  // Group KPI fields
+  scope_type: KpiScopeType;
+  scope_department: string | null;
+  scope_office_id: string | null;
+  scope_project_id: string | null;
 }
 
-export type KpiStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved';
+export type KpiStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved' | 'completed';
 
 export interface KpiWithEmployee extends Kpi {
   employee: {
@@ -27,7 +34,19 @@ export interface KpiWithEmployee extends Kpi {
       full_name: string;
       avatar_url: string | null;
     };
-  };
+  } | null;
+}
+
+export interface GroupKpi extends Kpi {
+  scope_type: 'department' | 'office' | 'project';
+  // Computed fields for display
+  scope_name?: string;
+  member_count?: number;
+}
+
+export interface GroupKpiWithScope extends GroupKpi {
+  office?: { id: string; name: string } | null;
+  project?: { id: string; name: string } | null;
 }
 
 export interface KpiTemplate {
@@ -87,6 +106,23 @@ export interface AiReviewDraft {
   needs_improvement: string;
   goals_next_period: string;
   suggested_rating: number;
+}
+
+export interface PerformanceReviewWithRelations extends PerformanceReview {
+  employee: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+  reviewer: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
 }
 
 export interface PerformanceReviewWithRelations extends PerformanceReview {
