@@ -977,7 +977,7 @@ const OrgAttendanceHistory = () => {
           <div className="hidden sm:flex items-center gap-2">
             <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
               <UserPlus className="h-4 w-4" />
-              Add
+              Add Attendance
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
