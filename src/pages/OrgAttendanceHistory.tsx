@@ -96,7 +96,7 @@ const OrgAttendanceHistory = () => {
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
 
-  // Fetch all attendance records for the organization with office data
+  // Fetch all attendance records for the organization with office data and employee schedule
   const { data: records, isLoading } = useQuery({
     queryKey: ["org-attendance", currentOrg?.id, format(monthStart, "yyyy-MM"), statusFilter, dateFilter, departmentFilter],
     queryFn: async () => {
@@ -108,7 +108,8 @@ const OrgAttendanceHistory = () => {
             id,
             department,
             position,
-            profiles!inner(full_name, avatar_url)
+            profiles!inner(full_name, avatar_url),
+            employee_schedules(work_location)
           ),
           check_in_office:offices!attendance_records_check_in_office_id_fkey(
             id,
@@ -400,9 +401,26 @@ const OrgAttendanceHistory = () => {
                       <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
                         <Home className="h-2 w-2 mr-0.5" />WFH
                       </Badge>
-                    ) : record.check_in_office_id && (
+                    ) : record.check_in_office_id ? (
                       <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
                         <Building2 className="h-2 w-2 mr-0.5" />Office
+                      </Badge>
+                    ) : employee?.employee_schedules?.[0]?.work_location && (
+                      <Badge variant="secondary" className={cn(
+                        "text-[8px] px-1 py-0 h-3.5 shrink-0",
+                        employee.employee_schedules[0].work_location === "remote" 
+                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                          : employee.employee_schedules[0].work_location === "hybrid"
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      )}>
+                        {employee.employee_schedules[0].work_location === "remote" ? (
+                          <><Home className="h-2 w-2 mr-0.5" />Remote</>
+                        ) : employee.employee_schedules[0].work_location === "hybrid" ? (
+                          <><Building2 className="h-2 w-2 mr-0.5" />Hybrid</>
+                        ) : (
+                          <><Building2 className="h-2 w-2 mr-0.5" />Office</>
+                        )}
                       </Badge>
                     )}
                   </div>
@@ -783,9 +801,26 @@ const OrgAttendanceHistory = () => {
                                     <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 shrink-0">
                                       <Home className="h-2.5 w-2.5 mr-0.5" />WFH
                                     </Badge>
-                                  ) : record.check_in_office_id && (
+                                  ) : record.check_in_office_id ? (
                                     <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
                                       <Building2 className="h-2.5 w-2.5 mr-0.5" />Office
+                                    </Badge>
+                                  ) : employee?.employee_schedules?.[0]?.work_location && (
+                                    <Badge variant="secondary" className={cn(
+                                      "text-[9px] px-1.5 py-0 h-4 shrink-0",
+                                      employee.employee_schedules[0].work_location === "remote" 
+                                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                                        : employee.employee_schedules[0].work_location === "hybrid"
+                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                    )}>
+                                      {employee.employee_schedules[0].work_location === "remote" ? (
+                                        <><Home className="h-2.5 w-2.5 mr-0.5" />Remote</>
+                                      ) : employee.employee_schedules[0].work_location === "hybrid" ? (
+                                        <><Building2 className="h-2.5 w-2.5 mr-0.5" />Hybrid</>
+                                      ) : (
+                                        <><Building2 className="h-2.5 w-2.5 mr-0.5" />Office</>
+                                      )}
                                     </Badge>
                                   )}
                                 </div>
