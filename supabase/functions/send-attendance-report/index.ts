@@ -63,12 +63,13 @@ serve(async (req) => {
   }
 
   try {
-    const { organizationId, isTest, includeAISummary, includeCharts } = await req.json();
+    const { organizationId, isTest, includeAISummary, includeCharts, includeSummaryCards: requestIncludeSummaryCards } = await req.json();
     
     console.log("=== Starting send-attendance-report ===");
     console.log("Organization ID:", organizationId);
     console.log("Is Test:", isTest);
     console.log("Include AI Summary:", includeAISummary);
+    console.log("Include Summary Cards:", requestIncludeSummaryCards);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -561,6 +562,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
     // Generate email HTML
     const periodLabel = schedule?.frequency === "monthly" ? "Monthly" : "Weekly";
     const dateRangeText = `${new Date(startDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(endDateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    const includeSummaryCards = isTest ? (requestIncludeSummaryCards ?? true) : (schedule?.include_summary_cards ?? true);
 
     let successCount = 0;
     let failCount = 0;
@@ -585,6 +587,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
         metrics,
         aiSummary,
         includeCharts,
+        includeSummaryCards,
         lateEmployees: lateEmployees.slice(0, 3),
         perfectAttendance: perfectAttendance.slice(0, 3),
         orgCode: org.slug,
@@ -659,6 +662,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
         personalMetrics,
         aiSummary: personalAISummary,
         includeCharts,
+        includeSummaryCards,
         orgCode: org.slug,
         dailyData: personalDailyData,
       });
@@ -708,6 +712,7 @@ function generateEmailHtml(params: {
   metrics: AttendanceMetrics;
   aiSummary: string;
   includeCharts: boolean;
+  includeSummaryCards: boolean;
   lateEmployees: string[];
   perfectAttendance: string[];
   orgCode: string;
@@ -725,6 +730,7 @@ function generateEmailHtml(params: {
     metrics,
     aiSummary,
     includeCharts,
+    includeSummaryCards,
     lateEmployees,
     perfectAttendance,
     orgCode,
@@ -807,6 +813,7 @@ function generateEmailHtml(params: {
             </div>
           ` : ""}
 
+          ${includeSummaryCards ? `
           <!-- 8 Metric Cards - Row 1 -->
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
             <tr>
@@ -890,6 +897,7 @@ function generateEmailHtml(params: {
               </td>
             </tr>
           </table>
+          ` : ""}
 
           <!-- Attendance Trends -->
           ${includeCharts && dailyData.length > 0 ? `
@@ -977,6 +985,7 @@ function generatePersonalEmailHtml(params: {
   personalMetrics: PersonalMetrics;
   aiSummary: string;
   includeCharts: boolean;
+  includeSummaryCards: boolean;
   orgCode: string;
   dailyData: DailyData[];
 }) {
@@ -989,6 +998,7 @@ function generatePersonalEmailHtml(params: {
     personalMetrics,
     aiSummary,
     includeCharts,
+    includeSummaryCards,
     orgCode,
     dailyData,
   } = params;
@@ -1052,6 +1062,7 @@ function generatePersonalEmailHtml(params: {
             </div>
           ` : ""}
 
+          ${includeSummaryCards ? `
           <!-- 4 Personal Metric Cards -->
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
             <tr>
@@ -1089,6 +1100,7 @@ function generatePersonalEmailHtml(params: {
               </td>
             </tr>
           </table>
+          ` : ""}
 
           <!-- Personal Attendance Trends -->
           ${includeCharts && dailyData.length > 0 ? `

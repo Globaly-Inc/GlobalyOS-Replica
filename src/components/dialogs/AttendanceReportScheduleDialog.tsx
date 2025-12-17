@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Calendar, Clock, Users, User, Sparkles, Send } from "lucide-react";
+import { Settings, Mail, Calendar, Clock, Users, User, Sparkles, Send, LayoutGrid } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 
 interface AttendanceReportScheduleDialogProps {
@@ -61,6 +61,7 @@ export const AttendanceReportScheduleDialog = ({
   const [timeOfDay, setTimeOfDay] = useState("09:00");
   const [includeAISummary, setIncludeAISummary] = useState(true);
   const [includeCharts, setIncludeCharts] = useState(true);
+  const [includeSummaryCards, setIncludeSummaryCards] = useState(true);
   const [recipients, setRecipients] = useState({
     owner: true,
     admin: true,
@@ -96,6 +97,7 @@ export const AttendanceReportScheduleDialog = ({
       setTimeOfDay(schedule.time_of_day?.substring(0, 5) || "09:00");
       setIncludeAISummary(schedule.include_ai_summary ?? true);
       setIncludeCharts(schedule.include_charts ?? true);
+      setIncludeSummaryCards(schedule.include_summary_cards ?? true);
       if (schedule.recipients) {
         const r = schedule.recipients as any;
         setRecipients({
@@ -123,6 +125,7 @@ export const AttendanceReportScheduleDialog = ({
         time_of_day: timeOfDay,
         include_ai_summary: includeAISummary,
         include_charts: includeCharts,
+        include_summary_cards: includeSummaryCards,
         recipients,
         updated_at: new Date().toISOString(),
       };
@@ -164,6 +167,7 @@ export const AttendanceReportScheduleDialog = ({
           isTest: true,
           includeAISummary,
           includeCharts,
+          includeSummaryCards,
         },
       });
 
@@ -349,6 +353,13 @@ export const AttendanceReportScheduleDialog = ({
                       <span className="text-sm">Include AI Summary</span>
                     </div>
                     <Switch checked={includeAISummary} onCheckedChange={setIncludeAISummary} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Include Summary Cards</span>
+                    </div>
+                    <Switch checked={includeSummaryCards} onCheckedChange={setIncludeSummaryCards} />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
