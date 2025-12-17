@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +29,15 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   const [loading, setLoading] = useState(true);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [sessionCount, setSessionCount] = useState(0);
+  const [maxSessions, setMaxSessions] = useState(3);
   const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied">("pending");
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [employeeSchedule, setEmployeeSchedule] = useState<{ work_end_time: string } | null>(null);
   const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false);
+  const [earlyCheckoutReason, setEarlyCheckoutReason] = useState("");
+  const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
 
   const remoteAttendanceMutation = useRemoteAttendance();
 
@@ -76,7 +81,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     );
   }, [open]);
 
-  // Get current attendance status and fetch schedule
+  // Get current attendance status and fetch schedule + org settings
   useEffect(() => {
     const fetchStatus = async () => {
       if (!open || !user?.id) return;
@@ -85,13 +90,25 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
       try {
         const { data: employee } = await supabase
           .from("employees")
-          .select("id")
+          .select("id, organization_id")
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (!employee) {
           setLoading(false);
           return;
+        }
+
+        // Fetch organization settings
+        const { data: orgSettings } = await supabase
+          .from("organizations")
+          .select("max_sessions_per_day, early_checkout_reason_required")
+          .eq("id", employee.organization_id)
+          .single();
+
+        if (orgSettings) {
+          setMaxSessions(orgSettings.max_sessions_per_day ?? 3);
+          setEarlyCheckoutReasonRequired(orgSettings.early_checkout_reason_required ?? true);
         }
 
         // Fetch employee schedule
@@ -135,6 +152,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
       setResult(null);
       setEmployeeSchedule(null);
       setShowEarlyCheckoutWarning(false);
+      setEarlyCheckoutReason("");
     }
   }, [open]);
 
@@ -159,7 +177,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     await processCheckout();
   };
 
-  const processCheckout = async () => {
+  const processCheckout = async (reason?: string) => {
     if (!userLocation) return;
 
     try {
@@ -168,6 +186,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         locationName: locationName || undefined,
+        earlyCheckoutReason: reason,
       });
       setResult({
         success: true,
@@ -182,8 +201,12 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   };
 
   const handleProceedWithEarlyCheckout = async () => {
+    if (earlyCheckoutReasonRequired && !earlyCheckoutReason.trim()) {
+      return;
+    }
     setShowEarlyCheckoutWarning(false);
-    await processCheckout();
+    await processCheckout(earlyCheckoutReason.trim() || undefined);
+    setEarlyCheckoutReason("");
   };
 
   const handleRetryLocation = () => {
@@ -214,7 +237,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
                 Remote {currentAction === "check_in" ? "Check In" : "Check Out"}
               </span>
               <Badge variant="outline" className="text-xs">
-                Session {currentAction === "check_in" ? sessionCount + 1 : sessionCount}/3
+                Session {currentAction === "check_in" ? sessionCount + 1 : sessionCount}/{maxSessions}
               </Badge>
             </DialogTitle>
           </DialogHeader>
@@ -324,17 +347,39 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-amber-500" />
-              Early Check-out Warning
+              Early Check-out
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              You are checking out before your scheduled end time ({employeeSchedule?.work_end_time}). 
-              This will be recorded as an early departure. Are you sure you want to proceed?
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  You are checking out before your scheduled end time ({employeeSchedule?.work_end_time}). 
+                  This will be recorded as an early departure.
+                </p>
+                {earlyCheckoutReasonRequired && (
+                  <div className="space-y-2">
+                    <Label htmlFor="remote-early-reason" className="text-foreground">
+                      Reason for early checkout <span className="text-destructive">*</span>
+                    </Label>
+                    <Textarea
+                      id="remote-early-reason"
+                      value={earlyCheckoutReason}
+                      onChange={(e) => setEarlyCheckoutReason(e.target.value)}
+                      placeholder="Please provide a reason..."
+                      rows={3}
+                      className="resize-none"
+                    />
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleProceedWithEarlyCheckout}>
-              Check Out Anyway
+            <AlertDialogCancel onClick={() => setEarlyCheckoutReason("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleProceedWithEarlyCheckout}
+              disabled={earlyCheckoutReasonRequired && !earlyCheckoutReason.trim()}
+            >
+              Check Out
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
