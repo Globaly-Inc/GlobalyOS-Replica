@@ -7063,6 +7063,22 @@ export type Database = {
           title: string
         }[]
       }
+      get_admin_users_overview: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          last_active_at: string
+          organizations: Json
+          roles: string[]
+          status: string
+          total_activities: number
+          total_page_visits: number
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_employee_id_for_org: {
         Args: { _org_id: string }

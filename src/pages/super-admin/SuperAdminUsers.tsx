@@ -79,70 +79,38 @@ const SuperAdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      const { data: visitCounts } = await supabase.from('user_page_visits').select('user_id');
-      const { data: activityCounts } = await supabase.from('user_activity_logs').select('user_id');
-      const { data: latestVisits } = await supabase.from('user_page_visits').select('user_id, visited_at').order('visited_at', { ascending: false });
-      const { data: latestActivities } = await supabase.from('user_activity_logs').select('user_id, created_at').order('created_at', { ascending: false });
-
-      const visitCountMap: Record<string, number> = {};
-      const activityCountMap: Record<string, number> = {};
-      const lastVisitMap: Record<string, string> = {};
-      const lastActivityMap: Record<string, string> = {};
-
-      (visitCounts || []).forEach((v) => { visitCountMap[v.user_id] = (visitCountMap[v.user_id] || 0) + 1; });
-      (activityCounts || []).forEach((a) => { activityCountMap[a.user_id] = (activityCountMap[a.user_id] || 0) + 1; });
-      (latestVisits || []).forEach((v) => { if (!lastVisitMap[v.user_id]) lastVisitMap[v.user_id] = v.visited_at; });
-      (latestActivities || []).forEach((a) => { if (!lastActivityMap[a.user_id]) lastActivityMap[a.user_id] = a.created_at; });
-
-      const usersWithDetails = await Promise.all(
-        (profiles || []).map(async (profile) => {
-          const { data: memberships } = await supabase.from('organization_members').select('organization_id, role').eq('user_id', profile.id);
-          const orgs: { id: string; name: string; slug: string; role: string }[] = [];
-          
-          if (memberships) {
-            for (const membership of memberships) {
-              const { data: org } = await supabase.from('organizations').select('id, name, slug').eq('id', membership.organization_id).maybeSingle();
-              if (org) orgs.push({ ...org, role: membership.role });
-            }
-          }
-
-          const { data: userRoles } = await supabase.from('user_roles').select('role').eq('user_id', profile.id);
-          const { data: employee } = await supabase.from('employees').select('status').eq('user_id', profile.id).limit(1).maybeSingle();
-
-          const lastVisit = lastVisitMap[profile.id];
-          const lastActivity = lastActivityMap[profile.id];
-          let lastActiveAt: string | null = null;
-          
-          if (lastVisit && lastActivity) {
-            lastActiveAt = new Date(lastVisit) > new Date(lastActivity) ? lastVisit : lastActivity;
-          } else {
-            lastActiveAt = lastVisit || lastActivity || null;
-          }
-
-          return {
-            id: profile.id,
-            email: profile.email,
-            full_name: profile.full_name,
-            avatar_url: profile.avatar_url,
-            created_at: profile.created_at,
-            organizations: orgs,
-            roles: userRoles?.map(r => r.role) || [],
-            status: employee?.status || 'active',
-            total_page_visits: visitCountMap[profile.id] || 0,
-            total_activities: activityCountMap[profile.id] || 0,
-            last_active_at: lastActiveAt,
-          };
-        })
-      );
-
-      setUsers(usersWithDetails);
+      const { data, error } = await supabase.rpc('get_admin_users_overview');
+      
+      if (error) throw error;
+      
+      // Transform RPC response to match User interface
+      const transformedUsers: User[] = (data || []).map((user: {
+        id: string;
+        email: string;
+        full_name: string;
+        avatar_url: string | null;
+        created_at: string;
+        status: string;
+        roles: string[];
+        organizations: { id: string; name: string; slug: string; role: string }[] | null;
+        total_page_visits: number;
+        total_activities: number;
+        last_active_at: string | null;
+      }) => ({
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at,
+        status: user.status,
+        roles: user.roles || [],
+        organizations: user.organizations || [],
+        total_page_visits: Number(user.total_page_visits) || 0,
+        total_activities: Number(user.total_activities) || 0,
+        last_active_at: user.last_active_at,
+      }));
+      
+      setUsers(transformedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
