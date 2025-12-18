@@ -3,3 +3,7 @@ export { KpiAttachmentPreview } from './KpiAttachmentPreview';
 export { KpiMilestoneProgress } from './KpiMilestoneProgress';
 export { KpiCelebration } from './KpiCelebration';
 export { StaleKpiIndicator, isKpiStale, getDaysSinceUpdate } from './StaleKpiIndicator';
+export { LinkedKpiSelector } from './LinkedKpiSelector';
+export { OrganisationKpiCard } from './OrganisationKpiCard';
+export { LinkedKpisSection } from './LinkedKpisSection';
+export { ParentKpiSection } from './ParentKpiSection';

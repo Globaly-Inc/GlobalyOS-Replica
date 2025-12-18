@@ -2,7 +2,7 @@
  * KPI and performance management type definitions
  */
 
-export type KpiScopeType = 'individual' | 'department' | 'office' | 'project';
+export type KpiScopeType = 'individual' | 'department' | 'office' | 'project' | 'organization';
 
 // Attachment type for KPI updates
 export interface KpiAttachment {
@@ -41,6 +41,10 @@ export interface Kpi {
   scope_project_id: string | null;
   // Milestones
   milestones?: KpiMilestone[];
+  // Hierarchy fields
+  parent_kpi_id: string | null;
+  child_contribution_weight: number;
+  auto_rollup: boolean;
 }
 
 export type KpiStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved' | 'completed';
@@ -65,6 +69,22 @@ export interface GroupKpi extends Kpi {
 export interface GroupKpiWithScope extends GroupKpi {
   office?: { id: string; name: string } | null;
   project?: { id: string; name: string } | null;
+}
+
+// KPI with hierarchy information
+export interface KpiWithHierarchy extends Kpi {
+  parent?: Kpi | null;
+  children?: Kpi[];
+  child_count?: number;
+  aggregated_progress?: number;
+}
+
+// Organisation KPI type
+export interface OrganizationKpi extends Kpi {
+  scope_type: 'organization';
+  children?: Kpi[];
+  child_count?: number;
+  aggregated_progress?: number;
 }
 
 export interface KpiTemplate {

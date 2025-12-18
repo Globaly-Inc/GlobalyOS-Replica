@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
-import type { Kpi, KpiWithEmployee, KpiTemplate, KpiAiInsight, GroupKpiWithScope, KpiScopeType } from '@/types';
+import type { Kpi, KpiWithEmployee, KpiTemplate, KpiAiInsight, GroupKpiWithScope, KpiScopeType, KpiWithHierarchy, OrganizationKpi } from '@/types';
 
 // Fetch KPIs for an employee (individual KPIs only)
 export const useEmployeeKpis = (employeeId: string | undefined, quarter?: number, year?: number) => {
@@ -81,7 +81,7 @@ export const useTeamKpis = (quarter?: number, year?: number) => {
   });
 };
 
-// Fetch group KPIs (department, office, project scoped)
+// Fetch group KPIs (department, office, project scoped - excludes organization)
 export const useGroupKpis = (quarter?: number, year?: number) => {
   const { currentOrg } = useOrganization();
   const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
@@ -102,9 +102,9 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
 
       if (error) throw error;
 
-      // Filter group KPIs in JS
+      // Filter group KPIs (exclude individual and organization)
       const groupKpis = (data || []).filter((kpi: any) => 
-        kpi.scope_type && kpi.scope_type !== 'individual'
+        kpi.scope_type && kpi.scope_type !== 'individual' && kpi.scope_type !== 'organization'
       );
 
       // Fetch office and project names for group KPIs
@@ -130,6 +130,165 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
       })) as GroupKpiWithScope[];
     },
     enabled: !!currentOrg?.id,
+  });
+};
+
+// Fetch organization-level KPIs (top level)
+export const useOrganizationKpis = (quarter?: number, year?: number) => {
+  const { currentOrg } = useOrganization();
+  const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
+  const currentYear = year || new Date().getFullYear();
+
+  return useQuery({
+    queryKey: ['organization-kpis', currentOrg?.id, currentQuarter, currentYear],
+    queryFn: async (): Promise<OrganizationKpi[]> => {
+      if (!currentOrg?.id) return [];
+
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .eq('quarter', currentQuarter)
+        .eq('year', currentYear)
+        .order('created_at');
+
+      if (error) throw error;
+
+      // Filter organization KPIs
+      const orgKpis = (data || []).filter((kpi: any) => 
+        kpi.scope_type === 'organization'
+      );
+
+      // Get child counts for each org KPI
+      const kpisWithChildren = await Promise.all(
+        orgKpis.map(async (kpi: any) => {
+          const { count } = await supabase
+            .from('kpis')
+            .select('id', { count: 'exact', head: true })
+            .eq('parent_kpi_id', kpi.id);
+
+          // Calculate aggregated progress if has children
+          let aggregatedProgress: number | undefined;
+          if (count && count > 0 && kpi.auto_rollup) {
+            const { data: rollupData } = await supabase.rpc('calculate_kpi_rollup', { parent_id: kpi.id });
+            aggregatedProgress = rollupData ?? undefined;
+          }
+
+          return {
+            ...kpi,
+            child_count: count || 0,
+            aggregated_progress: aggregatedProgress,
+          } as OrganizationKpi;
+        })
+      );
+
+      return kpisWithChildren;
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+// Fetch KPI with its hierarchy (parent and children)
+export const useKpiHierarchy = (kpiId: string | undefined) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['kpi-hierarchy', kpiId],
+    queryFn: async (): Promise<KpiWithHierarchy | null> => {
+      if (!kpiId || !currentOrg?.id) return null;
+
+      // Fetch the KPI
+      const { data: kpi, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('id', kpiId)
+        .single();
+
+      if (error) throw error;
+      if (!kpi) return null;
+
+      // Fetch parent if exists
+      let parent: Kpi | null = null;
+      if (kpi.parent_kpi_id) {
+        const { data: parentData } = await supabase
+          .from('kpis')
+          .select('*')
+          .eq('id', kpi.parent_kpi_id)
+          .single();
+        parent = parentData as unknown as Kpi | null;
+      }
+
+      // Fetch children
+      const { data: children } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('parent_kpi_id', kpiId)
+        .order('created_at');
+
+      // Calculate aggregated progress
+      let aggregatedProgress: number | undefined;
+      if (children && children.length > 0) {
+        const { data: rollupData } = await supabase.rpc('calculate_kpi_rollup', { parent_id: kpiId });
+        aggregatedProgress = rollupData ?? undefined;
+      }
+
+      return {
+        ...kpi,
+        parent,
+        children: (children || []) as unknown as Kpi[],
+        child_count: children?.length || 0,
+        aggregated_progress: aggregatedProgress,
+      } as unknown as KpiWithHierarchy;
+    },
+    enabled: !!kpiId && !!currentOrg?.id,
+  });
+};
+
+// Fetch available parent KPIs for linking
+export const useAvailableParentKpis = (
+  scopeType: KpiScopeType | undefined,
+  quarter: number,
+  year: number,
+  excludeKpiId?: string
+) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['available-parent-kpis', currentOrg?.id, scopeType, quarter, year, excludeKpiId],
+    queryFn: async (): Promise<Kpi[]> => {
+      if (!currentOrg?.id || !scopeType) return [];
+
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .eq('quarter', quarter)
+        .eq('year', year)
+        .is('parent_kpi_id', null) // Only top-level KPIs can be parents
+        .order('title');
+
+      if (error) throw error;
+
+      // Filter based on hierarchy rules
+      let filtered = (data || []).filter((kpi: any) => {
+        if (excludeKpiId && kpi.id === excludeKpiId) return false;
+        
+        // Organization KPIs can be parents of anything except organization KPIs
+        if (kpi.scope_type === 'organization') {
+          return scopeType !== 'organization';
+        }
+        
+        // Group KPIs (dept/office/project) can be parents of individual KPIs
+        if (['department', 'office', 'project'].includes(kpi.scope_type)) {
+          return scopeType === 'individual';
+        }
+        
+        return false;
+      });
+
+      return filtered as unknown as Kpi[];
+    },
+    enabled: !!currentOrg?.id && !!scopeType,
   });
 };
 
@@ -268,7 +427,7 @@ export const useCreateKpi = () => {
   });
 };
 
-// Create Group KPI
+// Create Group KPI (including organization scope)
 interface CreateGroupKpiInput {
   title: string;
   description?: string;
@@ -276,10 +435,12 @@ interface CreateGroupKpiInput {
   unit?: string;
   quarter: number;
   year: number;
-  scopeType: 'department' | 'office' | 'project';
+  scopeType: 'department' | 'office' | 'project' | 'organization';
   scopeDepartment?: string;
   scopeOfficeId?: string;
   scopeProjectId?: string;
+  parentKpiId?: string;
+  autoRollup?: boolean;
 }
 
 export const useCreateGroupKpi = () => {
@@ -305,17 +466,113 @@ export const useCreateGroupKpi = () => {
           scope_office_id: input.scopeOfficeId || null,
           scope_project_id: input.scopeProjectId || null,
           employee_id: null,
+          parent_kpi_id: input.parentKpiId || null,
+          auto_rollup: input.autoRollup || false,
         });
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['employee-inherited-kpis'] });
-      toast.success('Group KPI created');
+      queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
+      toast.success('KPI created');
     },
     onError: () => {
-      toast.error('Failed to create group KPI');
+      toast.error('Failed to create KPI');
+    },
+  });
+};
+
+// Link a KPI to a parent
+export const useLinkKpi = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      kpiId, 
+      parentKpiId,
+      weight = 1.0 
+    }: { 
+      kpiId: string; 
+      parentKpiId: string;
+      weight?: number;
+    }) => {
+      const { error } = await supabase
+        .from('kpis')
+        .update({ 
+          parent_kpi_id: parentKpiId,
+          child_contribution_weight: weight,
+        })
+        .eq('id', kpiId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
+      toast.success('KPI linked');
+    },
+    onError: () => {
+      toast.error('Failed to link KPI');
+    },
+  });
+};
+
+// Unlink a KPI from its parent
+export const useUnlinkKpi = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (kpiId: string) => {
+      const { error } = await supabase
+        .from('kpis')
+        .update({ 
+          parent_kpi_id: null,
+          child_contribution_weight: 1.0,
+        })
+        .eq('id', kpiId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
+      toast.success('KPI unlinked');
+    },
+    onError: () => {
+      toast.error('Failed to unlink KPI');
+    },
+  });
+};
+
+// Toggle auto-rollup for a parent KPI
+export const useToggleAutoRollup = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ kpiId, autoRollup }: { kpiId: string; autoRollup: boolean }) => {
+      const { error } = await supabase
+        .from('kpis')
+        .update({ auto_rollup: autoRollup })
+        .eq('id', kpiId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
+      toast.success('Auto-rollup setting updated');
+    },
+    onError: () => {
+      toast.error('Failed to update setting');
     },
   });
 };

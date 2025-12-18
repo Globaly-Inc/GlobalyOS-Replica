@@ -2376,6 +2376,8 @@ export type Database = {
       }
       kpis: {
         Row: {
+          auto_rollup: boolean | null
+          child_contribution_weight: number | null
           created_at: string
           current_value: number | null
           description: string | null
@@ -2383,6 +2385,7 @@ export type Database = {
           id: string
           milestones: Json | null
           organization_id: string
+          parent_kpi_id: string | null
           quarter: number
           scope_department: string | null
           scope_office_id: string | null
@@ -2396,6 +2399,8 @@ export type Database = {
           year: number
         }
         Insert: {
+          auto_rollup?: boolean | null
+          child_contribution_weight?: number | null
           created_at?: string
           current_value?: number | null
           description?: string | null
@@ -2403,6 +2408,7 @@ export type Database = {
           id?: string
           milestones?: Json | null
           organization_id: string
+          parent_kpi_id?: string | null
           quarter: number
           scope_department?: string | null
           scope_office_id?: string | null
@@ -2416,6 +2422,8 @@ export type Database = {
           year: number
         }
         Update: {
+          auto_rollup?: boolean | null
+          child_contribution_weight?: number | null
           created_at?: string
           current_value?: number | null
           description?: string | null
@@ -2423,6 +2431,7 @@ export type Database = {
           id?: string
           milestones?: Json | null
           organization_id?: string
+          parent_kpi_id?: string | null
           quarter?: number
           scope_department?: string | null
           scope_office_id?: string | null
@@ -2455,6 +2464,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_parent_kpi_id_fkey"
+            columns: ["parent_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
             referencedColumns: ["id"]
           },
           {
@@ -6736,6 +6752,7 @@ export type Database = {
     }
     Functions: {
       admin_exists: { Args: never; Returns: boolean }
+      calculate_kpi_rollup: { Args: { parent_id: string }; Returns: number }
       can_edit_wiki_item: {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean

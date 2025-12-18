@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building, MapPin, FolderKanban, Target, Users, User, Check, ChevronsUpDown } from "lucide-react";
+import { Building, MapPin, FolderKanban, Target, Users, User, Check, ChevronsUpDown, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +43,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCreateKpi, useCreateGroupKpi } from "@/services/useKpi";
 import { cn } from "@/lib/utils";
 import { AIKPIAssist } from "@/components/AIKPIAssist";
+import { LinkedKpiSelector } from "@/components/kpi";
 
 interface AddKPIDialogProps {
   children: React.ReactNode;
@@ -73,8 +74,9 @@ export function AddKPIDialog({
   const [kpiType, setKpiType] = useState<"individual" | "group">(defaultType);
   const [employeeId, setEmployeeId] = useState<string>("");
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
-  const [scopeType, setScopeType] = useState<"department" | "office" | "project">("department");
+  const [scopeType, setScopeType] = useState<"department" | "office" | "project" | "organization">("department");
   const [scopeValue, setScopeValue] = useState<string>("");
+  const [parentKpiId, setParentKpiId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetValue, setTargetValue] = useState("");
@@ -244,6 +246,7 @@ export function AddKPIDialog({
     setTargetValue("");
     setUnit("");
     setScopeValue("");
+    setParentKpiId(null);
     setEmployeeId(defaultEmployeeId || currentEmployee?.id || "");
     setKpiType(defaultType);
   };
@@ -263,7 +266,8 @@ export function AddKPIDialog({
         year,
       });
     } else {
-      if (!scopeValue) return;
+      // Group or Organization KPI
+      if (scopeType !== "organization" && !scopeValue) return;
       await createGroupKpi.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -275,6 +279,7 @@ export function AddKPIDialog({
         scopeDepartment: scopeType === "department" ? scopeValue : undefined,
         scopeOfficeId: scopeType === "office" ? scopeValue : undefined,
         scopeProjectId: scopeType === "project" ? scopeValue : undefined,
+        parentKpiId: parentKpiId || undefined,
       });
     }
 
@@ -283,6 +288,7 @@ export function AddKPIDialog({
   };
 
   const scopeOptions = [
+    { value: "organization", label: "Organisation", icon: Globe, color: "text-indigo-600" },
     { value: "department", label: "Department", icon: Building, color: "text-purple-600" },
     { value: "office", label: "Office", icon: MapPin, color: "text-orange-600" },
     { value: "project", label: "Project", icon: FolderKanban, color: "text-blue-600" },
@@ -482,8 +488,11 @@ export function AddKPIDialog({
                 <Label>Scope Type</Label>
                 <RadioGroup
                   value={scopeType}
-                  onValueChange={(v) => setScopeType(v as typeof scopeType)}
-                  className="grid grid-cols-3 gap-2"
+                  onValueChange={(v) => {
+                    setScopeType(v as typeof scopeType);
+                    setParentKpiId(null); // Reset parent when scope changes
+                  }}
+                  className="grid grid-cols-4 gap-2"
                 >
                   {scopeOptions.map((option) => (
                     <Label
@@ -498,36 +507,70 @@ export function AddKPIDialog({
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
                       <option.icon className={cn("h-5 w-5", option.color)} />
-                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="text-xs font-medium">{option.label}</span>
                     </Label>
                   ))}
                 </RadioGroup>
               </div>
 
-              <div className="space-y-2">
-                <Label>
-                  Select {scopeType === "department" ? "Department" : scopeType === "office" ? "Office" : "Project"}
-                </Label>
-                <Select value={scopeValue} onValueChange={setScopeValue}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Select a ${scopeType}...`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getScopeItems().map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {scopeValue && memberCount !== undefined && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>This KPI will apply to {memberCount} team member{memberCount !== 1 ? "s" : ""}</span>
-                  </div>
-                )}
-              </div>
+              {/* Scope Value Selection (not needed for organization) */}
+              {scopeType !== "organization" && (
+                <div className="space-y-2">
+                  <Label>
+                    Select {scopeType === "department" ? "Department" : scopeType === "office" ? "Office" : "Project"}
+                  </Label>
+                  <Select value={scopeValue} onValueChange={setScopeValue}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select a ${scopeType}...`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getScopeItems().map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {scopeValue && memberCount !== undefined && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>This KPI will apply to {memberCount} team member{memberCount !== 1 ? "s" : ""}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Organization scope description */}
+              {scopeType === "organization" && (
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                    Organisation KPIs are company-wide goals that other department, office, project, or individual KPIs can contribute to.
+                  </p>
+                </div>
+              )}
+
+              {/* Parent KPI Selector (for non-organization scopes) */}
+              {scopeType !== "organization" && (
+                <LinkedKpiSelector
+                  scopeType={scopeType}
+                  quarter={quarter}
+                  year={year}
+                  selectedParentId={parentKpiId}
+                  onSelect={setParentKpiId}
+                />
+              )}
             </>
+          )}
+
+          {/* Parent KPI Selector for Individual KPIs */}
+          {kpiType === "individual" && employeeId && (
+            <LinkedKpiSelector
+              scopeType="individual"
+              quarter={quarter}
+              year={year}
+              selectedParentId={parentKpiId}
+              onSelect={setParentKpiId}
+            />
           )}
 
           {/* KPI Title */}
@@ -539,7 +582,7 @@ export function AddKPIDialog({
                 field="both"
                 currentTitle={title}
                 currentDescription={description}
-                scopeType={kpiType === "group" ? scopeType : undefined}
+                scopeType={kpiType === "group" && scopeType !== "organization" ? scopeType : undefined}
                 scopeValue={kpiType === "group" ? getScopeDisplayName() : undefined}
                 employeeRole={kpiType === "individual" ? selectedEmployee?.position : undefined}
                 department={kpiType === "individual" ? selectedEmployee?.department : undefined}
@@ -564,7 +607,7 @@ export function AddKPIDialog({
                 field="description"
                 currentTitle={title}
                 currentDescription={description}
-                scopeType={kpiType === "group" ? scopeType : undefined}
+                scopeType={kpiType === "group" && scopeType !== "organization" ? scopeType : undefined}
                 scopeValue={kpiType === "group" ? getScopeDisplayName() : undefined}
                 employeeRole={kpiType === "individual" ? selectedEmployee?.position : undefined}
                 department={kpiType === "individual" ? selectedEmployee?.department : undefined}
@@ -648,7 +691,7 @@ export function AddKPIDialog({
             disabled={
               !title.trim() ||
               (kpiType === "individual" && !employeeId) ||
-              (kpiType === "group" && !scopeValue) ||
+              (kpiType === "group" && scopeType !== "organization" && !scopeValue) ||
               isPending
             }
           >
