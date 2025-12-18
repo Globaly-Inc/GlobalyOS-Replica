@@ -5529,53 +5529,128 @@ export type Database = {
           },
         ]
       }
+      support_screenshot_routes: {
+        Row: {
+          created_at: string
+          description: string | null
+          feature_name: string
+          flow_name: string | null
+          flow_order: number | null
+          highlight_selector: string | null
+          id: string
+          is_active: boolean | null
+          is_flow_step: boolean | null
+          module: string
+          requires_auth: boolean | null
+          requires_data: boolean | null
+          route_template: string
+          sample_data_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          feature_name: string
+          flow_name?: string | null
+          flow_order?: number | null
+          highlight_selector?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_flow_step?: boolean | null
+          module: string
+          requires_auth?: boolean | null
+          requires_data?: boolean | null
+          route_template: string
+          sample_data_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          feature_name?: string
+          flow_name?: string | null
+          flow_order?: number | null
+          highlight_selector?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_flow_step?: boolean | null
+          module?: string
+          requires_auth?: boolean | null
+          requires_data?: boolean | null
+          route_template?: string
+          sample_data_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       support_screenshots: {
         Row: {
+          ai_description: string | null
+          analyzed_at: string | null
           article_id: string | null
           captured_at: string | null
           created_at: string | null
           description: string | null
           error_message: string | null
+          feature_context: string | null
+          flow_group: string | null
+          flow_order: number | null
           highlight_annotation: string | null
           highlight_selector: string | null
           highlight_style: string | null
           id: string
+          is_analyzed: boolean | null
           module: string | null
           route_path: string
           status: string | null
           storage_path: string | null
+          ui_elements: Json | null
           updated_at: string | null
         }
         Insert: {
+          ai_description?: string | null
+          analyzed_at?: string | null
           article_id?: string | null
           captured_at?: string | null
           created_at?: string | null
           description?: string | null
           error_message?: string | null
+          feature_context?: string | null
+          flow_group?: string | null
+          flow_order?: number | null
           highlight_annotation?: string | null
           highlight_selector?: string | null
           highlight_style?: string | null
           id?: string
+          is_analyzed?: boolean | null
           module?: string | null
           route_path: string
           status?: string | null
           storage_path?: string | null
+          ui_elements?: Json | null
           updated_at?: string | null
         }
         Update: {
+          ai_description?: string | null
+          analyzed_at?: string | null
           article_id?: string | null
           captured_at?: string | null
           created_at?: string | null
           description?: string | null
           error_message?: string | null
+          feature_context?: string | null
+          flow_group?: string | null
+          flow_order?: number | null
           highlight_annotation?: string | null
           highlight_selector?: string | null
           highlight_style?: string | null
           id?: string
+          is_analyzed?: boolean | null
           module?: string | null
           route_path?: string
           status?: string | null
           storage_path?: string | null
+          ui_elements?: Json | null
           updated_at?: string | null
         }
         Relationships: [

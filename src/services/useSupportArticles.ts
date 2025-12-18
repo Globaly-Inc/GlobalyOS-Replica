@@ -50,6 +50,32 @@ export interface SupportScreenshot {
   status: 'pending' | 'capturing' | 'completed' | 'failed';
   error_message: string | null;
   captured_at: string | null;
+  module: string | null;
+  ai_description: string | null;
+  ui_elements: string[] | null;
+  feature_context: string | null;
+  flow_group: string | null;
+  flow_order: number | null;
+  is_analyzed: boolean;
+  analyzed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenshotRoute {
+  id: string;
+  module: string;
+  route_template: string;
+  feature_name: string;
+  description: string | null;
+  is_flow_step: boolean;
+  flow_name: string | null;
+  flow_order: number | null;
+  requires_auth: boolean;
+  requires_data: boolean;
+  sample_data_notes: string | null;
+  highlight_selector: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -621,6 +647,151 @@ export const useBulkCreateScreenshots = () => {
     },
     onError: (error) => {
       toast.error('Failed to create screenshots: ' + error.message);
+    },
+  });
+};
+
+// Screenshot Routes (registry)
+export const useScreenshotRoutes = (module?: string) => {
+  return useQuery({
+    queryKey: ['screenshot-routes', module],
+    queryFn: async () => {
+      let query = supabase
+        .from('support_screenshot_routes')
+        .select('*')
+        .eq('is_active', true)
+        .order('module')
+        .order('flow_order', { nullsFirst: true });
+      
+      if (module) {
+        query = query.eq('module', module);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ScreenshotRoute[];
+    },
+  });
+};
+
+// Capture all screenshots for a module
+export const useCaptureModuleScreenshots = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      module, 
+      orgSlug = 'globalyhub',
+      captureAll = false,
+      analyzeAfterCapture = true,
+    }: { 
+      module?: string; 
+      orgSlug?: string;
+      captureAll?: boolean;
+      analyzeAfterCapture?: boolean;
+    }) => {
+      const { data, error } = await supabase.functions.invoke('capture-module-screenshots', {
+        body: { module, orgSlug, captureAll, analyzeAfterCapture },
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+      queryClient.invalidateQueries({ queryKey: ['screenshot-routes'] });
+      
+      if (data?.summary) {
+        const { created, skipped, captured, captureFailed } = data.summary;
+        if (created > 0) {
+          toast.success(`Created ${created} screenshots, ${captured} captured, ${skipped} skipped`);
+        } else if (skipped > 0) {
+          toast.info(`All ${skipped} routes already have screenshots`);
+        }
+        if (captureFailed > 0) {
+          toast.warning(`${captureFailed} captures failed`);
+        }
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to capture module screenshots: ' + error.message);
+    },
+  });
+};
+
+// Analyze a screenshot with AI vision
+export const useAnalyzeScreenshot = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (screenshotId: string) => {
+      const { data, error } = await supabase.functions.invoke('ai-analyze-screenshot', {
+        body: { screenshotId },
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+      toast.success('Screenshot analyzed');
+    },
+    onError: (error) => {
+      toast.error('Failed to analyze screenshot: ' + error.message);
+    },
+  });
+};
+
+// Analyze all unanalyzed screenshots
+export const useAnalyzeAllScreenshots = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (module?: string) => {
+      // Get all completed but not analyzed screenshots
+      let query = supabase
+        .from('support_screenshots')
+        .select('id')
+        .eq('status', 'completed')
+        .eq('is_analyzed', false);
+      
+      if (module) {
+        query = query.eq('module', module);
+      }
+      
+      const { data: screenshots, error } = await query;
+      if (error) throw error;
+      
+      if (!screenshots || screenshots.length === 0) {
+        return { analyzed: 0, total: 0 };
+      }
+      
+      let analyzedCount = 0;
+      for (const screenshot of screenshots) {
+        try {
+          await supabase.functions.invoke('ai-analyze-screenshot', {
+            body: { screenshotId: screenshot.id },
+          });
+          analyzedCount++;
+          // Small delay to avoid rate limits
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (err) {
+          console.warn(`Failed to analyze screenshot ${screenshot.id}:`, err);
+        }
+      }
+      
+      return { analyzed: analyzedCount, total: screenshots.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+      if (data.total > 0) {
+        toast.success(`Analyzed ${data.analyzed} of ${data.total} screenshots`);
+      } else {
+        toast.info('No screenshots need analysis');
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to analyze screenshots: ' + error.message);
     },
   });
 };

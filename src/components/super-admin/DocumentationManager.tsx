@@ -43,6 +43,8 @@ import {
   useCaptureScreenshot,
   useScanApiDocumentation,
   useUpdateApiDoc,
+  useCaptureModuleScreenshots,
+  useAnalyzeAllScreenshots,
   SUPPORT_MODULES,
   SupportArticle,
   SupportCategory,
@@ -695,10 +697,13 @@ const ScreenshotsManager = () => {
   const captureScreenshot = useCaptureScreenshot();
   const { smartCapture, isAnalyzing, isCapturing } = useAISmartCapture();
   const captureAllPending = useCaptureAllPending();
+  const captureModuleScreenshots = useCaptureModuleScreenshots();
+  const analyzeAllScreenshots = useAnalyzeAllScreenshots();
 
   const [newScreenshot, setNewScreenshot] = useState({ route_path: '', description: '', article_id: '' });
   const [smartCaptureOpen, setSmartCaptureOpen] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<string>('');
+  const [selectedModule, setSelectedModule] = useState<string>('');
   const [orgSlug, setOrgSlug] = useState('globalyhub');
   const [privacyOptions, setPrivacyOptions] = useState<PrivacyOptions>({
     maskNames: true,
@@ -748,6 +753,20 @@ const ScreenshotsManager = () => {
   };
 
   const pendingCount = screenshots?.filter(s => s.status === 'pending').length || 0;
+
+  const unanalyzedCount = screenshots?.filter(s => s.status === 'completed' && !s.is_analyzed).length || 0;
+
+  const handleCaptureModule = async () => {
+    if (!selectedModule) {
+      toast.error('Please select a module');
+      return;
+    }
+    captureModuleScreenshots.mutate({ module: selectedModule, orgSlug, analyzeAfterCapture: true });
+  };
+
+  const handleCaptureAll = async () => {
+    captureModuleScreenshots.mutate({ captureAll: true, orgSlug, analyzeAfterCapture: true });
+  };
 
   return (
     <div className="space-y-6">
@@ -893,8 +912,62 @@ const ScreenshotsManager = () => {
               ) : (
                 <Play className="h-4 w-4" />
               )}
-              Capture All Pending ({pendingCount})
+              Capture Pending ({pendingCount})
             </Button>
+
+            <Select value={selectedModule} onValueChange={setSelectedModule}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select module" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORT_MODULES.map((mod) => (
+                  <SelectItem key={mod.id} value={mod.id}>{mod.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleCaptureModule}
+              disabled={!selectedModule || captureModuleScreenshots.isPending}
+            >
+              {captureModuleScreenshots.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              Capture Module
+            </Button>
+
+            <Button 
+              className="gap-2"
+              onClick={handleCaptureAll}
+              disabled={captureModuleScreenshots.isPending}
+            >
+              {captureModuleScreenshots.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              Capture All Modules
+            </Button>
+
+            {unanalyzedCount > 0 && (
+              <Button 
+                variant="secondary" 
+                className="gap-2"
+                onClick={() => analyzeAllScreenshots.mutate(selectedModule || undefined)}
+                disabled={analyzeAllScreenshots.isPending}
+              >
+                {analyzeAllScreenshots.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Analyze ({unanalyzedCount})
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
