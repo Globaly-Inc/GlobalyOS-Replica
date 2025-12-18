@@ -5,15 +5,12 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Rocket, HelpCircle, BookOpen, Code, Search, MessageSquare,
-  Users, Calendar, Clock, Target, Star, CheckSquare, Briefcase, DollarSign, Settings
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Rocket, HelpCircle, BookOpen, Code, MessageSquare } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SupportLayout } from '@/components/support/SupportLayout';
 import { SupportArticleCard } from '@/components/support/SupportArticleCard';
+import { SupportModuleCard } from '@/components/support/SupportModuleCard';
 import { useSupportArticles, SUPPORT_MODULES } from '@/services/useSupportArticles';
 import { GetHelpDialog } from '@/components/support/GetHelpDialog';
 
@@ -24,27 +21,17 @@ const QUICK_LINKS = [
   { href: '/support/api', label: 'API Reference', icon: Code, description: 'For developers' },
 ];
 
-const ICON_MAP: Record<string, typeof Users> = {
-  Info: Users,
-  Users,
-  Calendar,
-  Clock,
-  CalendarDays: Calendar,
-  Target,
-  Star,
-  BookOpen,
-  MessageSquare,
-  CheckSquare,
-  Briefcase,
-  DollarSign,
-  Settings,
-};
-
 const Support = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   
-  const { data: featuredArticles, isLoading } = useSupportArticles({ featured: true, limit: 6 });
+  const { data: featuredArticles } = useSupportArticles({ featured: true, limit: 6 });
+  const { data: allArticles } = useSupportArticles();
+  
+  // Count articles per module
+  const articleCounts = allArticles?.reduce((acc, article) => {
+    acc[article.module] = (acc[article.module] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
 
   return (
     <SupportLayout>
@@ -84,27 +71,20 @@ const Support = () => {
         </section>
       )}
 
-      {/* Browse by Module */}
+      {/* Feature Guides */}
       <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4">Browse by Feature</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {SUPPORT_MODULES.map((module) => {
-            const Icon = ICON_MAP[module.icon] || BookOpen;
-            return (
-              <Link key={module.id} to={`/support/features/${module.id}`}>
-                <Card className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer group">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center text-center gap-2">
-                      <div className="p-3 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-                        <Icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </div>
-                      <span className="font-medium">{module.name}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+        <h2 className="text-2xl font-semibold mb-4">Feature Guides</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SUPPORT_MODULES.map((module) => (
+            <SupportModuleCard
+              key={module.id}
+              id={module.id}
+              name={module.name}
+              description={module.description}
+              icon={module.icon}
+              articleCount={articleCounts[module.id]}
+            />
+          ))}
         </div>
       </section>
 
