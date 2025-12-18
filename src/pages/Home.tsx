@@ -88,6 +88,7 @@ interface PersonOnLeave {
     };
   };
   leave_type: string;
+  half_day_type: string;
 }
 interface UpcomingTeamLeave {
   id: string;
@@ -451,6 +452,7 @@ const Home = () => {
           return {
             id: r.id,
             leave_type: r.leave_type,
+            half_day_type: r.half_day_type || "full",
             employee: {
               id: emp.id,
               position: emp.position,
@@ -907,12 +909,19 @@ const Home = () => {
               <div className="flex flex-wrap gap-2">
                 {peopleOnLeave.map(leave => (
                   <OrgLink key={leave.id} to={`/team/${leave.employee.id}`}>
-                    <Avatar className="h-8 w-8 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
-                      <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                        {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-8 w-8 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
+                        <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                          {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      {leave.half_day_type !== "full" && (
+                        <span className="absolute -top-1 -right-1 text-[9px] font-bold text-primary bg-background rounded-full px-1 shadow-sm border border-border">
+                          {leave.half_day_type === "first_half" ? "1ˢᵗ" : "2ⁿᵈ"}
+                        </span>
+                      )}
+                    </div>
                   </OrgLink>
                 ))}
               </div>
@@ -1089,12 +1098,19 @@ const Home = () => {
                   {peopleOnLeave.map(leave => <HoverCard key={leave.id}>
                       <HoverCardTrigger asChild>
                         <OrgLink to={`/team/${leave.employee.id}`}>
-                          <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
-                            <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                              {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
+                              <AvatarImage src={leave.employee.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {leave.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            {leave.half_day_type !== "full" && (
+                              <span className="absolute -top-1 -right-1 text-[9px] font-bold text-primary bg-background rounded-full px-1 shadow-sm border border-border">
+                                {leave.half_day_type === "first_half" ? "1ˢᵗ" : "2ⁿᵈ"}
+                              </span>
+                            )}
+                          </div>
                         </OrgLink>
                       </HoverCardTrigger>
                       <HoverCardContent className="w-64" side="top">
@@ -1116,6 +1132,7 @@ const Home = () => {
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
                                 <Palmtree className="h-3 w-3" />
                                 {leave.leave_type.replace("_", " ")}
+                                {leave.half_day_type !== "full" && ` (${leave.half_day_type === "first_half" ? "1st Half" : "2nd Half"})`}
                               </span>
                             </div>
                           </div>
