@@ -128,3 +128,6 @@ verify_jwt = true
 
 [functions.scan-api-documentation]
 verify_jwt = true
+
+[functions.generate-support-content]
+verify_jwt = true

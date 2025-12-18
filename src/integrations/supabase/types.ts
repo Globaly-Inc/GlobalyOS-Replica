@@ -5259,6 +5259,7 @@ export type Database = {
           screenshots: Json | null
           slug: string
           sort_order: number | null
+          target_roles: string[] | null
           title: string
           updated_at: string | null
           view_count: number | null
@@ -5278,6 +5279,7 @@ export type Database = {
           screenshots?: Json | null
           slug: string
           sort_order?: number | null
+          target_roles?: string[] | null
           title: string
           updated_at?: string | null
           view_count?: number | null
@@ -5297,6 +5299,7 @@ export type Database = {
           screenshots?: Json | null
           slug?: string
           sort_order?: number | null
+          target_roles?: string[] | null
           title?: string
           updated_at?: string | null
           view_count?: number | null
@@ -5533,6 +5536,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           error_message: string | null
+          highlight_annotation: string | null
+          highlight_selector: string | null
+          highlight_style: string | null
           id: string
           route_path: string
           status: string | null
@@ -5545,6 +5551,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           error_message?: string | null
+          highlight_annotation?: string | null
+          highlight_selector?: string | null
+          highlight_style?: string | null
           id?: string
           route_path: string
           status?: string | null
@@ -5557,6 +5566,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           error_message?: string | null
+          highlight_annotation?: string | null
+          highlight_selector?: string | null
+          highlight_style?: string | null
           id?: string
           route_path?: string
           status?: string | null

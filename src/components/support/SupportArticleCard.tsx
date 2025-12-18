@@ -6,9 +6,16 @@
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Eye, ThumbsUp } from 'lucide-react';
+import { FileText, Eye, ThumbsUp, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SupportArticle } from '@/services/useSupportArticles';
+
+const ROLE_LABELS: Record<string, { label: string; icon: string }> = {
+  owner: { label: 'Owner', icon: '👑' },
+  admin: { label: 'Admin', icon: '⚙️' },
+  hr: { label: 'HR', icon: '📋' },
+  user: { label: 'User', icon: '👤' },
+};
 
 interface SupportArticleCardProps {
   article: SupportArticle;
@@ -46,6 +53,16 @@ export const SupportArticleCard = ({ article, showModule = false, className }: S
             <CardDescription className="line-clamp-2 mb-3">
               {article.excerpt}
             </CardDescription>
+          )}
+          {article.target_roles && article.target_roles.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mb-3">
+              <Users className="h-3 w-3 text-muted-foreground mr-1" />
+              {article.target_roles.map(role => (
+                <Badge key={role} variant="outline" className="text-xs px-1.5 py-0">
+                  {ROLE_LABELS[role]?.icon} {ROLE_LABELS[role]?.label || role}
+                </Badge>
+              ))}
+            </div>
           )}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
