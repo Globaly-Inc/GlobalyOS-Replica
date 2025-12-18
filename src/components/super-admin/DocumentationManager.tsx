@@ -53,45 +53,42 @@ export const DocumentationManager = () => {
   const [activeTab, setActiveTab] = useState('articles');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Documentation Manager</h2>
-          <p className="text-muted-foreground">
-            Manage support articles, screenshots, and API documentation
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <AIGenerateCard />
-          <AIUpdateCard />
-          <Button variant="outline" asChild>
+    <div className="space-y-4">
+      {/* AI Cards Row */}
+      <div className="flex items-center gap-3">
+        <AIGenerateCard />
+        <AIUpdateCard />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* Tabs + View Support Center button row */}
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="articles" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Articles
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Categories
+            </TabsTrigger>
+            <TabsTrigger value="screenshots" className="gap-2">
+              <Camera className="h-4 w-4" />
+              Screenshots
+            </TabsTrigger>
+            <TabsTrigger value="api" className="gap-2">
+              <Code className="h-4 w-4" />
+              API Docs
+            </TabsTrigger>
+          </TabsList>
+          
+          <Button variant="outline" size="sm" asChild>
             <a href="/support" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4 mr-2" />
               View Support Center
             </a>
           </Button>
         </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="articles" className="gap-2">
-            <FileText className="h-4 w-4" />
-            Articles
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-2">
-            <FolderOpen className="h-4 w-4" />
-            Categories
-          </TabsTrigger>
-          <TabsTrigger value="screenshots" className="gap-2">
-            <Camera className="h-4 w-4" />
-            Screenshots
-          </TabsTrigger>
-          <TabsTrigger value="api" className="gap-2">
-            <Code className="h-4 w-4" />
-            API Docs
-          </TabsTrigger>
-        </TabsList>
 
         <TabsContent value="articles" className="mt-6">
           <ArticlesManager />
