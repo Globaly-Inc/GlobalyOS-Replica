@@ -16,8 +16,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const browserlessApiKey = Deno.env.get('BROWSERLESS_API_KEY');
-    const screenshotUserEmail = Deno.env.get('SCREENSHOT_USER_EMAIL');
-    const screenshotUserPassword = Deno.env.get('SCREENSHOT_USER_PASSWORD');
 
     if (!browserlessApiKey) {
       throw new Error('BROWSERLESS_API_KEY is not configured');
@@ -25,7 +23,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { screenshotId, highlightSelector, annotation, privacyMasks } = await req.json();
+    // Accept session tokens from request body (OTP-based auth flow)
+    const { screenshotId, highlightSelector, annotation, privacyMasks, accessToken, refreshToken } = await req.json();
 
     if (!screenshotId) {
       throw new Error('screenshotId is required');
@@ -61,50 +60,37 @@ serve(async (req) => {
 
     console.log(`Capturing screenshot of: ${targetUrl}`);
 
-    // Authenticate with service account if credentials are provided
+    // Use session tokens from request if provided (OTP-based auth flow)
     let sessionCookies: any[] = [];
-    if (screenshotUserEmail && screenshotUserPassword) {
-      console.log('Authenticating with service account...');
+    if (accessToken && refreshToken) {
+      console.log('Using provided session tokens for authentication');
       
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: screenshotUserEmail,
-        password: screenshotUserPassword,
-      });
-
-      if (authError) {
-        console.error('Service account authentication failed:', authError.message);
-        // Continue without auth - will capture login page or public view
-      } else if (authData.session) {
-        console.log('Service account authenticated successfully');
-        
-        // Get the domain from app base URL
-        const appDomain = new URL(appBaseUrl).hostname;
-        
-        // Prepare cookies for Browserless
-        sessionCookies = [
-          {
-            name: 'sb-access-token',
-            value: authData.session.access_token,
-            domain: appDomain,
-            path: '/',
-            httpOnly: false,
-            secure: true,
-            sameSite: 'Lax',
-          },
-          {
-            name: 'sb-refresh-token',
-            value: authData.session.refresh_token,
-            domain: appDomain,
-            path: '/',
-            httpOnly: false,
-            secure: true,
-            sameSite: 'Lax',
-          },
-          // Also set as localStorage items via script injection (see below)
-        ];
-      }
+      // Get the domain from app base URL
+      const appDomain = new URL(appBaseUrl).hostname;
+      
+      // Prepare cookies for Browserless
+      sessionCookies = [
+        {
+          name: 'sb-access-token',
+          value: accessToken,
+          domain: appDomain,
+          path: '/',
+          httpOnly: false,
+          secure: true,
+          sameSite: 'Lax',
+        },
+        {
+          name: 'sb-refresh-token',
+          value: refreshToken,
+          domain: appDomain,
+          path: '/',
+          httpOnly: false,
+          secure: true,
+          sameSite: 'Lax',
+        },
+      ];
     } else {
-      console.log('No service account credentials configured - capturing without auth');
+      console.log('No session tokens provided - capturing without auth');
     }
 
     // Get the effective highlight selector
