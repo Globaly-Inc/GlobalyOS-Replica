@@ -317,14 +317,52 @@ Return a valid JSON array of article objects. Each article should cover a differ
       throw new Error('No content received from AI');
     }
 
-    // Parse the JSON from the AI response
+    // Parse the JSON from the AI response with robust handling
     let articles;
     try {
+      let jsonStr = aiContent.trim();
+      
+      // Try to extract JSON from markdown code blocks
       const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : aiContent.trim();
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+      }
+      
+      // If still wrapped in code blocks without proper closing, try to find array start/end
+      if (!jsonStr.startsWith('[')) {
+        const arrayStart = jsonStr.indexOf('[');
+        if (arrayStart !== -1) {
+          jsonStr = jsonStr.substring(arrayStart);
+        }
+      }
+      
+      // Try to find the end of the array if truncated
+      if (!jsonStr.endsWith(']')) {
+        // Find the last complete object by looking for },
+        const lastCompleteObject = jsonStr.lastIndexOf('},');
+        if (lastCompleteObject !== -1) {
+          jsonStr = jsonStr.substring(0, lastCompleteObject + 1) + ']';
+          console.log('Truncated response detected, attempting recovery');
+        } else {
+          // Try finding the last complete object ending with }
+          const lastBrace = jsonStr.lastIndexOf('}');
+          if (lastBrace !== -1) {
+            jsonStr = jsonStr.substring(0, lastBrace + 1) + ']';
+            console.log('Truncated response detected, attempting recovery with single object');
+          }
+        }
+      }
+      
       articles = JSON.parse(jsonStr);
+      
+      if (!Array.isArray(articles)) {
+        articles = [articles];
+      }
+      
+      console.log(`Successfully parsed ${articles.length} articles from AI response`);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', aiContent);
+      console.error('Failed to parse AI response:', aiContent.substring(0, 500) + '...');
+      console.error('Parse error:', parseError);
       throw new Error('Failed to parse AI response as JSON');
     }
 
