@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Bug, Lightbulb, Search, Filter } from 'lucide-react';
+import { Bug, Lightbulb, Search, Filter, FileText } from 'lucide-react';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
+import { DocumentationManager } from '@/components/super-admin/DocumentationManager';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
