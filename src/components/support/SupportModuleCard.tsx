@@ -53,16 +53,16 @@ export const SupportModuleCard = ({
         "h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer group",
         className
       )}>
-        <CardHeader>
-          <div className="flex items-start gap-4">
+        <CardHeader className="p-4">
+          <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <Icon className="h-5 w-5" />
+              <Icon className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg">{name}</CardTitle>
-              <CardDescription className="mt-1">{description}</CardDescription>
+              <CardTitle className="text-sm font-medium">{name}</CardTitle>
+              <CardDescription className="text-xs line-clamp-1">{description}</CardDescription>
               {articleCount !== undefined && (
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground">
                   {articleCount} {articleCount === 1 ? 'article' : 'articles'}
                 </p>
               )}
