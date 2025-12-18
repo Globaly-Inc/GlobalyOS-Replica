@@ -170,8 +170,8 @@ serve(async (req) => {
           }
         }
 
-        // Small delay between captures to avoid overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Delay between captures to avoid rate limiting (429 errors)
+        await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (err) {
         console.error(`Error capturing ${screenshotId}:`, err);
         failedCount++;
