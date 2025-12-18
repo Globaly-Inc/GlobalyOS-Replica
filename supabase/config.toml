@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.bulk-generate-kpis]
 verify_jwt = false
+
+[functions.improve-support-content]
+verify_jwt = true

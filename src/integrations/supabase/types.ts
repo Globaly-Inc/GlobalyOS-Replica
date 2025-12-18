@@ -5192,6 +5192,77 @@ export type Database = {
           },
         ]
       }
+      support_requests: {
+        Row: {
+          admin_notes: string | null
+          ai_improved_description: string | null
+          assigned_to: string | null
+          browser_info: string
+          created_at: string
+          description: string
+          device_type: string
+          id: string
+          organization_id: string | null
+          page_url: string
+          priority: Database["public"]["Enums"]["support_request_priority"]
+          resolved_at: string | null
+          screenshot_url: string | null
+          status: Database["public"]["Enums"]["support_request_status"]
+          title: string
+          type: Database["public"]["Enums"]["support_request_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          ai_improved_description?: string | null
+          assigned_to?: string | null
+          browser_info: string
+          created_at?: string
+          description: string
+          device_type: string
+          id?: string
+          organization_id?: string | null
+          page_url: string
+          priority?: Database["public"]["Enums"]["support_request_priority"]
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          status?: Database["public"]["Enums"]["support_request_status"]
+          title: string
+          type?: Database["public"]["Enums"]["support_request_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          ai_improved_description?: string | null
+          assigned_to?: string | null
+          browser_info?: string
+          created_at?: string
+          description?: string
+          device_type?: string
+          id?: string
+          organization_id?: string | null
+          page_url?: string
+          priority?: Database["public"]["Enums"]["support_request_priority"]
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          status?: Database["public"]["Enums"]["support_request_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["support_request_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_slabs: {
         Row: {
           country: string
@@ -6976,6 +7047,15 @@ export type Database = {
       chat_space_access: "public" | "private"
       chat_space_access_scope: "company" | "offices" | "projects" | "members"
       chat_space_type: "collaboration" | "announcements"
+      support_request_priority: "low" | "medium" | "high" | "critical"
+      support_request_status:
+        | "new"
+        | "triaging"
+        | "in_progress"
+        | "resolved"
+        | "closed"
+        | "wont_fix"
+      support_request_type: "bug" | "feature"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7107,6 +7187,16 @@ export const Constants = {
       chat_space_access: ["public", "private"],
       chat_space_access_scope: ["company", "offices", "projects", "members"],
       chat_space_type: ["collaboration", "announcements"],
+      support_request_priority: ["low", "medium", "high", "critical"],
+      support_request_status: [
+        "new",
+        "triaging",
+        "in_progress",
+        "resolved",
+        "closed",
+        "wont_fix",
+      ],
+      support_request_type: ["bug", "feature"],
     },
   },
 } as const
