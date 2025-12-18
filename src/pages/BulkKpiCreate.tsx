@@ -136,7 +136,7 @@ const BulkKpiCreate = () => {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <Sparkles className="h-6 w-6 ai-gradient-icon" />
+          <Sparkles className="h-6 w-6 text-ai" />
           <h1 className="text-3xl font-bold text-foreground">AI Bulk KPI Creation</h1>
         </div>
 

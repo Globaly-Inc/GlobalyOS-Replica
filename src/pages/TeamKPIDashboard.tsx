@@ -679,11 +679,11 @@ const TeamKPIDashboard = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="px-2 sm:px-3 ai-gradient-border"
+                className="px-2 sm:px-3"
                 onClick={() => navigate(buildOrgPath("/kpi/bulk-create"))}
               >
-                <Sparkles className="h-4 w-4 sm:mr-1 ai-gradient-icon" />
-                <span className="hidden sm:inline">AI Bulk Create</span>
+                <Sparkles className="h-4 w-4 sm:mr-1 text-ai" />
+                <span className="hidden sm:inline text-ai">AI Bulk Create</span>
               </Button>
             )}
             <KPITemplatesDialog>

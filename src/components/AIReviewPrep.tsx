@@ -102,10 +102,10 @@ const AIReviewPrep = ({ employeeId, reviewId, periodStart, periodEnd, onDraftApp
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-purple-500/5 to-purple-500/10 border-b pb-3">
+      <CardHeader className="bg-gradient-to-r from-ai/5 to-ai/10 border-b pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-purple-500" />
+            <Sparkles className="h-4 w-4 text-ai" />
             AI Review Prep
           </CardTitle>
           <div className="flex items-center gap-2">

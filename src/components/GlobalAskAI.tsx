@@ -318,16 +318,16 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
               </Badge>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {smartSuggestions.slice(0, 2).map((q, i) => (
-              <button
-                key={i}
-                onClick={() => setInput(q)}
-                className="text-xs px-2.5 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors truncate max-w-full"
-              >
-                {q}
-              </button>
-            ))}
+            <div className="flex flex-wrap gap-1.5">
+              {smartSuggestions.slice(0, 2).map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => setInput(q)}
+                  className="text-xs px-2.5 py-1.5 rounded-full bg-ai/10 text-ai hover:bg-ai/20 transition-colors truncate max-w-full"
+                >
+                  {q}
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -445,7 +445,7 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
       <div className="flex flex-col h-full bg-background">
         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-ai" />
             <span className="text-lg font-semibold">Ask AI</span>
           </div>
           <Button
@@ -476,7 +476,7 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
               className="h-10 w-10"
               disabled={!organizationId}
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 text-ai" />
             </Button>
           </SheetTrigger>
         </TooltipTrigger>
@@ -487,7 +487,7 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
       <SheetContent className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-ai" />
             Ask AI
           </SheetTitle>
         </SheetHeader>

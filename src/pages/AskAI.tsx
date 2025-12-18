@@ -236,7 +236,7 @@ const AskAI = () => {
     <div className="min-h-screen pb-40 md:pb-24">
       <div className="px-4 py-6">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-primary" />
+          <Sparkles className="h-5 w-5 text-ai" />
           <PageHeader title="Ask AI" />
         </div>
 
@@ -336,7 +336,7 @@ const AskAI = () => {
                       <button
                         key={i}
                         onClick={() => handleSuggestionClick(q)}
-                        className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-full bg-ai/10 text-ai hover:bg-ai/20 transition-colors"
                       >
                         {q}
                       </button>
