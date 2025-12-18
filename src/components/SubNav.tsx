@@ -1,4 +1,4 @@
-import { Home, Users, Target, Calendar, CalendarDays, Clock, DollarSign } from 'lucide-react';
+import { Users, Target, Calendar, CalendarDays, Clock, DollarSign } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,6 @@ interface SubNavItem {
 }
 
 const teamSubNavItems: SubNavItem[] = [
-  { name: 'Overview', href: '/', icon: Home },
   { name: 'Directory', href: '/team', icon: Users },
   { name: 'KPIs', href: '/kpi-dashboard', icon: Target },
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
@@ -35,13 +34,12 @@ export const SubNav = () => {
     return true;
   });
   
-  // Show sub-nav on Team-related pages (including home which is now Overview)
+  // Show sub-nav on Team-related pages (not on Home which is now separate)
   const isTeamSection = 
-    location.pathname === basePath ||
-    location.pathname === `${basePath}/` ||
     location.pathname === `${basePath}/team` || 
     location.pathname.startsWith(`${basePath}/team/`) ||
     location.pathname === `${basePath}/kpi-dashboard` ||
+    location.pathname.startsWith(`${basePath}/kpi-dashboard/`) ||
     location.pathname === `${basePath}/calendar` ||
     location.pathname === `${basePath}/leave-history` ||
     location.pathname === `${basePath}/attendance-history` ||
@@ -55,19 +53,15 @@ export const SubNav = () => {
       <div className="container px-4 md:px-8">
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
           {visibleItems.map((item) => {
-            const fullPath = item.href === '/' 
-              ? basePath || '/'
-              : `${basePath}${item.href}`;
+            const fullPath = `${basePath}${item.href}`;
             
             const isActive = 
-              item.href === '/' 
-                ? location.pathname === basePath || location.pathname === `${basePath}/`
-                : item.href === '/team' 
-                  ? location.pathname === `${basePath}/team` || 
-                    (location.pathname.startsWith(`${basePath}/team/`) && 
-                     !location.pathname.includes('/bulk-import'))
-                  : location.pathname === fullPath || 
-                    location.pathname.startsWith(`${fullPath}/`);
+              item.href === '/team' 
+                ? location.pathname === `${basePath}/team` || 
+                  (location.pathname.startsWith(`${basePath}/team/`) && 
+                   !location.pathname.includes('/bulk-import'))
+                : location.pathname === fullPath || 
+                  location.pathname.startsWith(`${fullPath}/`);
             
             return (
               <OrgLink
