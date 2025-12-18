@@ -1,6 +1,7 @@
 export type SupportRequestType = 'bug' | 'feature';
 export type SupportRequestStatus = 'new' | 'triaging' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
 export type SupportRequestPriority = 'low' | 'medium' | 'high' | 'critical';
+export type SupportActivityActionType = 'status_change' | 'priority_change' | 'comment_added' | 'subscriber_added' | 'subscriber_removed' | 'notes_updated' | 'created';
 
 export interface SupportRequest {
   id: string;
@@ -30,6 +31,52 @@ export interface SupportRequest {
   organizations?: {
     name: string | null;
     slug: string | null;
+  };
+  // Aggregated counts
+  comment_count?: number;
+}
+
+export interface SupportRequestComment {
+  id: string;
+  request_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string | null;
+  };
+}
+
+export interface SupportRequestSubscriber {
+  id: string;
+  request_id: string;
+  user_id: string;
+  subscribed_at: string;
+  // Joined fields
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string | null;
+  };
+}
+
+export interface SupportRequestActivityLog {
+  id: string;
+  request_id: string;
+  user_id: string;
+  action_type: SupportActivityActionType;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+  // Joined fields
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string | null;
   };
 }
 
@@ -69,3 +116,13 @@ export const PRIORITY_CONFIG: Record<SupportRequestPriority, { label: string; co
 };
 
 export const KANBAN_COLUMNS: SupportRequestStatus[] = ['new', 'triaging', 'in_progress', 'resolved', 'closed'];
+
+export const ACTION_TYPE_LABELS: Record<SupportActivityActionType, string> = {
+  status_change: 'changed status',
+  priority_change: 'changed priority',
+  comment_added: 'added a comment',
+  subscriber_added: 'added subscriber',
+  subscriber_removed: 'removed subscriber',
+  notes_updated: 'updated notes',
+  created: 'created request',
+};
