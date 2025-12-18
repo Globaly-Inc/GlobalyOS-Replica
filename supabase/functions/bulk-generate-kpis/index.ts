@@ -15,8 +15,10 @@ interface CascadeConfig {
 
 interface RequestBody {
   documentContent: string;
+  periodType: "annual" | "quarterly";
   quarter: number;
   year: number;
+  aiInstructions?: string;
   cascadeConfig: CascadeConfig;
   targetDepartments?: string[];
   targetOffices?: string[];
@@ -55,14 +57,17 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { documentContent, quarter, year, cascadeConfig, targetDepartments, targetOffices, targetEmployees, organizationContext } = body;
+    const { documentContent, periodType, quarter, year, aiInstructions, cascadeConfig, targetDepartments, targetOffices, targetEmployees, organizationContext } = body;
+
+    const periodLabel = periodType === "annual" ? `FY ${year}` : `Q${quarter} ${year}`;
 
     console.log("Bulk KPI Generation Request:", { 
-      quarter, year, 
+      periodType, periodLabel,
       cascadeConfig,
       departmentsCount: organizationContext.departments.length,
       employeesCount: organizationContext.employees.length,
-      documentLength: documentContent?.length || 0 
+      documentLength: documentContent?.length || 0,
+      aiInstructionsLength: aiInstructions?.length || 0
     });
 
     // Filter employees based on targets
@@ -137,9 +142,12 @@ The JSON must follow this exact structure:
   ]
 }`;
 
-    let userPrompt = `Generate KPIs for ${organizationContext.name} for Q${quarter} ${year}.
+    let userPrompt = `Generate KPIs for ${organizationContext.name} for ${periodLabel}.
 
-${documentContent ? `Reference Document Content:
+${aiInstructions ? `IMPORTANT - User Instructions:
+${aiInstructions}
+
+` : ''}${documentContent ? `Reference Document Content:
 ---
 ${documentContent.slice(0, 8000)}
 ---
@@ -152,7 +160,7 @@ ${documentContent.slice(0, 8000)}
 Generate KPIs with this cascade:`;
 
     if (cascadeConfig.includeOrganization) {
-      userPrompt += `\n- 2-3 Organization-level strategic KPIs`;
+      userPrompt += `\n- 2-3 Organization-level strategic KPIs for ${periodLabel}`;
     }
     if (cascadeConfig.includeDepartments && activeDepartments.length > 0) {
       userPrompt += `\n- 2-3 KPIs per department: ${activeDepartments.join(', ')}`;
@@ -169,6 +177,7 @@ Generate KPIs with this cascade:`;
 
     userPrompt += `\n\nEnsure parent-child relationships are properly set using parentTempId to link child KPIs to their parent.
 ${documentContent ? 'Base the KPIs on the themes and goals mentioned in the reference document.' : 'Create standard business KPIs based on the organization structure.'}
+${aiInstructions ? 'Follow the user instructions provided above when creating KPIs.' : ''}
 
 Respond with ONLY the JSON object, no additional text.`;
 

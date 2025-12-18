@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { 
   Globe, 
   Building, 
@@ -27,7 +28,9 @@ import {
   FileText, 
   ChevronDown,
   X,
-  Sparkles
+  Sparkles,
+  Calendar,
+  CalendarDays
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -166,40 +169,67 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Time Period</CardTitle>
-            <CardDescription>Select the quarter and year for KPIs</CardDescription>
+            <CardDescription>Select the period type and timeframe for KPIs</CardDescription>
           </CardHeader>
-          <CardContent className="flex gap-4">
-            <div className="flex-1">
-              <Label>Quarter</Label>
-              <Select
-                value={state.quarter.toString()}
-                onValueChange={(v) => updateState({ quarter: parseInt(v) })}
+          <CardContent className="space-y-4">
+            {/* Period Type Toggle */}
+            <div>
+              <Label className="mb-2 block">Period Type</Label>
+              <ToggleGroup 
+                type="single" 
+                value={state.periodType}
+                onValueChange={(value) => {
+                  if (value) updateState({ periodType: value as "annual" | "quarterly" });
+                }}
+                className="justify-start"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {quarters.map(q => (
-                    <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <ToggleGroupItem value="annual" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Annual
+                </ToggleGroupItem>
+                <ToggleGroupItem value="quarterly" className="gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  Quarterly
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
-            <div className="flex-1">
-              <Label>Year</Label>
-              <Select
-                value={state.year.toString()}
-                onValueChange={(v) => updateState({ year: parseInt(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(y => (
-                    <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            <div className="flex gap-4">
+              {/* Quarter Selector - Only show for quarterly */}
+              {state.periodType === "quarterly" && (
+                <div className="flex-1">
+                  <Label>Quarter</Label>
+                  <Select
+                    value={state.quarter.toString()}
+                    onValueChange={(v) => updateState({ quarter: parseInt(v) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {quarters.map(q => (
+                        <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="flex-1">
+                <Label>Year</Label>
+                <Select
+                  value={state.year.toString()}
+                  onValueChange={(v) => updateState({ year: parseInt(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map(y => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -305,12 +335,35 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
         </Card>
       </div>
 
-      {/* Right Column - Document Upload */}
+      {/* Right Column - AI Instructions & Document Upload */}
       <div className="space-y-6">
-        <Card className="h-full">
+        {/* AI Instructions */}
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="h-5 w-5 ai-gradient-icon" />
+              AI Instructions
+            </CardTitle>
+            <CardDescription>
+              Provide context or specific instructions for the AI when generating KPIs
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="E.g., Focus on customer acquisition metrics, prioritize growth goals, generate KPIs aligned with our sustainability initiatives, emphasize team collaboration..."
+              value={state.aiInstructions}
+              onChange={(e) => updateState({ aiInstructions: e.target.value })}
+              rows={4}
+              className="resize-none"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Reference Documents */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
               Reference Documents
             </CardTitle>
             <CardDescription>

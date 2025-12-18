@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,7 @@ export interface GeneratedKpi {
 
 export interface BulkKpiWizardState {
   step: number;
+  periodType: "annual" | "quarterly";
   quarter: number;
   year: number;
   cascadeConfig: CascadeConfig;
@@ -46,6 +46,7 @@ export interface BulkKpiWizardState {
   targetEmployees: string[];
   documentContent: string;
   documentName: string;
+  aiInstructions: string;
   generatedKpis: GeneratedKpi[];
   creationResults: {
     success: number;
@@ -70,6 +71,7 @@ const BulkKpiCreate = () => {
   
   const [state, setState] = useState<BulkKpiWizardState>({
     step: 1,
+    periodType: "quarterly",
     quarter: getCurrentQuarter(),
     year: getCurrentYear(),
     cascadeConfig: {
@@ -83,6 +85,7 @@ const BulkKpiCreate = () => {
     targetEmployees: [],
     documentContent: "",
     documentName: "",
+    aiInstructions: "",
     generatedKpis: [],
     creationResults: { success: 0, failed: 0, errors: [] },
   });
@@ -123,8 +126,8 @@ const BulkKpiCreate = () => {
   const progressPercent = (state.step / STEPS.length) * 100;
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto space-y-6">
+    <>
+      <div className="container mx-auto py-4 md:py-6 px-4 max-w-7xl space-y-6">
         <div className="flex items-center gap-3 pt-4 pb-2">
           <Button
             variant="ghost"
@@ -220,7 +223,7 @@ const BulkKpiCreate = () => {
           )}
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 
