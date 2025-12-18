@@ -6,9 +6,10 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LifeBuoy, Search, Home, Rocket, HelpCircle, BookOpen, Code, 
+  Search, Home, Rocket, HelpCircle, BookOpen, Code, 
   Menu, X, ChevronRight, ArrowLeft
 } from 'lucide-react';
+import globalyosFullLogo from '@/assets/globalyos-full-logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,9 +56,9 @@ export const SupportLayout = ({ children, title, breadcrumbs }: SupportLayoutPro
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <Link to="/support" className="flex items-center gap-2">
-              <LifeBuoy className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">GlobalyOS Help Center</span>
+            <Link to="/support" className="flex items-center gap-3">
+              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" />
+              <span className="font-semibold text-lg">Help Center</span>
             </Link>
           </div>
           
