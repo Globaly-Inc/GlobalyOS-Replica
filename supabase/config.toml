@@ -131,3 +131,6 @@ verify_jwt = true
 
 [functions.generate-support-content]
 verify_jwt = true
+
+[functions.auto-capture-screenshots]
+verify_jwt = true

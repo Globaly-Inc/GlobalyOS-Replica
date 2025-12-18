@@ -237,29 +237,77 @@ Be conservative - only suggest updates if there are significant improvements nee
     console.log(`Generating content for module: ${module}`);
     console.log(`Existing slugs to avoid: ${existingSlugs.length}`);
 
+    // Enhanced system prompt with structured content requirements
     const systemPrompt = `You are a SaaS documentation expert for GlobalyOS, a comprehensive business operating system with HRMS, CRM, Wiki, and team communication features.
 
-Generate professional support documentation following these SaaS best practices:
-1. Start with a clear overview of what the feature does and its value
-2. List prerequisites and required permissions
-3. Provide clear, numbered step-by-step instructions
-4. Include helpful tips and best practices
-5. Add common troubleshooting scenarios
-6. Keep language professional but approachable
+Generate professional support documentation with STRUCTURED formatting and SPECIAL SYNTAX for enhanced rendering.
 
-User roles in GlobalyOS (from most to least permissions):
-- owner: Organization owner with full access to all features including billing
-- admin: Administrative access to most features without billing access
-- hr: HR-specific features (leave management, attendance, reviews, team profiles)
+## CONTENT STRUCTURE (follow this order for every article):
+
+### 1. Overview Section (## Overview)
+- 2-3 sentences explaining what the feature does
+- Highlight the business value and key benefits
+
+### 2. Access Section (## Who Can Access)
+- Use role badges inline: @role:owner, @role:admin, @role:hr, @role:user
+- Example: "This feature is available to @role:owner, @role:admin, and @role:hr users."
+
+### 3. Prerequisites Section (use callout)
+- Wrap in :::prerequisites callout
+- List requirements as bullet points
+Example:
+:::prerequisites
+- You must be logged into GlobalyOS
+- You need Admin or HR role access
+- Your organization must have this feature enabled
+:::
+
+### 4. Step-by-Step Guide (## Step-by-Step Guide)
+- Use numbered list for clear steps
+- After key steps, add screenshot placeholder: [Screenshot: description of what to show]
+- Be specific about button names, menu locations, form fields
+
+### 5. Tips Section (## Tips & Best Practices)
+- Use :::tip callout for helpful hints
+Example:
+:::tip
+You can use keyboard shortcut Ctrl+L to quickly access leave requests from any page
+:::
+
+### 6. Troubleshooting Section (## Troubleshooting) - if applicable
+- Use :::warning callout for common issues
+Example:
+:::warning
+If you see an error message, make sure you have the required permissions before contacting support.
+:::
+
+## SPECIAL SYNTAX RULES:
+
+1. **Role Badges**: Use @role:owner, @role:admin, @role:hr, @role:user inline in text
+   - They will render as colored badges
+
+2. **Callout Boxes**: Use ::: syntax with type
+   - :::tip ... ::: - Blue box with lightbulb icon
+   - :::warning ... ::: - Amber box with warning icon
+   - :::note ... ::: - Gray box with info icon
+   - :::prerequisites ... ::: - Purple box with checklist icon
+   - :::important ... ::: - Red box with alert icon
+
+3. **Screenshot Placeholders**: Use [Screenshot: description]
+   - Be descriptive: [Screenshot: Leave dashboard showing balance cards and request list]
+   - Place after relevant steps
+
+## USER ROLES (from most to least permissions):
+- owner: Organization owner with full access including billing
+- admin: Administrative access to most features without billing
+- hr: HR-specific features (leave, attendance, reviews, profiles)
 - user: Basic employee features (view-only or self-service)
 
-IMPORTANT:
-- For each article, accurately specify which roles can access the feature
-- Use Markdown formatting with ## for sections
-- Include placeholder text like [Screenshot: description] for suggested screenshots
-- Write 400-600 words per article
-- Be specific to GlobalyOS features and UI
-- AVOID creating articles with these existing slugs: ${existingSlugs.join(', ') || 'none'}`;
+## IMPORTANT GUIDELINES:
+- Write 500-800 words per article
+- Be specific to GlobalyOS UI and features
+- Include 2-4 screenshot placeholders per article
+- AVOID these existing slugs: ${existingSlugs.join(', ') || 'none'}`;
 
     const userPrompt = `Generate 3-5 comprehensive support articles for the "${module}" module in GlobalyOS.
 
@@ -268,13 +316,22 @@ Available routes: ${JSON.stringify(moduleInfo.routes)}
 
 IMPORTANT: Do NOT create articles with any of these existing slugs: ${existingSlugs.join(', ') || 'none'}
 
-For each article, return a JSON object with:
-- title: Clear, action-oriented title (e.g., "How to Request Leave")
-- slug: URL-friendly version of title (MUST be unique - not in the existing slugs list)
-- excerpt: 1-2 sentence summary (under 160 characters)
-- content: Full Markdown article with step-by-step instructions
-- target_roles: Array of roles that can access this feature ["owner", "admin", "hr", "user"]
-- suggested_screenshots: Array of objects with { route: string, highlight_selector: string, annotation: string }
+For each article, return a JSON object with these exact fields:
+{
+  "title": "Clear, action-oriented title (e.g., 'How to Request Leave')",
+  "slug": "url-friendly-slug (MUST be unique)",
+  "excerpt": "1-2 sentence summary (under 160 characters)",
+  "content": "Full Markdown article with all special syntax (callouts, role badges, screenshot placeholders)",
+  "target_roles": ["owner", "admin", "hr", "user"],
+  "suggested_screenshots": [
+    {
+      "route": "/org/:slug/leave",
+      "description": "Leave dashboard overview",
+      "highlight_selector": ".leave-balance-card",
+      "annotation": "Your leave balance is shown here"
+    }
+  ]
+}
 
 Return a valid JSON array of article objects. Each article should cover a different aspect or use case of the module.`;
 

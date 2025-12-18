@@ -172,7 +172,7 @@ export const AIGenerateCard = () => {
       for (let i = 0; i < selectedArticles.length; i++) {
         const article = selectedArticles[i];
         
-        const { error } = await supabase
+        const { data: savedArticle, error } = await supabase
           .from('support_articles')
           .insert({
             module: article.module,
@@ -184,17 +184,33 @@ export const AIGenerateCard = () => {
             target_roles: article.target_roles,
             is_published: false,
             is_featured: false,
-          });
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Failed to save article:', error);
           throw error;
         }
 
+        // Trigger auto-capture for screenshots if article has suggested screenshots
+        if (savedArticle && article.suggested_screenshots?.length > 0) {
+          supabase.functions.invoke('auto-capture-screenshots', {
+            body: { 
+              articleId: savedArticle.id, 
+              screenshots: article.suggested_screenshots,
+              module: article.module,
+            },
+          }).catch(err => {
+            console.error('Auto-capture error:', err);
+            // Don't fail the save if screenshot capture fails
+          });
+        }
+
         setSaveProgress(((i + 1) / selectedArticles.length) * 100);
       }
 
-      toast.success(`Saved ${selectedArticles.length} articles as drafts`);
+      toast.success(`Saved ${selectedArticles.length} articles as drafts. Screenshots are being captured.`);
       setGeneratedArticles([]);
       setShowDialog(false);
       setNewFeaturesCount(0);

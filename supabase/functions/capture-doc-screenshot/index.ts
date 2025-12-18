@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { screenshotId } = await req.json();
+    const { screenshotId, highlightSelector, annotation } = await req.json();
 
     if (!screenshotId) {
       throw new Error('screenshotId is required');
@@ -54,7 +54,110 @@ serve(async (req) => {
 
     console.log(`Capturing screenshot of: ${targetUrl}`);
 
-    // Call Browserless.io screenshot API
+    // Get the effective highlight selector
+    const effectiveHighlightSelector = highlightSelector || screenshot.highlight_selector;
+
+    // Build script to inject for highlighting elements
+    let addScriptTag: any[] = [];
+    if (effectiveHighlightSelector) {
+      addScriptTag.push({
+        content: `
+          (function() {
+            // Wait for page to load
+            setTimeout(() => {
+              const el = document.querySelector('${effectiveHighlightSelector}');
+              if (el) {
+                // Add highlight styling
+                el.style.outline = '3px solid #3b82f6';
+                el.style.outlineOffset = '4px';
+                el.style.boxShadow = '0 0 0 6px rgba(59, 130, 246, 0.25)';
+                el.style.borderRadius = '4px';
+                el.style.position = 'relative';
+                el.style.zIndex = '9999';
+                
+                // Scroll element into view
+                el.scrollIntoView({ behavior: 'instant', block: 'center' });
+              }
+            }, 1000);
+          })();
+        `
+      });
+    }
+
+    // Add annotation overlay if provided
+    const effectiveAnnotation = annotation || screenshot.description;
+    if (effectiveAnnotation && effectiveHighlightSelector) {
+      addScriptTag.push({
+        content: `
+          (function() {
+            setTimeout(() => {
+              const el = document.querySelector('${effectiveHighlightSelector}');
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                const tooltip = document.createElement('div');
+                tooltip.innerText = '${effectiveAnnotation.replace(/'/g, "\\'")}';
+                tooltip.style.cssText = \`
+                  position: fixed;
+                  top: \${rect.top - 40}px;
+                  left: \${rect.left}px;
+                  background: #1e293b;
+                  color: white;
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  font-weight: 500;
+                  z-index: 10000;
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                  max-width: 300px;
+                \`;
+                document.body.appendChild(tooltip);
+                
+                // Add arrow
+                const arrow = document.createElement('div');
+                arrow.style.cssText = \`
+                  position: fixed;
+                  top: \${rect.top - 8}px;
+                  left: \${rect.left + 16}px;
+                  width: 0;
+                  height: 0;
+                  border-left: 8px solid transparent;
+                  border-right: 8px solid transparent;
+                  border-top: 8px solid #1e293b;
+                  z-index: 10000;
+                \`;
+                document.body.appendChild(arrow);
+              }
+            }, 1200);
+          })();
+        `
+      });
+    }
+
+    // Call Browserless.io screenshot API with enhanced options
+    const browserlessPayload: any = {
+      url: targetUrl,
+      options: {
+        type: 'png',
+        fullPage: false,
+        viewport: {
+          width: 1920,
+          height: 1080,
+          deviceScaleFactor: 2, // Retina quality
+        },
+      },
+      gotoOptions: {
+        waitUntil: 'networkidle2',
+        timeout: 30000,
+      },
+    };
+
+    // Add script injection if we have highlighting
+    if (addScriptTag.length > 0) {
+      browserlessPayload.addScriptTag = addScriptTag;
+      // Wait a bit longer for scripts to execute
+      browserlessPayload.waitFor = 2000;
+    }
+
     const browserlessResponse = await fetch(
       `https://chrome.browserless.io/screenshot?token=${browserlessApiKey}`,
       {
@@ -62,22 +165,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: targetUrl,
-          options: {
-            type: 'png',
-            fullPage: false,
-            viewport: {
-              width: 1920,
-              height: 1080,
-              deviceScaleFactor: 2, // Retina quality
-            },
-          },
-          gotoOptions: {
-            waitUntil: 'networkidle2',
-            timeout: 30000,
-          },
-        }),
+        body: JSON.stringify(browserlessPayload),
       }
     );
 
@@ -160,6 +248,7 @@ serve(async (req) => {
           .from('support_screenshots')
           .update({ 
             status: 'failed', 
+            error_message: errorMessage,
             updated_at: new Date().toISOString() 
           })
           .eq('id', screenshotId);
