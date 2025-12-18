@@ -1,7 +1,7 @@
 export type SupportRequestType = 'bug' | 'feature';
 export type SupportRequestStatus = 'new' | 'triaging' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
 export type SupportRequestPriority = 'low' | 'medium' | 'high' | 'critical';
-export type SupportActivityActionType = 'status_change' | 'priority_change' | 'comment_added' | 'subscriber_added' | 'subscriber_removed' | 'notes_updated' | 'created';
+export type SupportActivityActionType = 'status_change' | 'priority_change' | 'comment_added' | 'note_added' | 'subscriber_added' | 'subscriber_removed' | 'notes_updated' | 'created';
 
 export interface SupportRequest {
   id: string;
@@ -41,6 +41,8 @@ export interface SupportRequestComment {
   request_id: string;
   user_id: string;
   content: string;
+  is_internal: boolean;
+  attachment_url: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -121,6 +123,7 @@ export const ACTION_TYPE_LABELS: Record<SupportActivityActionType, string> = {
   status_change: 'changed status',
   priority_change: 'changed priority',
   comment_added: 'added a comment',
+  note_added: 'added an internal note',
   subscriber_added: 'added subscriber',
   subscriber_removed: 'removed subscriber',
   notes_updated: 'updated notes',

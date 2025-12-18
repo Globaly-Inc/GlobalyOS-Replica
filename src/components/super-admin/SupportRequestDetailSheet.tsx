@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
   Bug, Lightbulb, ExternalLink, Globe, Monitor, Calendar, Sparkles, Trash2, 
-  Send, Plus, X, UserPlus, History, MessageSquare, Users, ChevronDown, ChevronUp
+  Send, X, UserPlus, History, MessageSquare, Users, ChevronDown, ChevronUp,
+  Lock, Paperclip, Image as ImageIcon
 } from 'lucide-react';
 import {
   Sheet,
@@ -60,9 +61,12 @@ import {
   useAddSupportRequestComment,
   useAddSupportRequestSubscriber,
   useRemoveSupportRequestSubscriber,
-  useSearchUsers
+  useSearchUsers,
+  uploadScreenshot
 } from '@/services/useSupportRequests';
+import { useSupportRequestRealtime } from '@/hooks/useSupportRequestRealtime';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface SupportRequestDetailSheetProps {
   request: SupportRequest | null;
@@ -71,15 +75,16 @@ interface SupportRequestDetailSheetProps {
 }
 
 export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: SupportRequestDetailSheetProps) => {
-  const [adminNotes, setAdminNotes] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [newComment, setNewComment] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [isInternalNote, setIsInternalNote] = useState(false);
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [subscriberPopoverOpen, setSubscriberPopoverOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const updateRequest = useUpdateSupportRequest();
   const deleteRequest = useDeleteSupportRequest();
@@ -92,11 +97,8 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
   const { data: activityLogs = [] } = useSupportRequestActivityLogs(request?.id || null);
   const { data: searchResults = [] } = useSearchUsers(subscriberSearch);
 
-  useEffect(() => {
-    if (request) {
-      setAdminNotes(request.admin_notes || '');
-    }
-  }, [request]);
+  // Enable realtime updates
+  useSupportRequestRealtime(request?.id || null);
 
   if (!request) return null;
 
@@ -108,10 +110,6 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
     updateRequest.mutate({ id: request.id, priority });
   };
 
-  const handleSaveNotes = () => {
-    updateRequest.mutate({ id: request.id, admin_notes: adminNotes });
-  };
-
   const handleDelete = () => {
     deleteRequest.mutate(request.id, {
       onSuccess: () => {
@@ -121,11 +119,42 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
     });
   };
 
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    addComment.mutate({ requestId: request.id, content: newComment }, {
-      onSuccess: () => setNewComment(''),
-    });
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && !attachmentFile) return;
+    
+    setIsUploading(true);
+    let attachmentUrl: string | undefined;
+
+    try {
+      if (attachmentFile) {
+        attachmentUrl = await uploadScreenshot(attachmentFile);
+      }
+
+      await addComment.mutateAsync({ 
+        requestId: request.id, 
+        content: newMessage.trim() || (attachmentFile ? `Attached: ${attachmentFile.name}` : ''),
+        isInternal: isInternalNote,
+        attachmentUrl,
+      });
+      
+      setNewMessage('');
+      setAttachmentFile(null);
+    } catch (error) {
+      toast.error('Failed to send message');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File must be less than 5MB');
+        return;
+      }
+      setAttachmentFile(file);
+    }
   };
 
   const handleAddSubscriber = (userId: string) => {
@@ -138,11 +167,14 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
     removeSubscriber.mutate({ requestId: request.id, subscriberId });
   };
 
-  const statusConfig = STATUS_CONFIG[request.status];
-  const priorityConfig = PRIORITY_CONFIG[request.priority];
   const filteredSearchResults = searchResults.filter(
     u => !subscribers.some(s => s.user_id === u.id)
   );
+
+  // Separate comments and notes for display
+  const publicComments = comments.filter(c => !c.is_internal);
+  const internalNotes = comments.filter(c => c.is_internal);
+  const totalConversations = comments.length;
 
   return (
     <>
@@ -165,11 +197,8 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
               )}
               <div className="flex items-center gap-1.5 ml-auto">
                 <Select value={request.status} onValueChange={handleStatusChange}>
-                  <SelectTrigger className="h-7 text-xs w-[100px]">
-                    <div className="flex items-center gap-1">
-                      <div className={cn('h-2 w-2 rounded-full', statusConfig.color)} />
-                      <SelectValue />
-                    </div>
+                  <SelectTrigger className="h-7 text-xs w-[110px]">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(STATUS_CONFIG).map(([value, config]) => (
@@ -210,7 +239,7 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
               {request.organizations?.name && (
                 <>
                   <span>•</span>
-                  <span>{request.organizations.name}</span>
+                  <span className="truncate max-w-[100px]">{request.organizations.name}</span>
                 </>
               )}
               <span className="ml-auto">{formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
@@ -226,7 +255,7 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
           </div>
 
           {/* Scrollable Content */}
-          <ScrollArea className="flex-1" ref={scrollRef}>
+          <ScrollArea className="flex-1">
             <div className="p-4 space-y-4">
               {/* Description - Collapsible */}
               <Collapsible open={descriptionOpen} onOpenChange={setDescriptionOpen}>
@@ -359,81 +388,157 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
 
               <Separator />
 
-              {/* Comments */}
-              <div className="space-y-2">
+              {/* Conversation (Comments + Notes Combined) */}
+              <div className="space-y-3">
                 <Label className="text-xs flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  Comments ({comments.length})
+                  Conversation ({totalConversations})
                 </Label>
                 
-                {/* Comment Input */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                    className="h-8 text-xs flex-1"
-                  />
-                  <Button 
-                    size="icon" 
-                    className="h-8 w-8"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || addComment.isPending}
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
+                {/* Message Input */}
+                <div className="space-y-2">
+                  {/* Type Toggle */}
+                  <div className="flex gap-1">
+                    <Button
+                      variant={!isInternalNote ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 flex-1"
+                      onClick={() => setIsInternalNote(false)}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Comment
+                    </Button>
+                    <Button
+                      variant={isInternalNote ? 'default' : 'outline'}
+                      size="sm"
+                      className={cn(
+                        "h-7 text-xs gap-1.5 flex-1",
+                        isInternalNote && "bg-amber-500 hover:bg-amber-600"
+                      )}
+                      onClick={() => setIsInternalNote(true)}
+                    >
+                      <Lock className="h-3 w-3" />
+                      Internal Note
+                    </Button>
+                  </div>
+
+                  {/* Input Area */}
+                  <div className={cn(
+                    "rounded-lg border p-2 space-y-2",
+                    isInternalNote && "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+                  )}>
+                    <Textarea
+                      placeholder={isInternalNote ? "Add internal note (not visible to subscribers)..." : "Add a comment..."}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      rows={2}
+                      className={cn(
+                        "text-xs resize-none border-0 p-0 focus-visible:ring-0 bg-transparent",
+                        isInternalNote && "placeholder:text-amber-600/50"
+                      )}
+                    />
+                    
+                    {/* Attachment Preview */}
+                    {attachmentFile && (
+                      <div className="flex items-center gap-2 bg-muted/50 rounded p-1.5">
+                        <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-[10px] truncate flex-1">{attachmentFile.name}</span>
+                        <button 
+                          onClick={() => setAttachmentFile(null)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        accept="image/*,.pdf,.doc,.docx"
+                        className="hidden"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={handleSendMessage}
+                        disabled={(!newMessage.trim() && !attachmentFile) || isUploading || addComment.isPending}
+                      >
+                        <Send className="h-3 w-3" />
+                        {isUploading ? 'Uploading...' : 'Send'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 
-                {/* Comments List */}
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                {/* Conversation List */}
+                <div className="space-y-2">
                   {comments.map(comment => (
-                    <div key={comment.id} className="bg-muted/30 rounded-lg p-2.5">
+                    <div 
+                      key={comment.id} 
+                      className={cn(
+                        "rounded-lg p-2.5",
+                        comment.is_internal 
+                          ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900"
+                          : "bg-muted/30"
+                      )}
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <Avatar className="h-5 w-5">
                           <AvatarImage src={comment.profiles?.avatar_url || undefined} />
                           <AvatarFallback className="text-[8px]">{comment.profiles?.full_name?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span className="text-xs font-medium">{comment.profiles?.full_name}</span>
+                        {comment.is_internal && (
+                          <Badge variant="outline" className="h-4 text-[9px] gap-0.5 px-1 bg-amber-100 dark:bg-amber-900/50 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300">
+                            <Lock className="h-2.5 w-2.5" />
+                            Internal
+                          </Badge>
+                        )}
                         <span className="text-[10px] text-muted-foreground ml-auto">
                           {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                         </span>
                       </div>
                       <p className="text-xs leading-relaxed">{comment.content}</p>
+                      {comment.attachment_url && (
+                        <a 
+                          href={comment.attachment_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block mt-2"
+                        >
+                          {comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <img 
+                              src={comment.attachment_url} 
+                              alt="Attachment" 
+                              className="max-h-24 rounded border hover:opacity-80 transition-opacity"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                              <Paperclip className="h-3 w-3" />
+                              View attachment
+                            </div>
+                          )}
+                        </a>
+                      )}
                     </div>
                   ))}
                   {comments.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-3">No comments yet</p>
+                    <p className="text-xs text-muted-foreground text-center py-3">No conversation yet</p>
                   )}
                 </div>
               </div>
-
-              <Separator />
-
-              {/* Admin Notes - Collapsible */}
-              <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full text-xs font-medium">
-                  <span>Admin Notes (internal)</span>
-                  {notesOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 space-y-2">
-                  <Textarea
-                    placeholder="Add internal notes..."
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    rows={2}
-                    className="text-xs"
-                  />
-                  <Button 
-                    size="sm" 
-                    onClick={handleSaveNotes}
-                    disabled={adminNotes === request.admin_notes}
-                    className="h-7 text-xs"
-                  >
-                    Save Notes
-                  </Button>
-                </CollapsibleContent>
-              </Collapsible>
 
               <Separator />
 

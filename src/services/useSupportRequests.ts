@@ -284,13 +284,18 @@ export const useUpdateSupportRequest = () => {
   });
 };
 
-// Add comment
+// Add comment or internal note
 export const useAddSupportRequestComment = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ requestId, content }: { requestId: string; content: string }) => {
+    mutationFn: async ({ requestId, content, isInternal = false, attachmentUrl }: { 
+      requestId: string; 
+      content: string; 
+      isInternal?: boolean;
+      attachmentUrl?: string;
+    }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -299,6 +304,8 @@ export const useAddSupportRequestComment = () => {
           request_id: requestId,
           user_id: user.id,
           content,
+          is_internal: isInternal,
+          attachment_url: attachmentUrl || null,
         })
         .select()
         .single();
@@ -306,17 +313,20 @@ export const useAddSupportRequestComment = () => {
       if (error) throw error;
 
       // Log activity
+      const actionType = isInternal ? 'note_added' : 'comment_added';
       await supabase.from('support_request_activity_logs').insert({
         request_id: requestId,
         user_id: user.id,
-        action_type: 'comment_added',
+        action_type: actionType,
         new_value: content.substring(0, 100),
       });
 
-      // Notify subscribers
-      await supabase.functions.invoke('notify-support-request-update', {
-        body: { requestId, actionType: 'comment_added', newValue: content.substring(0, 100) },
-      });
+      // Notify subscribers (only for public comments, not internal notes)
+      if (!isInternal) {
+        await supabase.functions.invoke('notify-support-request-update', {
+          body: { requestId, actionType: 'comment_added', newValue: content.substring(0, 100) },
+        });
+      }
 
       return data;
     },
@@ -324,10 +334,10 @@ export const useAddSupportRequestComment = () => {
       queryClient.invalidateQueries({ queryKey: ['support-request-comments', variables.requestId] });
       queryClient.invalidateQueries({ queryKey: ['support-request-activity-logs', variables.requestId] });
       queryClient.invalidateQueries({ queryKey: ['support-requests'] });
-      toast.success('Comment added');
+      toast.success(variables.isInternal ? 'Note added' : 'Comment added');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to add comment: ${error.message}`);
+      toast.error(`Failed to add: ${error.message}`);
     },
   });
 };
