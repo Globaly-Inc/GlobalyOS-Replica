@@ -30,7 +30,8 @@ import {
   Users,
   ArrowLeft,
   Trash2,
-  Sparkles
+  Sparkles,
+  Paperclip
 } from 'lucide-react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { useKpiDetail, useAddKpiUpdate, useSaveKpiUpdateSettings, useDeleteKpiUpdate } from '@/services/useKpiUpdates';
@@ -38,8 +39,10 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { OrgLink } from '@/components/OrgLink';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
-import type { KpiStatus, KpiReminderFrequency } from '@/types';
+import type { KpiStatus, KpiReminderFrequency, KpiAttachment, KpiMilestone } from '@/types';
+import { KpiAttachmentUpload, KpiAttachmentPreview, KpiMilestoneProgress, KpiCelebration, StaleKpiIndicator } from '@/components/kpi';
 
 const statusColors: Record<KpiStatus, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -60,6 +63,7 @@ const statusLabels: Record<KpiStatus, string> = {
 const KpiDetail = () => {
   const { kpiId } = useParams<{ kpiId: string }>();
   const { navigateOrg } = useOrgNavigation();
+  const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
   const { isAdmin, isHR } = useUserRole();
   
@@ -73,6 +77,10 @@ const KpiDetail = () => {
   const [newValue, setNewValue] = useState('');
   const [notes, setNotes] = useState('');
   const [newStatus, setNewStatus] = useState<KpiStatus | ''>('');
+  const [attachments, setAttachments] = useState<KpiAttachment[]>([]);
+  
+  // Celebration state
+  const [celebrationMilestone, setCelebrationMilestone] = useState<{ percent: number; label: string } | null>(null);
   
   // Reminder settings state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -115,18 +123,25 @@ const KpiDetail = () => {
   const handleSubmitUpdate = async () => {
     if (!kpi || !newValue || !notes.trim()) return;
 
-    await addUpdate.mutateAsync({
+    const result = await addUpdate.mutateAsync({
       kpiId: kpi.id,
       previousValue: kpi.current_value,
       newValue: parseFloat(newValue),
       notes: notes.trim(),
       statusBefore: kpi.status,
       statusAfter: newStatus || kpi.status,
+      attachments: attachments,
     });
+
+    // Show celebration if milestone reached
+    if (result.milestoneReached) {
+      setCelebrationMilestone(result.milestoneReached);
+    }
 
     setNewValue('');
     setNotes('');
     setNewStatus('');
+    setAttachments([]);
     setShowUpdateForm(false);
   };
 
@@ -249,7 +264,14 @@ const KpiDetail = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Progress Card */}
+            {/* Stale KPI Warning Banner */}
+            <StaleKpiIndicator 
+              lastUpdated={kpi.updated_at} 
+              frequency={kpi.update_settings?.frequency}
+              variant="banner"
+            />
+
+            {/* Progress Card with Milestones */}
             <Card className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -257,25 +279,15 @@ const KpiDetail = () => {
                     <Target className="h-5 w-5 text-primary" />
                     Progress
                   </h3>
-                  <span className="text-2xl font-bold">{progress}%</span>
                 </div>
                 
-                <Progress value={progress} className="h-3" />
-                
-                <div className="flex justify-between text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Current: </span>
-                    <span className="font-medium">
-                      {kpi.current_value ?? 0} {kpi.unit || ''}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Target: </span>
-                    <span className="font-medium">
-                      {kpi.target_value ?? 0} {kpi.unit || ''}
-                    </span>
-                  </div>
-                </div>
+                <KpiMilestoneProgress
+                  progress={progress}
+                  milestones={kpi.milestones as KpiMilestone[] | undefined}
+                  currentValue={kpi.current_value}
+                  targetValue={kpi.target_value}
+                  unit={kpi.unit}
+                />
               </div>
             </Card>
 
@@ -321,6 +333,20 @@ const KpiDetail = () => {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
+                    />
+                  </div>
+
+                  {/* Attachments */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Attachments (optional)
+                    </Label>
+                    <KpiAttachmentUpload
+                      attachments={attachments}
+                      onChange={setAttachments}
+                      organizationId={currentOrg?.id || ''}
+                      kpiId={kpi.id}
                     />
                   </div>
                   
@@ -405,6 +431,9 @@ const KpiDetail = () => {
                           <p className="mt-2 text-sm text-muted-foreground">
                             {update.notes}
                           </p>
+                          
+                          {/* Attachments */}
+                          <KpiAttachmentPreview attachments={update.attachments || []} />
                         </div>
                       </div>
                     </div>
@@ -582,6 +611,12 @@ const KpiDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Celebration Modal */}
+      <KpiCelebration 
+        milestone={celebrationMilestone} 
+        onClose={() => setCelebrationMilestone(null)} 
+      />
     </Layout>
   );
 };

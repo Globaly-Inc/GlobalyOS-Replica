@@ -1211,9 +1211,9 @@ const TeamKPIDashboard = () => {
                                     View Details
                                   </OrgLink>
                                 </DropdownMenuItem>
-                                {canEditKpi(kpi as Kpi) && (
+                                {canEditKpi(kpi as unknown as Kpi) && (
                                   <>
-                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as Kpi); }}>
+                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as unknown as Kpi); }}>
                                       <Pencil className="h-4 w-4 mr-2" />
                                       Edit
                                     </DropdownMenuItem>
@@ -1252,9 +1252,9 @@ const TeamKPIDashboard = () => {
                                   View Details
                                 </OrgLink>
                               </DropdownMenuItem>
-                              {canEditKpi(kpi as Kpi) && (
+                              {canEditKpi(kpi as unknown as Kpi) && (
                                 <>
-                                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as Kpi); }}>
+                                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as unknown as Kpi); }}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Edit
                                   </DropdownMenuItem>

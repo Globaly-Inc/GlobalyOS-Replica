@@ -99,6 +99,14 @@ interface AddKpiUpdateInput {
   notes: string;
   statusBefore: string | null;
   statusAfter: string | null;
+  attachments?: { url: string; name: string; type: string; size: number }[];
+}
+
+interface AddKpiUpdateResult {
+  milestoneReached?: {
+    percent: number;
+    label: string;
+  } | null;
 }
 
 export const useAddKpiUpdate = () => {
@@ -107,11 +115,12 @@ export const useAddKpiUpdate = () => {
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
-    mutationFn: async (input: AddKpiUpdateInput) => {
+    mutationFn: async (input: AddKpiUpdateInput): Promise<AddKpiUpdateResult> => {
       if (!currentOrg?.id || !currentEmployee?.id) {
         throw new Error('Not authenticated');
       }
 
+      // Insert the update
       const { error } = await supabase
         .from('kpi_updates')
         .insert({
@@ -123,9 +132,71 @@ export const useAddKpiUpdate = () => {
           notes: input.notes,
           status_before: input.statusBefore,
           status_after: input.statusAfter,
+          attachments: input.attachments || [],
         });
 
       if (error) throw error;
+
+      // Update KPI current value
+      if (input.newValue !== null) {
+        await supabase
+          .from('kpis')
+          .update({ 
+            current_value: input.newValue,
+            status: input.statusAfter || input.statusBefore,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', input.kpiId);
+      }
+
+      // Check for milestone achievement
+      const { data: kpi } = await supabase
+        .from('kpis')
+        .select('target_value, milestones')
+        .eq('id', input.kpiId)
+        .single();
+
+      if (kpi && kpi.target_value && input.newValue !== null) {
+        const oldProgress = input.previousValue !== null 
+          ? Math.round((input.previousValue / kpi.target_value) * 100)
+          : 0;
+        const newProgress = Math.round((input.newValue / kpi.target_value) * 100);
+
+        // Check if we crossed any milestone
+        const milestones = (kpi.milestones as any[]) || [
+          { percent: 25, label: 'Getting Started', reached: false, reached_at: null },
+          { percent: 50, label: 'Halfway There', reached: false, reached_at: null },
+          { percent: 75, label: 'Almost Done', reached: false, reached_at: null },
+          { percent: 100, label: 'Goal Achieved!', reached: false, reached_at: null },
+        ];
+
+        const crossedMilestone = milestones.find(
+          m => !m.reached && oldProgress < m.percent && newProgress >= m.percent
+        );
+
+        if (crossedMilestone) {
+          // Update milestones in KPI
+          const updatedMilestones = milestones.map(m => 
+            m.percent === crossedMilestone.percent
+              ? { ...m, reached: true, reached_at: new Date().toISOString() }
+              : m
+          );
+
+          await supabase
+            .from('kpis')
+            .update({ milestones: updatedMilestones })
+            .eq('id', input.kpiId);
+
+          return { 
+            milestoneReached: { 
+              percent: crossedMilestone.percent, 
+              label: crossedMilestone.label 
+            } 
+          };
+        }
+      }
+
+      return { milestoneReached: null };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-detail', variables.kpiId] });
