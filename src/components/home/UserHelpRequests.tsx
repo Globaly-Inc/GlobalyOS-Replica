@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Bug, Lightbulb, Headphones, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { Bug, Lightbulb, LifeBuoy, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ export const UserHelpRequests = () => {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Headphones className="h-5 w-5 text-primary" />
+            <LifeBuoy className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">GlobalyOS Help</h3>
           </div>
         </div>
@@ -64,7 +64,7 @@ export const UserHelpRequests = () => {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Headphones className="h-5 w-5 text-primary" />
+            <LifeBuoy className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">GlobalyOS Help</h3>
           </div>
           <Button
@@ -73,7 +73,6 @@ export const UserHelpRequests = () => {
             className="h-7 text-xs gap-1"
             onClick={() => setHelpDialogOpen(true)}
           >
-            <LifeBuoy className="h-3.5 w-3.5" />
             Get Help
           </Button>
         </div>
