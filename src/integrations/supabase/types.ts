@@ -2381,6 +2381,7 @@ export type Database = {
           description: string | null
           employee_id: string | null
           id: string
+          milestones: Json | null
           organization_id: string
           quarter: number
           scope_department: string | null
@@ -2400,6 +2401,7 @@ export type Database = {
           description?: string | null
           employee_id?: string | null
           id?: string
+          milestones?: Json | null
           organization_id: string
           quarter: number
           scope_department?: string | null
@@ -2419,6 +2421,7 @@ export type Database = {
           description?: string | null
           employee_id?: string | null
           id?: string
+          milestones?: Json | null
           organization_id?: string
           quarter?: number
           scope_department?: string | null

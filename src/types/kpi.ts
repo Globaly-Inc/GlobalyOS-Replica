@@ -4,6 +4,22 @@
 
 export type KpiScopeType = 'individual' | 'department' | 'office' | 'project';
 
+// Attachment type for KPI updates
+export interface KpiAttachment {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
+// Milestone type for progress tracking
+export interface KpiMilestone {
+  percent: number;
+  label: string;
+  reached: boolean;
+  reached_at: string | null;
+}
+
 export interface Kpi {
   id: string;
   employee_id: string | null;
@@ -23,6 +39,8 @@ export interface Kpi {
   scope_department: string | null;
   scope_office_id: string | null;
   scope_project_id: string | null;
+  // Milestones
+  milestones?: KpiMilestone[];
 }
 
 export type KpiStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved' | 'completed';
@@ -88,7 +106,7 @@ export interface KpiUpdate {
   notes: string;
   status_before: KpiStatus | null;
   status_after: KpiStatus | null;
-  attachments: unknown[];
+  attachments: KpiAttachment[];
   created_at: string;
   employee?: {
     id: string;
