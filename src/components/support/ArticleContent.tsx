@@ -3,27 +3,38 @@
  * Renders markdown content with screenshots and helpfulness tracking
  */
 
-import { useState } from 'react';
-import { marked } from 'marked';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ThumbsUp, ThumbsDown, Eye, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// Configure marked to return string synchronously
-marked.use({ async: false });
+import { ThumbsUp, ThumbsDown, Eye, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SupportArticle } from '@/services/useSupportArticles';
+import { SupportArticle, useSupportScreenshots } from '@/services/useSupportArticles';
 import { format } from 'date-fns';
+import { SupportMarkdownRenderer } from './SupportMarkdownRenderer';
+import { RoleBadges, UserRole } from './RoleBadge';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ArticleContentProps {
   article: SupportArticle;
   onHelpful?: (helpful: boolean) => void;
+  isAdmin?: boolean;
 }
 
-export const ArticleContent = ({ article, onHelpful }: ArticleContentProps) => {
+export const ArticleContent = ({ article, onHelpful, isAdmin = false }: ArticleContentProps) => {
   const [feedbackGiven, setFeedbackGiven] = useState<boolean | null>(null);
-  const [currentScreenshot, setCurrentScreenshot] = useState(0);
+  
+  // Fetch screenshots for this article
+  const { data: screenshots } = useSupportScreenshots(article.id);
+
+  // Transform screenshots to the format expected by SupportMarkdownRenderer
+  const screenshotData = screenshots?.map(s => ({
+    id: s.id,
+    description: s.description || '',
+    imageUrl: s.storage_path ? supabase.storage.from('doc_screenshots').getPublicUrl(s.storage_path).data.publicUrl : undefined,
+    status: s.status as 'pending' | 'capturing' | 'completed' | 'failed',
+    annotation: s.description || undefined,
+  })) || [];
 
   const handleFeedback = (helpful: boolean) => {
     if (feedbackGiven !== null) return;
@@ -31,16 +42,67 @@ export const ArticleContent = ({ article, onHelpful }: ArticleContentProps) => {
     onHelpful?.(helpful);
   };
 
-  const screenshots = article.screenshots || [];
+  const handleCaptureScreenshot = async (description: string) => {
+    if (!isAdmin) return;
+    
+    try {
+      // Create a new screenshot record
+      const { data: newScreenshot, error: insertError } = await supabase
+        .from('support_screenshots')
+        .insert({
+          article_id: article.id,
+          module: article.module,
+          route_path: `/org/:slug/${article.module}`, // Default route, can be refined
+          description,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Trigger screenshot capture
+      const { error: captureError } = await supabase.functions.invoke('capture-doc-screenshot', {
+        body: { screenshotId: newScreenshot.id },
+      });
+
+      if (captureError) {
+        console.error('Screenshot capture error:', captureError);
+        toast.error('Failed to capture screenshot');
+      } else {
+        toast.success('Screenshot capture started');
+      }
+    } catch (err) {
+      console.error('Error triggering screenshot capture:', err);
+      toast.error('Failed to start screenshot capture');
+    }
+  };
+
+  // Parse target_roles safely
+  const targetRoles: UserRole[] = Array.isArray(article.target_roles) 
+    ? (article.target_roles as string[]).filter((r): r is UserRole => 
+        ['owner', 'admin', 'hr', 'user'].includes(r)
+      )
+    : [];
 
   return (
     <article className="max-w-4xl">
       {/* Article header */}
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-4">{article.title}</h1>
+        
         {article.excerpt && (
           <p className="text-lg text-muted-foreground mb-4">{article.excerpt}</p>
         )}
+        
+        {/* Role badges */}
+        {targetRoles.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground mb-2">Available to:</p>
+            <RoleBadges roles={targetRoles} size="md" />
+          </div>
+        )}
+        
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <Eye className="h-4 w-4" />
@@ -64,64 +126,12 @@ export const ArticleContent = ({ article, onHelpful }: ArticleContentProps) => {
         </div>
       )}
 
-      {/* Screenshots gallery */}
-      {screenshots.length > 0 && (
-        <Card className="mb-8 p-4">
-          <div className="relative">
-            <img 
-              src={screenshots[currentScreenshot]} 
-              alt={`Screenshot ${currentScreenshot + 1}`}
-              className="w-full h-auto rounded-lg"
-            />
-            {screenshots.length > 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80"
-                  onClick={() => setCurrentScreenshot((prev) => 
-                    prev === 0 ? screenshots.length - 1 : prev - 1
-                  )}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80"
-                  onClick={() => setCurrentScreenshot((prev) => 
-                    prev === screenshots.length - 1 ? 0 : prev + 1
-                  )}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                  {screenshots.map((_, index) => (
-                    <button
-                      key={index}
-                      className={cn(
-                        "w-2 h-2 rounded-full transition-colors",
-                        index === currentScreenshot 
-                          ? "bg-primary" 
-                          : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                      )}
-                      onClick={() => setCurrentScreenshot(index)}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <p className="text-center text-sm text-muted-foreground mt-2">
-            Screenshot {currentScreenshot + 1} of {screenshots.length}
-          </p>
-        </Card>
-      )}
-
-      {/* Article content */}
-      <div 
-        className="prose prose-slate dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: marked(article.content || '') as string }}
+      {/* Article content with enhanced renderer */}
+      <SupportMarkdownRenderer
+        content={article.content || ''}
+        screenshots={screenshotData}
+        onCaptureScreenshot={isAdmin ? handleCaptureScreenshot : undefined}
+        isAdmin={isAdmin}
       />
 
       {/* Helpfulness feedback */}
