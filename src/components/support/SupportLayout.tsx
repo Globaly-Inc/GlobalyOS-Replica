@@ -28,7 +28,6 @@ const NAV_ITEMS = [
   { href: '/support', label: 'Support Home', icon: Home },
   { href: '/support/getting-started', label: 'Getting Started', icon: Rocket },
   { href: '/support/faq', label: 'FAQ', icon: HelpCircle },
-  { href: '/support/features', label: 'Feature Guides', icon: BookOpen },
   { href: '/support/api', label: 'API Reference', icon: Code },
 ];
 
