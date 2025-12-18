@@ -49,7 +49,12 @@ serve(async (req) => {
       .eq('id', screenshotId);
 
     // Build the full URL - use the app URL from environment or construct it
-    const appBaseUrl = Deno.env.get('APP_BASE_URL') || 'https://globalyos.app';
+    // Handle trailing slash in APP_BASE_URL to avoid double slashes
+    let appBaseUrl = Deno.env.get('APP_BASE_URL') || 'https://globalyos.com';
+    // Remove trailing slash if present
+    if (appBaseUrl.endsWith('/')) {
+      appBaseUrl = appBaseUrl.slice(0, -1);
+    }
     const targetUrl = `${appBaseUrl}${screenshot.route_path}`;
 
     console.log(`Capturing screenshot of: ${targetUrl}`);
