@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -31,6 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
 import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
 import { AttendanceQRButton } from "@/components/AttendanceQRButton";
+import { AttendanceSettingsDialog } from "@/components/dialogs/AttendanceSettingsDialog";
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -86,6 +87,7 @@ const OrgAttendanceHistory = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [addAttendanceOpen, setAddAttendanceOpen] = useState(false);
   const [reportScheduleOpen, setReportScheduleOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // PDF Export handler
   const handleExportPDF = () => {
@@ -976,6 +978,17 @@ const OrgAttendanceHistory = () => {
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
+            {(isOwner || isAdmin || isHR) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setSettingsOpen(true)}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
+            )}
             <AttendanceQRButton />
             <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4" />
@@ -1568,6 +1581,12 @@ const OrgAttendanceHistory = () => {
       <AttendanceReportScheduleDialog
         open={reportScheduleOpen}
         onOpenChange={setReportScheduleOpen}
+      />
+
+      {/* Attendance Settings Dialog */}
+      <AttendanceSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
       />
     </div>;
 };
