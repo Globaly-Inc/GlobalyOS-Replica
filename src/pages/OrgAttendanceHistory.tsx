@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
 import { AddAttendanceDialog } from "@/components/dialogs/AddAttendanceDialog";
 import { AttendanceReportScheduleDialog } from "@/components/dialogs/AttendanceReportScheduleDialog";
+import { BulkEditAttendanceDialog } from "@/components/dialogs/BulkEditAttendanceDialog";
 import { AttendancePDFExport } from "@/components/attendance/AttendancePDFExport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
@@ -88,6 +89,7 @@ const OrgAttendanceHistory = () => {
   const [addAttendanceOpen, setAddAttendanceOpen] = useState(false);
   const [reportScheduleOpen, setReportScheduleOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
   // PDF Export handler
   const handleExportPDF = () => {
@@ -1568,8 +1570,16 @@ const OrgAttendanceHistory = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk Edit Attendance Dialog */}
+      <BulkEditAttendanceDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedRecordIds={Array.from(selectedRecords)}
+        onSuccess={() => setSelectedRecords(new Set())}
+      />
+
       {/* Floating Bulk Actions Bar */}
-      {selectedRecords.size > 0 && (isOwner || isAdmin) && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} canDelete={isOwner || isAdmin} />}
+      {selectedRecords.size > 0 && (isOwner || isAdmin) && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} onEdit={() => setBulkEditOpen(true)} canDelete={isOwner || isAdmin} canEdit={isOwner || isAdmin} />}
 
       {/* Add Attendance Dialog */}
       <AddAttendanceDialog
