@@ -48,27 +48,6 @@ const Support = () => {
 
   return (
     <SupportLayout>
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">
-          How can we help you?
-        </h1>
-        <p className="text-lg text-muted-foreground mb-6">
-          Find guides, tutorials, and answers to your questions
-        </p>
-        
-        {/* Search */}
-        <div className="relative max-w-xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Search for help..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 h-12 text-lg"
-          />
-        </div>
-      </div>
-
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         {QUICK_LINKS.map((link) => {
