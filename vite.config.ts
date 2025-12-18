@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
-        name: "GlobalyOS - HRMS",
+        name: "GlobalyOS - Team Operating System",
         short_name: "GlobalyOS",
         description: "Check in, view feed, request leave, and give kudos on the go",
         theme_color: "#6366f1",
