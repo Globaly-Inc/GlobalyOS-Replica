@@ -125,11 +125,17 @@ const BulkKpiCreate = () => {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
-        <PageHeader
-          title="AI Bulk KPI Creation"
-          icon={<Sparkles className="h-6 w-6 ai-gradient-icon" />}
-          backPath="/kpi-dashboard"
-        />
+        <div className="flex items-center gap-3 pt-4 pb-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(buildOrgPath("/kpi-dashboard"))}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <Sparkles className="h-6 w-6 ai-gradient-icon" />
+          <h1 className="text-3xl font-bold text-foreground">AI Bulk KPI Creation</h1>
+        </div>
 
         {/* Progress Steps */}
         <Card>
