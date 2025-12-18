@@ -134,3 +134,6 @@ verify_jwt = true
 
 [functions.auto-capture-screenshots]
 verify_jwt = true
+
+[functions.ai-suggest-screenshots]
+verify_jwt = true

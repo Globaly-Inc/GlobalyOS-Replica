@@ -6,13 +6,14 @@
 import { useState } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
-  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Check
+  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Check,
+  Sparkles, Play
 } from 'lucide-react';
 import { ArticleBulkActionsBar } from './ArticleBulkActionsBar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIGenerateCard } from './AIGenerateCard';
 import { AIUpdateCard } from './AIUpdateCard';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,6 +49,7 @@ import {
   SupportScreenshot,
   ApiDocumentation,
 } from '@/services/useSupportArticles';
+import { useAISmartCapture, useCaptureAllPending, PrivacyOptions } from '@/services/useSupportScreenshots';
 
 export const DocumentationManager = () => {
   const [activeTab, setActiveTab] = useState('articles');
@@ -691,8 +693,18 @@ const ScreenshotsManager = () => {
   const createScreenshot = useCreateScreenshot();
   const deleteScreenshot = useDeleteScreenshot();
   const captureScreenshot = useCaptureScreenshot();
+  const { smartCapture, isAnalyzing, isCapturing } = useAISmartCapture();
+  const captureAllPending = useCaptureAllPending();
 
   const [newScreenshot, setNewScreenshot] = useState({ route_path: '', description: '', article_id: '' });
+  const [smartCaptureOpen, setSmartCaptureOpen] = useState(false);
+  const [selectedArticleId, setSelectedArticleId] = useState<string>('');
+  const [orgSlug, setOrgSlug] = useState('globalyhub');
+  const [privacyOptions, setPrivacyOptions] = useState<PrivacyOptions>({
+    maskNames: true,
+    blurAvatars: true,
+    hideEmails: true,
+  });
 
   const handleCreate = async () => {
     if (!newScreenshot.route_path) {
@@ -707,8 +719,186 @@ const ScreenshotsManager = () => {
     setNewScreenshot({ route_path: '', description: '', article_id: '' });
   };
 
+  const handleSmartCapture = async () => {
+    if (!selectedArticleId) {
+      toast.error('Please select an article');
+      return;
+    }
+
+    const article = articles?.find(a => a.id === selectedArticleId);
+    if (!article) {
+      toast.error('Article not found');
+      return;
+    }
+
+    try {
+      await smartCapture({
+        articleId: article.id,
+        articleContent: article.content || article.excerpt || '',
+        articleTitle: article.title,
+        module: article.module,
+        orgSlug,
+        privacyOptions,
+      });
+      setSmartCaptureOpen(false);
+      setSelectedArticleId('');
+    } catch (error) {
+      // Error handled by hook
+    }
+  };
+
+  const pendingCount = screenshots?.filter(s => s.status === 'pending').length || 0;
+
   return (
     <div className="space-y-6">
+      {/* AI Smart Capture Card */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Smart Capture
+          </CardTitle>
+          <CardDescription>
+            Automatically analyze articles and capture relevant screenshots with privacy masking
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <Dialog open={smartCaptureOpen} onOpenChange={setSmartCaptureOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Smart Capture
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    AI Smart Screenshot Capture
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Select Article</Label>
+                    <Select value={selectedArticleId} onValueChange={setSelectedArticleId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an article to analyze" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {articles?.map((article) => (
+                          <SelectItem key={article.id} value={article.id}>
+                            <span className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{article.module}</Badge>
+                              {article.title}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Organization Slug</Label>
+                    <Input
+                      value={orgSlug}
+                      onChange={(e) => setOrgSlug(e.target.value)}
+                      placeholder="globalyhub"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Used for route URLs (e.g., /org/globalyhub/team)
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Privacy Options</Label>
+                    <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="mask-names" className="font-normal cursor-pointer">
+                          Mask real names with demo names
+                        </Label>
+                        <Switch
+                          id="mask-names"
+                          checked={privacyOptions.maskNames}
+                          onCheckedChange={(checked) => 
+                            setPrivacyOptions(prev => ({ ...prev, maskNames: checked }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="blur-avatars" className="font-normal cursor-pointer">
+                          Blur profile photos
+                        </Label>
+                        <Switch
+                          id="blur-avatars"
+                          checked={privacyOptions.blurAvatars}
+                          onCheckedChange={(checked) => 
+                            setPrivacyOptions(prev => ({ ...prev, blurAvatars: checked }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="hide-emails" className="font-normal cursor-pointer">
+                          Hide email addresses
+                        </Label>
+                        <Switch
+                          id="hide-emails"
+                          checked={privacyOptions.hideEmails}
+                          onCheckedChange={(checked) => 
+                            setPrivacyOptions(prev => ({ ...prev, hideEmails: checked }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setSmartCaptureOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSmartCapture} 
+                    disabled={!selectedArticleId || isAnalyzing || isCapturing}
+                    className="gap-2"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : isCapturing ? (
+                      <>
+                        <Camera className="h-4 w-4 animate-pulse" />
+                        Capturing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Analyze & Capture
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => captureAllPending.mutate()}
+              disabled={captureAllPending.isPending || pendingCount === 0}
+            >
+              {captureAllPending.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Capture All Pending ({pendingCount})
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Add Screenshot Route</CardTitle>
@@ -767,8 +957,12 @@ const ScreenshotsManager = () => {
                       {' • '}
                       <Badge variant={
                         screenshot.status === 'completed' ? 'default' : 
-                        screenshot.status === 'failed' ? 'destructive' : 'secondary'
+                        screenshot.status === 'failed' ? 'destructive' : 
+                        screenshot.status === 'capturing' ? 'secondary' : 'outline'
                       } className="text-xs">
+                        {screenshot.status === 'capturing' && (
+                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        )}
                         {screenshot.status}
                       </Badge>
                     </div>
@@ -811,8 +1005,8 @@ const ScreenshotsManager = () => {
       <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
         <CardContent className="pt-6">
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            <strong>Note:</strong> Automated screenshot capture requires the BROWSERLESS_API_KEY secret to be configured.
-            Screenshots are captured at 1280x720 resolution and stored in the doc_screenshots bucket.
+            <strong>Note:</strong> Automated screenshot capture requires the BROWSERLESS_API_KEY and APP_BASE_URL secrets to be configured.
+            Screenshots are captured at 1920x1080 resolution with 2x scaling and stored in the doc_screenshots bucket.
           </p>
         </CardContent>
       </Card>

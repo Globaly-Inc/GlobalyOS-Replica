@@ -11,11 +11,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface PrivacyMask {
+  type: 'blur' | 'replace' | 'hide';
+  selector: string;
+  replacement?: string;
+}
+
 interface SuggestedScreenshot {
   route: string;
   description: string;
   highlight_selector?: string;
   annotation?: string;
+  privacy_masks?: PrivacyMask[];
 }
 
 serve(async (req) => {
@@ -78,12 +85,13 @@ serve(async (req) => {
 
         console.log(`Created screenshot record: ${newScreenshot.id}`);
 
-        // Trigger capture-doc-screenshot function
+        // Trigger capture-doc-screenshot function with privacy masks
         const { error: captureError } = await supabase.functions.invoke('capture-doc-screenshot', {
           body: { 
             screenshotId: newScreenshot.id,
             highlightSelector: screenshot.highlight_selector,
             annotation: screenshot.annotation,
+            privacyMasks: screenshot.privacy_masks || [],
           },
         });
 
