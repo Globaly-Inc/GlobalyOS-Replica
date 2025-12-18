@@ -1,4 +1,4 @@
-import { Trash2, Download, X, CheckSquare, Square } from "lucide-react";
+import { Trash2, Download, X, CheckSquare, Square, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,9 @@ interface AttendanceBulkActionsBarProps {
   onDeselectAll: () => void;
   onDelete: () => void;
   onExport: () => void;
+  onEdit?: () => void;
   canDelete?: boolean;
+  canEdit?: boolean;
   className?: string;
 }
 
@@ -20,7 +22,9 @@ export const AttendanceBulkActionsBar = ({
   onDeselectAll,
   onDelete,
   onExport,
+  onEdit,
   canDelete = false,
+  canEdit = false,
   className,
 }: AttendanceBulkActionsBarProps) => {
   const allSelected = selectedCount === totalItems && totalItems > 0;
@@ -68,6 +72,18 @@ export const AttendanceBulkActionsBar = ({
 
       {/* Action buttons */}
       <div className="flex items-center gap-1">
+        {canEdit && onEdit && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            className="gap-2 h-8"
+          >
+            <Pencil className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit</span>
+          </Button>
+        )}
+        
         <Button
           variant="ghost"
           size="sm"
