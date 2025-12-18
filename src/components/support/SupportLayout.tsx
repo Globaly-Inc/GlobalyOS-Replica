@@ -7,7 +7,7 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, Home, Rocket, HelpCircle, BookOpen, Code, 
-  Menu, X, ChevronRight
+  Menu, X, ChevronRight, MessageSquare
 } from 'lucide-react';
 import globalyosFullLogo from '@/assets/globalyos-full-logo.png';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { href: '/support/getting-started', label: 'Getting Started', icon: Rocket },
   { href: '/support/faq', label: 'FAQ', icon: HelpCircle },
   { href: '/support/api', label: 'API Reference', icon: Code },
+  { href: '/support/get-help', label: 'Get Help', icon: MessageSquare },
 ];
 
 export const SupportLayout = ({ children, title, breadcrumbs }: SupportLayoutProps) => {

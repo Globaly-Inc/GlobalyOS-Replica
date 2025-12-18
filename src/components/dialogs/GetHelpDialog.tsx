@@ -27,11 +27,12 @@ import { SupportRequestType, SupportRequestPriority } from '@/types/support';
 interface GetHelpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultType?: SupportRequestType;
 }
 
-export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
+export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialogProps) => {
   const location = useLocation();
-  const [type, setType] = useState<SupportRequestType>('bug');
+  const [type, setType] = useState<SupportRequestType>(defaultType || 'bug');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [aiImprovedDescription, setAiImprovedDescription] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setType('bug');
+      setType(defaultType || 'bug');
       setTitle('');
       setDescription('');
       setAiImprovedDescription(null);
@@ -61,7 +62,7 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
       setScreenshot(null);
       setScreenshotPreview(null);
     }
-  }, [open]);
+  }, [open, defaultType]);
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -3,16 +3,13 @@
  * Main landing page for the GlobalyOS Help Center
  */
 
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket, HelpCircle, BookOpen, Code, MessageSquare } from 'lucide-react';
+import { Rocket, HelpCircle, BookOpen, Code } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { SupportLayout } from '@/components/support/SupportLayout';
 import { SupportArticleCard } from '@/components/support/SupportArticleCard';
 import { SupportModuleCard } from '@/components/support/SupportModuleCard';
 import { useSupportArticles, SUPPORT_MODULES } from '@/services/useSupportArticles';
-import { GetHelpDialog } from '@/components/support/GetHelpDialog';
 
 const QUICK_LINKS = [
   { href: '/support/getting-started', label: 'Getting Started', icon: Rocket, description: 'New to GlobalyOS? Start here' },
@@ -22,8 +19,6 @@ const QUICK_LINKS = [
 ];
 
 const Support = () => {
-  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  
   const { data: featuredArticles } = useSupportArticles({ featured: true, limit: 6 });
   const { data: allArticles } = useSupportArticles();
   
@@ -87,20 +82,6 @@ const Support = () => {
           ))}
         </div>
       </section>
-
-      {/* Contact Support */}
-      <section className="text-center py-8 border-t">
-        <h2 className="text-xl font-semibold mb-2">Can't find what you're looking for?</h2>
-        <p className="text-muted-foreground mb-4">
-          Our support team is here to help
-        </p>
-        <Button onClick={() => setHelpDialogOpen(true)}>
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Contact Support
-        </Button>
-      </section>
-
-      <GetHelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
     </SupportLayout>
   );
 };

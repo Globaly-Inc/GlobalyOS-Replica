@@ -68,6 +68,7 @@ const SupportFeatures = lazy(() => import('./pages/SupportFeatures'));
 const SupportModule = lazy(() => import('./pages/SupportModule'));
 const SupportArticle = lazy(() => import('./pages/SupportArticle'));
 const SupportAPI = lazy(() => import('./pages/SupportAPI'));
+const SupportGetHelp = lazy(() => import('./pages/SupportGetHelp'));
 
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
@@ -125,6 +126,7 @@ const App = () => (
                 <Route path="/support/features/:module" element={<SupportModule />} />
                 <Route path="/support/features/:module/:slug" element={<SupportArticle />} />
                 <Route path="/support/api" element={<SupportAPI />} />
+                <Route path="/support/get-help" element={<SupportGetHelp />} />
                 
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
