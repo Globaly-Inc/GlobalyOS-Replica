@@ -971,7 +971,7 @@ const OrgAttendanceHistory = () => {
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5 md:h-6 md:w-6" />
-              Attendance History
+              Attendance
             </h1>
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
