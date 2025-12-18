@@ -1181,6 +1181,7 @@ const TeamKPIDashboard = () => {
             )}
 
             {/* Individual KPIs - Now above Team Progress */}
+            {filteredTeamKPIs.length > 0 && (
             <Card className="mb-4 sm:mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1329,6 +1330,7 @@ const TeamKPIDashboard = () => {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Overall Progress - Now with Individual/Group tabs */}
             <Card>
