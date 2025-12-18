@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap, Award, UserPlus } from "lucide-react";
+import { MobileAppShowcase } from "@/components/landing/MobileAppShowcase";
 // Feature showcase mockup components
 const PeopleManagementMockup = () => <div className="bg-background/80 rounded-xl p-4 border border-border/50">
     <div className="flex items-center gap-4 mb-4">
@@ -521,6 +522,9 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-6">{testimonials.map((t, i) => <TestimonialCard key={i} {...t} />)}</div>
         </div>
       </section>
+
+      {/* Mobile App Showcase */}
+      <MobileAppShowcase />
 
       {/* CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
