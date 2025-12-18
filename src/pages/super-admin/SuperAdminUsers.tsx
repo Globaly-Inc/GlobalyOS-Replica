@@ -263,22 +263,25 @@ const SuperAdminUsers = () => {
         <SuperAdminPageHeader title="Users" description="All users across all organisations" />
 
         <Card>
-          <CardHeader className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[180px] max-w-[280px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
 
-            {/* Filters Row */}
-            <div className="flex flex-wrap items-center gap-2">
+              {/* Divider */}
+              <div className="h-5 w-px bg-border" />
+
+              {/* Filters */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectTrigger className="w-[100px] h-9">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -290,7 +293,7 @@ const SuperAdminUsers = () => {
               </Select>
 
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectTrigger className="w-[100px] h-9">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,8 +307,8 @@ const SuperAdminUsers = () => {
               </Select>
 
               <Select value={orgFilter} onValueChange={setOrgFilter}>
-                <SelectTrigger className="w-[150px] h-8 text-xs">
-                  <SelectValue placeholder="Organisation" />
+                <SelectTrigger className="w-[110px] h-9">
+                  <SelectValue placeholder="Org" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Orgs</SelectItem>
@@ -316,7 +319,7 @@ const SuperAdminUsers = () => {
               </Select>
 
               <Select value={activityFilter} onValueChange={setActivityFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectTrigger className="w-[100px] h-9">
                   <SelectValue placeholder="Activity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -329,27 +332,28 @@ const SuperAdminUsers = () => {
               </Select>
 
               <Select value={lastActiveFilter} onValueChange={setLastActiveFilter}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <SelectValue placeholder="Last Active" />
+                <SelectTrigger className="w-[110px] h-9">
+                  <SelectValue placeholder="Active" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any Time</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">Last 7 days</SelectItem>
-                  <SelectItem value="month">Last 30 days</SelectItem>
-                  <SelectItem value="inactive">Inactive 30+ days</SelectItem>
+                  <SelectItem value="week">Last 7 Days</SelectItem>
+                  <SelectItem value="month">Last 30 Days</SelectItem>
+                  <SelectItem value="inactive">Inactive 30+</SelectItem>
                 </SelectContent>
               </Select>
 
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs">
-                  <X className="h-3 w-3 mr-1" /> Clear
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 px-2">
+                  <X className="h-4 w-4" />
                 </Button>
               )}
 
-              <div className="ml-auto text-xs text-muted-foreground">
-                {filteredAndSortedUsers.length} of {users.length} users
-              </div>
+              {/* User count */}
+              <span className="ml-auto text-sm text-muted-foreground whitespace-nowrap">
+                {filteredAndSortedUsers.length}/{users.length}
+              </span>
             </div>
           </CardHeader>
 
