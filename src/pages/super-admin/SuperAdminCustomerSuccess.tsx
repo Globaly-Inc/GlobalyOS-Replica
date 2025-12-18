@@ -16,6 +16,7 @@ import {
 import { SupportRequestCard } from '@/components/super-admin/SupportRequestCard';
 import { SupportRequestDetailSheet } from '@/components/super-admin/SupportRequestDetailSheet';
 import { useAllSupportRequests, useUpdateSupportRequest } from '@/services/useSupportRequests';
+import { useSupportRequestsListRealtime } from '@/hooks/useSupportRequestRealtime';
 import { 
   SupportRequest, 
   SupportRequestType, 
@@ -35,6 +36,9 @@ const SuperAdminCustomerSuccess = () => {
 
   const { data: requests = [], isLoading } = useAllSupportRequests();
   const updateRequest = useUpdateSupportRequest();
+  
+  // Enable realtime updates for the list
+  useSupportRequestsListRealtime();
 
   // Filter requests
   const filteredRequests = useMemo(() => {

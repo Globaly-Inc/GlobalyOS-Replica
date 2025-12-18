@@ -5232,25 +5232,31 @@ export type Database = {
       }
       support_request_comments: {
         Row: {
+          attachment_url: string | null
           content: string
           created_at: string
           id: string
+          is_internal: boolean
           request_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          attachment_url?: string | null
           content: string
           created_at?: string
           id?: string
+          is_internal?: boolean
           request_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          attachment_url?: string | null
           content?: string
           created_at?: string
           id?: string
+          is_internal?: boolean
           request_id?: string
           updated_at?: string
           user_id?: string
