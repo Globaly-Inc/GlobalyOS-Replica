@@ -184,6 +184,19 @@ const OrgLeaveHistory = () => {
       const startOfPrevYear = `${prevYear}-01-01`;
       const endOfPrevYear = `${prevYear}-12-31`;
 
+      // Fetch leave types from database for name normalization
+      const { data: leaveTypesData } = await supabase
+        .from("leave_types")
+        .select("name")
+        .eq("organization_id", currentOrg.id);
+      
+      // Build a lookup map to normalize leave type names to official casing
+      const leaveTypeNameMap: Record<string, string> = {};
+      (leaveTypesData || []).forEach((lt: { name: string }) => {
+        leaveTypeNameMap[lt.name.toLowerCase()] = lt.name;
+      });
+      const normalizeLeaveType = (name: string) => leaveTypeNameMap[name.toLowerCase()] || name;
+
       // Determine which employee IDs we can view
       let allowedEmployeeIds: string[] | null = null; // null = all employees (for admins)
       
@@ -274,13 +287,14 @@ const OrgLeaveHistory = () => {
 
       const { data: prevRequestsData } = await prevRequestsQuery;
 
-      // Calculate previous year stats by leave type
+      // Calculate previous year stats by leave type (normalized)
       const prevStats: Record<string, { days: number }> = {};
       (prevRequestsData || []).forEach((r: any) => {
-        if (!prevStats[r.leave_type]) {
-          prevStats[r.leave_type] = { days: 0 };
+        const normalizedType = normalizeLeaveType(r.leave_type);
+        if (!prevStats[normalizedType]) {
+          prevStats[normalizedType] = { days: 0 };
         }
-        prevStats[r.leave_type].days += r.days_count;
+        prevStats[normalizedType].days += r.days_count;
       });
       setPrevYearStats(prevStats);
 
@@ -288,7 +302,7 @@ const OrgLeaveHistory = () => {
       const requestTransactions: LeaveTransaction[] = (requestsData || []).map((r: any) => ({
         id: r.id,
         type: 'leave_taken' as const,
-        leave_type: r.leave_type,
+        leave_type: normalizeLeaveType(r.leave_type),
         days: -r.days_count,
         effective_date: r.start_date,
         reason: r.reason,
@@ -302,7 +316,7 @@ const OrgLeaveHistory = () => {
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
-        leave_type: l.leave_type,
+        leave_type: normalizeLeaveType(l.leave_type),
         days: l.change_amount,
         effective_date: l.effective_date || l.created_at.split('T')[0],
         reason: l.reason,
@@ -313,7 +327,7 @@ const OrgLeaveHistory = () => {
 
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
-      // Calculate leave type stats (days taken and balance)
+      // Calculate leave type stats (days taken and balance) - already normalized above
       const typeStats: Record<string, { total_days: number; adjustments: number }> = {};
       allTransactions.forEach(t => {
         if (!typeStats[t.leave_type]) {
