@@ -70,7 +70,7 @@ export const AIContentGenerator = () => {
       const { data, error: fnError } = await supabase.functions.invoke('generate-support-content', {
         body: { 
           module: selectedModule,
-          categoryId: selectedCategory || null,
+          categoryId: selectedCategory && selectedCategory !== 'none' ? selectedCategory : null,
         },
       });
 
@@ -198,7 +198,7 @@ export const AIContentGenerator = () => {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {categories?.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
