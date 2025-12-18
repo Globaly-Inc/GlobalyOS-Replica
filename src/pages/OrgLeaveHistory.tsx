@@ -703,24 +703,6 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
-      {/* Leave Analytics Chart */}
-      <LeaveAnalyticsChart 
-        transactions={transactions.map(t => ({
-          id: t.id,
-          type: t.type,
-          leave_type: t.leave_type,
-          effective_date: t.effective_date,
-          end_date: t.end_date,
-          days: t.days,
-          reason: t.reason || '',
-          status: t.status || '',
-          employee_id: t.employee.id,
-          employee_name: t.employee.profiles.full_name,
-          employee_avatar: t.employee.profiles.avatar_url || undefined,
-        }))}
-        yearFilter={yearFilter}
-      />
-
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         {/* Total Leave Requests Card */}
@@ -839,6 +821,24 @@ const OrgLeaveHistory = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Leave Analytics Chart */}
+      <LeaveAnalyticsChart 
+        transactions={transactions.map(t => ({
+          id: t.id,
+          type: t.type,
+          leave_type: t.leave_type,
+          effective_date: t.effective_date,
+          end_date: t.end_date,
+          days: t.days,
+          reason: t.reason || '',
+          status: t.status || '',
+          employee_id: t.employee.id,
+          employee_name: t.employee.profiles.full_name,
+          employee_avatar: t.employee.profiles.avatar_url || undefined,
+        }))}
+        yearFilter={yearFilter}
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
