@@ -158,7 +158,7 @@ export const useDeleteSupportRequest = () => {
 // AI improve content
 export const useImproveContent = () => {
   return useMutation({
-    mutationFn: async (input: { type: string; title: string; description: string; page_url: string }) => {
+    mutationFn: async (input: { type: string; title: string; description: string; page_url: string; mode?: 'suggest' | 'improve' }) => {
       const { data, error } = await supabase.functions.invoke('improve-support-content', {
         body: input,
       });

@@ -11,14 +11,32 @@ serve(async (req) => {
   }
 
   try {
-    const { type, title, description, page_url } = await req.json();
+    const { type, title, description, page_url, mode = 'improve' } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a helpful assistant that improves bug reports and feature requests for a business software application called GlobalyOS.
+    const isSuggestMode = mode === 'suggest' || !description?.trim();
+
+    const systemPrompt = isSuggestMode 
+      ? `You are a helpful assistant that helps users write bug reports and feature requests for GlobalyOS, a business software application.
+
+Your task is to generate a clear, helpful description based on the title and page context provided.
+
+For bug reports:
+- Suggest what the issue might be
+- Include placeholders for steps to reproduce
+- Ask about expected vs actual behavior
+
+For feature requests:
+- Expand on the idea with clear use cases
+- Describe potential benefits
+- Keep it focused and actionable
+
+Generate a helpful starting point that the user can refine. Keep it concise (2-4 sentences).`
+      : `You are a helpful assistant that improves bug reports and feature requests for GlobalyOS.
 
 Your task is to:
 1. Improve the clarity and grammar of the user's description
@@ -38,7 +56,19 @@ For feature requests:
 
 Keep the improved description concise but comprehensive. Maintain a professional tone.`;
 
-    const userPrompt = `Type: ${type}
+    const userPrompt = isSuggestMode
+      ? `Type: ${type}
+Title: ${title}
+Page URL: ${page_url}
+
+Generate a helpful description for this ${type === 'bug' ? 'bug report' : 'feature request'} based on the title. Also suggest a priority level (low, medium, high, or critical).
+
+Respond in JSON format:
+{
+  "improved_description": "The suggested description...",
+  "suggested_priority": "medium"
+}`
+      : `Type: ${type}
 Title: ${title}
 Original Description: ${description}
 Page URL: ${page_url}
