@@ -6,8 +6,9 @@
 import { useState } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
-  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink
+  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Sparkles
 } from 'lucide-react';
+import { AIContentGenerator } from './AIContentGenerator';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,10 @@ export const DocumentationManager = () => {
             <FolderOpen className="h-4 w-4" />
             Categories
           </TabsTrigger>
+          <TabsTrigger value="ai-generate" className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            AI Generate
+          </TabsTrigger>
           <TabsTrigger value="screenshots" className="gap-2">
             <Camera className="h-4 w-4" />
             Screenshots
@@ -90,6 +95,9 @@ export const DocumentationManager = () => {
         </TabsContent>
         <TabsContent value="categories" className="mt-6">
           <CategoriesManager />
+        </TabsContent>
+        <TabsContent value="ai-generate" className="mt-6">
+          <AIContentGenerator />
         </TabsContent>
         <TabsContent value="screenshots" className="mt-6">
           <ScreenshotsManager />

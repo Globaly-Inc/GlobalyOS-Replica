@@ -35,6 +35,7 @@ export interface SupportArticle {
   view_count: number;
   helpful_yes: number;
   helpful_no: number;
+  target_roles: string[] | null;
   created_at: string;
   updated_at: string;
   category?: SupportCategory;
