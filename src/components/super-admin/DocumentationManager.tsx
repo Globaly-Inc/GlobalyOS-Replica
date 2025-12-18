@@ -7,8 +7,10 @@ import { useState } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
   Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Check,
-  Sparkles, Play
+  Sparkles, Play, KeyRound, Mail, ShieldCheck
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { ArticleBulkActionsBar } from './ArticleBulkActionsBar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIGenerateCard } from './AIGenerateCard';
@@ -53,7 +55,7 @@ import {
   ScreenshotRoute,
   ApiDocumentation,
 } from '@/services/useSupportArticles';
-import { useAISmartCapture, useCaptureAllPending, PrivacyOptions } from '@/services/useSupportScreenshots';
+import { useAISmartCapture, useCaptureAllPending, PrivacyOptions, ScreenshotSession } from '@/services/useSupportScreenshots';
 
 export const DocumentationManager = () => {
   const [activeTab, setActiveTab] = useState('articles');
@@ -717,6 +719,83 @@ const ScreenshotsManager = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewDescription, setPreviewDescription] = useState<string>('');
 
+  // OTP Authentication State
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [screenshotSession, setScreenshotSession] = useState<ScreenshotSession | null>(null);
+
+  // Send OTP to email
+  const handleSendOtp = async () => {
+    if (!otpEmail || !otpEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    setIsAuthenticating(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: otpEmail,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+      setOtpSent(true);
+      toast.success('OTP sent! Check your email for the code.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  // Verify OTP and get session
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) {
+      toast.error('Please enter the 6-digit code');
+      return;
+    }
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: otpEmail,
+        token: otpCode,
+        type: 'email',
+      });
+      if (error) {
+        throw error;
+      }
+      if (data.session) {
+        setScreenshotSession({
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+        });
+        toast.success('Authenticated! You can now capture screenshots.');
+        // Reset OTP fields
+        setOtpCode('');
+        setOtpSent(false);
+      } else {
+        throw new Error('No session returned');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid OTP code');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  // Clear authentication
+  const handleClearAuth = () => {
+    setScreenshotSession(null);
+    setOtpEmail('');
+    setOtpCode('');
+    setOtpSent(false);
+    toast.info('Screenshot session cleared');
+  };
+
   // Helper to get public URL from storage path
   const getPublicUrl = (storagePath: string) => {
     return `https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/doc_screenshots/${storagePath}`;
@@ -788,6 +867,114 @@ const ScreenshotsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* OTP Authentication Card */}
+      <Card className={`border-2 ${screenshotSession ? 'border-green-500/30 bg-green-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            {screenshotSession ? (
+              <>
+                <ShieldCheck className="h-5 w-5 text-green-500" />
+                Authenticated for Screenshots
+              </>
+            ) : (
+              <>
+                <KeyRound className="h-5 w-5 text-amber-500" />
+                Authenticate for Screenshots
+              </>
+            )}
+          </CardTitle>
+          <CardDescription>
+            {screenshotSession 
+              ? 'Your session is active. You can now capture authenticated app screens.' 
+              : 'Enter OTP to capture authenticated app screens (login required for protected routes).'
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {screenshotSession ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-green-600 border-green-500/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  Session Active
+                </Badge>
+                <span className="text-sm text-muted-foreground">Ready to capture protected routes</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleClearAuth}>
+                Clear Session
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {!otpSent ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="Enter service account email"
+                      value={otpEmail}
+                      onChange={(e) => setOtpEmail(e.target.value)}
+                      className="flex-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSendOtp} 
+                    disabled={isAuthenticating || !otpEmail}
+                  >
+                    {isAuthenticating ? (
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Mail className="h-4 w-4 mr-2" />
+                    )}
+                    Send OTP
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">OTP sent to {otpEmail}</span>
+                  </div>
+                  <InputOTP
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(value) => setOtpCode(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <Button 
+                    onClick={handleVerifyOtp} 
+                    disabled={isAuthenticating || otpCode.length !== 6}
+                  >
+                    {isAuthenticating ? (
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Verify
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                  >
+                    Back
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* AI Smart Capture Card */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="pb-3">
@@ -853,8 +1040,9 @@ const ScreenshotsManager = () => {
               <Button 
                 variant="outline" 
                 className="gap-2"
-                onClick={() => captureAllPending.mutate()}
-                disabled={captureAllPending.isPending}
+                onClick={() => captureAllPending.mutate(screenshotSession || undefined)}
+                disabled={captureAllPending.isPending || !screenshotSession}
+                title={!screenshotSession ? 'Authenticate first to capture screenshots' : undefined}
               >
                 {captureAllPending.isPending ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />

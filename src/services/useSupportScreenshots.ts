@@ -8,6 +8,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface ScreenshotSession {
+  accessToken: string;
+  refreshToken: string;
+}
+
 export interface PrivacyOptions {
   maskNames: boolean;
   blurAvatars: boolean;
@@ -169,12 +174,13 @@ export const useAISmartCapture = () => {
 
 /**
  * Hook for bulk capturing all pending screenshots
+ * Accepts optional session tokens for authenticated capture
  */
 export const useCaptureAllPending = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (session?: ScreenshotSession) => {
       // Fetch all pending screenshots
       const { data: pendingScreenshots, error: fetchError } = await supabase
         .from('support_screenshots')
@@ -196,7 +202,12 @@ export const useCaptureAllPending = () => {
       for (const screenshot of pendingScreenshots) {
         try {
           const { error } = await supabase.functions.invoke('capture-doc-screenshot', {
-            body: { screenshotId: screenshot.id },
+            body: { 
+              screenshotId: screenshot.id,
+              // Pass session tokens if provided
+              accessToken: session?.accessToken,
+              refreshToken: session?.refreshToken,
+            },
           });
 
           if (error) {
