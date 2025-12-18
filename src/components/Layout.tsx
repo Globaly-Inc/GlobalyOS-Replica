@@ -30,6 +30,7 @@ import { SpotlightTour } from "./SpotlightTour";
 import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
 import { useUserRole } from "@/hooks/useUserRole";
 import { InstallAppBanner } from "./InstallAppBanner";
+import { GetHelpButton } from "./GetHelpButton";
 
 interface UserProfile {
   fullName: string;
@@ -584,6 +585,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </TooltipContent>
               </Tooltip>
             )}
+            <GetHelpButton />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
