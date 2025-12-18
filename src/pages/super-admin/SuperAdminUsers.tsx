@@ -19,10 +19,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Search, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Search, Loader2, Eye, Activity, FileText } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
+import { UserActivityLogsSheet } from "@/components/super-admin/UserActivityLogsSheet";
 
 interface User {
   id: string;
@@ -33,6 +39,9 @@ interface User {
   organizations: { id: string; name: string; slug: string; role: string }[];
   roles: string[];
   status: string;
+  total_page_visits: number;
+  total_activities: number;
+  last_active_at: string | null;
 }
 
 const SuperAdminUsers = () => {
@@ -41,6 +50,8 @@ const SuperAdminUsers = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [logsUser, setLogsUser] = useState<User | null>(null);
+  const [logsOpen, setLogsOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -55,6 +66,54 @@ const SuperAdminUsers = () => {
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
+
+      // Fetch page visit counts for all users
+      const { data: visitCounts } = await supabase
+        .from('user_page_visits')
+        .select('user_id');
+
+      // Fetch activity counts for all users
+      const { data: activityCounts } = await supabase
+        .from('user_activity_logs')
+        .select('user_id');
+
+      // Get latest visit timestamps
+      const { data: latestVisits } = await supabase
+        .from('user_page_visits')
+        .select('user_id, visited_at')
+        .order('visited_at', { ascending: false });
+
+      // Get latest activity timestamps
+      const { data: latestActivities } = await supabase
+        .from('user_activity_logs')
+        .select('user_id, created_at')
+        .order('created_at', { ascending: false });
+
+      // Aggregate counts
+      const visitCountMap: Record<string, number> = {};
+      const activityCountMap: Record<string, number> = {};
+      const lastVisitMap: Record<string, string> = {};
+      const lastActivityMap: Record<string, string> = {};
+
+      (visitCounts || []).forEach((v) => {
+        visitCountMap[v.user_id] = (visitCountMap[v.user_id] || 0) + 1;
+      });
+
+      (activityCounts || []).forEach((a) => {
+        activityCountMap[a.user_id] = (activityCountMap[a.user_id] || 0) + 1;
+      });
+
+      (latestVisits || []).forEach((v) => {
+        if (!lastVisitMap[v.user_id]) {
+          lastVisitMap[v.user_id] = v.visited_at;
+        }
+      });
+
+      (latestActivities || []).forEach((a) => {
+        if (!lastActivityMap[a.user_id]) {
+          lastActivityMap[a.user_id] = a.created_at;
+        }
+      });
 
       // For each profile, get their organizations and roles
       const usersWithDetails = await Promise.all(
@@ -95,6 +154,17 @@ const SuperAdminUsers = () => {
             .limit(1)
             .maybeSingle();
 
+          // Determine last active time
+          const lastVisit = lastVisitMap[profile.id];
+          const lastActivity = lastActivityMap[profile.id];
+          let lastActiveAt: string | null = null;
+          
+          if (lastVisit && lastActivity) {
+            lastActiveAt = new Date(lastVisit) > new Date(lastActivity) ? lastVisit : lastActivity;
+          } else {
+            lastActiveAt = lastVisit || lastActivity || null;
+          }
+
           return {
             id: profile.id,
             email: profile.email,
@@ -104,6 +174,9 @@ const SuperAdminUsers = () => {
             organizations: orgs,
             roles: userRoles?.map(r => r.role) || [],
             status: employee?.status || 'active',
+            total_page_visits: visitCountMap[profile.id] || 0,
+            total_activities: activityCountMap[profile.id] || 0,
+            last_active_at: lastActiveAt,
           };
         })
       );
@@ -130,6 +203,12 @@ const SuperAdminUsers = () => {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleOpenLogs = (user: User, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLogsUser(user);
+    setLogsOpen(true);
   };
 
   if (loading) {
@@ -171,7 +250,20 @@ const SuperAdminUsers = () => {
                   <TableHead>Roles</TableHead>
                   <TableHead>Organisations</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>Visits</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Activity className="h-3.5 w-3.5" />
+                      <span>Activities</span>
+                    </div>
+                  </TableHead>
+                  <TableHead>Last Active</TableHead>
+                  <TableHead className="text-center">Logs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,14 +330,52 @@ const SuperAdminUsers = () => {
                         {user.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                        {user.total_page_visits}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
+                        {user.total_activities}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
-                      {format(new Date(user.created_at), "dd MMM yyyy")}
+                      {user.last_active_at ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="text-sm text-muted-foreground">
+                              {formatDistanceToNow(new Date(user.last_active_at), { addSuffix: true })}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {format(new Date(user.last_active_at), "dd MMM yyyy 'at' HH:mm")}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => handleOpenLogs(user, e)}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View activity logs</TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -293,6 +423,42 @@ const SuperAdminUsers = () => {
                   </div>
                 </div>
 
+                {/* Activity Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                      {selectedUser.total_page_visits}
+                    </p>
+                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80">Page Visits</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-green-700 dark:text-green-300">
+                      {selectedUser.total_activities}
+                    </p>
+                    <p className="text-xs text-green-600/80 dark:text-green-400/80">Activities</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      {selectedUser.last_active_at
+                        ? formatDistanceToNow(new Date(selectedUser.last_active_at), { addSuffix: true })
+                        : 'Never'}
+                    </p>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/80">Last Active</p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setLogsUser(selectedUser);
+                    setLogsOpen(true);
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Activity Logs
+                </Button>
+
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3">Roles</h4>
                   <div className="flex gap-2 flex-wrap">
@@ -339,6 +505,13 @@ const SuperAdminUsers = () => {
             )}
           </SheetContent>
         </Sheet>
+
+        {/* Activity Logs Sheet */}
+        <UserActivityLogsSheet
+          open={logsOpen}
+          onOpenChange={setLogsOpen}
+          user={logsUser}
+        />
       </div>
     </SuperAdminLayout>
   );

@@ -5821,6 +5821,88 @@ export type Database = {
           },
         ]
       }
+      user_activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_page_visits: {
+        Row: {
+          browser_info: string | null
+          device_type: string | null
+          id: string
+          organization_id: string | null
+          page_path: string
+          page_title: string | null
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          browser_info?: string | null
+          device_type?: string | null
+          id?: string
+          organization_id?: string | null
+          page_path: string
+          page_title?: string | null
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          browser_info?: string | null
+          device_type?: string | null
+          id?: string
+          organization_id?: string | null
+          page_path?: string
+          page_title?: string | null
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_page_visits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

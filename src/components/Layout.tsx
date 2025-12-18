@@ -31,6 +31,7 @@ import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
 import { useUserRole } from "@/hooks/useUserRole";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
+import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 
 interface UserProfile {
   fullName: string;
@@ -56,6 +57,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  
+  // Track page visits for Super Admin analytics
+  usePageVisitTracking();
   
   // Detect full-height pages that need no padding
   const isFullHeightPage = location.pathname.includes('/wiki') || location.pathname.includes('/chat');
