@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.send-attendance-report]
 verify_jwt = false
+
+[functions.bulk-generate-kpis]
+verify_jwt = false
