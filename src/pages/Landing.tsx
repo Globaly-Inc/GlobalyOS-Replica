@@ -320,8 +320,10 @@ export default function Landing() {
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
             The Smart Platform for{" "}
-            <span className="inline-block transition-all duration-300 ease-in-out bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              {teamText}
+            <span className="inline-block min-w-[280px] sm:min-w-[340px] lg:min-w-[420px] text-left">
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                {teamText}
+              </span>
               <span className="animate-pulse">|</span>
             </span>
           </h1>
@@ -362,7 +364,7 @@ export default function Landing() {
       </section>
 
       {/* Logo Marquee - Trusted By */}
-      <section className="py-16 overflow-hidden">
+      <section className="py-16 overflow-hidden min-h-[240px]">
         <div className="text-center mb-10">
           <p className="text-muted-foreground text-sm font-medium">
             Trusted by 120,000+ businesses worldwide
