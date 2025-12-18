@@ -614,10 +614,6 @@ const OrgLeaveHistory = () => {
         </div>
         {canEditAll && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Leave
-            </Button>
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
               Import
@@ -625,6 +621,10 @@ const OrgLeaveHistory = () => {
             <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
               <Download className="h-4 w-4" />
               Export CSV
+            </Button>
+            <Button size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Leave
             </Button>
           </div>
         )}
