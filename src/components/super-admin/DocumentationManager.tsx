@@ -714,6 +714,13 @@ const ScreenshotsManager = () => {
     hideEmails: true,
   });
   const [activeTab, setActiveTab] = useState<'routes' | 'screenshots'>('routes');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewDescription, setPreviewDescription] = useState<string>('');
+
+  // Helper to get public URL from storage path
+  const getPublicUrl = (storagePath: string) => {
+    return `https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/doc_screenshots/${storagePath}`;
+  };
 
   const handleCreate = async () => {
     if (!newScreenshot.route_path) {
@@ -1150,10 +1157,15 @@ const ScreenshotsManager = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         {screenshot.storage_path && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={screenshot.storage_path} target="_blank" rel="noopener noreferrer">
-                              View
-                            </a>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setPreviewUrl(getPublicUrl(screenshot.storage_path!));
+                              setPreviewDescription(screenshot.ai_description || screenshot.description || screenshot.route_path);
+                            }}
+                          >
+                            View
                           </Button>
                         )}
                         <Button 
@@ -1181,6 +1193,27 @@ const ScreenshotsManager = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Screenshot Preview Modal */}
+      <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Screenshot Preview</DialogTitle>
+            {previewDescription && (
+              <p className="text-sm text-muted-foreground">{previewDescription}</p>
+            )}
+          </DialogHeader>
+          {previewUrl && (
+            <div className="mt-4">
+              <img 
+                src={previewUrl} 
+                alt="Screenshot preview" 
+                className="w-full rounded-lg border shadow-sm"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
         <CardContent className="pt-6">

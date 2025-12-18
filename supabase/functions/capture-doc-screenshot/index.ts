@@ -16,6 +16,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const browserlessApiKey = Deno.env.get('BROWSERLESS_API_KEY');
+    const screenshotUserEmail = Deno.env.get('SCREENSHOT_USER_EMAIL');
+    const screenshotUserPassword = Deno.env.get('SCREENSHOT_USER_PASSWORD');
 
     if (!browserlessApiKey) {
       throw new Error('BROWSERLESS_API_KEY is not configured');
@@ -59,13 +61,92 @@ serve(async (req) => {
 
     console.log(`Capturing screenshot of: ${targetUrl}`);
 
+    // Authenticate with service account if credentials are provided
+    let sessionCookies: any[] = [];
+    if (screenshotUserEmail && screenshotUserPassword) {
+      console.log('Authenticating with service account...');
+      
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: screenshotUserEmail,
+        password: screenshotUserPassword,
+      });
+
+      if (authError) {
+        console.error('Service account authentication failed:', authError.message);
+        // Continue without auth - will capture login page or public view
+      } else if (authData.session) {
+        console.log('Service account authenticated successfully');
+        
+        // Get the domain from app base URL
+        const appDomain = new URL(appBaseUrl).hostname;
+        
+        // Prepare cookies for Browserless
+        sessionCookies = [
+          {
+            name: 'sb-access-token',
+            value: authData.session.access_token,
+            domain: appDomain,
+            path: '/',
+            httpOnly: false,
+            secure: true,
+            sameSite: 'Lax',
+          },
+          {
+            name: 'sb-refresh-token',
+            value: authData.session.refresh_token,
+            domain: appDomain,
+            path: '/',
+            httpOnly: false,
+            secure: true,
+            sameSite: 'Lax',
+          },
+          // Also set as localStorage items via script injection (see below)
+        ];
+      }
+    } else {
+      console.log('No service account credentials configured - capturing without auth');
+    }
+
     // Get the effective highlight selector
     const effectiveHighlightSelector = highlightSelector || screenshot.highlight_selector;
 
     // Build script to inject for privacy masking
     let addScriptTag: any[] = [];
+
+    // Inject auth tokens into localStorage before page loads
+    if (sessionCookies.length > 0) {
+      const accessToken = sessionCookies.find(c => c.name === 'sb-access-token')?.value;
+      const refreshToken = sessionCookies.find(c => c.name === 'sb-refresh-token')?.value;
+      
+      if (accessToken && refreshToken) {
+        // Get project ref from supabase URL (e.g., "rygowmzkvxgnxagqlyxf" from "https://rygowmzkvxgnxagqlyxf.supabase.co")
+        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] || 'rygowmzkvxgnxagqlyxf';
+        
+        addScriptTag.push({
+          content: `
+            (function() {
+              try {
+                // Set Supabase auth tokens in localStorage
+                const storageKey = 'sb-${projectRef}-auth-token';
+                const authData = {
+                  access_token: '${accessToken}',
+                  refresh_token: '${refreshToken}',
+                  token_type: 'bearer',
+                  expires_in: 3600,
+                  expires_at: Math.floor(Date.now() / 1000) + 3600,
+                };
+                localStorage.setItem(storageKey, JSON.stringify(authData));
+                console.log('Auth tokens injected into localStorage');
+              } catch (e) {
+                console.error('Failed to inject auth tokens:', e);
+              }
+            })();
+          `
+        });
+      }
+    }
     
-    // Add privacy masking script first (runs before highlighting)
+    // Add privacy masking script (runs after page loads)
     if (privacyMasks && Array.isArray(privacyMasks) && privacyMasks.length > 0) {
       const masksJson = JSON.stringify(privacyMasks);
       addScriptTag.push({
@@ -199,16 +280,23 @@ serve(async (req) => {
       },
       gotoOptions: {
         waitUntil: 'networkidle2',
-        timeout: 30000,
+        timeout: 60000, // Increased timeout for auth
       },
     };
 
-    // Add script injection if we have highlighting
+    // Add cookies for authentication if we have them
+    if (sessionCookies.length > 0) {
+      browserlessPayload.cookies = sessionCookies;
+    }
+
+    // Add script injection if we have any scripts
     if (addScriptTag.length > 0) {
       browserlessPayload.addScriptTag = addScriptTag;
-      // Wait a bit longer for scripts to execute
-      browserlessPayload.waitFor = 2000;
+      // Wait longer for scripts to execute and auth to settle
+      browserlessPayload.waitFor = sessionCookies.length > 0 ? 5000 : 2000;
     }
+
+    console.log(`Browserless payload: cookies=${sessionCookies.length}, scripts=${addScriptTag.length}`);
 
     const browserlessResponse = await fetch(
       `https://chrome.browserless.io/screenshot?token=${browserlessApiKey}`,
