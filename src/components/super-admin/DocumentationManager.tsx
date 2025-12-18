@@ -853,11 +853,23 @@ const ScreenshotsManager = () => {
       toast.error('Please select a module');
       return;
     }
-    captureModuleScreenshots.mutate({ module: selectedModule, orgSlug, analyzeAfterCapture: true });
+    captureModuleScreenshots.mutate({ 
+      module: selectedModule, 
+      orgSlug, 
+      analyzeAfterCapture: true,
+      accessToken: screenshotSession?.accessToken,
+      refreshToken: screenshotSession?.refreshToken,
+    });
   };
 
   const handleCaptureAll = async () => {
-    captureModuleScreenshots.mutate({ captureAll: true, orgSlug, analyzeAfterCapture: true });
+    captureModuleScreenshots.mutate({ 
+      captureAll: true, 
+      orgSlug, 
+      analyzeAfterCapture: true,
+      accessToken: screenshotSession?.accessToken,
+      refreshToken: screenshotSession?.refreshToken,
+    });
   };
 
   return (

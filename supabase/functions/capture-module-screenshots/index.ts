@@ -27,6 +27,8 @@ serve(async (req) => {
       captureAll = false,
       analyzeAfterCapture = true,
       skipExisting = true,
+      accessToken,
+      refreshToken,
     } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -146,9 +148,13 @@ serve(async (req) => {
 
     for (const screenshotId of screenshotsToCapture) {
       try {
-        // Call the capture function
+        // Call the capture function with session tokens
         const { error: captureError } = await supabase.functions.invoke('capture-doc-screenshot', {
-          body: { screenshotId },
+          body: { 
+            screenshotId,
+            accessToken,
+            refreshToken,
+          },
         });
 
         if (captureError) {
