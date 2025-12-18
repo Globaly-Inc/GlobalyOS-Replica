@@ -3,14 +3,13 @@
  * Admin interface for managing support documentation, screenshots, and API docs
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
   Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Check,
-  Sparkles, Play, KeyRound, Mail, ShieldCheck
+  Sparkles, Play, KeyRound, Mail, ShieldCheck, Link2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { ArticleBulkActionsBar } from './ArticleBulkActionsBar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIGenerateCard } from './AIGenerateCard';
@@ -719,69 +718,66 @@ const ScreenshotsManager = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewDescription, setPreviewDescription] = useState<string>('');
 
-  // OTP Authentication State
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  // Magic Link Authentication State
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [screenshotSession, setScreenshotSession] = useState<ScreenshotSession | null>(null);
 
-  // Send OTP to email
-  const handleSendOtp = async () => {
-    if (!otpEmail || !otpEmail.includes('@')) {
+  // Listen for auth state changes (when user clicks magic link)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session && magicLinkSent) {
+        // User signed in via magic link
+        setScreenshotSession({
+          accessToken: session.access_token,
+          refreshToken: session.refresh_token,
+        });
+        setMagicLinkSent(false);
+        setMagicLinkEmail('');
+        toast.success('Authenticated! You can now capture screenshots.');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [magicLinkSent]);
+
+  // Check if already have a session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setScreenshotSession({
+          accessToken: session.access_token,
+          refreshToken: session.refresh_token,
+        });
+      }
+    };
+    checkSession();
+  }, []);
+
+  // Send magic link to email
+  const handleSendMagicLink = async () => {
+    if (!magicLinkEmail || !magicLinkEmail.includes('@')) {
       toast.error('Please enter a valid email address');
       return;
     }
     setIsAuthenticating(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        email: otpEmail,
+        email: magicLinkEmail,
         options: {
           shouldCreateUser: false,
+          emailRedirectTo: window.location.href, // Redirect back to this page
         },
       });
       if (error) {
         throw error;
       }
-      setOtpSent(true);
-      toast.success('OTP sent! Check your email for the code.');
+      setMagicLinkSent(true);
+      toast.success('Magic link sent! Check your email and click the link to authenticate.');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
-    } finally {
-      setIsAuthenticating(false);
-    }
-  };
-
-  // Verify OTP and get session
-  const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) {
-      toast.error('Please enter the 6-digit code');
-      return;
-    }
-    setIsAuthenticating(true);
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: otpEmail,
-        token: otpCode,
-        type: 'email',
-      });
-      if (error) {
-        throw error;
-      }
-      if (data.session) {
-        setScreenshotSession({
-          accessToken: data.session.access_token,
-          refreshToken: data.session.refresh_token,
-        });
-        toast.success('Authenticated! You can now capture screenshots.');
-        // Reset OTP fields
-        setOtpCode('');
-        setOtpSent(false);
-      } else {
-        throw new Error('No session returned');
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Invalid OTP code');
+      toast.error(error.message || 'Failed to send magic link');
     } finally {
       setIsAuthenticating(false);
     }
@@ -790,9 +786,8 @@ const ScreenshotsManager = () => {
   // Clear authentication
   const handleClearAuth = () => {
     setScreenshotSession(null);
-    setOtpEmail('');
-    setOtpCode('');
-    setOtpSent(false);
+    setMagicLinkEmail('');
+    setMagicLinkSent(false);
     toast.info('Screenshot session cleared');
   };
 
@@ -906,67 +901,54 @@ const ScreenshotsManager = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {!otpSent ? (
+              {!magicLinkSent ? (
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 flex-1">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <Input
                       type="email"
                       placeholder="Enter service account email"
-                      value={otpEmail}
-                      onChange={(e) => setOtpEmail(e.target.value)}
+                      value={magicLinkEmail}
+                      onChange={(e) => setMagicLinkEmail(e.target.value)}
                       className="flex-1"
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMagicLink()}
                     />
                   </div>
                   <Button 
-                    onClick={handleSendOtp} 
-                    disabled={isAuthenticating || !otpEmail}
+                    onClick={handleSendMagicLink} 
+                    disabled={isAuthenticating || !magicLinkEmail}
                   >
                     {isAuthenticating ? (
                       <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                     ) : (
-                      <Mail className="h-4 w-4 mr-2" />
+                      <Link2 className="h-4 w-4 mr-2" />
                     )}
-                    Send OTP
+                    Send Magic Link
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">OTP sent to {otpEmail}</span>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                  <Mail className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Magic link sent to {magicLinkEmail}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Click the link in your email to authenticate. This page will update automatically.
+                    </p>
                   </div>
-                  <InputOTP
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(value) => setOtpCode(value)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
                   <Button 
-                    onClick={handleVerifyOtp} 
-                    disabled={isAuthenticating || otpCode.length !== 6}
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendMagicLink}
+                    disabled={isAuthenticating}
                   >
-                    {isAuthenticating ? (
-                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4 mr-2" />
-                    )}
-                    Verify
+                    Resend
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                    onClick={() => { setMagicLinkSent(false); setMagicLinkEmail(''); }}
                   >
-                    Back
+                    Cancel
                   </Button>
                 </div>
               )}
