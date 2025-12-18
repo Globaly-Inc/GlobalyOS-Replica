@@ -98,14 +98,125 @@ const MODULE_ROUTES: Record<string, { routes: { path: string; description: strin
   },
 };
 
+// Module to category mapping for auto-assignment
+const MODULE_CATEGORY_MAP: Record<string, string> = {
+  team: 'getting-started',
+  leave: 'hr-management',
+  attendance: 'hr-management',
+  kpis: 'performance',
+  okrs: 'performance',
+  reviews: 'performance',
+  wiki: 'knowledge-base',
+  crm: 'crm',
+  calendar: 'collaboration',
+  chat: 'collaboration',
+  updates: 'collaboration',
+  settings: 'admin',
+  general: 'getting-started',
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { module, categoryId } = await req.json();
+    const body = await req.json();
+    const { mode = 'generate', module, categoryId, existingSlugs = [], article } = body;
 
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    // Handle UPDATE mode - check if existing article needs updates
+    if (mode === 'update' && article) {
+      console.log(`Checking article for updates: ${article.title}`);
+      
+      const moduleInfo = MODULE_ROUTES[article.module];
+      if (!moduleInfo) {
+        return new Response(JSON.stringify({ needsUpdate: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const systemPrompt = `You are a documentation quality analyst for GlobalyOS. 
+Your job is to analyze existing support documentation and determine if it needs updates based on current best practices.
+
+Analyze the provided article and determine:
+1. Is the content still accurate and relevant?
+2. Does it cover all current features for this module?
+3. Are the instructions clear and up-to-date?
+4. Does it need better screenshots or visual aids?
+
+Current module features: ${moduleInfo.features.join(', ')}
+Current routes: ${JSON.stringify(moduleInfo.routes)}`;
+
+      const userPrompt = `Analyze this support article and determine if it needs updates:
+
+Title: ${article.title}
+Module: ${article.module}
+Content:
+${article.content}
+
+Return a JSON object with:
+- needsUpdate: boolean (true if article needs updates)
+- suggestedChanges: string (description of what should be changed)
+- screenshotNeedsUpdate: boolean (true if screenshots should be refreshed)
+- newContent: string (updated content if needsUpdate is true, otherwise omit)
+
+Be conservative - only suggest updates if there are significant improvements needed.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiContent = data.choices?.[0]?.message?.content;
+
+      if (!aiContent) {
+        return new Response(JSON.stringify({ needsUpdate: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let result;
+      try {
+        const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const jsonStr = jsonMatch ? jsonMatch[1].trim() : aiContent.trim();
+        result = JSON.parse(jsonStr);
+      } catch {
+        result = { needsUpdate: false };
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Handle GENERATE mode - create new articles for a module
     if (!module) {
       return new Response(JSON.stringify({ error: 'Module is required' }), {
         status: 400,
@@ -121,10 +232,8 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    console.log(`Generating content for module: ${module}`);
+    console.log(`Existing slugs to avoid: ${existingSlugs.length}`);
 
     const systemPrompt = `You are a SaaS documentation expert for GlobalyOS, a comprehensive business operating system with HRMS, CRM, Wiki, and team communication features.
 
@@ -147,16 +256,19 @@ IMPORTANT:
 - Use Markdown formatting with ## for sections
 - Include placeholder text like [Screenshot: description] for suggested screenshots
 - Write 400-600 words per article
-- Be specific to GlobalyOS features and UI`;
+- Be specific to GlobalyOS features and UI
+- AVOID creating articles with these existing slugs: ${existingSlugs.join(', ') || 'none'}`;
 
     const userPrompt = `Generate 3-5 comprehensive support articles for the "${module}" module in GlobalyOS.
 
 Module features: ${moduleInfo.features.join(', ')}
 Available routes: ${JSON.stringify(moduleInfo.routes)}
 
+IMPORTANT: Do NOT create articles with any of these existing slugs: ${existingSlugs.join(', ') || 'none'}
+
 For each article, return a JSON object with:
 - title: Clear, action-oriented title (e.g., "How to Request Leave")
-- slug: URL-friendly version of title
+- slug: URL-friendly version of title (MUST be unique - not in the existing slugs list)
 - excerpt: 1-2 sentence summary (under 160 characters)
 - content: Full Markdown article with step-by-step instructions
 - target_roles: Array of roles that can access this feature ["owner", "admin", "hr", "user"]
@@ -208,7 +320,6 @@ Return a valid JSON array of article objects. Each article should cover a differ
     // Parse the JSON from the AI response
     let articles;
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
       const jsonStr = jsonMatch ? jsonMatch[1].trim() : aiContent.trim();
       articles = JSON.parse(jsonStr);
@@ -217,19 +328,30 @@ Return a valid JSON array of article objects. Each article should cover a differ
       throw new Error('Failed to parse AI response as JSON');
     }
 
+    // Get category ID from mapping if not provided
+    let assignedCategoryId = categoryId;
+    if (!assignedCategoryId && MODULE_CATEGORY_MAP[module]) {
+      // We could look up the actual category ID here, but for now we'll leave it null
+      // The frontend will handle category assignment
+    }
+
     // Validate and enhance articles
-    const processedArticles = articles.map((article: any, index: number) => ({
-      module,
-      category_id: categoryId || null,
-      title: article.title || `${module} Article ${index + 1}`,
-      slug: article.slug || article.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `article-${index + 1}`,
-      excerpt: article.excerpt || '',
-      content: article.content || '',
-      target_roles: Array.isArray(article.target_roles) ? article.target_roles : ['owner', 'admin', 'hr', 'user'],
-      suggested_screenshots: Array.isArray(article.suggested_screenshots) ? article.suggested_screenshots : [],
-      is_published: false,
-      is_featured: false,
-    }));
+    const processedArticles = articles
+      .filter((article: any) => !existingSlugs.includes(article.slug))
+      .map((article: any, index: number) => ({
+        module,
+        category_id: assignedCategoryId || null,
+        title: article.title || `${module} Article ${index + 1}`,
+        slug: article.slug || article.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `article-${index + 1}`,
+        excerpt: article.excerpt || '',
+        content: article.content || '',
+        target_roles: Array.isArray(article.target_roles) ? article.target_roles : ['owner', 'admin', 'hr', 'user'],
+        suggested_screenshots: Array.isArray(article.suggested_screenshots) ? article.suggested_screenshots : [],
+        is_published: false,
+        is_featured: false,
+      }));
+
+    console.log(`Generated ${processedArticles.length} new articles for ${module}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -240,7 +362,7 @@ Return a valid JSON array of article objects. Each article should cover a differ
     });
 
   } catch (error) {
-    console.error('Error generating support content:', error);
+    console.error('Error in generate-support-content:', error);
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     }), {
