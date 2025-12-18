@@ -182,12 +182,6 @@ html {
     scrollbar-width: none;
   }
 
-  /* Hide Gleap chat widget on mobile */
-  #gleap-frame-container,
-  .gleap-frame-container,
-  [class*="gleap"] {
-    display: none !important;
-  }
 }
 
 /* KPI Celebration Confetti Animation */
