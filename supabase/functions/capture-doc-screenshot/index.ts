@@ -180,16 +180,17 @@ serve(async (req) => {
     }
 
     // Call Browserless.io screenshot API with enhanced options
+    // Note: viewport is at root level, not inside options
     const browserlessPayload: any = {
       url: targetUrl,
       options: {
         type: 'png',
         fullPage: false,
-        viewport: {
-          width: 1920,
-          height: 1080,
-          deviceScaleFactor: 2, // Retina quality
-        },
+      },
+      viewport: {
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 2, // Retina quality
       },
       gotoOptions: {
         waitUntil: 'networkidle2',
