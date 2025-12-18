@@ -94,7 +94,7 @@ const App = () => (
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public website routes */}
-                <Route path="/landing" element={<Landing />} />
+                <Route path="/landing" element={<Navigate to="/" replace />} />
                 <Route path="/features" element={<Features />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/blog" element={<Blog />} />

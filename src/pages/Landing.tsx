@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { WebsiteHeader, WebsiteFooter, FeatureCard, TestimonialCard } from "@/components/website";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import { Users, Calendar, BookOpen, Brain, BarChart3, Smartphone, CheckCircle2, ArrowRight, Sparkles, Clock, Shield, Zap, Award, UserPlus } from "lucide-react";
 // Feature showcase mockup components
@@ -297,12 +298,9 @@ const DashboardSpotlight = () => {
 const teamWords = ['Growing Teams', 'Modern Teams', 'Remote Teams', 'Ambitious Teams', 'Global Teams'];
 export default function Landing() {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
-  const {
-    displayText: teamText
-  } = useTypewriter({
+  const { user } = useAuth();
+  const { currentOrg } = useOrganization();
+  const { displayText: teamText } = useTypewriter({
     words: teamWords,
     typingSpeed: 100,
     deletingSpeed: 60,
@@ -332,9 +330,15 @@ export default function Landing() {
             GlobalyOS brings HR, knowledge, and team collaboration into one beautiful platform.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8" onClick={() => navigate("/auth")}>
-              Start Free Trial <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+            {user && currentOrg ? (
+              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8" onClick={() => navigate(`/org/${currentOrg.slug}`)}>
+                Go to Dashboard <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            ) : (
+              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8" onClick={() => navigate("/auth")}>
+                Start Free Trial <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            )}
             <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => navigate("/features")}>See All Features</Button>
           </div>
           <p className="text-sm text-muted-foreground mt-4">No credit card required • Unlimited users • Setup in minutes</p>

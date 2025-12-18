@@ -232,7 +232,7 @@ const PendingApproval = () => {
 
         {/* Back to Home */}
         <div className="mt-6 pt-6 border-t text-center">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/landing')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Button>

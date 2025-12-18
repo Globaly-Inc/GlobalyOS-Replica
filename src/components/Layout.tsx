@@ -459,7 +459,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="container flex h-16 items-center px-4 md:px-8">
           <div className="mr-4 hidden md:flex items-center">
             <button 
-              onClick={() => navigate("/landing")}
+              onClick={() => navigate("/")}
               className="hover:opacity-90 transition-opacity"
             >
               <img src={globalyosLogo} alt="GlobalyOS" className="h-9 w-9 rounded-lg" />

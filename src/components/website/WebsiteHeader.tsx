@@ -22,7 +22,7 @@ export const WebsiteHeader = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo + Nav Links */}
           <div className="flex items-center gap-8">
-            <Link to="/landing" className="flex items-center">
+            <Link to="/" className="flex items-center">
               <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" />
             </Link>
 
