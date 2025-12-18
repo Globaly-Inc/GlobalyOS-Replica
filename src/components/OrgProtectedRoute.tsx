@@ -72,9 +72,9 @@ export const OrgProtectedRoute = ({
     );
   }
 
-  // Not authenticated - redirect to landing
+  // Not authenticated - redirect to home (landing)
   if (!session) {
-    return <Navigate to="/landing" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Ensure we have a valid current organization before proceeding

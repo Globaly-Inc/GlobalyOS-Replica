@@ -25,7 +25,7 @@ export interface OrgNavigationResult {
  * Routes that don't require organization context
  */
 const PUBLIC_ROUTES = [
-  '/landing',
+  '/',
   '/auth',
   '/signup',
   '/join',
