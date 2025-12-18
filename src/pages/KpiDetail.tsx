@@ -42,7 +42,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import type { KpiStatus, KpiReminderFrequency, KpiAttachment, KpiMilestone } from '@/types';
-import { KpiAttachmentUpload, KpiAttachmentPreview, KpiMilestoneProgress, KpiCelebration, StaleKpiIndicator } from '@/components/kpi';
+import { KpiAttachmentUpload, KpiAttachmentPreview, KpiMilestoneProgress, KpiCelebration, StaleKpiIndicator, ParentKpiSection, LinkedKpisSection } from '@/components/kpi';
+import { useKpiHierarchy } from '@/services/useKpi';
 
 const statusColors: Record<KpiStatus, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -68,6 +69,7 @@ const KpiDetail = () => {
   const { isAdmin, isHR } = useUserRole();
   
   const { data: kpi, isLoading } = useKpiDetail(kpiId);
+  const { data: hierarchy } = useKpiHierarchy(kpiId);
   const addUpdate = useAddKpiUpdate();
   const saveSettings = useSaveKpiUpdateSettings();
   const deleteUpdate = useDeleteKpiUpdate();
@@ -465,6 +467,28 @@ const KpiDetail = () => {
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
+            {/* Parent KPI Section */}
+            {hierarchy?.parent && (
+              <ParentKpiSection
+                parent={hierarchy.parent}
+                childKpiId={kpi.id}
+                contributionWeight={kpi.child_contribution_weight || 1}
+                canEdit={canEdit()}
+              />
+            )}
+
+            {/* Linked KPIs Section (for org/group KPIs) */}
+            {(kpi.scope_type === 'organization' || kpi.scope_type === 'department' || 
+              kpi.scope_type === 'office' || kpi.scope_type === 'project') && (
+              <LinkedKpisSection
+                kpi={{
+                  ...kpi,
+                  children: hierarchy?.children || [],
+                }}
+                canEdit={canEdit()}
+              />
+            )}
+
             {/* Quick Stats */}
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Quick Stats</h3>
