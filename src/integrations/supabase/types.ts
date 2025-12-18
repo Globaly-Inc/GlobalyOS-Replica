@@ -6932,34 +6932,16 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
-      record_remote_attendance:
-        | {
-            Args: {
-              _action: string
-              _user_latitude: number
-              _user_longitude: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _action: string
-              _location_name?: string
-              _user_latitude: number
-              _user_longitude: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _action: string
-              _early_checkout_reason?: string
-              _location_name?: string
-              _user_latitude: number
-              _user_longitude: number
-            }
-            Returns: Json
-          }
+      record_remote_attendance: {
+        Args: {
+          _action: string
+          _early_checkout_reason?: string
+          _location_name?: string
+          _user_latitude: number
+          _user_longitude: number
+        }
+        Returns: Json
+      }
       record_usage: {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined
