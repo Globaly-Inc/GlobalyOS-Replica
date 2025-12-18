@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/utils";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -812,16 +813,16 @@ const OrgLeaveHistory = () => {
                         />
                       </TableHead>
                     )}
-                    <TableHead className="min-w-[180px]">Employee</TableHead>
-                    <TableHead className="min-w-[120px] whitespace-nowrap">Applied Date</TableHead>
-                    <TableHead className="w-[140px]">Leave Dates</TableHead>
-                    <TableHead className="min-w-[100px]">Type</TableHead>
-                    <TableHead className="min-w-[120px]">Leave Type</TableHead>
-                    <TableHead className="text-right min-w-[70px]">Days</TableHead>
-                    <TableHead className="min-w-[85px]">Status</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Balance</TableHead>
-                    <TableHead className="min-w-[200px]">Reason</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[180px]">Employee</TableHead>
+                    <TableHead className="w-[85px] whitespace-nowrap">Applied</TableHead>
+                    <TableHead className="w-[155px]">Leave Dates</TableHead>
+                    <TableHead className="w-[70px]">Type</TableHead>
+                    <TableHead className="w-[95px]">Leave Type</TableHead>
+                    <TableHead className="text-center w-[50px]">Days</TableHead>
+                    <TableHead className="w-[85px]">Status</TableHead>
+                    <TableHead className="text-center w-[60px]">Balance</TableHead>
+                    <TableHead className="flex-1 min-w-[120px]">Reason</TableHead>
+                    <TableHead className="w-[85px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -844,35 +845,35 @@ const OrgLeaveHistory = () => {
                           to={`/team/${t.employee?.id}`}
                           className="flex items-center gap-2 hover:opacity-80"
                         >
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
                             <AvatarImage src={t.employee?.profiles?.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
                               {getInitials(t.employee?.profiles?.full_name || "")}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <span className="font-medium text-sm truncate block max-w-[120px]">
+                            <span className="font-medium text-sm truncate block max-w-[130px]">
                               {t.employee?.profiles?.full_name}
                             </span>
                             {t.employee?.position && (
-                              <span className="text-xs text-muted-foreground truncate block max-w-[120px]">
+                              <span className="text-xs text-muted-foreground truncate block max-w-[130px]">
                                 {t.employee.position}
                               </span>
                             )}
                           </div>
                         </OrgLink>
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {formatDate(t.effective_date)}
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {format(new Date(t.effective_date), "dd MMM")}
                       </TableCell>
-                      <TableCell className="text-sm w-[140px]">
+                      <TableCell className="text-sm whitespace-nowrap">
                         {t.type === 'leave_taken' && t.start_date ? (
-                          <div className="flex items-center gap-1.5">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div className="flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                             <span>
-                              {formatDate(t.start_date)}
+                              {format(new Date(t.start_date), "dd MMM")}
                               {t.end_date && t.start_date !== t.end_date && (
-                                <span className="text-muted-foreground"> → {formatDate(t.end_date)}</span>
+                                <span className="text-muted-foreground"> → {format(new Date(t.end_date), "dd MMM")}</span>
                               )}
                             </span>
                           </div>
@@ -896,15 +897,15 @@ const OrgLeaveHistory = () => {
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-center">
                         {formatDays(t.days)}
                       </TableCell>
                       <TableCell>{getStatusBadge(t.status)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-center">
                         {formatBalance(t.balance_after)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px]" title={t.reason || ""}>
-                        <span className="line-clamp-2">{t.reason || "-"}</span>
+                      <TableCell className="text-sm text-muted-foreground" title={t.reason || ""}>
+                        <span className="line-clamp-1">{t.reason || "-"}</span>
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
