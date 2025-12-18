@@ -684,14 +684,18 @@ export const useCaptureModuleScreenshots = () => {
       orgSlug = 'globalyhub',
       captureAll = false,
       analyzeAfterCapture = true,
+      accessToken,
+      refreshToken,
     }: { 
       module?: string; 
       orgSlug?: string;
       captureAll?: boolean;
       analyzeAfterCapture?: boolean;
+      accessToken?: string;
+      refreshToken?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke('capture-module-screenshots', {
-        body: { module, orgSlug, captureAll, analyzeAfterCapture },
+        body: { module, orgSlug, captureAll, analyzeAfterCapture, accessToken, refreshToken },
       });
       
       if (error) throw error;
