@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Bug, Lightbulb, Sparkles, Globe, Monitor, Calendar, Upload, X, Loader2 } from 'lucide-react';
+import { Bug, Lightbulb, Sparkles, Globe, Monitor, Calendar, Upload, X, Loader2, Camera } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const createRequest = useCreateSupportRequest();
   const improveContent = useImproveContent();
@@ -74,6 +76,46 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
   const handleRemoveScreenshot = () => {
     setScreenshot(null);
     setScreenshotPreview(null);
+  };
+
+  const handleCaptureScreenshot = async () => {
+    setIsCapturing(true);
+    
+    // Temporarily hide the dialog
+    const dialogOverlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement | null;
+    const dialogContent = document.querySelector('[data-radix-dialog-content]') as HTMLElement | null;
+    
+    if (dialogOverlay) dialogOverlay.style.display = 'none';
+    if (dialogContent) dialogContent.style.display = 'none';
+    
+    try {
+      // Dynamic import for code splitting
+      const html2canvas = (await import('html2canvas')).default;
+      
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: true,
+        scale: window.devicePixelRatio || 1,
+        logging: false,
+      });
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+          setScreenshot(file);
+          setScreenshotPreview(canvas.toDataURL('image/png'));
+        }
+      }, 'image/png');
+      
+    } catch (error) {
+      console.error('Failed to capture screenshot:', error);
+      toast.error('Failed to capture screenshot');
+    } finally {
+      // Restore dialog visibility
+      if (dialogOverlay) dialogOverlay.style.display = '';
+      if (dialogContent) dialogContent.style.display = '';
+      setIsCapturing(false);
+    }
   };
 
   const hasDescription = description.trim().length > 10;
@@ -250,7 +292,7 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
             </div>
           )}
 
-          {/* Screenshot Upload */}
+          {/* Screenshot Options */}
           <div className="space-y-2">
             <Label>Screenshot (optional)</Label>
             {screenshotPreview ? (
@@ -271,16 +313,37 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
                 </Button>
               </div>
             ) : (
-              <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                <Upload className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Click to upload</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleScreenshotChange}
-                />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Capture Screenshot */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={handleCaptureScreenshot}
+                  disabled={isCapturing}
+                >
+                  {isCapturing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Camera className="h-5 w-5" />
+                  )}
+                  <span className="text-xs">
+                    {isCapturing ? 'Capturing...' : 'Capture Page'}
+                  </span>
+                </Button>
+                
+                {/* Upload from Device */}
+                <label className="h-20 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Upload Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleScreenshotChange}
+                  />
+                </label>
+              </div>
             )}
           </div>
 
