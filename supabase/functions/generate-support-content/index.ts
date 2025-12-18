@@ -37,18 +37,13 @@ const MODULE_ROUTES: Record<string, { routes: { path: string; description: strin
     ],
     features: ['View company holidays', 'See team events', 'Manage calendar events', 'View team availability'],
   },
-  kpis: {
+  kpi: {
     routes: [
       { path: '/org/:slug/kpis', description: 'KPI dashboard', roles: ['owner', 'admin', 'hr', 'user'] },
       { path: '/org/:slug/kpis/templates', description: 'KPI templates', roles: ['owner', 'admin', 'hr'] },
-    ],
-    features: ['Track personal KPIs', 'Update KPI progress', 'Create KPI templates', 'View team performance', 'AI-powered insights'],
-  },
-  okrs: {
-    routes: [
       { path: '/org/:slug/okrs', description: 'OKRs management', roles: ['owner', 'admin', 'hr', 'user'] },
     ],
-    features: ['Create objectives', 'Define key results', 'Track OKR progress', 'Align team goals'],
+    features: ['Track personal KPIs', 'Update KPI progress', 'Create KPI templates', 'View team performance', 'AI-powered insights', 'Create objectives', 'Define key results', 'Track OKR progress', 'Align team goals'],
   },
   reviews: {
     routes: [
@@ -69,6 +64,12 @@ const MODULE_ROUTES: Record<string, { routes: { path: string; description: strin
     ],
     features: ['Direct messages', 'Group channels', 'File sharing', 'Reactions and mentions', 'Thread discussions'],
   },
+  tasks: {
+    routes: [
+      { path: '/org/:slug/tasks', description: 'Task management', roles: ['owner', 'admin', 'hr', 'user'] },
+    ],
+    features: ['Create tasks', 'Assign tasks to team members', 'Set due dates and priorities', 'Track task progress', 'Organize tasks in lists'],
+  },
   crm: {
     routes: [
       { path: '/org/:slug/crm', description: 'CRM dashboard', roles: ['owner', 'admin', 'user'] },
@@ -77,11 +78,12 @@ const MODULE_ROUTES: Record<string, { routes: { path: string; description: strin
     ],
     features: ['Manage contacts', 'Track deals', 'Pipeline management', 'Activity logging', 'Company profiles'],
   },
-  updates: {
+  payroll: {
     routes: [
-      { path: '/org/:slug', description: 'Company feed', roles: ['owner', 'admin', 'hr', 'user'] },
+      { path: '/org/:slug/payroll', description: 'Payroll dashboard', roles: ['owner', 'admin', 'hr'] },
+      { path: '/org/:slug/payroll/runs', description: 'Payroll runs', roles: ['owner', 'admin', 'hr'] },
     ],
-    features: ['Post updates', 'Share wins', 'Give kudos', 'Company announcements', 'React to posts'],
+    features: ['Process payroll', 'View pay slips', 'Manage deductions', 'Configure pay schedules', 'Generate payroll reports'],
   },
   settings: {
     routes: [
@@ -103,14 +105,14 @@ const MODULE_CATEGORY_MAP: Record<string, string> = {
   team: 'getting-started',
   leave: 'hr-management',
   attendance: 'hr-management',
-  kpis: 'performance',
-  okrs: 'performance',
+  kpi: 'performance',
   reviews: 'performance',
   wiki: 'knowledge-base',
   crm: 'crm',
   calendar: 'collaboration',
   chat: 'collaboration',
-  updates: 'collaboration',
+  tasks: 'collaboration',
+  payroll: 'hr-management',
   settings: 'admin',
   general: 'getting-started',
 };
