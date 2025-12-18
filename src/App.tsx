@@ -60,6 +60,15 @@ const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const ManageOffices = lazy(() => import('./pages/ManageOffices'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
+// Support pages
+const Support = lazy(() => import('./pages/Support'));
+const SupportGettingStarted = lazy(() => import('./pages/SupportGettingStarted'));
+const SupportFAQ = lazy(() => import('./pages/SupportFAQ'));
+const SupportFeatures = lazy(() => import('./pages/SupportFeatures'));
+const SupportModule = lazy(() => import('./pages/SupportModule'));
+const SupportArticle = lazy(() => import('./pages/SupportArticle'));
+const SupportAPI = lazy(() => import('./pages/SupportAPI'));
+
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
@@ -107,6 +116,15 @@ const App = () => (
                 <Route path="/pending-approval" element={<PendingApproval />} />
                 <Route path="/join" element={<Join />} />
                 <Route path="/install" element={<Install />} />
+                
+                {/* Support pages - public for authenticated users */}
+                <Route path="/support" element={<Support />} />
+                <Route path="/support/getting-started" element={<SupportGettingStarted />} />
+                <Route path="/support/faq" element={<SupportFAQ />} />
+                <Route path="/support/features" element={<SupportFeatures />} />
+                <Route path="/support/features/:module" element={<SupportModule />} />
+                <Route path="/support/features/:module/:slug" element={<SupportArticle />} />
+                <Route path="/support/api" element={<SupportAPI />} />
                 
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
