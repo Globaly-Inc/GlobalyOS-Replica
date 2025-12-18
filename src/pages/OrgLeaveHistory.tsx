@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,7 @@ import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustm
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
+import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 
 interface LeaveTransaction {
   id: string;
@@ -117,6 +118,7 @@ const OrgLeaveHistory = () => {
   const [bulkDeletingLeave, setBulkDeletingLeave] = useState(false);
   const [deleteLeaveDialog, setDeleteLeaveDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
   const [deletingLeave, setDeletingLeave] = useState(false);
+  const [addLeaveOpen, setAddLeaveOpen] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -612,6 +614,10 @@ const OrgLeaveHistory = () => {
         </div>
         {canEditAll && (
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setAddLeaveOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Leave
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
               Import
@@ -1126,6 +1132,13 @@ const OrgLeaveHistory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Leave Dialog */}
+      <AddLeaveForEmployeeDialog
+        open={addLeaveOpen}
+        onOpenChange={setAddLeaveOpen}
+        onSuccess={loadData}
+      />
     </div>
   );
 };
