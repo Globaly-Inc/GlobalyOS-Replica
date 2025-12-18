@@ -891,6 +891,9 @@ const Home = () => {
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
           <PendingWfhApprovals />
           
+          {/* GlobalyOS Help - Mobile */}
+          <UserHelpRequests />
+          
           {/* People on Leave Today - Mobile */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
