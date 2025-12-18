@@ -105,6 +105,14 @@ const OrgLeaveHistory = () => {
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   
+  // Stats for cards
+  const [prevYearStats, setPrevYearStats] = useState<Record<string, { days: number }>>({});
+  const [leaveTypeStats, setLeaveTypeStats] = useState<Array<{
+    leave_type: string;
+    total_days: number;
+    balance: number;
+  }>>([]);
+  
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
   const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
@@ -169,8 +177,12 @@ const OrgLeaveHistory = () => {
     setLoading(true);
     
     try {
+      const currentYear = parseInt(yearFilter);
+      const prevYear = currentYear - 1;
       const startOfYear = `${yearFilter}-01-01`;
       const endOfYear = `${yearFilter}-12-31`;
+      const startOfPrevYear = `${prevYear}-01-01`;
+      const endOfPrevYear = `${prevYear}-12-31`;
 
       // Determine which employee IDs we can view
       let allowedEmployeeIds: string[] | null = null; // null = all employees (for admins)
@@ -180,7 +192,7 @@ const OrgLeaveHistory = () => {
         allowedEmployeeIds = [currentEmployee.id, ...directReportIds];
       }
 
-      // Load leave requests
+      // Load leave requests for current year
       let requestsQuery = supabase
         .from("leave_requests")
         .select(`
@@ -214,7 +226,7 @@ const OrgLeaveHistory = () => {
 
       if (requestsError) throw requestsError;
 
-      // Load leave balance logs (adjustments)
+      // Load leave balance logs (adjustments) for current year
       let logsQuery = supabase
         .from("leave_balance_logs")
         .select(`
@@ -247,6 +259,31 @@ const OrgLeaveHistory = () => {
 
       if (logsError) throw logsError;
 
+      // Load previous year data for comparison
+      let prevRequestsQuery = supabase
+        .from("leave_requests")
+        .select("leave_type, days_count, status")
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "approved")
+        .gte("start_date", startOfPrevYear)
+        .lte("start_date", endOfPrevYear);
+
+      if (allowedEmployeeIds) {
+        prevRequestsQuery = prevRequestsQuery.in("employee_id", allowedEmployeeIds);
+      }
+
+      const { data: prevRequestsData } = await prevRequestsQuery;
+
+      // Calculate previous year stats by leave type
+      const prevStats: Record<string, { days: number }> = {};
+      (prevRequestsData || []).forEach((r: any) => {
+        if (!prevStats[r.leave_type]) {
+          prevStats[r.leave_type] = { days: 0 };
+        }
+        prevStats[r.leave_type].days += r.days_count;
+      });
+      setPrevYearStats(prevStats);
+
       // Combine and format transactions
       const requestTransactions: LeaveTransaction[] = (requestsData || []).map((r: any) => ({
         id: r.id,
@@ -275,6 +312,27 @@ const OrgLeaveHistory = () => {
       }));
 
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
+
+      // Calculate leave type stats (days taken and balance)
+      const typeStats: Record<string, { total_days: number; adjustments: number }> = {};
+      allTransactions.forEach(t => {
+        if (!typeStats[t.leave_type]) {
+          typeStats[t.leave_type] = { total_days: 0, adjustments: 0 };
+        }
+        if (t.type === 'leave_taken' && t.status === 'approved') {
+          typeStats[t.leave_type].total_days += Math.abs(t.days);
+        }
+        if (t.type === 'adjustment') {
+          typeStats[t.leave_type].adjustments += t.days;
+        }
+      });
+
+      const leaveTypeStatsArray = Object.entries(typeStats).map(([leave_type, stats]) => ({
+        leave_type,
+        total_days: stats.total_days,
+        balance: stats.adjustments - stats.total_days
+      }));
+      setLeaveTypeStats(leaveTypeStatsArray);
 
       // ====== Running balance calculation per employee per leave type ======
       // Step 1: Sort chronologically (oldest first)
@@ -591,6 +649,7 @@ const OrgLeaveHistory = () => {
 
   const pendingCount = transactions.filter(r => r.status === "pending").length;
   const approvedCount = transactions.filter(r => r.status === "approved").length;
+  const rejectedCount = transactions.filter(r => r.status === "rejected").length;
   const adjustmentCount = transactions.filter(r => r.type === "adjustment").length;
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -631,31 +690,70 @@ const OrgLeaveHistory = () => {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {/* Total Leave Requests Card */}
         <Card>
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-amber-600">{pendingCount}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-md bg-primary/10">
+                <CalendarDays className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground">Leave Requests</span>
+            </div>
+            <div className="text-2xl font-bold mb-2">{transactions.filter(t => t.type === 'leave_taken').length}</div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <span className="text-amber-600">● {pendingCount} Pending</span>
+              <span className="text-green-600">✓ {approvedCount} Approved</span>
+              <span className="text-destructive">✗ {rejectedCount} Rejected</span>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
-            <div className="text-xs text-muted-foreground">Approved</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-primary">{adjustmentCount}</div>
-            <div className="text-xs text-muted-foreground">Adjustments</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-foreground">{transactions.length}</div>
-            <div className="text-xs text-muted-foreground">Total</div>
-          </CardContent>
-        </Card>
+
+        {/* Leave Type Cards */}
+        {leaveTypeStats.map(stat => {
+          const prevYear = prevYearStats[stat.leave_type];
+          const prevDays = prevYear?.days || 0;
+          const percentChange = prevDays > 0
+            ? Math.round(((stat.total_days - prevDays) / prevDays) * 100)
+            : stat.total_days > 0 ? 100 : 0;
+          const isPositive = percentChange > 0;
+          const isNegative = percentChange < 0;
+
+          return (
+            <Card key={stat.leave_type}>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className={`p-1.5 rounded-md ${stat.balance < 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                    <Calendar className={`h-4 w-4 ${stat.balance < 0 ? 'text-destructive' : 'text-primary'}`} />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground truncate">{stat.leave_type}</span>
+                </div>
+                
+                {/* Days taken */}
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-xl font-bold">{stat.total_days}</span>
+                  <span className="text-xs text-muted-foreground">days taken</span>
+                </div>
+                
+                {/* % Change from last year */}
+                <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-600' : isNegative ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {isPositive && <TrendingUp className="h-3 w-3" />}
+                  {isNegative && <TrendingDown className="h-3 w-3" />}
+                  <span>
+                    {percentChange === 0 ? 'No change' : `${isPositive ? '+' : ''}${percentChange}% from last year`}
+                  </span>
+                </div>
+
+                {/* Current Balance */}
+                <div className="text-xs text-muted-foreground mt-1 pt-1 border-t border-border/50">
+                  Balance: <span className={stat.balance < 0 ? 'text-destructive font-medium' : 'font-medium'}>
+                    {stat.balance < 0 ? `(${Math.abs(stat.balance)})` : stat.balance} days
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
         
         {/* Most Leave Taken Employee */}
         <Card>
