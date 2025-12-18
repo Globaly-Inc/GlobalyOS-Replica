@@ -3,9 +3,8 @@ import { Bug, Lightbulb, Search, Filter, FileText } from 'lucide-react';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
 import { DocumentationManager } from '@/components/super-admin/DocumentationManager';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -29,6 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const SuperAdminCustomerSuccess = () => {
+  const [activeTab, setActiveTab] = useState<'requests' | 'documentation'>('requests');
   const [typeFilter, setTypeFilter] = useState<'all' | SupportRequestType>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | SupportRequestPriority>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,22 +119,39 @@ const SuperAdminCustomerSuccess = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Customer Success</h1>
-            <p className="text-muted-foreground">Manage bug reports and feature requests</p>
+            <p className="text-muted-foreground">Manage bug reports, feature requests, and documentation</p>
           </div>
           
-          {/* Stats Badges */}
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="px-3 py-1.5 text-sm">
-              <Bug className="h-4 w-4 mr-1.5 text-destructive" />
-              {bugCount} Bugs
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1.5 text-sm">
-              <Lightbulb className="h-4 w-4 mr-1.5 text-primary" />
-              {featureCount} Features
-            </Badge>
-          </div>
+          {/* Main Tab Toggle */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+            <TabsList>
+              <TabsTrigger value="requests" className="gap-1.5">
+                <Bug className="h-4 w-4" />
+                Support Requests
+              </TabsTrigger>
+              <TabsTrigger value="documentation" className="gap-1.5">
+                <FileText className="h-4 w-4" />
+                Documentation
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
+        {activeTab === 'documentation' ? (
+          <DocumentationManager />
+        ) : (
+          <>
+            {/* Stats Badges */}
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="px-3 py-1.5 text-sm">
+                <Bug className="h-4 w-4 mr-1.5 text-destructive" />
+                {bugCount} Bugs
+              </Badge>
+              <Badge variant="outline" className="px-3 py-1.5 text-sm">
+                <Lightbulb className="h-4 w-4 mr-1.5 text-primary" />
+                {featureCount} Features
+              </Badge>
+            </div>
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Type Tabs */}
@@ -233,8 +250,10 @@ const SuperAdminCustomerSuccess = () => {
                 </ScrollArea>
               </div>
             );
-          })}
-        </div>
+            })}
+          </div>
+        </>
+        )}
       </div>
 
       {/* Detail Sheet */}
