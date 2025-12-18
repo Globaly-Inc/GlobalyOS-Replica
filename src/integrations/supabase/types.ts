@@ -219,6 +219,57 @@ export type Database = {
           },
         ]
       }
+      api_documentation: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          example_request: Json | null
+          example_response: Json | null
+          function_name: string
+          id: string
+          is_active: boolean | null
+          is_public: boolean | null
+          last_scanned_at: string | null
+          method: string | null
+          request_schema: Json | null
+          response_schema: Json | null
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          example_request?: Json | null
+          example_response?: Json | null
+          function_name: string
+          id?: string
+          is_active?: boolean | null
+          is_public?: boolean | null
+          last_scanned_at?: string | null
+          method?: string | null
+          request_schema?: Json | null
+          response_schema?: Json | null
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          example_request?: Json | null
+          example_response?: Json | null
+          function_name?: string
+          id?: string
+          is_active?: boolean | null
+          is_public?: boolean | null
+          last_scanned_at?: string | null
+          method?: string | null
+          request_schema?: Json | null
+          response_schema?: Json | null
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       attendance_hour_balances: {
         Row: {
           created_at: string
@@ -5192,6 +5243,110 @@ export type Database = {
           },
         ]
       }
+      support_articles: {
+        Row: {
+          category_id: string | null
+          content: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          helpful_no: number | null
+          helpful_yes: number | null
+          id: string
+          is_featured: boolean | null
+          is_published: boolean | null
+          module: string
+          screenshots: Json | null
+          slug: string
+          sort_order: number | null
+          title: string
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          helpful_no?: number | null
+          helpful_yes?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          module: string
+          screenshots?: Json | null
+          slug: string
+          sort_order?: number | null
+          title: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          helpful_no?: number | null
+          helpful_yes?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          module?: string
+          screenshots?: Json | null
+          slug?: string
+          sort_order?: number | null
+          title?: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "support_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       support_request_activity_logs: {
         Row: {
           action_type: string
@@ -5367,6 +5522,53 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_screenshots: {
+        Row: {
+          article_id: string | null
+          captured_at: string | null
+          created_at: string | null
+          description: string | null
+          error_message: string | null
+          id: string
+          route_path: string
+          status: string | null
+          storage_path: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          captured_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          route_path: string
+          status?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          captured_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          route_path?: string
+          status?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_screenshots_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "support_articles"
             referencedColumns: ["id"]
           },
         ]
