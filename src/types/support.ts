@@ -103,7 +103,7 @@ export interface UpdateSupportRequestInput {
 
 export const STATUS_CONFIG: Record<SupportRequestStatus, { label: string; color: string }> = {
   new: { label: 'New', color: 'bg-blue-500' },
-  triaging: { label: 'Triaging', color: 'bg-yellow-500' },
+  triaging: { label: 'Planning', color: 'bg-yellow-500' },
   in_progress: { label: 'In Progress', color: 'bg-purple-500' },
   resolved: { label: 'Resolved', color: 'bg-green-500' },
   closed: { label: 'Closed', color: 'bg-gray-500' },
