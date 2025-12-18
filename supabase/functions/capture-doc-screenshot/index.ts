@@ -278,8 +278,11 @@ serve(async (req) => {
     // Add script injection if we have any scripts
     if (addScriptTag.length > 0) {
       browserlessPayload.addScriptTag = addScriptTag;
-      // Wait longer for scripts to execute and auth to settle
-      browserlessPayload.waitFor = sessionCookies.length > 0 ? 5000 : 2000;
+    }
+    
+    // Use waitForTimeout for scripts to execute (Browserless v2 API)
+    if (addScriptTag.length > 0 || sessionCookies.length > 0) {
+      browserlessPayload.waitForTimeout = sessionCookies.length > 0 ? 5000 : 2000;
     }
 
     console.log(`Browserless payload: cookies=${sessionCookies.length}, scripts=${addScriptTag.length}`);
