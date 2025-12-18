@@ -28,6 +28,7 @@ import {
   Shield,
   User as UserIcon,
   Zap,
+  TrendingUp,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, startOfDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,25 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
     
     return counts;
   }, [activities, activityPeriod]);
+
+  const topVisitedPages = useMemo(() => {
+    const pageCounts: Record<string, { path: string; title: string | null; count: number }> = {};
+    
+    pageVisits.forEach((visit) => {
+      if (!pageCounts[visit.page_path]) {
+        pageCounts[visit.page_path] = {
+          path: visit.page_path,
+          title: visit.page_title,
+          count: 0
+        };
+      }
+      pageCounts[visit.page_path].count++;
+    });
+    
+    return Object.values(pageCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [pageVisits]);
 
   useEffect(() => {
     if (!user?.id || !open) return;
@@ -400,6 +420,36 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Section 5: Top 10 Most Visited Pages */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Top Pages</span>
+                </div>
+                {topVisitedPages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No page visits recorded</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {topVisitedPages.map((page, index) => (
+                      <div key={page.path} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                        <span className="text-xs font-bold text-muted-foreground w-4 text-center">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{page.path}</p>
+                          {page.title && page.title !== page.path && (
+                            <p className="text-[10px] text-muted-foreground truncate">{page.title}</p>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {page.count} {page.count === 1 ? 'visit' : 'visits'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </TabsContent>
 
