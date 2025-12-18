@@ -381,7 +381,7 @@ Return a valid JSON array of article objects. Each article should cover a differ
     try {
       let jsonStr = aiContent.trim();
       
-      // Try to extract JSON from markdown code blocks
+      // Try to extract JSON from markdown code blocks (handle multiple possible formats)
       const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         jsonStr = jsonMatch[1].trim();
@@ -411,6 +411,29 @@ Return a valid JSON array of article objects. Each article should cover a differ
           }
         }
       }
+      
+      // Sanitize control characters that break JSON parsing
+      // Replace problematic control characters inside strings while preserving valid \n, \t, \r
+      jsonStr = jsonStr
+        // First, temporarily encode valid escape sequences
+        .replace(/\\n/g, '{{NEWLINE}}')
+        .replace(/\\t/g, '{{TAB}}')
+        .replace(/\\r/g, '{{CR}}')
+        .replace(/\\\\/g, '{{BACKSLASH}}')
+        // Remove raw control characters (except actual newlines that are part of JSON structure)
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+        // Replace actual newlines/tabs inside string values (between quotes) with escaped versions
+        .replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
+          return match
+            .replace(/\n/g, '\\n')
+            .replace(/\t/g, '\\t')
+            .replace(/\r/g, '\\r');
+        })
+        // Restore valid escape sequences
+        .replace(/\{\{NEWLINE\}\}/g, '\\n')
+        .replace(/\{\{TAB\}\}/g, '\\t')
+        .replace(/\{\{CR\}\}/g, '\\r')
+        .replace(/\{\{BACKSLASH\}\}/g, '\\\\');
       
       articles = JSON.parse(jsonStr);
       
