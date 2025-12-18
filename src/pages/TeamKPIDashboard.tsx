@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
@@ -66,7 +67,9 @@ import {
   LayoutGrid,
   Eye,
   Globe,
+  Sparkles,
 } from "lucide-react";
+import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
 import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
@@ -102,9 +105,11 @@ const getCurrentYear = () => new Date().getFullYear();
 
 const TeamKPIDashboard = () => {
   const { user } = useAuth();
-  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { buildOrgPath } = useOrgNavigation();
   
   const [viewMode, setViewMode] = useState<"quarterly" | "annual">("quarterly");
   const [quarter, setQuarter] = useState(getCurrentQuarter());
@@ -670,6 +675,17 @@ const TeamKPIDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            {(isOwner || isAdmin || isHR) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="px-2 sm:px-3 ai-gradient-border"
+                onClick={() => navigate(buildOrgPath("/kpi/bulk-create"))}
+              >
+                <Sparkles className="h-4 w-4 sm:mr-1 ai-gradient-icon" />
+                <span className="hidden sm:inline">AI Bulk Create</span>
+              </Button>
+            )}
             <KPITemplatesDialog>
               <Button variant="outline" size="sm" className="px-2 sm:px-3">
                 <FileText className="h-4 w-4 sm:mr-1" />
