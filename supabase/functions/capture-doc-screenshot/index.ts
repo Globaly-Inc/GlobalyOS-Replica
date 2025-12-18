@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { screenshotId, highlightSelector, annotation } = await req.json();
+    const { screenshotId, highlightSelector, annotation, privacyMasks } = await req.json();
 
     if (!screenshotId) {
       throw new Error('screenshotId is required');
@@ -57,8 +57,54 @@ serve(async (req) => {
     // Get the effective highlight selector
     const effectiveHighlightSelector = highlightSelector || screenshot.highlight_selector;
 
-    // Build script to inject for highlighting elements
+    // Build script to inject for privacy masking
     let addScriptTag: any[] = [];
+    
+    // Add privacy masking script first (runs before highlighting)
+    if (privacyMasks && Array.isArray(privacyMasks) && privacyMasks.length > 0) {
+      const masksJson = JSON.stringify(privacyMasks);
+      addScriptTag.push({
+        content: `
+          (function() {
+            const masks = ${masksJson};
+            
+            // Demo names for replacement
+            const demoNames = ['Alex Johnson', 'Sarah Smith', 'John Doe', 'Emily Davis', 'Michael Brown', 'Jessica Wilson'];
+            let nameIndex = 0;
+            
+            // Apply privacy masks
+            masks.forEach(mask => {
+              const elements = document.querySelectorAll(mask.selector);
+              elements.forEach(el => {
+                if (mask.type === 'blur') {
+                  el.style.filter = 'blur(8px)';
+                  el.style.transition = 'none';
+                } else if (mask.type === 'replace') {
+                  if (mask.selector.includes('name') || mask.selector.includes('Name')) {
+                    el.textContent = demoNames[nameIndex % demoNames.length];
+                    nameIndex++;
+                  } else if (mask.replacement) {
+                    el.textContent = mask.replacement;
+                  }
+                } else if (mask.type === 'hide') {
+                  el.style.visibility = 'hidden';
+                }
+              });
+            });
+            
+            // Also apply common privacy patterns
+            // Blur all avatar images
+            document.querySelectorAll('.avatar img, [class*="avatar"] img, img[class*="profile"]').forEach(img => {
+              img.style.filter = 'blur(8px)';
+            });
+            
+            console.log('Privacy masks applied:', masks.length);
+          })();
+        `
+      });
+    }
+
+    // Build script to inject for highlighting elements
     if (effectiveHighlightSelector) {
       addScriptTag.push({
         content: `
