@@ -1,0 +1,404 @@
+import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { 
+  Globe, 
+  Building, 
+  MapPin, 
+  Users, 
+  Upload, 
+  FileText, 
+  ChevronDown,
+  X,
+  Sparkles
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/hooks/useOrganization";
+import type { BulkKpiWizardState } from "@/pages/BulkKpiCreate";
+
+interface Props {
+  state: BulkKpiWizardState;
+  updateState: (updates: Partial<BulkKpiWizardState>) => void;
+}
+
+const quarters = [1, 2, 3, 4];
+const years = [2024, 2025, 2026];
+
+export const BulkKpiContextStep = ({ state, updateState }: Props) => {
+  const { currentOrg } = useOrganization();
+  const [isDragging, setIsDragging] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Fetch departments
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("employees")
+        .select("department")
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "active")
+        .not("department", "is", null);
+      const unique = [...new Set(data?.map(e => e.department).filter(Boolean))];
+      return unique.sort();
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch offices
+  const { data: offices = [] } = useQuery({
+    queryKey: ["offices", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("offices")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch employees
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-for-kpi", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("employees")
+        .select("id, department, office_id, position, profiles(full_name)")
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "active")
+        .order("profiles(full_name)");
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      updateState({ 
+        documentContent: text,
+        documentName: file.name 
+      });
+    } catch (error) {
+      console.error("Error reading file:", error);
+    }
+  }, [updateState]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md"))) {
+      handleFileUpload(file);
+    }
+  }, [handleFileUpload]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const toggleCascade = (key: keyof typeof state.cascadeConfig) => {
+    updateState({
+      cascadeConfig: {
+        ...state.cascadeConfig,
+        [key]: !state.cascadeConfig[key],
+      },
+    });
+  };
+
+  const toggleDepartment = (dept: string) => {
+    const current = state.targetDepartments;
+    updateState({
+      targetDepartments: current.includes(dept)
+        ? current.filter(d => d !== dept)
+        : [...current, dept],
+    });
+  };
+
+  const toggleOffice = (officeId: string) => {
+    const current = state.targetOffices;
+    updateState({
+      targetOffices: current.includes(officeId)
+        ? current.filter(o => o !== officeId)
+        : [...current, officeId],
+    });
+  };
+
+  const cascadeLevels = [
+    { key: "includeOrganization" as const, icon: Globe, label: "Organization", description: "Company-wide strategic KPIs" },
+    { key: "includeDepartments" as const, icon: Building, label: "Departments", description: "Team-level KPIs" },
+    { key: "includeOffices" as const, icon: MapPin, label: "Offices", description: "Location-based KPIs" },
+    { key: "includeIndividuals" as const, icon: Users, label: "Individuals", description: "Personal KPIs for team members" },
+  ];
+
+  const selectedFiltersCount = state.targetDepartments.length + state.targetOffices.length + state.targetEmployees.length;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left Column - Period & Cascade */}
+      <div className="space-y-6">
+        {/* Period Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Time Period</CardTitle>
+            <CardDescription>Select the quarter and year for KPIs</CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-4">
+            <div className="flex-1">
+              <Label>Quarter</Label>
+              <Select
+                value={state.quarter.toString()}
+                onValueChange={(v) => updateState({ quarter: parseInt(v) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {quarters.map(q => (
+                    <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Label>Year</Label>
+              <Select
+                value={state.year.toString()}
+                onValueChange={(v) => updateState({ year: parseInt(v) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map(y => (
+                    <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cascade Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">KPI Cascade Levels</CardTitle>
+            <CardDescription>Choose which levels to generate KPIs for</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {cascadeLevels.map(({ key, icon: Icon, label, description }) => (
+              <div 
+                key={key}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors
+                  ${state.cascadeConfig[key] ? 'bg-primary/5 border-primary/20' : 'bg-muted/50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-md ${state.cascadeConfig[key] ? 'bg-primary/10' : 'bg-muted'}`}>
+                    <Icon className={`h-4 w-4 ${state.cascadeConfig[key] ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{label}</p>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={state.cascadeConfig[key]}
+                  onCheckedChange={() => toggleCascade(key)}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <Card>
+          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      Target Filters
+                      {selectedFiltersCount > 0 && (
+                        <Badge variant="secondary">{selectedFiltersCount} selected</Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>Optional: Limit KPI generation to specific teams</CardDescription>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-0">
+                {/* Departments */}
+                {state.cascadeConfig.includeDepartments && departments.length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">Departments</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {departments.map(dept => (
+                        <Badge
+                          key={dept}
+                          variant={state.targetDepartments.includes(dept) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => toggleDepartment(dept)}
+                        >
+                          {dept}
+                        </Badge>
+                      ))}
+                    </div>
+                    {state.targetDepartments.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">All departments included</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Offices */}
+                {state.cascadeConfig.includeOffices && offices.length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">Offices</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {offices.map(office => (
+                        <Badge
+                          key={office.id}
+                          variant={state.targetOffices.includes(office.id) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => toggleOffice(office.id)}
+                        >
+                          {office.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {state.targetOffices.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">All offices included</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      </div>
+
+      {/* Right Column - Document Upload */}
+      <div className="space-y-6">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 ai-gradient-icon" />
+              Reference Documents
+            </CardTitle>
+            <CardDescription>
+              Upload strategy documents, OKRs, or business plans to generate context-aware KPIs
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Upload Zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors
+                ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}
+                ${state.documentContent ? 'bg-muted/50' : ''}`}
+            >
+              {state.documentContent ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div className="text-left">
+                      <p className="font-medium">{state.documentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {state.documentContent.length.toLocaleString()} characters
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateState({ documentContent: "", documentName: "" })}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-sm font-medium mb-1">Drop your document here</p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Supports .txt and .md files
+                  </p>
+                  <label>
+                    <input
+                      type="file"
+                      accept=".txt,.md"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                    />
+                    <Button variant="outline" asChild>
+                      <span className="cursor-pointer">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Browse Files
+                      </span>
+                    </Button>
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Preview */}
+            {state.documentContent && (
+              <div className="space-y-2">
+                <Label>Document Preview</Label>
+                <div className="bg-muted rounded-lg p-3 max-h-64 overflow-y-auto">
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                    {state.documentContent.slice(0, 2000)}
+                    {state.documentContent.length > 2000 && "..."}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {!state.documentContent && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Tip:</strong> While optional, uploading a strategy document helps AI generate 
+                  more relevant and aligned KPIs based on your organization's actual goals.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};

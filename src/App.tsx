@@ -48,6 +48,7 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const PerformanceReviews = lazy(() => import('./pages/PerformanceReviews'));
 const TeamKPIDashboard = lazy(() => import('./pages/TeamKPIDashboard'));
 const KpiDetail = lazy(() => import('./pages/KpiDetail'));
+const BulkKpiCreate = lazy(() => import('./pages/BulkKpiCreate'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Wiki = lazy(() => import('./pages/Wiki'));
 const AskAI = lazy(() => import('./pages/AskAI'));
@@ -126,6 +127,7 @@ const App = () => (
                   <Route path="growth" element={<OrgProtectedRoute><Growth /></OrgProtectedRoute>} />
                   <Route path="calendar" element={<OrgProtectedRoute><CalendarPage /></OrgProtectedRoute>} />
                   <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} />
+                  <Route path="kpi/bulk-create" element={<OrgProtectedRoute><BulkKpiCreate /></OrgProtectedRoute>} />
                   <Route path="kpi/:kpiId" element={<OrgProtectedRoute><KpiDetail /></OrgProtectedRoute>} />
                   <Route path="leave" element={<OrgProtectedRoute><Leave /></OrgProtectedRoute>} />
                   <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} />
