@@ -281,40 +281,8 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="flex-1 m-0 p-4 space-y-4">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-4 gap-2">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
-                  <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 mx-auto mb-0.5" />
-                  <p className="text-base font-bold text-blue-700 dark:text-blue-300">{stats.totalVisits}</p>
-                  <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80">Visits</p>
-                </div>
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
-                  <Activity className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mx-auto mb-0.5" />
-                  <p className="text-base font-bold text-green-700 dark:text-green-300">{stats.totalActivities}</p>
-                  <p className="text-[10px] text-green-600/80 dark:text-green-400/80">Actions</p>
-                </div>
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 text-center">
-                  <Globe className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mx-auto mb-0.5" />
-                  <p className="text-base font-bold text-purple-700 dark:text-purple-300">{stats.uniquePages}</p>
-                  <p className="text-[10px] text-purple-600/80 dark:text-purple-400/80">Pages</p>
-                </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 text-center">
-                  <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mx-auto mb-0.5" />
-                  <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-tight">
-                    {stats.lastActive ? formatDistanceToNow(new Date(stats.lastActive), { addSuffix: false }) : 'Never'}
-                  </p>
-                  <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80">Last Active</p>
-                </div>
-              </div>
-
-              {/* User Info Row */}
+              {/* Section 1: Role + Joined */}
               <div className="flex items-center gap-4 text-sm bg-muted/50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Joined:</span>
-                  <span className="font-medium">{format(new Date(user.created_at), "d MMM yyyy")}</span>
-                </div>
-                <div className="h-4 w-px bg-border" />
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground shrink-0">Roles:</span>
@@ -326,9 +294,15 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
                     )) : <span className="text-muted-foreground text-xs">None</span>}
                   </div>
                 </div>
+                <div className="h-4 w-px bg-border" />
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Joined:</span>
+                  <span className="font-medium">{format(new Date(user.created_at), "d MMM yyyy")}</span>
+                </div>
               </div>
 
-              {/* Organizations */}
+              {/* Section 2: Organizations */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -356,7 +330,39 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
                 )}
               </div>
 
-              {/* Activity Breakdown */}
+              {/* Section 3: Overview Stats */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Overview</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
+                    <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 mx-auto mb-0.5" />
+                    <p className="text-base font-bold text-blue-700 dark:text-blue-300">{stats.totalVisits}</p>
+                    <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80">Visits</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                    <Activity className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mx-auto mb-0.5" />
+                    <p className="text-base font-bold text-green-700 dark:text-green-300">{stats.totalActivities}</p>
+                    <p className="text-[10px] text-green-600/80 dark:text-green-400/80">Actions</p>
+                  </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 text-center">
+                    <Globe className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mx-auto mb-0.5" />
+                    <p className="text-base font-bold text-purple-700 dark:text-purple-300">{stats.uniquePages}</p>
+                    <p className="text-[10px] text-purple-600/80 dark:text-purple-400/80">Pages</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 text-center">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mx-auto mb-0.5" />
+                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-tight">
+                      {stats.lastActive ? formatDistanceToNow(new Date(stats.lastActive), { addSuffix: false }) : 'Never'}
+                    </p>
+                    <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80">Last Active</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Activity Breakdown */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
