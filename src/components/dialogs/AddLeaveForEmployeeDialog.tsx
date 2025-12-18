@@ -3,17 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CalendarIcon, Plus } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CalendarIcon, Plus, Search, UserPlus } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface LeaveType {
   id: string;
@@ -22,7 +24,7 @@ interface LeaveType {
 }
 
 interface AddLeaveForEmployeeDialogProps {
-  employeeId: string;
+  employeeId?: string;
   employeeName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,8 +32,8 @@ interface AddLeaveForEmployeeDialogProps {
 }
 
 export const AddLeaveForEmployeeDialog = ({
-  employeeId,
-  employeeName,
+  employeeId: initialEmployeeId,
+  employeeName: initialEmployeeName,
   open,
   onOpenChange,
   onSuccess
@@ -40,6 +42,8 @@ export const AddLeaveForEmployeeDialog = ({
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [employeeId, setEmployeeId] = useState<string>(initialEmployeeId || "");
+  const [employeeSearch, setEmployeeSearch] = useState("");
   const [leaveTypeId, setLeaveTypeId] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
@@ -47,10 +51,43 @@ export const AddLeaveForEmployeeDialog = ({
   const [reason, setReason] = useState<string>("");
   const [status, setStatus] = useState<string>("approved");
 
+  // Fetch employees when no initial employee provided
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-for-leave-add", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("employees")
+        .select(`
+          id,
+          position,
+          department,
+          profiles!inner(full_name, avatar_url)
+        `)
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "active")
+        .order("profiles(full_name)");
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id && open && !initialEmployeeId
+  });
+
+  const filteredEmployees = employees.filter(emp => {
+    const name = (emp.profiles as any)?.full_name?.toLowerCase() || "";
+    return name.includes(employeeSearch.toLowerCase());
+  });
+
+  const selectedEmployee = employees.find(e => e.id === employeeId);
+  const displayName = initialEmployeeName || (selectedEmployee?.profiles as any)?.full_name || "";
+
   useEffect(() => {
     if (open && currentOrg) {
       loadLeaveTypes();
       // Reset form
+      setEmployeeId(initialEmployeeId || "");
+      setEmployeeSearch("");
       setLeaveTypeId("");
       setStartDate(undefined);
       setEndDate(undefined);
@@ -58,7 +95,7 @@ export const AddLeaveForEmployeeDialog = ({
       setReason("");
       setStatus("approved");
     }
-  }, [open, currentOrg?.id]);
+  }, [open, currentOrg?.id, initialEmployeeId]);
 
   // Force end_date to match start_date for half-day leaves
   useEffect(() => {
@@ -87,8 +124,22 @@ export const AddLeaveForEmployeeDialog = ({
     return differenceInCalendarDays(endDate, startDate) + 1;
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!employeeId) {
+      toast.error("Please select a team member");
+      return;
+    }
     
     if (!leaveTypeId || !startDate || !endDate) {
       toast.error("Please fill in all required fields");
@@ -134,15 +185,23 @@ export const AddLeaveForEmployeeDialog = ({
 
       // Notify employee about the added leave
       if (currentEmployee) {
-        await supabase.from("notifications").insert({
-          user_id: (await supabase.from("employees").select("user_id").eq("id", employeeId).single()).data?.user_id,
-          organization_id: currentOrg?.id,
-          type: "leave_added",
-          title: "Leave Added",
-          message: `${selectedLeaveType.name} leave (${daysCount} day${daysCount !== 1 ? 's' : ''}) was added to your record by HR/Admin`,
-          reference_type: "leave_request",
-          actor_id: currentEmployee.id
-        });
+        const { data: targetEmployee } = await supabase
+          .from("employees")
+          .select("user_id")
+          .eq("id", employeeId)
+          .single();
+          
+        if (targetEmployee?.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: targetEmployee.user_id,
+            organization_id: currentOrg?.id,
+            type: "leave_added",
+            title: "Leave Added",
+            message: `${selectedLeaveType.name} leave (${daysCount} day${daysCount !== 1 ? 's' : ''}) was added to your record by HR/Admin`,
+            reference_type: "leave_request",
+            actor_id: currentEmployee.id
+          });
+        }
       }
 
       toast.success("Leave added successfully");
@@ -158,18 +217,101 @@ export const AddLeaveForEmployeeDialog = ({
   };
 
   const isHalfDay = halfDayType !== "full";
+  const showEmployeeSelector = !initialEmployeeId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Leave for Employee</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Add Leave for Team Member
+            </DialogTitle>
             <DialogDescription>
-              Add leave record for {employeeName || "this employee"}. This will be recorded in their leave history.
+              {displayName 
+                ? `Add leave record for ${displayName}`
+                : "Select a team member and add leave to their record"
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Employee Selector (only show when not pre-selected) */}
+            {showEmployeeSelector && (
+              <div className="space-y-2">
+                <Label>Team Member *</Label>
+                {!employeeId ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search team member..."
+                        value={employeeSearch}
+                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <div className="max-h-[180px] overflow-y-auto border rounded-md">
+                      {filteredEmployees.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No team members found
+                        </div>
+                      ) : (
+                        filteredEmployees.map((emp) => (
+                          <button
+                            type="button"
+                            key={emp.id}
+                            onClick={() => {
+                              setEmployeeId(emp.id);
+                              setEmployeeSearch("");
+                            }}
+                            className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 text-left border-b last:border-b-0"
+                          >
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={(emp.profiles as any)?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {getInitials((emp.profiles as any)?.full_name || "")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">
+                                {(emp.profiles as any)?.full_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {emp.position} • {emp.department}
+                              </p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={(selectedEmployee?.profiles as any)?.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {getInitials((selectedEmployee?.profiles as any)?.full_name || "")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">
+                          {(selectedEmployee?.profiles as any)?.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedEmployee?.position}
+                        </p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setEmployeeId("")}>
+                      Change
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid gap-2">
               <Label htmlFor="leave-type">Leave Type *</Label>
               <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
@@ -195,15 +337,15 @@ export const AddLeaveForEmployeeDialog = ({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="full" id="add-full" />
-                  <Label htmlFor="add-full" className="cursor-pointer">Full Day</Label>
+                  <Label htmlFor="add-full" className="cursor-pointer font-normal">Full Day</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="first_half" id="add-first_half" />
-                  <Label htmlFor="add-first_half" className="cursor-pointer">First Half</Label>
+                  <Label htmlFor="add-first_half" className="cursor-pointer font-normal">First Half</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="second_half" id="add-second_half" />
-                  <Label htmlFor="add-second_half" className="cursor-pointer">Second Half</Label>
+                  <Label htmlFor="add-second_half" className="cursor-pointer font-normal">Second Half</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -214,6 +356,7 @@ export const AddLeaveForEmployeeDialog = ({
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
@@ -240,6 +383,7 @@ export const AddLeaveForEmployeeDialog = ({
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
@@ -256,6 +400,7 @@ export const AddLeaveForEmployeeDialog = ({
                         selected={endDate}
                         onSelect={setEndDate}
                         initialFocus
+                        disabled={(date) => startDate ? date < startDate : false}
                       />
                     </PopoverContent>
                   </Popover>
@@ -271,8 +416,8 @@ export const AddLeaveForEmployeeDialog = ({
               )}
             </div>
 
-            {!isHalfDay && (
-              <div className="text-sm text-muted-foreground">
+            {!isHalfDay && startDate && endDate && (
+              <div className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
                 Total: <span className="font-medium text-foreground">{calculateDays()}</span> day(s)
               </div>
             )}
