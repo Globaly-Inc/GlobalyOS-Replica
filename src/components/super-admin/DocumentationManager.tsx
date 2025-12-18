@@ -45,10 +45,12 @@ import {
   useUpdateApiDoc,
   useCaptureModuleScreenshots,
   useAnalyzeAllScreenshots,
+  useScreenshotRoutes,
   SUPPORT_MODULES,
   SupportArticle,
   SupportCategory,
   SupportScreenshot,
+  ScreenshotRoute,
   ApiDocumentation,
 } from '@/services/useSupportArticles';
 import { useAISmartCapture, useCaptureAllPending, PrivacyOptions } from '@/services/useSupportScreenshots';
@@ -690,7 +692,8 @@ const CategoriesManager = () => {
 
 // Screenshots Manager
 const ScreenshotsManager = () => {
-  const { data: screenshots, isLoading } = useSupportScreenshots();
+  const { data: screenshots, isLoading: screenshotsLoading } = useSupportScreenshots();
+  const { data: routes, isLoading: routesLoading } = useScreenshotRoutes();
   const { data: articles } = useSupportArticles();
   const createScreenshot = useCreateScreenshot();
   const deleteScreenshot = useDeleteScreenshot();
@@ -710,6 +713,7 @@ const ScreenshotsManager = () => {
     blurAvatars: true,
     hideEmails: true,
   });
+  const [activeTab, setActiveTab] = useState<'routes' | 'screenshots'>('routes');
 
   const handleCreate = async () => {
     if (!newScreenshot.route_path) {
@@ -753,8 +757,15 @@ const ScreenshotsManager = () => {
   };
 
   const pendingCount = screenshots?.filter(s => s.status === 'pending').length || 0;
-
   const unanalyzedCount = screenshots?.filter(s => s.status === 'completed' && !s.is_analyzed).length || 0;
+  const routeCount = routes?.length || 0;
+
+  // Group routes by module
+  const routesByModule = routes?.reduce<Record<string, ScreenshotRoute[]>>((acc, route) => {
+    if (!acc[route.module]) acc[route.module] = [];
+    acc[route.module].push(route);
+    return acc;
+  }, {}) || {};
 
   const handleCaptureModule = async () => {
     if (!selectedModule) {
@@ -778,16 +789,96 @@ const ScreenshotsManager = () => {
             AI Smart Capture
           </CardTitle>
           <CardDescription>
-            Automatically analyze articles and capture relevant screenshots with privacy masking
+            Capture screenshots of all app modules and analyze with AI for documentation
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 border-r pr-4">
+              <Label className="text-sm">Org Slug:</Label>
+              <Input
+                value={orgSlug}
+                onChange={(e) => setOrgSlug(e.target.value)}
+                placeholder="globalyhub"
+                className="w-32"
+              />
+            </div>
+
+            <Select value={selectedModule} onValueChange={setSelectedModule}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select module" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORT_MODULES.map((mod) => (
+                  <SelectItem key={mod.id} value={mod.id}>{mod.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleCaptureModule}
+              disabled={!selectedModule || captureModuleScreenshots.isPending}
+            >
+              {captureModuleScreenshots.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              Capture Module
+            </Button>
+
+            <Button 
+              className="gap-2"
+              onClick={handleCaptureAll}
+              disabled={captureModuleScreenshots.isPending}
+            >
+              {captureModuleScreenshots.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              Capture All ({routeCount} routes)
+            </Button>
+
+            {pendingCount > 0 && (
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => captureAllPending.mutate()}
+                disabled={captureAllPending.isPending}
+              >
+                {captureAllPending.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Pending ({pendingCount})
+              </Button>
+            )}
+
+            {unanalyzedCount > 0 && (
+              <Button 
+                variant="secondary" 
+                className="gap-2"
+                onClick={() => analyzeAllScreenshots.mutate(selectedModule || undefined)}
+                disabled={analyzeAllScreenshots.isPending}
+              >
+                {analyzeAllScreenshots.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Analyze ({unanalyzedCount})
+              </Button>
+            )}
+
             <Dialog open={smartCaptureOpen} onOpenChange={setSmartCaptureOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button variant="outline" className="gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Smart Capture
+                  Article Smart Capture
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
@@ -815,18 +906,6 @@ const ScreenshotsManager = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Organization Slug</Label>
-                    <Input
-                      value={orgSlug}
-                      onChange={(e) => setOrgSlug(e.target.value)}
-                      placeholder="globalyhub"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Used for route URLs (e.g., /org/globalyhub/team)
-                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -900,180 +979,208 @@ const ScreenshotsManager = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => captureAllPending.mutate()}
-              disabled={captureAllPending.isPending || pendingCount === 0}
-            >
-              {captureAllPending.isPending ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Capture Pending ({pendingCount})
-            </Button>
-
-            <Select value={selectedModule} onValueChange={setSelectedModule}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Select module" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUPPORT_MODULES.map((mod) => (
-                  <SelectItem key={mod.id} value={mod.id}>{mod.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={handleCaptureModule}
-              disabled={!selectedModule || captureModuleScreenshots.isPending}
-            >
-              {captureModuleScreenshots.isPending ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
-              Capture Module
-            </Button>
-
-            <Button 
-              className="gap-2"
-              onClick={handleCaptureAll}
-              disabled={captureModuleScreenshots.isPending}
-            >
-              {captureModuleScreenshots.isPending ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
-              Capture All Modules
-            </Button>
-
-            {unanalyzedCount > 0 && (
-              <Button 
-                variant="secondary" 
-                className="gap-2"
-                onClick={() => analyzeAllScreenshots.mutate(selectedModule || undefined)}
-                disabled={analyzeAllScreenshots.isPending}
-              >
-                {analyzeAllScreenshots.isPending ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                Analyze ({unanalyzedCount})
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Add Screenshot Route</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              placeholder="Route path (e.g., /org/demo/team)"
-              value={newScreenshot.route_path}
-              onChange={(e) => setNewScreenshot((prev) => ({ ...prev, route_path: e.target.value }))}
-            />
-            <Input
-              placeholder="Description"
-              value={newScreenshot.description}
-              onChange={(e) => setNewScreenshot((prev) => ({ ...prev, description: e.target.value }))}
-            />
-            <Select 
-              value={newScreenshot.article_id || 'none'} 
-              onValueChange={(value) => setNewScreenshot((prev) => ({ ...prev, article_id: value === 'none' ? '' : value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Link to article" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No article</SelectItem>
-                {articles?.map((article) => (
-                  <SelectItem key={article.id} value={article.id}>{article.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button className="mt-4" onClick={handleCreate} disabled={createScreenshot.isPending}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Route
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Tabs for Routes vs Screenshots */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'routes' | 'screenshots')}>
+        <TabsList>
+          <TabsTrigger value="routes" className="gap-2">
+            Routes Registry
+            <Badge variant="secondary" className="ml-1">{routeCount}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="screenshots" className="gap-2">
+            Captured Screenshots
+            <Badge variant="secondary" className="ml-1">{screenshots?.length || 0}</Badge>
+          </TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Screenshot Routes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {screenshots?.map((screenshot) => (
-                <div key={screenshot.id} className="p-3 border rounded-lg flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="font-mono text-sm">{screenshot.route_path}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {screenshot.description || 'No description'}
-                      {' • '}
-                      <Badge variant={
-                        screenshot.status === 'completed' ? 'default' : 
-                        screenshot.status === 'failed' ? 'destructive' : 
-                        screenshot.status === 'capturing' ? 'secondary' : 'outline'
-                      } className="text-xs">
-                        {screenshot.status === 'capturing' && (
-                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        )}
-                        {screenshot.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {screenshot.storage_path && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={screenshot.storage_path} target="_blank" rel="noopener noreferrer">
-                          View
-                        </a>
-                      </Button>
-                    )}
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => captureScreenshot.mutate(screenshot.id)}
-                      disabled={screenshot.status === 'capturing' || captureScreenshot.isPending}
-                    >
-                      <Camera className="h-4 w-4 mr-1" />
-                      Capture
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => deleteScreenshot.mutate(screenshot.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+        <TabsContent value="routes" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Capturable Routes</CardTitle>
+              <CardDescription>
+                Pre-defined routes across all modules that can be captured for documentation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {routesLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
                 </div>
-              ))}
-              {screenshots?.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">No screenshot routes configured.</p>
+              ) : Object.keys(routesByModule).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No routes configured. Run the migration to populate default routes.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(routesByModule).map(([module, moduleRoutes]) => (
+                    <div key={module} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="uppercase text-xs">{module}</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {moduleRoutes?.length} routes
+                        </span>
+                      </div>
+                      <div className="grid gap-2">
+                        {moduleRoutes?.map((route) => (
+                          <div key={route.id} className="p-3 border rounded-lg flex items-center justify-between bg-muted/30">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{route.feature_name}</span>
+                                {route.is_flow_step && route.flow_name && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {route.flow_name} #{route.flow_order}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="font-mono text-xs text-muted-foreground mt-1">
+                                {route.route_template}
+                              </div>
+                              {route.description && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {route.description}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {route.requires_auth && (
+                                <Badge variant="outline" className="text-xs">Auth</Badge>
+                              )}
+                              {route.requires_data && (
+                                <Badge variant="outline" className="text-xs">Data</Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="screenshots" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Add Custom Screenshot</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <Input
+                  placeholder="Route path (e.g., /org/demo/team)"
+                  value={newScreenshot.route_path}
+                  onChange={(e) => setNewScreenshot((prev) => ({ ...prev, route_path: e.target.value }))}
+                />
+                <Input
+                  placeholder="Description"
+                  value={newScreenshot.description}
+                  onChange={(e) => setNewScreenshot((prev) => ({ ...prev, description: e.target.value }))}
+                />
+                <Select 
+                  value={newScreenshot.article_id || 'none'} 
+                  onValueChange={(value) => setNewScreenshot((prev) => ({ ...prev, article_id: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Link to article" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No article</SelectItem>
+                    {articles?.map((article) => (
+                      <SelectItem key={article.id} value={article.id}>{article.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="mt-4" onClick={handleCreate} disabled={createScreenshot.isPending}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Route
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Captured Screenshots</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {screenshotsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
+                </div>
+              ) : screenshots?.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No screenshots captured yet. Use "Capture All" to get started.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {screenshots?.map((screenshot) => (
+                    <div key={screenshot.id} className="p-3 border rounded-lg flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm">{screenshot.route_path}</span>
+                          {screenshot.module && (
+                            <Badge variant="outline" className="text-xs">{screenshot.module}</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {screenshot.ai_description || screenshot.description || 'No description'}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={
+                            screenshot.status === 'completed' ? 'default' : 
+                            screenshot.status === 'failed' ? 'destructive' : 
+                            screenshot.status === 'capturing' ? 'secondary' : 'outline'
+                          } className="text-xs">
+                            {screenshot.status === 'capturing' && (
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            )}
+                            {screenshot.status}
+                          </Badge>
+                          {screenshot.is_analyzed && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              AI Analyzed
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {screenshot.storage_path && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={screenshot.storage_path} target="_blank" rel="noopener noreferrer">
+                              View
+                            </a>
+                          </Button>
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => captureScreenshot.mutate(screenshot.id)}
+                          disabled={screenshot.status === 'capturing' || captureScreenshot.isPending}
+                        >
+                          <Camera className="h-4 w-4 mr-1" />
+                          Recapture
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => deleteScreenshot.mutate(screenshot.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
         <CardContent className="pt-6">
