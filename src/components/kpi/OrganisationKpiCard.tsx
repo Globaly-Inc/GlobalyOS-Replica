@@ -1,10 +1,16 @@
 import { useState } from "react";
-import { Globe, ChevronDown, ChevronRight, Target, Link2, TrendingUp } from "lucide-react";
+import { Globe, ChevronDown, ChevronRight, Target, Link2, TrendingUp, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import type { OrganizationKpi, Kpi } from "@/types";
@@ -14,6 +20,9 @@ interface OrganisationKpiCardProps {
   kpi: OrganizationKpi;
   showLinkedKpis?: boolean;
   children?: Kpi[];
+  canEdit?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -43,6 +52,9 @@ export function OrganisationKpiCard({
   kpi, 
   showLinkedKpis = true,
   children = [],
+  canEdit = false,
+  onEdit,
+  onDelete,
 }: OrganisationKpiCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { orgCode } = useOrgNavigation();
@@ -79,6 +91,35 @@ export function OrganisationKpiCard({
                 <Link2 className="h-3 w-3" />
                 {childCount}
               </Badge>
+            )}
+            {canEdit && (onEdit || onDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </OrgLink>
+                  </DropdownMenuItem>
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>

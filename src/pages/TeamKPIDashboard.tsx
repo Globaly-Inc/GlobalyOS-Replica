@@ -65,12 +65,14 @@ import {
   Plus,
   LayoutGrid,
   Eye,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
 import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
 import { AddKPIDialog } from "@/components/dialogs/AddKPIDialog";
-import { useGroupKpis } from "@/services/useKpi";
+import { useGroupKpis, useOrganizationKpis } from "@/services/useKpi";
+import { OrganisationKpiCard } from "@/components/kpi";
 import {
   ChartContainer,
   ChartTooltip,
@@ -261,6 +263,12 @@ const TeamKPIDashboard = () => {
 
   // Fetch group KPIs
   const { data: groupKpis = [], isLoading: loadingGroupKpis } = useGroupKpis(
+    viewMode === "quarterly" ? quarter : undefined,
+    year
+  );
+
+  // Fetch organization KPIs
+  const { data: organizationKpis = [], isLoading: loadingOrgKpis } = useOrganizationKpis(
     viewMode === "quarterly" ? quarter : undefined,
     year
   );
@@ -1005,6 +1013,34 @@ const TeamKPIDashboard = () => {
                 </ToggleGroup>
               </div>
             </div>
+
+            {/* Organisation KPIs Section */}
+            {(isAdmin || isHR) && organizationKpis.length > 0 && (
+              <Card className="mb-4 sm:mb-6 border-l-4 border-l-indigo-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-indigo-600" />
+                    Organisation KPIs
+                    <Badge variant="secondary" className="ml-2 bg-indigo-100 text-indigo-700">
+                      {organizationKpis.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6">
+                  <div className="space-y-3">
+                    {organizationKpis.map((kpi) => (
+                      <OrganisationKpiCard 
+                        key={kpi.id} 
+                        kpi={kpi} 
+                        canEdit={isAdmin}
+                        onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
+                        onDelete={() => setDeletingKpiId(kpi.id)}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Group KPIs Section */}
             {(isAdmin || isHR) && groupKpis.length > 0 && (
