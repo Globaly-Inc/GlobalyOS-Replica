@@ -6,8 +6,10 @@
 import { useState } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
-  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink
+  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Check
 } from 'lucide-react';
+import { ArticleBulkActionsBar } from './ArticleBulkActionsBar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AIGenerateCard } from './AIGenerateCard';
 import { AIUpdateCard } from './AIUpdateCard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -112,8 +114,9 @@ export const DocumentationManager = () => {
 const ArticlesManager = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterModule, setFilterModule] = useState<string>('all');
-  const [editingArticle, setEditingArticle] = useState<SupportArticle | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const { data: articles, isLoading } = useSupportArticles();
   const { data: categories } = useSupportCategories();
@@ -128,6 +131,63 @@ const ArticlesManager = () => {
     return matchesSearch && matchesModule;
   });
 
+  // Selection helpers
+  const isArticleSelected = (id: string) => selectedArticles.includes(id);
+  
+  const toggleArticleSelection = (id: string) => {
+    setSelectedArticles(prev => 
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllArticles = () => {
+    if (filteredArticles) {
+      setSelectedArticles(filteredArticles.map(a => a.id));
+    }
+  };
+
+  const deselectAllArticles = () => {
+    setSelectedArticles([]);
+  };
+
+  // Bulk action handlers
+  const handleBulkPublish = async () => {
+    try {
+      await Promise.all(
+        selectedArticles.map(id => updateArticle.mutateAsync({ id, is_published: true }))
+      );
+      toast.success(`Published ${selectedArticles.length} article${selectedArticles.length > 1 ? 's' : ''}`);
+      setSelectedArticles([]);
+    } catch {
+      toast.error('Failed to publish some articles');
+    }
+  };
+
+  const handleBulkUnpublish = async () => {
+    try {
+      await Promise.all(
+        selectedArticles.map(id => updateArticle.mutateAsync({ id, is_published: false }))
+      );
+      toast.success(`Unpublished ${selectedArticles.length} article${selectedArticles.length > 1 ? 's' : ''}`);
+      setSelectedArticles([]);
+    } catch {
+      toast.error('Failed to unpublish some articles');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await Promise.all(selectedArticles.map(id => deleteArticle.mutateAsync(id)));
+      toast.success(`Deleted ${selectedArticles.length} article${selectedArticles.length > 1 ? 's' : ''}`);
+      setSelectedArticles([]);
+    } catch {
+      toast.error('Failed to delete some articles');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCreate = async (data: Partial<SupportArticle>) => {
     await createArticle.mutateAsync(data as { module: string; title: string; slug: string });
     setIsCreateOpen(false);
@@ -135,7 +195,6 @@ const ArticlesManager = () => {
 
   const handleUpdate = async (data: Partial<SupportArticle> & { id: string }) => {
     await updateArticle.mutateAsync(data);
-    setEditingArticle(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -148,6 +207,8 @@ const ArticlesManager = () => {
       is_published: !article.is_published 
     });
   };
+
+  const hasSelection = selectedArticles.length > 0;
 
   return (
     <div className="space-y-4">
@@ -192,69 +253,121 @@ const ArticlesManager = () => {
         </div>
       ) : (
         <div className="border rounded-lg divide-y">
-          {filteredArticles?.map((article) => (
-            <div key={article.id} className="p-4 flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium truncate">{article.title}</span>
-                  <Badge variant="outline" className="text-xs capitalize">{article.module}</Badge>
-                  {article.is_featured && <Badge className="text-xs">Featured</Badge>}
-                </div>
-                <p className="text-sm text-muted-foreground truncate">{article.excerpt}</p>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleTogglePublish(article)}
-                  title={article.is_published ? 'Unpublish' : 'Publish'}
-                >
-                  {article.is_published ? (
-                    <Eye className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
-                <ArticleDialog
-                  article={article}
-                  categories={categories || []}
-                  onSave={handleUpdate}
-                  trigger={
-                    <Button variant="ghost" size="icon">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  }
+          {filteredArticles?.map((article) => {
+            const isSelected = isArticleSelected(article.id);
+            return (
+              <div 
+                key={article.id} 
+                className={`p-4 flex items-center gap-3 transition-colors group hover:bg-muted/50 ${
+                  isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                }`}
+              >
+                {/* Checkbox */}
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => toggleArticleSelection(article.id)}
+                  className="opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"
                 />
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Article</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{article.title}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(article.id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium truncate">{article.title}</span>
+                    <Badge variant="outline" className="text-xs capitalize">{article.module}</Badge>
+                    {article.is_featured && <Badge className="text-xs">Featured</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate">{article.excerpt}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleTogglePublish(article)}
+                    title={article.is_published ? 'Unpublish' : 'Publish'}
+                  >
+                    {article.is_published ? (
+                      <Eye className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                  <ArticleDialog
+                    article={article}
+                    categories={categories || []}
+                    onSave={handleUpdate}
+                    trigger={
+                      <Button variant="ghost" size="icon">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Article</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{article.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(article.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {filteredArticles?.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">
               No articles found.
             </div>
           )}
         </div>
+      )}
+
+      {/* Bulk Actions Bar */}
+      {hasSelection && (
+        <AlertDialog>
+          <ArticleBulkActionsBar
+            selectedCount={selectedArticles.length}
+            totalItems={filteredArticles?.length || 0}
+            onSelectAll={selectAllArticles}
+            onDeselectAll={deselectAllArticles}
+            onPublish={handleBulkPublish}
+            onUnpublish={handleBulkUnpublish}
+            onDelete={() => {
+              // Trigger the AlertDialog
+              const deleteBtn = document.getElementById('bulk-delete-trigger');
+              deleteBtn?.click();
+            }}
+          />
+          <AlertDialogTrigger asChild>
+            <button id="bulk-delete-trigger" className="hidden" />
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedArticles.length} Articles</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedArticles.length} article{selectedArticles.length > 1 ? 's' : ''}? 
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkDelete} disabled={isDeleting}>
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
