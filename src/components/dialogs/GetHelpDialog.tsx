@@ -76,21 +76,28 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
     setScreenshotPreview(null);
   };
 
-  const handleImproveWithAI = async () => {
-    if (!title || !description) return;
+  const hasDescription = description.trim().length > 10;
+
+  const handleAIAssist = async () => {
+    if (!title) return;
 
     try {
       const result = await improveContent.mutateAsync({
         type,
         title,
-        description,
+        description: description || '',
         page_url: pageUrl,
+        mode: hasDescription ? 'improve' : 'suggest',
       });
 
-      setAiImprovedDescription(result.improved_description);
+      if (hasDescription) {
+        setAiImprovedDescription(result.improved_description);
+      } else {
+        setDescription(result.improved_description);
+      }
       setSuggestedPriority(result.suggested_priority);
     } catch (error) {
-      console.error('Failed to improve content:', error);
+      console.error('Failed to get AI assistance:', error);
     }
   };
 
@@ -189,15 +196,15 @@ export const GetHelpDialog = ({ open, onOpenChange }: GetHelpDialogProps) => {
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs ai-gradient-border"
-                onClick={handleImproveWithAI}
-                disabled={!title || !description || improveContent.isPending}
+                onClick={handleAIAssist}
+                disabled={!title || improveContent.isPending}
               >
                 {improveContent.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
                 ) : (
                   <Sparkles className="h-3 w-3 mr-1 ai-gradient-icon" />
                 )}
-                Improve with AI
+                {hasDescription ? 'Improve with AI' : 'Suggest with AI'}
               </Button>
             </div>
             <Textarea
