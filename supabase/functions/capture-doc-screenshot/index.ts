@@ -60,82 +60,23 @@ serve(async (req) => {
 
     console.log(`Capturing screenshot of: ${targetUrl}`);
 
-    // Use session tokens from request if provided (OTP-based auth flow)
-    let sessionCookies: any[] = [];
-    if (accessToken && refreshToken) {
-      console.log('Using provided session tokens for authentication');
-      
-      // Get the domain from app base URL
-      const appDomain = new URL(appBaseUrl).hostname;
-      
-      // Prepare cookies for Browserless
-      sessionCookies = [
-        {
-          name: 'sb-access-token',
-          value: accessToken,
-          domain: appDomain,
-          path: '/',
-          httpOnly: false,
-          secure: true,
-          sameSite: 'Lax',
-        },
-        {
-          name: 'sb-refresh-token',
-          value: refreshToken,
-          domain: appDomain,
-          path: '/',
-          httpOnly: false,
-          secure: true,
-          sameSite: 'Lax',
-        },
-      ];
-    } else {
-      console.log('No session tokens provided - capturing without auth');
-    }
+    // Get project ref from supabase URL (e.g., "rygowmzkvxgnxagqlyxf" from "https://rygowmzkvxgnxagqlyxf.supabase.co")
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] || 'rygowmzkvxgnxagqlyxf';
+
+    // Determine if we need authenticated capture (two-phase navigation)
+    const useAuthenticatedCapture = accessToken && refreshToken;
 
     // Get the effective highlight selector
     const effectiveHighlightSelector = highlightSelector || screenshot.highlight_selector;
+    const effectiveAnnotation = annotation || screenshot.description;
 
-    // Build script to inject for privacy masking
-    let addScriptTag: any[] = [];
-
-    // Inject auth tokens into localStorage before page loads
-    if (sessionCookies.length > 0) {
-      const accessToken = sessionCookies.find(c => c.name === 'sb-access-token')?.value;
-      const refreshToken = sessionCookies.find(c => c.name === 'sb-refresh-token')?.value;
-      
-      if (accessToken && refreshToken) {
-        // Get project ref from supabase URL (e.g., "rygowmzkvxgnxagqlyxf" from "https://rygowmzkvxgnxagqlyxf.supabase.co")
-        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] || 'rygowmzkvxgnxagqlyxf';
-        
-        addScriptTag.push({
-          content: `
-            (function() {
-              try {
-                // Set Supabase auth tokens in localStorage
-                const storageKey = 'sb-${projectRef}-auth-token';
-                const authData = {
-                  access_token: '${accessToken}',
-                  refresh_token: '${refreshToken}',
-                  token_type: 'bearer',
-                  expires_in: 3600,
-                  expires_at: Math.floor(Date.now() / 1000) + 3600,
-                };
-                localStorage.setItem(storageKey, JSON.stringify(authData));
-                console.log('Auth tokens injected into localStorage');
-              } catch (e) {
-                console.error('Failed to inject auth tokens:', e);
-              }
-            })();
-          `
-        });
-      }
-    }
+    // Build scripts for post-navigation (privacy masks, highlights, annotations)
+    let postNavigationScripts: any[] = [];
     
     // Add privacy masking script (runs after page loads)
     if (privacyMasks && Array.isArray(privacyMasks) && privacyMasks.length > 0) {
       const masksJson = JSON.stringify(privacyMasks);
-      addScriptTag.push({
+      postNavigationScripts.push({
         content: `
           (function() {
             const masks = ${masksJson};
@@ -178,7 +119,7 @@ serve(async (req) => {
 
     // Build script to inject for highlighting elements
     if (effectiveHighlightSelector) {
-      addScriptTag.push({
+      postNavigationScripts.push({
         content: `
           (function() {
             // Wait for page to load
@@ -203,9 +144,8 @@ serve(async (req) => {
     }
 
     // Add annotation overlay if provided
-    const effectiveAnnotation = annotation || screenshot.description;
     if (effectiveAnnotation && effectiveHighlightSelector) {
-      addScriptTag.push({
+      postNavigationScripts.push({
         content: `
           (function() {
             setTimeout(() => {
@@ -251,41 +191,131 @@ serve(async (req) => {
       });
     }
 
-    // Call Browserless.io screenshot API with enhanced options
-    // Note: viewport is at root level, not inside options
-    const browserlessPayload: any = {
-      url: targetUrl,
-      options: {
-        type: 'png',
-        fullPage: false,
-      },
-      viewport: {
-        width: 1920,
-        height: 1080,
-        deviceScaleFactor: 2, // Retina quality
-      },
-      gotoOptions: {
-        waitUntil: 'networkidle2',
-        timeout: 60000, // Increased timeout for auth
-      },
-    };
+    let browserlessPayload: any;
 
-    // Add cookies for authentication if we have them
-    if (sessionCookies.length > 0) {
-      browserlessPayload.cookies = sessionCookies;
+    if (useAuthenticatedCapture) {
+      console.log('Using TWO-PHASE navigation for authenticated capture');
+      
+      // TWO-PHASE NAVIGATION STRATEGY:
+      // 1. Navigate to public landing page first (to establish localStorage on correct domain)
+      // 2. Inject auth tokens into localStorage
+      // 3. Redirect via JavaScript to the target protected route
+      // 4. Wait for the redirect to complete before taking screenshot
+      
+      const authInjectionScript = `
+        (function() {
+          try {
+            // Inject Supabase auth tokens into localStorage
+            const storageKey = 'sb-${projectRef}-auth-token';
+            const authData = {
+              access_token: '${accessToken}',
+              refresh_token: '${refreshToken}',
+              token_type: 'bearer',
+              expires_in: 3600,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+            };
+            localStorage.setItem(storageKey, JSON.stringify(authData));
+            console.log('Auth tokens injected into localStorage, redirecting to target...');
+            
+            // Set a flag so we know auth was injected
+            window.__authInjected = true;
+            
+            // Now redirect to the actual target URL
+            window.location.href = '${targetUrl}';
+          } catch (e) {
+            console.error('Failed to inject auth tokens:', e);
+          }
+        })();
+      `;
+
+      // Build the payload for two-phase navigation
+      browserlessPayload = {
+        // Phase 1: Navigate to public landing page first
+        url: `${appBaseUrl}/`,
+        
+        // Inject auth tokens and trigger redirect
+        addScriptTag: [
+          { content: authInjectionScript }
+        ],
+        
+        // Wait for the redirect to complete - check that we're on the target route
+        waitForFunction: {
+          fn: `() => {
+            // Check if we've navigated away from the landing page to the target route
+            const currentPath = window.location.pathname;
+            const targetPath = '${screenshot.route_path}';
+            const isOnTarget = currentPath === targetPath || currentPath.startsWith(targetPath);
+            
+            // Also check that the page has rendered (look for common app elements)
+            const hasContent = document.querySelector('main') !== null || 
+                              document.querySelector('[data-app-loaded]') !== null ||
+                              document.querySelector('.App') !== null ||
+                              document.body.children.length > 1;
+            
+            console.log('Checking navigation: currentPath=' + currentPath + ', targetPath=' + targetPath + ', isOnTarget=' + isOnTarget + ', hasContent=' + hasContent);
+            
+            return isOnTarget && hasContent;
+          }`,
+          timeout: 20000
+        },
+        
+        // Additional wait after redirect completes for React app to fully render
+        waitForTimeout: 5000,
+        
+        viewport: {
+          width: 1920,
+          height: 1080,
+          deviceScaleFactor: 2,
+        },
+        options: {
+          type: 'png',
+          fullPage: false,
+        },
+        gotoOptions: {
+          waitUntil: 'networkidle2',
+          timeout: 60000,
+        },
+      };
+
+      // Add post-navigation scripts (for highlights, privacy masks, etc.)
+      // These run AFTER the redirect is complete
+      if (postNavigationScripts.length > 0) {
+        // Wrap post-navigation scripts to run after a delay (after waitForFunction passes)
+        const delayedPostScripts = postNavigationScripts.map(script => ({
+          content: `setTimeout(function() { ${script.content} }, 500);`
+        }));
+        browserlessPayload.addScriptTag.push(...delayedPostScripts);
+      }
+
+    } else {
+      // Non-authenticated capture - direct navigation
+      console.log('Using direct navigation for non-authenticated capture');
+      
+      browserlessPayload = {
+        url: targetUrl,
+        options: {
+          type: 'png',
+          fullPage: false,
+        },
+        viewport: {
+          width: 1920,
+          height: 1080,
+          deviceScaleFactor: 2,
+        },
+        gotoOptions: {
+          waitUntil: 'networkidle2',
+          timeout: 60000,
+        },
+      };
+
+      // Add post-navigation scripts if any
+      if (postNavigationScripts.length > 0) {
+        browserlessPayload.addScriptTag = postNavigationScripts;
+        browserlessPayload.waitForTimeout = 2000;
+      }
     }
 
-    // Add script injection if we have any scripts
-    if (addScriptTag.length > 0) {
-      browserlessPayload.addScriptTag = addScriptTag;
-    }
-    
-    // Use waitForTimeout for scripts to execute (Browserless v2 API)
-    if (addScriptTag.length > 0 || sessionCookies.length > 0) {
-      browserlessPayload.waitForTimeout = sessionCookies.length > 0 ? 5000 : 2000;
-    }
-
-    console.log(`Browserless payload: cookies=${sessionCookies.length}, scripts=${addScriptTag.length}`);
+    console.log(`Browserless payload: authenticated=${useAuthenticatedCapture}, scripts=${postNavigationScripts.length}`);
 
     const browserlessResponse = await fetch(
       `https://chrome.browserless.io/screenshot?token=${browserlessApiKey}`,
