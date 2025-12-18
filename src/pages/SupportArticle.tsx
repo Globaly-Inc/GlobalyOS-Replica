@@ -8,9 +8,11 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { SupportLayout } from '@/components/support/SupportLayout';
 import { ArticleContent } from '@/components/support/ArticleContent';
 import { SupportArticleCard } from '@/components/support/SupportArticleCard';
+import { SupportTableOfContents } from '@/components/support/SupportTableOfContents';
 import { 
   useSupportArticle, 
   useSupportArticles, 
@@ -104,22 +106,35 @@ const SupportArticle = () => {
           <ArticleContent article={article} onHelpful={handleHelpfulFeedback} />
         </div>
 
-        {/* Sidebar - Related Articles */}
-        {otherArticles && otherArticles.length > 0 && (
-          <aside className="lg:w-80 mt-8 lg:mt-0">
-            <div className="sticky top-24">
-              <h3 className="text-lg font-semibold mb-4">Related Articles</h3>
-              <div className="space-y-3">
-                {otherArticles.map((relatedArticle) => (
-                  <SupportArticleCard 
-                    key={relatedArticle.id} 
-                    article={relatedArticle}
-                  />
-                ))}
+        {/* Sidebar - TOC and Related Articles */}
+        <aside className="lg:w-80 mt-8 lg:mt-0">
+          <div className="sticky top-24 space-y-6">
+            {/* Table of Contents */}
+            {article.content && (
+              <SupportTableOfContents content={article.content} />
+            )}
+
+            {/* Divider between TOC and Related Articles */}
+            {article.content && otherArticles && otherArticles.length > 0 && (
+              <Separator />
+            )}
+
+            {/* Related Articles */}
+            {otherArticles && otherArticles.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-4">Related Articles</h3>
+                <div className="space-y-4">
+                  {otherArticles.map((relatedArticle) => (
+                    <SupportArticleCard 
+                      key={relatedArticle.id} 
+                      article={relatedArticle}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          </aside>
-        )}
+            )}
+          </div>
+        </aside>
       </div>
     </SupportLayout>
   );

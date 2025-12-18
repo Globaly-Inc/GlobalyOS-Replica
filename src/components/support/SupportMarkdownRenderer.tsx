@@ -309,24 +309,40 @@ export const SupportMarkdownRenderer = ({
   return (
     <div className={cn(
       'prose prose-slate dark:prose-invert max-w-none',
-      // Enhanced section styling
-      '[&>h2]:text-2xl [&>h2]:font-bold [&>h2]:mt-8 [&>h2]:mb-4 [&>h2]:pb-2 [&>h2]:border-b [&>h2]:border-border',
-      '[&>h3]:text-xl [&>h3]:font-semibold [&>h3]:mt-6 [&>h3]:mb-3 [&>h3]:pl-3 [&>h3]:border-l-4 [&>h3]:border-primary',
-      '[&>h4]:text-lg [&>h4]:font-medium [&>h4]:mt-4 [&>h4]:mb-2',
-      // List styling
-      '[&>ol]:list-decimal [&>ol]:pl-6 [&>ol>li]:my-2',
-      '[&>ul]:list-disc [&>ul]:pl-6 [&>ul>li]:my-1',
+      // Enhanced heading styling with descendant selectors
+      '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-6 [&_h1]:pb-3 [&_h1]:border-b-2 [&_h1]:border-primary/30',
+      '[&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-border',
+      '[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-8 [&_h3]:mb-3 [&_h3]:pl-3 [&_h3]:border-l-4 [&_h3]:border-primary',
+      '[&_h4]:text-lg [&_h4]:font-medium [&_h4]:mt-6 [&_h4]:mb-2 [&_h4]:text-foreground/90',
+      '[&_h5]:text-base [&_h5]:font-medium [&_h5]:mt-4 [&_h5]:mb-2',
+      // List styling with proper nesting
+      '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_ol]:space-y-2',
+      '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ul]:space-y-1.5',
+      '[&_li]:leading-relaxed [&_li]:text-foreground/80',
+      '[&_li>p]:my-1',
+      // Nested list styling
+      '[&_ol_ol]:list-[lower-alpha] [&_ol_ol]:mt-2',
+      '[&_ul_ul]:list-[circle] [&_ul_ul]:mt-2',
       // Paragraph spacing
-      '[&>p]:my-4 [&>p]:leading-relaxed',
+      '[&_p]:my-4 [&_p]:leading-relaxed [&_p]:text-foreground/80',
       // Code blocks
-      '[&_pre]:bg-muted [&_pre]:rounded-lg [&_pre]:p-4 [&_pre]:overflow-x-auto',
-      '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm',
+      '[&_pre]:bg-muted [&_pre]:rounded-lg [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-4',
+      '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
+      '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
       // Links
-      '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary/80',
+      '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary/80 [&_a]:transition-colors',
+      // Blockquotes
+      '[&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4 [&_blockquote]:text-muted-foreground',
       // Tables
-      '[&_table]:w-full [&_table]:border-collapse',
-      '[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-2 [&_th]:text-left',
-      '[&_td]:border [&_td]:border-border [&_td]:p-2',
+      '[&_table]:w-full [&_table]:border-collapse [&_table]:my-4',
+      '[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-3 [&_th]:text-left [&_th]:font-semibold',
+      '[&_td]:border [&_td]:border-border [&_td]:p-3',
+      '[&_tr:nth-child(even)]:bg-muted/30',
+      // Horizontal rules
+      '[&_hr]:my-8 [&_hr]:border-t-2 [&_hr]:border-border',
+      // Strong and emphasis
+      '[&_strong]:font-semibold [&_strong]:text-foreground',
+      '[&_em]:italic',
       className
     )}>
       {renderContent()}

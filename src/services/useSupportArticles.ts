@@ -279,18 +279,51 @@ export const useCreateArticle = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (article: { module: string; title: string; slug: string; content?: string; excerpt?: string; category_id?: string; is_published?: boolean }) => {
+    mutationFn: async (article: { 
+      module: string; 
+      title: string; 
+      slug: string; 
+      content?: string; 
+      excerpt?: string; 
+      category_id?: string; 
+      is_published?: boolean;
+      suggested_screenshots?: Array<{
+        route?: string;
+        description: string;
+        highlight_selector?: string;
+        annotation?: string;
+      }>;
+    }) => {
+      // Extract suggested screenshots before insert
+      const { suggested_screenshots, ...articleData } = article;
+      
       const { data, error } = await supabase
         .from('support_articles')
-        .insert([article])
+        .insert([articleData])
         .select()
         .single();
       
       if (error) throw error;
+      
+      // If there are suggested screenshots, create screenshot records
+      if (suggested_screenshots && suggested_screenshots.length > 0 && data?.id) {
+        const screenshotRecords = suggested_screenshots.map((ss) => ({
+          article_id: data.id,
+          route_path: ss.route || `/support/features/${article.module}/${article.slug}`,
+          description: ss.description,
+          status: 'pending' as const,
+        }));
+        
+        await supabase
+          .from('support_screenshots')
+          .insert(screenshotRecords);
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['support-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
       toast.success('Article created');
     },
     onError: (error) => {
@@ -505,6 +538,89 @@ export const useTrackArticleHelpfulness = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['support-article'] });
       toast.success('Thanks for your feedback!');
+    },
+  });
+};
+
+// Auto-capture all screenshots for an article
+export const useAutoCaptureArticleScreenshots = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (articleId: string) => {
+      // Get all pending screenshots for this article
+      const { data: screenshots, error } = await supabase
+        .from('support_screenshots')
+        .select('*')
+        .eq('article_id', articleId)
+        .eq('status', 'pending');
+      
+      if (error) throw error;
+      if (!screenshots || screenshots.length === 0) {
+        return { message: 'No pending screenshots to capture' };
+      }
+      
+      // Invoke the auto-capture function for each screenshot
+      const capturePromises = screenshots.map(async (screenshot) => {
+        try {
+          await supabase.functions.invoke('capture-doc-screenshot', {
+            body: { screenshotId: screenshot.id },
+          });
+          return { id: screenshot.id, success: true };
+        } catch (e) {
+          return { id: screenshot.id, success: false, error: e };
+        }
+      });
+      
+      const results = await Promise.all(capturePromises);
+      return { 
+        total: screenshots.length,
+        captured: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length,
+      };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+      if (data.total > 0) {
+        toast.success(`Started capturing ${data.total} screenshots`);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to capture screenshots: ' + error.message);
+    },
+  });
+};
+
+// Bulk create screenshots for an article
+export const useBulkCreateScreenshots = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ articleId, screenshots }: { 
+      articleId: string; 
+      screenshots: Array<{ description: string; route_path?: string }>;
+    }) => {
+      const screenshotRecords = screenshots.map((ss) => ({
+        article_id: articleId,
+        route_path: ss.route_path || '',
+        description: ss.description,
+        status: 'pending' as const,
+      }));
+      
+      const { data, error } = await supabase
+        .from('support_screenshots')
+        .insert(screenshotRecords)
+        .select();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+      toast.success('Screenshot placeholders created');
+    },
+    onError: (error) => {
+      toast.error('Failed to create screenshots: ' + error.message);
     },
   });
 };
