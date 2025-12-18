@@ -1,4 +1,4 @@
-import { Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-react';
+import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
@@ -20,7 +20,8 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { name: 'Team', href: '/', icon: Users, adminOnly: false },
+  { name: 'Home', href: '/', icon: Home, adminOnly: false },
+  { name: 'Team', href: '/team', icon: Users, adminOnly: false },
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
   { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, ownerOnly: true, featureFlag: 'chat' },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
@@ -55,14 +56,19 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
     const fullPath = href === '/' ? basePath || '/' : `${basePath}${href}`;
     
     if (href === '/') {
-      // Team is active for root, /team/*, /kpi-dashboard, /calendar, etc.
-      return location.pathname === basePath || 
-             location.pathname === `${basePath}/` ||
-             location.pathname.startsWith(`${basePath}/team`) ||
+      // Home is active only for root path
+      return location.pathname === basePath || location.pathname === `${basePath}/`;
+    }
+    if (href === '/team') {
+      // Team is active for /team/*, /kpi-dashboard, /calendar, etc.
+      return location.pathname.startsWith(`${basePath}/team`) ||
              location.pathname === `${basePath}/kpi-dashboard` ||
+             location.pathname.startsWith(`${basePath}/kpi-dashboard/`) ||
              location.pathname === `${basePath}/calendar` ||
              location.pathname === `${basePath}/leave-history` ||
-             location.pathname === `${basePath}/attendance-history`;
+             location.pathname === `${basePath}/attendance-history` ||
+             location.pathname === `${basePath}/payroll` ||
+             location.pathname.startsWith(`${basePath}/payroll/`);
     }
     return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
   };

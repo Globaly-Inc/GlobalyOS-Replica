@@ -20,7 +20,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: 'Overview', href: '/' },
+  { icon: Home, label: 'Home', href: '/' },
   { icon: CalendarDays, label: 'Leave', action: 'leave' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
   { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
@@ -120,16 +120,8 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
     if (item.href) {
       const fullPath = item.href === '/' ? basePath : `${basePath}${item.href}`;
       if (item.href === '/') {
-        // Overview is active for home, team (excluding leave-history), calendar, kpi routes
-        const isLeaveRelated = location.pathname.includes('/leave-history') || 
-                               location.pathname.includes('/leave');
-        if (isLeaveRelated) return false;
-        
-        return location.pathname === basePath || 
-               location.pathname === `${basePath}/` ||
-               location.pathname.startsWith(`${basePath}/team`) ||
-               location.pathname.startsWith(`${basePath}/calendar`) ||
-               location.pathname.startsWith(`${basePath}/kpi`);
+        // Home is active for home page only
+        return location.pathname === basePath || location.pathname === `${basePath}/`;
       }
       return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
     }
