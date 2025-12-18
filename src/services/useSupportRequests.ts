@@ -14,6 +14,51 @@ import {
 } from '@/types/support';
 import { toast } from 'sonner';
 
+// Fetch support request statistics (for Get Help page)
+export const useSupportRequestStats = () => {
+  return useQuery({
+    queryKey: ['support-requests', 'stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('support_requests')
+        .select('type, status');
+
+      if (error) throw error;
+
+      const stats = {
+        bugs: { inProgress: 0, resolved: 0, total: 0 },
+        features: { inProgress: 0, resolved: 0, total: 0 }
+      };
+
+      data.forEach(req => {
+        const bucket = req.type === 'bug' ? stats.bugs : stats.features;
+        bucket.total++;
+        if (['new', 'triaging', 'in_progress'].includes(req.status)) {
+          bucket.inProgress++;
+        }
+        if (req.status === 'resolved') {
+          bucket.resolved++;
+        }
+      });
+
+      return {
+        bugs: {
+          ...stats.bugs,
+          resolutionRate: stats.bugs.total > 0 
+            ? Math.round((stats.bugs.resolved / stats.bugs.total) * 100) 
+            : 0
+        },
+        features: {
+          ...stats.features,
+          releaseRate: stats.features.total > 0 
+            ? Math.round((stats.features.resolved / stats.features.total) * 100) 
+            : 0
+        }
+      };
+    },
+  });
+};
+
 // Fetch all support requests (for super admin)
 export const useAllSupportRequests = () => {
   return useQuery({
