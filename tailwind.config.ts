@@ -134,6 +134,10 @@ export default {
           "0%, 100%": { opacity: "0.2", transform: "scale(0.8)" },
           "50%": { opacity: "1", transform: "scale(1.2)" },
         },
+        "phone-float": {
+          "0%, 100%": { transform: "translateY(0) rotate(-1deg)" },
+          "50%": { transform: "translateY(-8px) rotate(1deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -146,6 +150,7 @@ export default {
         "border-rotate": "border-rotate 3s linear infinite",
         "float-particle": "float-particle 3s ease-in-out infinite",
         "twinkle": "twinkle 2s ease-in-out infinite",
+        "phone-float": "phone-float 4s ease-in-out infinite",
       },
     },
   },
