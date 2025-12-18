@@ -30,6 +30,7 @@ import { AttendancePDFExport } from "@/components/attendance/AttendancePDFExport
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
 import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
+import { AttendanceQRButton } from "@/components/AttendanceQRButton";
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -975,6 +976,7 @@ const OrgAttendanceHistory = () => {
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
+            <AttendanceQRButton />
             <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4" />
               AI Email Reports
