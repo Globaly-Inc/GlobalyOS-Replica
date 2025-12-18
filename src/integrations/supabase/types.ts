@@ -6952,15 +6952,6 @@ export type Database = {
         | {
             Args: {
               _action: string
-              _qr_code: string
-              _user_latitude?: number
-              _user_longitude?: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _action: string
               _early_checkout_reason?: string
               _qr_code: string
               _user_latitude?: number
