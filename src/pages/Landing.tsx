@@ -286,7 +286,7 @@ const DashboardSpotlight = () => {
   };
   return <div className="rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card relative cursor-none" onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
       {/* Clear image (bottom layer) */}
-      <img alt="GlobalyOS Team Overview Dashboard" className="w-full h-auto" src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" />
+      <img alt="GlobalyOS Team Overview Dashboard" className="w-full h-auto" src="/lovable-uploads/6624fdda-f2fc-48cc-aa31-3b73fd20fa90.png" width={1920} height={1088} fetchPriority="high" />
       
       {/* Blurred overlay with spotlight hole */}
       <div className="absolute inset-0 backdrop-blur-[3px] bg-white/5 dark:bg-black/10 pointer-events-none transition-opacity duration-300" style={{
