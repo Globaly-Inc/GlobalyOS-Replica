@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Globe,
   MessageSquare,
@@ -26,8 +27,23 @@ import {
   Building2,
   Shield,
   User as UserIcon,
+  Zap,
 } from "lucide-react";
-import { format, formatDistanceToNow, isToday, isYesterday, startOfDay } from "date-fns";
+import { format, formatDistanceToNow, isToday, isYesterday, startOfDay, subDays } from "date-fns";
+import { cn } from "@/lib/utils";
+
+type TimePeriod = 'today' | '7days' | '30days' | 'all';
+
+const ACTIVITY_TYPES = [
+  { type: 'wiki_created', label: 'Wiki', icon: FileText, bgClass: 'bg-blue-50 dark:bg-blue-900/20', textClass: 'text-blue-700 dark:text-blue-300', iconClass: 'text-blue-600 dark:text-blue-400' },
+  { type: 'chat_sent', label: 'Chats', icon: MessageSquare, bgClass: 'bg-green-50 dark:bg-green-900/20', textClass: 'text-green-700 dark:text-green-300', iconClass: 'text-green-600 dark:text-green-400' },
+  { type: 'update_posted', label: 'Posts', icon: FileText, bgClass: 'bg-purple-50 dark:bg-purple-900/20', textClass: 'text-purple-700 dark:text-purple-300', iconClass: 'text-purple-600 dark:text-purple-400' },
+  { type: 'kudos_given', label: 'Kudos', icon: Heart, bgClass: 'bg-pink-50 dark:bg-pink-900/20', textClass: 'text-pink-700 dark:text-pink-300', iconClass: 'text-pink-600 dark:text-pink-400' },
+  { type: 'leave_requested', label: 'Leaves', icon: Calendar, bgClass: 'bg-orange-50 dark:bg-orange-900/20', textClass: 'text-orange-700 dark:text-orange-300', iconClass: 'text-orange-600 dark:text-orange-400' },
+  { type: 'kpi_created', label: 'KPIs', icon: BarChart3, bgClass: 'bg-indigo-50 dark:bg-indigo-900/20', textClass: 'text-indigo-700 dark:text-indigo-300', iconClass: 'text-indigo-600 dark:text-indigo-400' },
+  { type: 'attendance_checked_in', label: 'Check-ins', icon: Clock, bgClass: 'bg-teal-50 dark:bg-teal-900/20', textClass: 'text-teal-700 dark:text-teal-300', iconClass: 'text-teal-600 dark:text-teal-400' },
+  { type: 'login', label: 'Logins', icon: Zap, bgClass: 'bg-amber-50 dark:bg-amber-900/20', textClass: 'text-amber-700 dark:text-amber-300', iconClass: 'text-amber-600 dark:text-amber-400' },
+];
 
 interface UserDetailSheetProps {
   open: boolean;
@@ -139,12 +155,36 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activityPeriod, setActivityPeriod] = useState<TimePeriod>('all');
   const [stats, setStats] = useState({
     totalVisits: 0,
     totalActivities: 0,
     uniquePages: 0,
     lastActive: null as string | null,
   });
+
+  const filteredActivityCounts = useMemo(() => {
+    const now = new Date();
+    let startDate: Date | null = null;
+    
+    switch (activityPeriod) {
+      case 'today': startDate = startOfDay(now); break;
+      case '7days': startDate = subDays(now, 7); break;
+      case '30days': startDate = subDays(now, 30); break;
+      default: startDate = null;
+    }
+    
+    const filteredActivities = startDate 
+      ? activities.filter(a => new Date(a.created_at) >= startDate!)
+      : activities;
+    
+    const counts: Record<string, number> = {};
+    filteredActivities.forEach((a) => {
+      counts[a.activity_type] = (counts[a.activity_type] || 0) + 1;
+    });
+    
+    return counts;
+  }, [activities, activityPeriod]);
 
   useEffect(() => {
     if (!user?.id || !open) return;
@@ -314,6 +354,46 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
                 ) : (
                   <p className="text-sm text-muted-foreground">Not a member of any organisation</p>
                 )}
+              </div>
+
+              {/* Activity Breakdown */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">Activity Breakdown</span>
+                  </div>
+                  <ToggleGroup 
+                    type="single" 
+                    value={activityPeriod} 
+                    onValueChange={(v) => v && setActivityPeriod(v as TimePeriod)}
+                    className="h-6"
+                  >
+                    <ToggleGroupItem value="today" className="text-[10px] px-2 h-6 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">Today</ToggleGroupItem>
+                    <ToggleGroupItem value="7days" className="text-[10px] px-2 h-6 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">7d</ToggleGroupItem>
+                    <ToggleGroupItem value="30days" className="text-[10px] px-2 h-6 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">30d</ToggleGroupItem>
+                    <ToggleGroupItem value="all" className="text-[10px] px-2 h-6 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">All</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {ACTIVITY_TYPES.map(({ type, label, icon: Icon, bgClass, textClass, iconClass }) => {
+                    const count = filteredActivityCounts[type] || 0;
+                    return (
+                      <div 
+                        key={type} 
+                        className={cn(
+                          "rounded-lg p-2 text-center transition-opacity",
+                          bgClass,
+                          count === 0 && "opacity-40"
+                        )}
+                      >
+                        <Icon className={cn("h-3.5 w-3.5 mx-auto mb-0.5", iconClass)} />
+                        <p className={cn("text-base font-bold", textClass)}>{count}</p>
+                        <p className={cn("text-[10px] opacity-80", textClass)}>{label}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </TabsContent>
 
