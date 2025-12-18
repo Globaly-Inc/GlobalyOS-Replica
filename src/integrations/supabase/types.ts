@@ -5540,6 +5540,7 @@ export type Database = {
           highlight_selector: string | null
           highlight_style: string | null
           id: string
+          module: string | null
           route_path: string
           status: string | null
           storage_path: string | null
@@ -5555,6 +5556,7 @@ export type Database = {
           highlight_selector?: string | null
           highlight_style?: string | null
           id?: string
+          module?: string | null
           route_path: string
           status?: string | null
           storage_path?: string | null
@@ -5570,6 +5572,7 @@ export type Database = {
           highlight_selector?: string | null
           highlight_style?: string | null
           id?: string
+          module?: string | null
           route_path?: string
           status?: string | null
           storage_path?: string | null
