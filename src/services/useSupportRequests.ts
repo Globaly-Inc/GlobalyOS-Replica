@@ -81,6 +81,25 @@ export const useUserSupportRequests = () => {
   });
 };
 
+// Fetch all released features (resolved features from all users)
+export const useReleasedFeatures = () => {
+  return useQuery({
+    queryKey: ['support-requests', 'released'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('support_requests')
+        .select('id, title, type, priority, status, created_at, resolved_at')
+        .eq('type', 'feature')
+        .eq('status', 'resolved')
+        .order('resolved_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      return data as SupportRequest[];
+    },
+  });
+};
+
 // Fetch comments for a request
 export const useSupportRequestComments = (requestId: string | null) => {
   return useQuery({
