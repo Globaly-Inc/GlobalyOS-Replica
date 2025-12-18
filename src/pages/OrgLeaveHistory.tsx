@@ -761,7 +761,7 @@ const OrgLeaveHistory = () => {
                 {/* Current Balance */}
                 <div className="text-xs text-muted-foreground mt-1 pt-1 border-t border-border/50">
                   Balance: <span className={stat.balance < 0 ? 'text-destructive font-medium' : 'font-medium'}>
-                    {stat.balance < 0 ? `(${Math.abs(stat.balance)})` : stat.balance} days
+                    {stat.balance < 0 ? `(${Math.abs(stat.balance).toFixed(1)})` : stat.balance.toFixed(1)} days
                   </span>
                 </div>
               </CardContent>
