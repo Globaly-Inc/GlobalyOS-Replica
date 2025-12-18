@@ -7,19 +7,31 @@ import { cn } from '@/lib/utils';
 
 interface UserSupportRequestCardProps {
   request: SupportRequest;
-  onClick: () => void;
+  onClick?: () => void;
+  readonly?: boolean;
 }
 
-export const UserSupportRequestCard = ({ request, onClick }: UserSupportRequestCardProps) => {
+export const UserSupportRequestCard = ({ request, onClick, readonly = false }: UserSupportRequestCardProps) => {
   const priorityConfig = PRIORITY_CONFIG[request.priority];
   const statusConfig = STATUS_CONFIG[request.status];
-  const timeAgo = formatDistanceToNow(new Date(request.created_at), { addSuffix: false });
+  const displayDate = request.resolved_at || request.created_at;
+  const timeAgo = formatDistanceToNow(new Date(displayDate), { addSuffix: false });
+
+  const getBorderColor = () => {
+    if (readonly) return 'hsl(142 71% 45%)'; // green for released
+    return request.type === 'bug' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
+  };
 
   return (
     <Card 
-      className="p-3 cursor-pointer hover:shadow-md transition-all border-l-3 group"
-      style={{ borderLeftColor: request.type === 'bug' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))' }}
-      onClick={onClick}
+      className={cn(
+        "p-3 transition-all border-l-3",
+        readonly 
+          ? "opacity-90" 
+          : "cursor-pointer hover:shadow-md group"
+      )}
+      style={{ borderLeftColor: getBorderColor() }}
+      onClick={readonly ? undefined : onClick}
     >
       {/* Header Row */}
       <div className="flex items-center gap-1.5 mb-2">
@@ -47,8 +59,8 @@ export const UserSupportRequestCard = ({ request, onClick }: UserSupportRequestC
 
       {/* Footer Row */}
       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>{timeAgo} ago</span>
-        {(request.comment_count ?? 0) > 0 && (
+        <span>{readonly ? 'Released' : ''} {timeAgo} ago</span>
+        {!readonly && (request.comment_count ?? 0) > 0 && (
           <div className="flex items-center gap-0.5">
             <MessageSquare className="h-3 w-3" />
             <span>{request.comment_count}</span>
