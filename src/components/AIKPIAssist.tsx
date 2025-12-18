@@ -125,10 +125,10 @@ export const AIKPIAssist = ({
           disabled={isGenerating || disabled || (type === "group" && !scopeValue)}
           className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-primary"
         >
-          {isGenerating ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        {isGenerating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-ai" />
           ) : (
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3.5 w-3.5 text-ai" />
           )}
           <span className="hidden sm:inline">{getButtonLabel()}</span>
         </Button>

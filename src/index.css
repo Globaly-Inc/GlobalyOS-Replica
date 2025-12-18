@@ -75,6 +75,10 @@ All colors MUST be HSL.
     --sidebar-border: 270 13% 91%;
 
     --sidebar-ring: 262 83% 58%;
+    
+    /* AI Feature Color - #7C3BEC */
+    --ai: 262 84% 58%;
+    --ai-foreground: 0 0% 100%;
   }
 
   .dark {
@@ -133,6 +137,10 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 270 4.8% 95.9%;
     --sidebar-border: 270 3.7% 15.9%;
     --sidebar-ring: 262 83% 58%;
+    
+    /* AI Feature Color - #7C3BEC (slightly lighter in dark mode) */
+    --ai: 262 84% 65%;
+    --ai-foreground: 0 0% 100%;
   }
 }
 
@@ -198,4 +206,29 @@ html {
 
 .animate-confetti {
   animation: confetti 3s ease-out forwards;
+}
+
+/* AI Feature Utility Classes */
+.text-ai {
+  color: hsl(var(--ai));
+}
+
+.bg-ai {
+  background-color: hsl(var(--ai));
+}
+
+.border-ai {
+  border-color: hsl(var(--ai));
+}
+
+.text-ai\/80 {
+  color: hsl(var(--ai) / 0.8);
+}
+
+.bg-ai\/10 {
+  background-color: hsl(var(--ai) / 0.1);
+}
+
+.bg-ai\/20 {
+  background-color: hsl(var(--ai) / 0.2);
 }

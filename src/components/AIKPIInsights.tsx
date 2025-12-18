@@ -445,7 +445,7 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
         <>
           {!insights ? (
             <div className="text-center py-6 text-muted-foreground border-t pt-4">
-              <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50 text-ai" />
               <p className="text-sm">No AI insights generated yet.</p>
               <p className="text-xs">Click "Generate" to get personalized insights.</p>
             </div>
@@ -526,10 +526,10 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b pb-3">
+      <CardHeader className="bg-gradient-to-r from-ai/5 to-ai/10 border-b pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Sparkles className="h-4 w-4 text-ai" />
             AI Insights
             <Badge variant="secondary" className="text-xs">Q{currentQuarter} {currentYear}</Badge>
           </CardTitle>

@@ -991,8 +991,8 @@ const OrgAttendanceHistory = () => {
             )}
             <AttendanceQRButton />
             <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              AI Email Reports
+              <Sparkles className="h-4 w-4 text-ai" />
+              <span className="text-ai">AI Email Reports</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -72,14 +72,14 @@ export const WikiAskAI = ({ organizationId }: WikiAskAIProps) => {
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          Ask AI
+          <Sparkles className="h-4 w-4 text-ai" />
+          <span className="text-ai">Ask AI</span>
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-ai" />
             Ask AI
           </SheetTitle>
         </SheetHeader>
@@ -92,8 +92,8 @@ export const WikiAskAI = ({ organizationId }: WikiAskAIProps) => {
         <ScrollArea className="flex-1 mt-4 pr-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            <div className="text-center py-8 text-muted-foreground">
+                <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20 text-ai" />
                 <p className="text-sm">Ask a question about your wiki content</p>
                 <p className="text-xs mt-1">I'll search through your knowledge base to find answers</p>
               </div>

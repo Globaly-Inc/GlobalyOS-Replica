@@ -173,7 +173,8 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
                   <item.icon className={cn(
                     'h-5 w-5',
                     active && 'scale-110',
-                    isScan && checkInTime && 'text-green-500'
+                    isScan && checkInTime && 'text-green-500',
+                    item.label === 'Ask AI' && 'text-ai'
                   )} />
                 ) : null}
                 <span className="text-[10px] font-medium">
