@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bug, Lightbulb, LifeBuoy, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 type TabType = 'bugs' | 'features' | 'released' | null;
 
 export const UserHelpRequests = () => {
+  const navigate = useNavigate();
   const { data: requests = [], isLoading } = useUserSupportRequests();
   const { data: releasedFeatures = [], isLoading: releasedLoading } = useReleasedFeatures();
   const [activeTab, setActiveTab] = useState<TabType>(null);
@@ -65,7 +67,12 @@ export const UserHelpRequests = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <LifeBuoy className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">GlobalyOS Help</h3>
+            <h3 
+              className="text-lg font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
+              onClick={() => navigate('/support')}
+            >
+              GlobalyOS Help
+            </h3>
           </div>
           <Button
             variant="outline"
