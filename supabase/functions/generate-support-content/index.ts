@@ -124,12 +124,16 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { mode = 'generate', module, categoryId, existingSlugs = [], article } = body;
+    const { mode = 'generate', module, categoryId, existingSlugs = [], article, useScreenshots = true } = body;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Handle UPDATE mode - check if existing article needs updates
     if (mode === 'update' && article) {
@@ -237,6 +241,33 @@ Be conservative - only suggest updates if there are significant improvements nee
     console.log(`Generating content for module: ${module}`);
     console.log(`Existing slugs to avoid: ${existingSlugs.length}`);
 
+    // Fetch analyzed screenshots for this module to provide visual context
+    let screenshotContext = '';
+    if (useScreenshots) {
+      const { data: screenshots } = await supabase
+        .from('support_screenshots')
+        .select('route_path, description, ai_description, feature_context, ui_elements')
+        .eq('module', module)
+        .eq('is_analyzed', true)
+        .order('route_path');
+
+      if (screenshots && screenshots.length > 0) {
+        screenshotContext = `\n\n## VISUAL CONTEXT FROM ACTUAL SCREENSHOTS:
+The following are AI-analyzed descriptions of actual screenshots from the ${module} module. Use this information to write accurate, grounded content:
+
+${screenshots.map((s, i) => `
+### Screen ${i + 1}: ${s.feature_context || s.route_path}
+- Route: ${s.route_path}
+- Description: ${s.ai_description || s.description || 'No description'}
+- UI Elements: ${Array.isArray(s.ui_elements) ? s.ui_elements.join(', ') : 'Not analyzed'}
+`).join('\n')}
+
+IMPORTANT: Reference these actual screens when writing step-by-step guides. Mention specific UI elements that were identified.`;
+        
+        console.log(`Found ${screenshots.length} analyzed screenshots for context`);
+      }
+    }
+
     // Enhanced system prompt with structured content requirements
     const systemPrompt = `You are a SaaS documentation expert for GlobalyOS, a comprehensive business operating system with HRMS, CRM, Wiki, and team communication features.
 
@@ -307,7 +338,8 @@ If you see an error message, make sure you have the required permissions before 
 - Write 500-800 words per article
 - Be specific to GlobalyOS UI and features
 - Include 2-4 screenshot placeholders per article
-- AVOID these existing slugs: ${existingSlugs.join(', ') || 'none'}`;
+- AVOID these existing slugs: ${existingSlugs.join(', ') || 'none'}
+${screenshotContext}`;
 
     const userPrompt = `Generate 3-5 comprehensive support articles for the "${module}" module in GlobalyOS.
 

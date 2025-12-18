@@ -137,3 +137,9 @@ verify_jwt = true
 
 [functions.ai-suggest-screenshots]
 verify_jwt = true
+
+[functions.ai-analyze-screenshot]
+verify_jwt = true
+
+[functions.capture-module-screenshots]
+verify_jwt = true
