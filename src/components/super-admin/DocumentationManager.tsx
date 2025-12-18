@@ -6,9 +6,10 @@
 import { useState } from 'react';
 import { 
   FileText, FolderOpen, Camera, Code, Plus, Pencil, Trash2, 
-  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink, Sparkles
+  Eye, EyeOff, RefreshCw, Search, Upload, ExternalLink
 } from 'lucide-react';
-import { AIContentGenerator } from './AIContentGenerator';
+import { AIGenerateCard } from './AIGenerateCard';
+import { AIUpdateCard } from './AIUpdateCard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,12 +59,16 @@ export const DocumentationManager = () => {
             Manage support articles, screenshots, and API documentation
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <a href="/support" target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View Support Center
-          </a>
-        </Button>
+        <div className="flex items-center gap-3">
+          <AIGenerateCard />
+          <AIUpdateCard />
+          <Button variant="outline" asChild>
+            <a href="/support" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Support Center
+            </a>
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -75,10 +80,6 @@ export const DocumentationManager = () => {
           <TabsTrigger value="categories" className="gap-2">
             <FolderOpen className="h-4 w-4" />
             Categories
-          </TabsTrigger>
-          <TabsTrigger value="ai-generate" className="gap-2">
-            <Sparkles className="h-4 w-4" />
-            AI Generate
           </TabsTrigger>
           <TabsTrigger value="screenshots" className="gap-2">
             <Camera className="h-4 w-4" />
@@ -95,9 +96,6 @@ export const DocumentationManager = () => {
         </TabsContent>
         <TabsContent value="categories" className="mt-6">
           <CategoriesManager />
-        </TabsContent>
-        <TabsContent value="ai-generate" className="mt-6">
-          <AIContentGenerator />
         </TabsContent>
         <TabsContent value="screenshots" className="mt-6">
           <ScreenshotsManager />
