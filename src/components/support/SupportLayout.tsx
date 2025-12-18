@@ -7,9 +7,11 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, Home, Rocket, HelpCircle, BookOpen, Code, 
-  Menu, X, ChevronRight, ArrowLeft
+  Menu, X, ChevronRight
 } from 'lucide-react';
 import globalyosFullLogo from '@/assets/globalyos-full-logo.png';
+import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/hooks/useOrganization';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,6 +38,8 @@ export const SupportLayout = ({ children, title, breadcrumbs }: SupportLayoutPro
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: searchResults } = useSearchSupportArticles(searchQuery);
+  const { user } = useAuth();
+  const { currentOrg } = useOrganization();
 
   const handleSearchSelect = (module: string, slug: string) => {
     navigate(`/support/features/${module}/${slug}`);
@@ -90,10 +94,15 @@ export const SupportLayout = ({ children, title, breadcrumbs }: SupportLayoutPro
             )}
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to App
-          </Button>
+          {user && currentOrg ? (
+            <Button size="sm" onClick={() => navigate(`/org/${currentOrg.slug}`)}>
+              Go to Dashboard
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => navigate("/auth")}>
+              Sign In
+            </Button>
+          )}
         </div>
       </header>
 
