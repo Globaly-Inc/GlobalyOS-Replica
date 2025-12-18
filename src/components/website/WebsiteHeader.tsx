@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
 import globalyosFullLogo from "@/assets/globalyos-full-logo.png";
 
 export const WebsiteHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAuth();
+  const { currentOrg } = useOrganization();
   const navigate = useNavigate();
 
   const navLinks = [
@@ -42,8 +44,8 @@ export const WebsiteHeader = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {user ? (
-              <Button onClick={() => navigate("/")}>
+            {user && currentOrg ? (
+              <Button onClick={() => navigate(`/org/${currentOrg.slug}`)}>
                 Go to Dashboard
               </Button>
             ) : (
@@ -86,8 +88,8 @@ export const WebsiteHeader = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                {user ? (
-                  <Button onClick={() => navigate("/")}>
+                {user && currentOrg ? (
+                  <Button onClick={() => navigate(`/org/${currentOrg.slug}`)}>
                     Go to Dashboard
                   </Button>
                 ) : (
