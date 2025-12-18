@@ -64,6 +64,7 @@ import {
   CalendarDays,
   Plus,
   LayoutGrid,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
@@ -1040,9 +1041,10 @@ const TeamKPIDashboard = () => {
                       const ScopeIcon = scope.icon;
                       
                       return (
-                        <div
+                        <OrgLink
                           key={kpi.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30"
+                          to={`/kpi/${kpi.id}`}
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
                         >
                           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                             <div className={cn("p-2 rounded-lg shrink-0", scope.color)}>
@@ -1086,30 +1088,39 @@ const TeamKPIDashboard = () => {
                               {kpi.current_value || 0} / {kpi.target_value || 0} {kpi.unit || ""}
                             </span>
                             
-                            {isAdmin && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => setEditingKpi(kpi)}>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => setDeletingKpiId(kpi.id)}
-                                    className="text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </OrgLink>
+                                </DropdownMenuItem>
+                                {isAdmin && (
+                                  <>
+                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi); }}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
+                                      className="text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
                           </div>
-                        </div>
+                        </OrgLink>
                       );
                     })}
                   </div>
@@ -1149,9 +1160,10 @@ const TeamKPIDashboard = () => {
                         : 0;
                       
                       return (
-                        <div
+                        <OrgLink
                           key={kpi.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg"
+                          to={`/kpi/${kpi.id}`}
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
                         >
                           {/* Mobile: Top row with avatar, name, status */}
                           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -1186,28 +1198,36 @@ const TeamKPIDashboard = () => {
                               </p>
                             </div>
                             {/* Mobile: Menu button inline */}
-                            {canEditKpi(kpi as Kpi) && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 sm:hidden">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => setEditingKpi(kpi as Kpi)}>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => setDeletingKpiId(kpi.id)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 sm:hidden">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </OrgLink>
+                                </DropdownMenuItem>
+                                {canEditKpi(kpi as Kpi) && (
+                                  <>
+                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as Kpi); }}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                           {/* Mobile: Progress bar on second row */}
                           {kpi.target_value && (
@@ -1219,29 +1239,38 @@ const TeamKPIDashboard = () => {
                             </div>
                           )}
                           {/* Desktop: Menu button */}
-                          {canEditKpi(kpi as Kpi) && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hidden sm:flex">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditingKpi(kpi as Kpi)}>
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => setDeletingKpiId(kpi.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hidden sm:flex">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </OrgLink>
+                              </DropdownMenuItem>
+                              {canEditKpi(kpi as Kpi) && (
+                                <>
+                                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as Kpi); }}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
+                        </OrgLink>
                       );
                     })}
                   </div>
