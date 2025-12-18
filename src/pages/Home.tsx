@@ -1,6 +1,5 @@
 import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from "@/components/KudosCard";
-import { LeaveManagement } from "@/components/LeaveManagement";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +20,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
+import { UserHelpRequests } from "@/components/home/UserHelpRequests";
 import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
 type DateFilter = "all" | "today" | "week" | "month";
@@ -1070,20 +1070,8 @@ const Home = () => {
             {/* Pending KPI Updates */}
             <PendingKpiUpdates />
 
-            {/* Current User Leave Balance */}
-            {hasEmployeeProfile && currentEmployeeId && <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    My Leave Balance
-                  </h3>
-                  <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-                    <CalendarPlus className="mr-2 h-4 w-4" />
-                    Request
-                  </Button>
-                </div>
-                <LeaveManagement employeeId={currentEmployeeId} />
-              </Card>}
+            {/* GlobalyOS Help Section */}
+            <UserHelpRequests />
 
             {/* People on Leave Today */}
             <Card className="p-6">
