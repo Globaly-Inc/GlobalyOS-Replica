@@ -78,8 +78,10 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
       const { data, error: fnError } = await supabase.functions.invoke("bulk-generate-kpis", {
         body: {
           documentContent: state.documentContent,
+          periodType: state.periodType,
           quarter: state.quarter,
           year: state.year,
+          aiInstructions: state.aiInstructions,
           cascadeConfig: state.cascadeConfig,
           targetDepartments: state.targetDepartments,
           targetOffices: state.targetOffices,
