@@ -5192,6 +5192,108 @@ export type Database = {
           },
         ]
       }
+      support_request_activity_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_request_activity_logs_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "support_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_request_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          request_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          request_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          request_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_request_comments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "support_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_request_subscribers: {
+        Row: {
+          id: string
+          request_id: string
+          subscribed_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          subscribed_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          subscribed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_request_subscribers_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "support_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_requests: {
         Row: {
           admin_notes: string | null
