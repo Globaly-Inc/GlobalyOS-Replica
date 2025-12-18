@@ -306,50 +306,35 @@ export function LeaveAnalyticsChart({ transactions, yearFilter }: LeaveAnalytics
       <CardContent>
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">Leave Types</TabsTrigger>
             <TabsTrigger value="status" className="text-xs sm:text-sm">Status</TabsTrigger>
             <TabsTrigger value="types" className="text-xs sm:text-sm">Types</TabsTrigger>
             <TabsTrigger value="days" className="text-xs sm:text-sm">Days</TabsTrigger>
             <TabsTrigger value="rate" className="text-xs sm:text-sm">Rate</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab - Stacked Area */}
+          {/* Overview Tab - Leave Types Line Chart */}
           <TabsContent value="overview" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData}>
+              <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis className="text-xs" allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  name="Total Requests"
-                  stackId="1"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.3}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="approved"
-                  name="Approved"
-                  stackId="2"
-                  stroke="hsl(142, 76%, 36%)"
-                  fill="hsl(142, 76%, 36%)"
-                  fillOpacity={0.5}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pending"
-                  name="Pending"
-                  stackId="3"
-                  stroke="hsl(45, 93%, 47%)"
-                  fill="hsl(45, 93%, 47%)"
-                  fillOpacity={0.5}
-                />
-              </AreaChart>
+                {allLeaveTypes.map((type, index) => (
+                  <Line
+                    key={type}
+                    type="monotone"
+                    dataKey={`leaveTypes.${type}`}
+                    name={type}
+                    stroke={getLeaveTypeColor(type, index)}
+                    strokeWidth={2}
+                    dot={{ fill: getLeaveTypeColor(type, index), r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                ))}
+              </LineChart>
             </ResponsiveContainer>
           </TabsContent>
 
