@@ -917,7 +917,7 @@ const Home = () => {
                         </AvatarFallback>
                       </Avatar>
                       {leave.half_day_type !== "full" && (
-                        <span className="absolute -top-1 -right-1 text-[9px] font-bold text-primary bg-background rounded-full px-1 shadow-sm border border-border">
+                        <span className="absolute -top-1.5 -right-1.5 text-[10px] font-bold text-white bg-primary rounded-full px-1.5 py-0.5 shadow-md border-2 border-background z-10">
                           {leave.half_day_type === "first_half" ? "1ˢᵗ" : "2ⁿᵈ"}
                         </span>
                       )}
@@ -1106,7 +1106,7 @@ const Home = () => {
                               </AvatarFallback>
                             </Avatar>
                             {leave.half_day_type !== "full" && (
-                              <span className="absolute -top-1 -right-1 text-[9px] font-bold text-primary bg-background rounded-full px-1 shadow-sm border border-border">
+                              <span className="absolute -top-1.5 -right-1.5 text-[10px] font-bold text-white bg-primary rounded-full px-1.5 py-0.5 shadow-md border-2 border-background z-10">
                                 {leave.half_day_type === "first_half" ? "1ˢᵗ" : "2ⁿᵈ"}
                               </span>
                             )}
