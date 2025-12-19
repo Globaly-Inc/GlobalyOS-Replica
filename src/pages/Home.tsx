@@ -417,7 +417,7 @@ const Home = () => {
     // Load people on leave today
     const { data: leaveRequests } = await supabase
       .from("leave_requests")
-      .select("id, leave_type, employee_id")
+      .select("id, leave_type, employee_id, half_day_type")
       .eq("organization_id", currentOrg.id)
       .eq("status", "approved")
       .lte("start_date", today)
