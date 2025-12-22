@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { SocialFeedComposer } from "@/components/feed/SocialFeedComposer";
+import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
 import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
 import { usePosts, PostType } from "@/services/useSocialFeed";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
@@ -944,7 +944,7 @@ const Home = () => {
             {/* Social Feed Composer */}
             {hasEmployeeProfile && (
               <div className="mb-6">
-                <SocialFeedComposer 
+                <InlinePostComposer 
                   canPostAnnouncement={isOwner || isAdmin || isHR}
                   canPostExecutive={isOwner || isAdmin}
                 />
