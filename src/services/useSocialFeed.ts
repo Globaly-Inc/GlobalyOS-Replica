@@ -908,7 +908,7 @@ export const useCreateComment = () => {
               message: `${currentEmployee.profiles?.full_name || 'Someone'} mentioned you in a comment`,
               reference_type: 'update',
               reference_id: postId,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -930,7 +930,7 @@ export const useCreateComment = () => {
           message: `${currentEmployee.profiles?.full_name || 'Someone'} commented on your post`,
           reference_type: 'update',
           reference_id: postId,
-          actor_id: currentEmployee.user_id,
+          actor_id: currentEmployee.id,
         });
       }
 
@@ -951,12 +951,13 @@ export const useDeleteComment = () => {
 
   return useMutation({
     mutationFn: async ({ commentId, postId }: { commentId: string; postId: string }) => {
-      const { error } = await supabase
-        .from('post_comments')
-        .update({ is_deleted: true })
-        .eq('id', commentId);
+      const { data, error } = await supabase.rpc('soft_delete_comment', {
+        _comment_id: commentId
+      });
 
       if (error) throw error;
+      if (!data) throw new Error('Permission denied or comment not found');
+      
       return { postId };
     },
     onSuccess: (data) => {
