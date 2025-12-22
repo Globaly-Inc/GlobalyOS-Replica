@@ -192,10 +192,6 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(window.location.href)}>
-                <Share2 className="h-4 w-4 mr-2" />
-                Copy link
-              </DropdownMenuItem>
               <DropdownMenuItem>
                 <Bookmark className="h-4 w-4 mr-2" />
                 Save post
