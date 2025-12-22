@@ -159,7 +159,8 @@ const Home = () => {
   const {
     role,
     isHR,
-    isAdmin
+    isAdmin,
+    isOwner
   } = useUserRole();
   const {
     currentOrg
@@ -1290,8 +1291,6 @@ const Home = () => {
           </div>
         </div>
       </div>
-
-      <PostUpdateDialog open={postDialogOpen} onOpenChange={setPostDialogOpen} onSuccess={loadFeed} canPostAnnouncement={isAdmin || isHR} />
 
       {currentEmployeeId && <AddLeaveRequestDialog employeeId={currentEmployeeId} open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSuccess={loadLeaveData} trigger={null} />}
     </>;
