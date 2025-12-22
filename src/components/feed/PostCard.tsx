@@ -101,6 +101,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const config = POST_TYPE_CONFIG[post.post_type];
   const Icon = config.icon;
   const isOwnPost = currentEmployee?.id === post.employee_id;
+  const canEdit = isOwnPost || isOwner || isAdmin || isHR;
   const canDelete = isOwnPost || isOwner || isAdmin || isHR;
   const canPin = isOwner || isAdmin;
 
@@ -217,7 +218,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                   </DropdownMenuItem>
                 </>
               )}
-              {isOwnPost && onEdit && (
+              {canEdit && onEdit && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onEdit(post)}>
