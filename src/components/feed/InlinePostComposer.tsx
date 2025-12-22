@@ -516,16 +516,31 @@ export const InlinePostComposer = ({
                   })}
                 </div>
               )}
+
+              {/* Visibility Row - dedicated section */}
+              <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                <PostVisibilitySelector
+                  accessScope={accessScope}
+                  onAccessScopeChange={setAccessScope}
+                  selectedOfficeIds={selectedOfficeIds}
+                  onOfficeIdsChange={setSelectedOfficeIds}
+                  selectedDepartments={selectedDepartments}
+                  onDepartmentsChange={setSelectedDepartments}
+                  selectedProjectIds={selectedProjectIds}
+                  onProjectIdsChange={setSelectedProjectIds}
+                />
+              </div>
             </>
           )}
         </div>
       </div>
 
-      {/* Action bar */}
+      {/* Action bar - simplified */}
       <div className={cn(
         "flex items-center justify-between mt-3 pt-3 border-t border-border/50",
         !isExpanded && "flex-wrap gap-2"
       )}>
+        {/* Left: Media/Poll/Tag buttons */}
         <div className="flex items-center gap-1">
           <input
             type="file"
@@ -640,21 +655,8 @@ export const InlinePostComposer = ({
           </Popover>
         </div>
 
+        {/* Right: Cancel + Post buttons (when expanded) or visibility hint (when collapsed) */}
         <div className="flex items-center gap-2">
-          {/* Visibility */}
-          {isExpanded && (
-            <PostVisibilitySelector
-              accessScope={accessScope}
-              onAccessScopeChange={setAccessScope}
-              selectedOfficeIds={selectedOfficeIds}
-              onOfficeIdsChange={setSelectedOfficeIds}
-              selectedDepartments={selectedDepartments}
-              onDepartmentsChange={setSelectedDepartments}
-              selectedProjectIds={selectedProjectIds}
-              onProjectIdsChange={setSelectedProjectIds}
-            />
-          )}
-
           {!isExpanded && (
             <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
               <Globe className="h-4 w-4" />
