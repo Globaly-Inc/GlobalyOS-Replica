@@ -2,14 +2,13 @@ import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from "@/components/KudosCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PostUpdateDialog } from "@/components/dialogs/PostUpdateDialog";
+import { SocialFeedComposer } from "@/components/feed/SocialFeedComposer";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AdminSetup } from "@/components/AdminSetup";
@@ -135,8 +134,8 @@ const Home = () => {
   const [updates, setUpdates] = useState<FeedItem[]>([]);
   const [kudos, setKudos] = useState<KudosItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<string>("all");
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
@@ -938,137 +937,163 @@ const Home = () => {
             {/* Onboarding Checklist - inline at top of feed */}
             <OnboardingChecklist userRole={role} variant="inline" />
             
-            <Tabs defaultValue="all" className="space-y-6">
-              <div className="flex flex-row items-center justify-between gap-1 sm:gap-4">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <TabsList className="h-auto p-1 sm:p-1.5 flex-wrap">
-                    <TabsTrigger value="all" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
-                      <MessageSquare className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">All</span>
-                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {filteredUpdates.length + groupedKudos.length}
+            {/* Social Feed Composer */}
+            {hasEmployeeProfile && (
+              <div className="mb-6">
+                <SocialFeedComposer 
+                  canPostAnnouncement={isOwner || isAdmin || isHR}
+                  canPostExecutive={isOwner || isAdmin}
+                />
+              </div>
+            )}
+
+            {/* Filter Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={feedFilter} onValueChange={setFeedFilter}>
+                  <SelectTrigger className="w-[160px] h-9 bg-background">
+                    <SelectValue placeholder="Filter posts" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="all">
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" /> All Posts
                       </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="wins" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
-                      <Trophy className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">Wins</span>
-                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {winsAndAchievements.length}
+                    </SelectItem>
+                    <SelectItem value="wins">
+                      <span className="flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-amber-500" /> Wins
                       </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="kudos" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
-                      <Heart className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">Kudos</span>
-                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {groupedKudos.length}
+                    </SelectItem>
+                    <SelectItem value="kudos">
+                      <span className="flex items-center gap-2">
+                        <Heart className="h-4 w-4 text-pink-500" /> Kudos
                       </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="announcements" className="px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-1.5">
-                      <Megaphone className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">Announcements</span>
-                      <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                        {regularUpdates.length}
+                    </SelectItem>
+                    <SelectItem value="announcements">
+                      <span className="flex items-center gap-2">
+                        <Megaphone className="h-4 w-4 text-blue-500" /> Announcements
                       </span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  {/* Date Filter - hidden on mobile */}
-                  <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-                    <SelectTrigger className="hidden sm:flex w-[130px] h-auto py-2 bg-background">
-                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background">
-                      <SelectItem value="all">All Time</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {hasEmployeeProfile && <Button className="h-auto py-1.5 sm:py-2 px-3 sm:px-4" onClick={() => setPostDialogOpen(true)}>
-                    <SquarePen className="h-4 w-4 mr-1.5 sm:mr-2" />
-                    <span className="sm:hidden">Post</span>
-                    <span className="hidden sm:inline">New Post</span>
-                  </Button>}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <TabsContent value="all" className="space-y-4">
-                {loading ? <Card className="p-12 text-center">
-                    <p className="text-muted-foreground">Loading feed...</p>
-                  </Card> : <>
-                    {renderFeedContent([...filteredUpdates, ...groupedKudos])}
-                    {filteredUpdates.length === 0 && groupedKudos.length === 0 && <Card className="p-12 text-center">
-                        <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
-                      </Card>}
-                  </>}
-              </TabsContent>
+              <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
+                <SelectTrigger className="w-[130px] h-9 bg-background">
+                  <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <TabsContent value="wins" className="space-y-4">
-                {winsAndAchievements.map(update => <UpdateCard key={update.id} update={{
-                id: update.id,
-                employeeId: update.employee_id,
-                employeeName: update.employee.profiles.full_name,
-                content: update.content,
-                date: update.created_at,
-                type: update.type as "win" | "achievement",
-                avatar: update.employee.profiles.avatar_url || undefined,
-                imageUrl: update.image_url || undefined,
-                accessScope: (update as any).access_scope,
-                updateOffices: (update as any).update_offices,
-                updateDepartments: (update as any).update_departments,
-                updateProjects: (update as any).update_projects,
-              }} onDelete={loadFeed} />)}
-                {winsAndAchievements.length === 0 && <Card className="p-12 text-center">
-                    <p className="text-muted-foreground">No wins yet!</p>
-                  </Card>}
-              </TabsContent>
-
-              <TabsContent value="kudos" className="space-y-4">
-                {groupedKudos.map(kudosItem => <KudosCard key={kudosItem.batch_id || kudosItem.id} kudos={{
-                id: kudosItem.id,
-                employeeId: kudosItem.employee.id,
-                employeeName: kudosItem.employee.profiles.full_name,
-                givenBy: kudosItem.given_by.profiles.full_name,
-                givenById: kudosItem.given_by.id,
-                givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
-                comment: kudosItem.comment,
-                date: kudosItem.created_at,
-                avatar: kudosItem.employee.profiles.avatar_url || undefined,
-                batchId: kudosItem.batch_id || undefined,
-                otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-                otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
-                accessScope: (kudosItem as any).access_scope,
-                kudosOffices: (kudosItem as any).kudos_offices,
-                kudosDepartments: (kudosItem as any).kudos_departments,
-                kudosProjects: (kudosItem as any).kudos_projects,
-              }} onDelete={loadFeed} />)}
-                {groupedKudos.length === 0 && <Card className="p-12 text-center">
-                    <p className="text-muted-foreground">No kudos yet!</p>
-                  </Card>}
-              </TabsContent>
-
-              <TabsContent value="announcements" className="space-y-4">
-                {regularUpdates.map(update => <UpdateCard key={update.id} update={{
-                id: update.id,
-                employeeId: update.employee_id,
-                employeeName: update.employee.profiles.full_name,
-                content: update.content,
-                date: update.created_at,
-                type: "announcement",
-                avatar: update.employee.profiles.avatar_url || undefined,
-                imageUrl: update.image_url || undefined,
-                accessScope: (update as any).access_scope,
-                updateOffices: (update as any).update_offices,
-                updateDepartments: (update as any).update_departments,
-                updateProjects: (update as any).update_projects,
-              }} onDelete={loadFeed} />)}
-                {regularUpdates.length === 0 && <Card className="p-12 text-center">
-                    <p className="text-muted-foreground">No announcements yet!</p>
-                  </Card>}
-              </TabsContent>
-            </Tabs>
+            {/* Feed Content */}
+            <div className="space-y-4">
+              {loading ? (
+                <Card className="p-12 text-center">
+                  <p className="text-muted-foreground">Loading feed...</p>
+                </Card>
+              ) : (
+                <>
+                  {feedFilter === "all" && (
+                    <>
+                      {renderFeedContent([...filteredUpdates, ...groupedKudos])}
+                      {filteredUpdates.length === 0 && groupedKudos.length === 0 && (
+                        <Card className="p-12 text-center">
+                          <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                  {feedFilter === "wins" && (
+                    <>
+                      {winsAndAchievements.map(update => (
+                        <UpdateCard key={update.id} update={{
+                          id: update.id,
+                          employeeId: update.employee_id,
+                          employeeName: update.employee.profiles.full_name,
+                          content: update.content,
+                          date: update.created_at,
+                          type: update.type as "win" | "achievement",
+                          avatar: update.employee.profiles.avatar_url || undefined,
+                          imageUrl: update.image_url || undefined,
+                          accessScope: (update as any).access_scope,
+                          updateOffices: (update as any).update_offices,
+                          updateDepartments: (update as any).update_departments,
+                          updateProjects: (update as any).update_projects,
+                        }} onDelete={loadFeed} />
+                      ))}
+                      {winsAndAchievements.length === 0 && (
+                        <Card className="p-12 text-center">
+                          <p className="text-muted-foreground">No wins yet!</p>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                  {feedFilter === "kudos" && (
+                    <>
+                      {groupedKudos.map(kudosItem => (
+                        <KudosCard key={kudosItem.batch_id || kudosItem.id} kudos={{
+                          id: kudosItem.id,
+                          employeeId: kudosItem.employee.id,
+                          employeeName: kudosItem.employee.profiles.full_name,
+                          givenBy: kudosItem.given_by.profiles.full_name,
+                          givenById: kudosItem.given_by.id,
+                          givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
+                          comment: kudosItem.comment,
+                          date: kudosItem.created_at,
+                          avatar: kudosItem.employee.profiles.avatar_url || undefined,
+                          batchId: kudosItem.batch_id || undefined,
+                          otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
+                          otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
+                          accessScope: (kudosItem as any).access_scope,
+                          kudosOffices: (kudosItem as any).kudos_offices,
+                          kudosDepartments: (kudosItem as any).kudos_departments,
+                          kudosProjects: (kudosItem as any).kudos_projects,
+                        }} onDelete={loadFeed} />
+                      ))}
+                      {groupedKudos.length === 0 && (
+                        <Card className="p-12 text-center">
+                          <p className="text-muted-foreground">No kudos yet!</p>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                  {feedFilter === "announcements" && (
+                    <>
+                      {regularUpdates.map(update => (
+                        <UpdateCard key={update.id} update={{
+                          id: update.id,
+                          employeeId: update.employee_id,
+                          employeeName: update.employee.profiles.full_name,
+                          content: update.content,
+                          date: update.created_at,
+                          type: "announcement",
+                          avatar: update.employee.profiles.avatar_url || undefined,
+                          imageUrl: update.image_url || undefined,
+                          accessScope: (update as any).access_scope,
+                          updateOffices: (update as any).update_offices,
+                          updateDepartments: (update as any).update_departments,
+                          updateProjects: (update as any).update_projects,
+                        }} onDelete={loadFeed} />
+                      ))}
+                      {regularUpdates.length === 0 && (
+                        <Card className="p-12 text-center">
+                          <p className="text-muted-foreground">No announcements yet!</p>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
