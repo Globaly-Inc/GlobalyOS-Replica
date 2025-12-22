@@ -258,11 +258,18 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
                                 />
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={kpi.title}
-                                  onChange={(e) => updateKpi(kpi.tempId, { title: e.target.value })}
-                                  className="h-8 text-sm"
-                                />
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    value={kpi.title}
+                                    onChange={(e) => updateKpi(kpi.tempId, { title: e.target.value })}
+                                    className="h-8 text-sm flex-1"
+                                  />
+                                  {kpi.quarter && (
+                                    <Badge variant="secondary" className="text-xs shrink-0">
+                                      Q{kpi.quarter}
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Textarea

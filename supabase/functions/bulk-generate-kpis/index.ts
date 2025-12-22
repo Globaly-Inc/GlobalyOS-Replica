@@ -19,6 +19,7 @@ interface RequestBody {
   periodType: "annual" | "quarterly";
   quarter: number;
   year: number;
+  quarterlyBreakdown?: boolean;
   aiInstructions?: string;
   cascadeConfig: CascadeConfig;
   targetDepartments?: string[];
@@ -49,6 +50,8 @@ interface GeneratedKpi {
   targetValue: number;
   unit: string;
   parentTempId?: string;
+  quarter?: number;
+  isQuarterlyChild?: boolean;
 }
 
 serve(async (req) => {
@@ -63,12 +66,13 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { documentContent, periodType, quarter, year, aiInstructions, cascadeConfig, targetDepartments, targetProjects, targetOffices, targetEmployees, organizationContext } = body;
+    const { documentContent, periodType, quarter, year, quarterlyBreakdown, aiInstructions, cascadeConfig, targetDepartments, targetProjects, targetOffices, targetEmployees, organizationContext } = body;
 
     const periodLabel = periodType === "annual" ? `FY ${year}` : `Q${quarter} ${year}`;
 
     console.log("Bulk KPI Generation Request:", { 
       periodType, periodLabel,
+      quarterlyBreakdown,
       cascadeConfig,
       departmentsCount: organizationContext.departments.length,
       projectsCount: organizationContext.projects?.length || 0,
@@ -140,6 +144,50 @@ serve(async (req) => {
     }
 
     // Build prompt for AI
+    const quarterlyBreakdownInstructions = quarterlyBreakdown && periodType === "annual" ? `
+QUARTERLY BREAKDOWN MODE:
+Since this is an annual plan with quarterly breakdown enabled, for EACH annual KPI you create, also generate 4 quarterly child KPIs (Q1, Q2, Q3, Q4).
+- The quarterly KPIs should have the same scopeType as their parent
+- Their targetValue should sum up to the parent's annual target (distribute intelligently)
+- Consider seasonality: Q1 might have lower targets (ramp-up), Q4 might be higher (year-end push)
+- For revenue targets: typical distribution could be 20% Q1, 25% Q2, 25% Q3, 30% Q4
+- For hiring/headcount: might be more even distribution
+- For project milestones: consider project phase timing
+- Set "quarter" field to 1, 2, 3, or 4 for quarterly KPIs
+- Set "isQuarterlyChild" to true for quarterly KPIs
+- Link quarterly KPIs to their annual parent via "parentTempId"
+
+Example quarterly breakdown:
+{
+  "tempId": "org-annual-1",
+  "scopeType": "organization",
+  "title": "Annual Revenue FY ${year}",
+  "targetValue": 1000000,
+  "unit": "$"
+},
+{
+  "tempId": "org-q1-1",
+  "scopeType": "organization", 
+  "title": "Revenue Q1 ${year}",
+  "targetValue": 200000,
+  "unit": "$",
+  "quarter": 1,
+  "isQuarterlyChild": true,
+  "parentTempId": "org-annual-1"
+},
+{
+  "tempId": "org-q2-1",
+  "scopeType": "organization",
+  "title": "Revenue Q2 ${year}",
+  "targetValue": 250000,
+  "unit": "$",
+  "quarter": 2,
+  "isQuarterlyChild": true,
+  "parentTempId": "org-annual-1"
+}
+... (Q3, Q4 similarly)
+` : '';
+
     const systemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
 Your task is to analyze organizational documents and generate a hierarchical KPI structure.
 
@@ -152,7 +200,7 @@ Guidelines for KPI creation:
 6. Set realistic target values based on industry standards
 7. For project KPIs, focus on product/project-specific outcomes (revenue, features, milestones)
 8. Link individual KPIs to projects when the employee is assigned to that project
-
+${quarterlyBreakdownInstructions}
 CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
 The JSON must follow this exact structure:
 
@@ -255,6 +303,7 @@ Generate KPIs with this cascade:`;
     }
 
     userPrompt += `\n\nEnsure parent-child relationships are properly set using parentTempId to link child KPIs to their parent.
+${quarterlyBreakdown && periodType === "annual" ? 'REMEMBER: Generate quarterly breakdowns (Q1-Q4) for each annual KPI with intelligent target distribution.' : ''}
 ${documentContent ? 'Base the KPIs on the themes and goals mentioned in the reference document.' : 'Create standard business KPIs based on the organization structure.'}
 ${aiInstructions ? 'Follow the user instructions provided above when creating KPIs.' : ''}
 

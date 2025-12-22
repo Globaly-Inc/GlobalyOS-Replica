@@ -257,6 +257,28 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
                 </Select>
               </div>
             </div>
+
+            {/* Quarterly Breakdown Toggle - Only show for Annual */}
+            {state.periodType === "annual" && (
+              <div 
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors mt-4
+                  ${state.quarterlyBreakdown ? 'bg-primary/5 border-primary/20' : 'bg-muted/50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-md ${state.quarterlyBreakdown ? 'bg-primary/10' : 'bg-muted'}`}>
+                    <CalendarDays className={`h-4 w-4 ${state.quarterlyBreakdown ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Quarterly Breakdown</p>
+                    <p className="text-xs text-muted-foreground">AI will distribute annual targets across Q1-Q4</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={state.quarterlyBreakdown}
+                  onCheckedChange={(checked) => updateState({ quarterlyBreakdown: checked })}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
