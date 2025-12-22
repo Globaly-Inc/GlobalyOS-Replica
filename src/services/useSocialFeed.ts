@@ -93,6 +93,7 @@ export interface CreatePostInput {
     ends_at?: string | null;
     is_anonymous?: boolean;
   };
+  onUploadProgress?: (progress: { current: number; total: number; fileName: string; fileIndex: number }) => void;
 }
 
 export const usePosts = (filter?: PostType | 'all') => {
@@ -215,10 +216,14 @@ export const useCreatePost = () => {
 
       // Upload media files if any
       if (input.media_files && input.media_files.length > 0) {
-        for (let i = 0; i < input.media_files.length; i++) {
+        const totalFiles = input.media_files.length;
+        for (let i = 0; i < totalFiles; i++) {
           const file = input.media_files[i];
           const fileExt = file.name.split('.').pop();
           const fileName = `${currentEmployee.id}/${post.id}/${Date.now()}_${i}.${fileExt}`;
+          
+          // Report progress before upload
+          input.onUploadProgress?.({ current: i, total: totalFiles, fileName: file.name, fileIndex: i });
           
           const { error: uploadError } = await supabase.storage
             .from('post-media')
@@ -244,6 +249,9 @@ export const useCreatePost = () => {
             file_size: file.size,
             sort_order: i,
           });
+          
+          // Report progress after upload complete
+          input.onUploadProgress?.({ current: i + 1, total: totalFiles, fileName: file.name, fileIndex: i });
         }
       }
 
