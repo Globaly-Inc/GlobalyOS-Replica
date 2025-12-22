@@ -35,7 +35,8 @@ import {
   Check,
   X,
   Trash2,
-  Plus
+  Plus,
+  Rocket
 } from "lucide-react";
 import type { BulkKpiWizardState, GeneratedKpi } from "@/pages/BulkKpiCreate";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     organization: true,
     department: true,
+    project: true,
     office: true,
     individual: true,
   });
@@ -88,6 +90,7 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
     switch (scopeType) {
       case "organization": return Globe;
       case "department": return Building;
+      case "project": return Rocket;
       case "office": return MapPin;
       case "individual": return Users;
       default: return Globe;
@@ -98,6 +101,7 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
     switch (scopeType) {
       case "organization": return "border-l-purple-500";
       case "department": return "border-l-blue-500";
+      case "project": return "border-l-pink-500";
       case "office": return "border-l-green-500";
       case "individual": return "border-l-amber-500";
       default: return "";
@@ -111,15 +115,27 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
     return acc;
   }, {} as Record<string, GeneratedKpi[]>);
 
-  const scopeOrder = ["organization", "department", "office", "individual"];
+  const scopeOrder = ["organization", "department", "project", "office", "individual"];
 
-  // Get potential parent KPIs (only organization or department can be parents)
+  // Get potential parent KPIs
   const getParentOptions = (currentKpi: GeneratedKpi) => {
     if (currentKpi.scopeType === "organization") return [];
     
-    const parentScopes = currentKpi.scopeType === "individual" 
-      ? ["organization", "department", "office"]
-      : ["organization"];
+    let parentScopes: string[] = [];
+    switch (currentKpi.scopeType) {
+      case "department":
+        parentScopes = ["organization"];
+        break;
+      case "project":
+        parentScopes = ["organization"];
+        break;
+      case "office":
+        parentScopes = ["organization"];
+        break;
+      case "individual":
+        parentScopes = ["organization", "department", "project", "office"];
+        break;
+    }
     
     return state.generatedKpis.filter(k => 
       parentScopes.includes(k.scopeType) && k.tempId !== currentKpi.tempId
@@ -259,7 +275,7 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
                               {scopeType !== "organization" && (
                                 <TableCell>
                                   <Badge variant="outline" className="text-xs truncate max-w-[130px]">
-                                    {kpi.employeeName || kpi.scopeValue || "-"}
+                                    {kpi.employeeName || kpi.projectName || kpi.scopeValue || "-"}
                                   </Badge>
                                 </TableCell>
                               )}

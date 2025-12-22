@@ -14,7 +14,8 @@ import {
   Users,
   CheckCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Rocket
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -50,12 +51,26 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         .select("id, name")
         .eq("organization_id", currentOrg.id);
 
+      // Fetch projects
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id);
+
+      // Fetch employee-project assignments
+      const { data: employeeProjects } = await supabase
+        .from("employee_projects")
+        .select("employee_id, project_id")
+        .eq("organization_id", currentOrg.id);
+
       const departments = [...new Set(employees?.map(e => e.department).filter(Boolean))];
 
       return {
         name: currentOrg.name || "Organization",
         departments: departments as string[],
         offices: offices || [],
+        projects: projects || [],
+        employeeProjects: employeeProjects || [],
         employees: (employees || []).map(e => ({
           id: e.id,
           name: (e.profiles as any)?.full_name || "Unknown",
@@ -84,6 +99,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
           aiInstructions: state.aiInstructions,
           cascadeConfig: state.cascadeConfig,
           targetDepartments: state.targetDepartments,
+          targetProjects: state.targetProjects,
           targetOffices: state.targetOffices,
           targetEmployees: state.targetEmployees,
           organizationContext: orgContext,
@@ -116,6 +132,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
     switch (scopeType) {
       case "organization": return Globe;
       case "department": return Building;
+      case "project": return Rocket;
       case "office": return MapPin;
       case "individual": return Users;
       default: return Globe;
@@ -126,6 +143,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
     switch (scopeType) {
       case "organization": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
       case "department": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+      case "project": return "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300";
       case "office": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       case "individual": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
       default: return "";
@@ -139,7 +157,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
     return acc;
   }, {} as Record<string, GeneratedKpi[]>);
 
-  const scopeOrder = ["organization", "department", "office", "individual"];
+  const scopeOrder = ["organization", "department", "project", "office", "individual"];
 
   return (
     <div className="space-y-6">
@@ -168,6 +186,12 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
               <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <Building className="h-5 w-5 text-blue-600" />
                 <span className="text-sm">Departments</span>
+              </div>
+            )}
+            {state.cascadeConfig.includeProjects && (
+              <div className="flex items-center gap-2 p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
+                <Rocket className="h-5 w-5 text-pink-600" />
+                <span className="text-sm">Projects</span>
               </div>
             )}
             {state.cascadeConfig.includeOffices && (
@@ -273,9 +297,9 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
                           <p className="text-xs text-muted-foreground line-clamp-1">
                             {kpi.description}
                           </p>
-                          {(kpi.scopeValue || kpi.employeeName) && (
+                          {(kpi.scopeValue || kpi.employeeName || kpi.projectName) && (
                             <Badge variant="outline" className="mt-1 text-xs">
-                              {kpi.employeeName || kpi.scopeValue}
+                              {kpi.employeeName || kpi.projectName || kpi.scopeValue}
                             </Badge>
                           )}
                         </div>

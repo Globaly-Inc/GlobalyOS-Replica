@@ -30,7 +30,8 @@ import {
   X,
   Sparkles,
   Calendar,
-  CalendarDays
+  CalendarDays,
+  Rocket
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -73,6 +74,21 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
       if (!currentOrg?.id) return [];
       const { data } = await supabase
         .from("offices")
+        .select("id, name")
+        .eq("organization_id", currentOrg.id)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Fetch projects
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from("projects")
         .select("id, name")
         .eq("organization_id", currentOrg.id)
         .order("name");
@@ -152,14 +168,24 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
     });
   };
 
+  const toggleProject = (projectId: string) => {
+    const current = state.targetProjects;
+    updateState({
+      targetProjects: current.includes(projectId)
+        ? current.filter(p => p !== projectId)
+        : [...current, projectId],
+    });
+  };
+
   const cascadeLevels = [
     { key: "includeOrganization" as const, icon: Globe, label: "Organization", description: "Company-wide strategic KPIs" },
     { key: "includeDepartments" as const, icon: Building, label: "Departments", description: "Team-level KPIs" },
+    { key: "includeProjects" as const, icon: Rocket, label: "Projects", description: "Product/Project KPIs" },
     { key: "includeOffices" as const, icon: MapPin, label: "Offices", description: "Location-based KPIs" },
     { key: "includeIndividuals" as const, icon: Users, label: "Individuals", description: "Personal KPIs for team members" },
   ];
 
-  const selectedFiltersCount = state.targetDepartments.length + state.targetOffices.length + state.targetEmployees.length;
+  const selectedFiltersCount = state.targetDepartments.length + state.targetProjects.length + state.targetOffices.length + state.targetEmployees.length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -304,6 +330,28 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
                     </div>
                     {state.targetDepartments.length === 0 && (
                       <p className="text-xs text-muted-foreground mt-1">All departments included</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Projects */}
+                {state.cascadeConfig.includeProjects && projects.length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">Projects</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {projects.map(project => (
+                        <Badge
+                          key={project.id}
+                          variant={state.targetProjects.includes(project.id) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => toggleProject(project.id)}
+                        >
+                          {project.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {state.targetProjects.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">All projects included</p>
                     )}
                   </div>
                 )}

@@ -14,15 +14,18 @@ import { BulkKpiResultsStep } from "@/components/kpi/bulk/BulkKpiResultsStep";
 export interface CascadeConfig {
   includeOrganization: boolean;
   includeDepartments: boolean;
+  includeProjects: boolean;
   includeOffices: boolean;
   includeIndividuals: boolean;
 }
 
 export interface GeneratedKpi {
   tempId: string;
-  scopeType: "organization" | "department" | "office" | "individual";
+  scopeType: "organization" | "department" | "project" | "office" | "individual";
   scopeValue?: string;
   scopeId?: string;
+  projectId?: string;
+  projectName?: string;
   employeeId?: string;
   employeeName?: string;
   title: string;
@@ -42,6 +45,7 @@ export interface BulkKpiWizardState {
   year: number;
   cascadeConfig: CascadeConfig;
   targetDepartments: string[];
+  targetProjects: string[];
   targetOffices: string[];
   targetEmployees: string[];
   documentContent: string;
@@ -77,10 +81,12 @@ const BulkKpiCreate = () => {
     cascadeConfig: {
       includeOrganization: true,
       includeDepartments: true,
+      includeProjects: true,
       includeOffices: false,
       includeIndividuals: true,
     },
     targetDepartments: [],
+    targetProjects: [],
     targetOffices: [],
     targetEmployees: [],
     documentContent: "",
