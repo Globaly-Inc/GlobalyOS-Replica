@@ -8311,6 +8311,7 @@ export type Database = {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined
       }
+      soft_delete_comment: { Args: { _comment_id: string }; Returns: boolean }
       transfer_wiki_ownership: {
         Args: { _item_id: string; _item_type: string; _new_owner_id: string }
         Returns: boolean
