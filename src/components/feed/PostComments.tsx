@@ -16,7 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, Send, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Send, Loader2, Smile } from 'lucide-react';
+import { GifPicker } from './GifPicker';
 import { formatDistanceToNow } from 'date-fns';
 import { OrgLink } from '@/components/OrgLink';
 import { CommentReactions } from './CommentReactions';
@@ -80,7 +81,7 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
             {currentEmployee?.profiles?.full_name?.charAt(0) || '?'}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 flex gap-2 relative">
+        <div className="flex-1 flex gap-1 relative">
           <div className="flex-1 relative">
             <Input
               ref={inputRef}
@@ -97,6 +98,13 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
               onClose={closeMention}
             />
           </div>
+          <GifPicker
+            onSelect={(gifUrl) => {
+              // Insert GIF URL into comment
+              setNewComment(prev => prev + (prev ? ' ' : '') + gifUrl);
+            }}
+            triggerClassName="text-muted-foreground hover:text-foreground h-10 w-10"
+          />
           <Button 
             type="submit" 
             size="icon"

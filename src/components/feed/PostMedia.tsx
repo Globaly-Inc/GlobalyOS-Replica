@@ -51,12 +51,16 @@ export const PostMedia = ({ media }: PostMediaProps) => {
         return 'grid-cols-2';
       case 5:
         return 'grid-cols-3';
+      case 6:
+        return 'grid-cols-3';
       default:
         return 'grid-cols-3';
     }
   };
 
   const renderMediaItem = (item: MediaItem, index: number, isInLightbox = false) => {
+    const isGif = item.media_type === 'gif' || item.file_url.toLowerCase().endsWith('.gif');
+    
     if (item.media_type === 'video') {
       return (
         <div className="relative w-full h-full">
@@ -88,17 +92,24 @@ export const PostMedia = ({ media }: PostMediaProps) => {
     }
 
     return (
-      <img
-        src={item.file_url}
-        alt=""
-        className={cn(
-          "object-cover",
-          isInLightbox 
-            ? "max-w-full max-h-[80vh] mx-auto rounded-lg" 
-            : "w-full h-full cursor-pointer hover:opacity-95 transition-opacity"
+      <div className="relative w-full h-full">
+        <img
+          src={item.file_url}
+          alt=""
+          className={cn(
+            "object-cover",
+            isInLightbox 
+              ? "max-w-full max-h-[80vh] mx-auto rounded-lg" 
+              : "w-full h-full cursor-pointer hover:opacity-95 transition-opacity"
+          )}
+          onClick={isInLightbox ? undefined : () => openLightbox(index)}
+        />
+        {isGif && !isInLightbox && (
+          <span className="absolute bottom-1 left-1 px-1.5 py-0.5 text-[10px] font-medium bg-black/70 text-white rounded">
+            GIF
+          </span>
         )}
-        onClick={isInLightbox ? undefined : () => openLightbox(index)}
-      />
+      </div>
     );
   };
 
@@ -108,7 +119,7 @@ export const PostMedia = ({ media }: PostMediaProps) => {
         "grid gap-1 px-4 pb-3",
         getGridClass()
       )}>
-        {media.slice(0, 5).map((item, index) => (
+        {media.slice(0, 6).map((item, index) => (
           <div
             key={item.id}
             className={cn(
@@ -118,20 +129,21 @@ export const PostMedia = ({ media }: PostMediaProps) => {
               media.length === 3 && index === 0 && "row-span-2 aspect-auto h-full",
               media.length === 3 && index > 0 && "aspect-square",
               media.length === 4 && "aspect-square",
-              media.length >= 5 && index < 3 && "aspect-square",
-              media.length >= 5 && index >= 3 && "aspect-[4/3]"
+              media.length === 5 && index < 3 && "aspect-square",
+              media.length === 5 && index >= 3 && "aspect-[4/3]",
+              media.length >= 6 && "aspect-square"
             )}
           >
             {renderMediaItem(item, index)}
             
-            {/* More indicator - show on 5th item if there are more */}
-            {index === 4 && media.length > 5 && (
+            {/* More indicator - show on 6th item if there are more */}
+            {index === 5 && media.length > 6 && (
               <div 
                 className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
-                onClick={() => openLightbox(4)}
+                onClick={() => openLightbox(5)}
               >
                 <span className="text-white text-2xl font-semibold">
-                  +{media.length - 5}
+                  +{media.length - 6}
                 </span>
               </div>
             )}
