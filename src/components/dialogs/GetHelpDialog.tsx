@@ -82,53 +82,26 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
   const handleCaptureScreenshot = async () => {
     setIsCapturing(true);
     
-    // Get all dialog-related elements
-    const dialogOverlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement | null;
-    const dialogContent = document.querySelector('[data-radix-dialog-content]') as HTMLElement | null;
-    
-    // Store original styles
-    const overlayStyles = dialogOverlay ? { 
-      display: dialogOverlay.style.display,
-      visibility: dialogOverlay.style.visibility,
-      opacity: dialogOverlay.style.opacity 
-    } : null;
-    const contentStyles = dialogContent ? { 
-      display: dialogContent.style.display,
-      visibility: dialogContent.style.visibility,
-      opacity: dialogContent.style.opacity 
-    } : null;
-    
-    // Hide dialog completely using multiple strategies
-    if (dialogOverlay) {
-      dialogOverlay.style.display = 'none';
-      dialogOverlay.style.visibility = 'hidden';
-      dialogOverlay.style.opacity = '0';
-    }
-    if (dialogContent) {
-      dialogContent.style.display = 'none';
-      dialogContent.style.visibility = 'hidden';
-      dialogContent.style.opacity = '0';
-    }
-    
-    // Wait for browser to repaint before capturing
-    await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        setTimeout(resolve, 100);
-      });
-    });
-    
     try {
       const html2canvas = (await import('html2canvas')).default;
       
-      const canvas = await html2canvas(document.body, {
+      // Capture #root instead of document.body - this naturally excludes
+      // portaled dialogs since they are siblings of #root, not descendants
+      const captureTarget = document.getElementById('root');
+      
+      if (!captureTarget) {
+        throw new Error('Could not find #root element');
+      }
+      
+      const canvas = await html2canvas(captureTarget, {
         useCORS: true,
         allowTaint: true,
         scale: window.devicePixelRatio || 1,
         logging: false,
+        // Fallback: ignore any Radix portal content that might be inside root
         ignoreElements: (element) => {
-          // Explicitly ignore any remaining dialog elements
-          return element.hasAttribute('data-radix-dialog-overlay') || 
-                 element.hasAttribute('data-radix-dialog-content');
+          return element.closest('[data-radix-portal]') !== null || 
+                 element.getAttribute('role') === 'dialog';
         }
       });
       
@@ -144,17 +117,6 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
       console.error('Failed to capture screenshot:', error);
       toast.error('Failed to capture screenshot');
     } finally {
-      // Restore original styles
-      if (dialogOverlay && overlayStyles) {
-        dialogOverlay.style.display = overlayStyles.display;
-        dialogOverlay.style.visibility = overlayStyles.visibility;
-        dialogOverlay.style.opacity = overlayStyles.opacity;
-      }
-      if (dialogContent && contentStyles) {
-        dialogContent.style.display = contentStyles.display;
-        dialogContent.style.visibility = contentStyles.visibility;
-        dialogContent.style.opacity = contentStyles.opacity;
-      }
       setIsCapturing(false);
     }
   };
