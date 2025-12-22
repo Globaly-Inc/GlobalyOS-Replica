@@ -1534,6 +1534,115 @@ export type Database = {
           },
         ]
       }
+      comment_mentions: {
+        Row: {
+          comment_id: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comment_reactions: {
+        Row: {
+          comment_id: string
+          created_at: string | null
+          emoji: string
+          employee_id: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string | null
+          emoji: string
+          employee_id: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string | null
+          emoji?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_reactions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_reactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coverage_reports: {
         Row: {
           created_at: string | null
@@ -4427,6 +4536,111 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_options: {
+        Row: {
+          created_at: string | null
+          id: string
+          option_text: string
+          organization_id: string
+          poll_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          option_text: string
+          organization_id: string
+          poll_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          option_text?: string
+          organization_id?: string
+          poll_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "post_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          option_id: string
+          organization_id: string
+          poll_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          option_id: string
+          organization_id: string
+          poll_id: string
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          option_id?: string
+          organization_id?: string
+          poll_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "poll_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "post_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       position_history: {
         Row: {
           change_type: string
@@ -4539,6 +4753,570 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_deleted: boolean | null
+          organization_id: string
+          parent_comment_id: string | null
+          post_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_deleted?: boolean | null
+          organization_id: string
+          parent_comment_id?: string | null
+          post_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_deleted?: boolean | null
+          organization_id?: string
+          parent_comment_id?: string | null
+          post_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_departments: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          organization_id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          organization_id: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          organization_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_departments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_link_previews: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          favicon_url: string | null
+          id: string
+          image_url: string | null
+          organization_id: string
+          post_id: string
+          site_name: string | null
+          title: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          favicon_url?: string | null
+          id?: string
+          image_url?: string | null
+          organization_id: string
+          post_id: string
+          site_name?: string | null
+          title?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          favicon_url?: string | null
+          id?: string
+          image_url?: string | null
+          organization_id?: string
+          post_id?: string
+          site_name?: string | null
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_link_previews_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_link_previews_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_media: {
+        Row: {
+          created_at: string | null
+          embed_metadata: Json | null
+          embed_type: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          media_type: string
+          organization_id: string
+          post_id: string
+          sort_order: number | null
+          thumbnail_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          embed_metadata?: Json | null
+          embed_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          media_type: string
+          organization_id: string
+          post_id: string
+          sort_order?: number | null
+          thumbnail_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          embed_metadata?: Json | null
+          embed_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          media_type?: string
+          organization_id?: string
+          post_id?: string
+          sort_order?: number | null
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_media_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_mentions: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_mentions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_mentions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_offices: {
+        Row: {
+          created_at: string | null
+          id: string
+          office_id: string
+          organization_id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          office_id: string
+          organization_id: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          office_id?: string
+          organization_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_offices_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_polls: {
+        Row: {
+          allow_multiple: boolean | null
+          created_at: string | null
+          ends_at: string | null
+          id: string
+          is_anonymous: boolean | null
+          organization_id: string
+          post_id: string
+          question: string
+        }
+        Insert: {
+          allow_multiple?: boolean | null
+          created_at?: string | null
+          ends_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          organization_id: string
+          post_id: string
+          question: string
+        }
+        Update: {
+          allow_multiple?: boolean | null
+          created_at?: string | null
+          ends_at?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          organization_id?: string
+          post_id?: string
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_polls_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_polls_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_projects: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          post_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          post_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          post_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_projects_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          employee_id: string
+          id: string
+          organization_id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_reactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_reactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          access_scope: string | null
+          content: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_deleted: boolean | null
+          is_pinned: boolean | null
+          is_published: boolean | null
+          kudos_recipient_ids: string[] | null
+          organization_id: string
+          pinned_at: string | null
+          pinned_by: string | null
+          post_type: string
+          scheduled_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_scope?: string | null
+          content: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_deleted?: boolean | null
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          kudos_recipient_ids?: string[] | null
+          organization_id: string
+          pinned_at?: string | null
+          pinned_by?: string | null
+          post_type: string
+          scheduled_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_scope?: string | null
+          content?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_deleted?: boolean | null
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          kudos_recipient_ids?: string[] | null
+          organization_id?: string
+          pinned_at?: string | null
+          pinned_by?: string | null
+          post_type?: string
+          scheduled_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -7310,6 +8088,14 @@ export type Database = {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean
       }
+      can_insert_post: {
+        Args: {
+          _employee_id: string
+          _organization_id: string
+          _post_type: string
+        }
+        Returns: boolean
+      }
       can_insert_update: {
         Args: { _employee_id: string; _organization_id: string }
         Returns: boolean
@@ -7320,6 +8106,10 @@ export type Database = {
       }
       can_view_kudos: {
         Args: { _kudos_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      can_view_post: {
+        Args: { _post_id: string; _user_id?: string }
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
@@ -7504,6 +8294,8 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      owns_comment: { Args: { _comment_id: string }; Returns: boolean }
+      owns_post: { Args: { _post_id: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
       record_remote_attendance: {
         Args: {
