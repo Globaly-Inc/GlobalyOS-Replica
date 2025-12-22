@@ -33,7 +33,7 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity } from "lucide-react";
 import { WORK_LOCATION_CONFIG, WorkLocation, WorkLocationDisplay } from "@/types/wfh";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
 import { AddWfhRequestDialog } from "@/components/dialogs/AddWfhRequestDialog";
@@ -46,10 +46,12 @@ import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialo
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { icons } from "lucide-react";
+import { ProfileActivityFeed } from "@/components/feed/ProfileActivityFeed";
 import { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 interface EmployeeProject {
@@ -1211,8 +1213,21 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
+            {/* Activity Feed - Posts, Kudos Received, Mentions */}
+            <Card className="overflow-hidden order-8 lg:order-none">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Activity Feed
+                </h2>
+              </div>
+              <div className="p-4">
+                <ProfileActivityFeed employeeId={id!} />
+              </div>
+            </Card>
+
             {/* Documents - Admin/HR, own profile, or manager */}
-            {canViewAllDetails && <Card className="overflow-hidden order-8 lg:order-none">
+            {canViewAllDetails && <Card className="overflow-hidden order-9 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
                     <FolderOpen className="h-5 w-5 text-primary" />

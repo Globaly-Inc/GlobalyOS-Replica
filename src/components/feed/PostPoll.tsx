@@ -4,9 +4,7 @@
  */
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useOrganization } from '@/hooks/useOrganization';
+import { usePollVotes, usePollVote } from '@/services/useSocialFeed';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -37,89 +35,28 @@ interface PostPollProps {
   poll: Poll;
 }
 
-interface VoteData {
-  option_id: string;
-  employee_id: string;
-}
-
 export const PostPoll = ({ poll }: PostPollProps) => {
-  const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   const isExpired = poll.ends_at && isPast(new Date(poll.ends_at));
 
-  // Fetch votes
-  const { data: votesData } = useQuery({
-    queryKey: ['poll-votes', poll.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('poll_votes')
-        .select('option_id, employee_id')
-        .eq('poll_id', poll.id);
+  // Use centralized hooks
+  const { data: votesData = [] } = usePollVotes(poll.id);
+  const submitVote = usePollVote();
 
-      if (error) throw error;
-      return data as VoteData[];
-    },
-    enabled: !!poll.id,
-  });
-
-  const votes = votesData || [];
-  const totalVoters = new Set(votes.map(v => v.employee_id)).size;
-  const hasVoted = votes.some(v => v.employee_id === currentEmployee?.id);
-  const userVotes = votes.filter(v => v.employee_id === currentEmployee?.id).map(v => v.option_id);
+  const totalVoters = new Set(votesData.map(v => v.employee_id)).size;
+  const hasVoted = votesData.some(v => v.employee_id === currentEmployee?.id);
+  const userVotes = votesData.filter(v => v.employee_id === currentEmployee?.id).map(v => v.option_id);
 
   // Calculate vote counts per option
   const voteCounts = poll.poll_options.reduce((acc, opt) => {
-    acc[opt.id] = votes.filter(v => v.option_id === opt.id).length;
+    acc[opt.id] = votesData.filter(v => v.option_id === opt.id).length;
     return acc;
   }, {} as Record<string, number>);
 
   const maxVotes = Math.max(...Object.values(voteCounts), 1);
-
-  // Submit vote mutation
-  const submitVote = useMutation({
-    mutationFn: async (optionIds: string[]) => {
-      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
-
-      // Delete existing votes
-      await supabase
-        .from('poll_votes')
-        .delete()
-        .eq('poll_id', poll.id)
-        .eq('employee_id', currentEmployee.id);
-
-      // Insert new votes
-      if (optionIds.length > 0) {
-        const { error } = await supabase.from('poll_votes').insert(
-          optionIds.map(optionId => ({
-            poll_id: poll.id,
-            option_id: optionId,
-            employee_id: currentEmployee.id,
-            organization_id: currentOrg.id,
-          }))
-        );
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['poll-votes', poll.id] });
-      setSelectedOptions([]);
-      toast({
-        title: 'Vote recorded',
-        description: 'Your vote has been submitted',
-      });
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to submit vote',
-        variant: 'destructive',
-      });
-    },
-  });
 
   const handleVote = () => {
     if (selectedOptions.length === 0) {
@@ -130,7 +67,9 @@ export const PostPoll = ({ poll }: PostPollProps) => {
       });
       return;
     }
-    submitVote.mutate(selectedOptions);
+    submitVote.mutate({ pollId: poll.id, optionIds: selectedOptions }, {
+      onSuccess: () => setSelectedOptions([]),
+    });
   };
 
   const handleOptionChange = (optionId: string, checked: boolean) => {
