@@ -82,15 +82,42 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
   const handleCaptureScreenshot = async () => {
     setIsCapturing(true);
     
-    // Temporarily hide the dialog
+    // Get all dialog-related elements
     const dialogOverlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement | null;
     const dialogContent = document.querySelector('[data-radix-dialog-content]') as HTMLElement | null;
     
-    if (dialogOverlay) dialogOverlay.style.display = 'none';
-    if (dialogContent) dialogContent.style.display = 'none';
+    // Store original styles
+    const overlayStyles = dialogOverlay ? { 
+      display: dialogOverlay.style.display,
+      visibility: dialogOverlay.style.visibility,
+      opacity: dialogOverlay.style.opacity 
+    } : null;
+    const contentStyles = dialogContent ? { 
+      display: dialogContent.style.display,
+      visibility: dialogContent.style.visibility,
+      opacity: dialogContent.style.opacity 
+    } : null;
+    
+    // Hide dialog completely using multiple strategies
+    if (dialogOverlay) {
+      dialogOverlay.style.display = 'none';
+      dialogOverlay.style.visibility = 'hidden';
+      dialogOverlay.style.opacity = '0';
+    }
+    if (dialogContent) {
+      dialogContent.style.display = 'none';
+      dialogContent.style.visibility = 'hidden';
+      dialogContent.style.opacity = '0';
+    }
+    
+    // Wait for browser to repaint before capturing
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, 100);
+      });
+    });
     
     try {
-      // Dynamic import for code splitting
       const html2canvas = (await import('html2canvas')).default;
       
       const canvas = await html2canvas(document.body, {
@@ -98,6 +125,11 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
         allowTaint: true,
         scale: window.devicePixelRatio || 1,
         logging: false,
+        ignoreElements: (element) => {
+          // Explicitly ignore any remaining dialog elements
+          return element.hasAttribute('data-radix-dialog-overlay') || 
+                 element.hasAttribute('data-radix-dialog-content');
+        }
       });
       
       canvas.toBlob((blob) => {
@@ -112,9 +144,17 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
       console.error('Failed to capture screenshot:', error);
       toast.error('Failed to capture screenshot');
     } finally {
-      // Restore dialog visibility
-      if (dialogOverlay) dialogOverlay.style.display = '';
-      if (dialogContent) dialogContent.style.display = '';
+      // Restore original styles
+      if (dialogOverlay && overlayStyles) {
+        dialogOverlay.style.display = overlayStyles.display;
+        dialogOverlay.style.visibility = overlayStyles.visibility;
+        dialogOverlay.style.opacity = overlayStyles.opacity;
+      }
+      if (dialogContent && contentStyles) {
+        dialogContent.style.display = contentStyles.display;
+        dialogContent.style.visibility = contentStyles.visibility;
+        dialogContent.style.opacity = contentStyles.opacity;
+      }
       setIsCapturing(false);
     }
   };
