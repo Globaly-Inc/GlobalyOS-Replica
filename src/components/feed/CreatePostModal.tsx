@@ -1,6 +1,6 @@
 /**
  * Create Post Modal
- * Full-featured modal for creating posts with type selection, media, polls, etc.
+ * Full-featured modal for creating/editing posts with type selection, media, polls, etc.
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -19,14 +19,15 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2, Calendar,
-  BarChart3
+  BarChart3, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
 import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisibilitySelector';
-import { useCreatePost, PostType } from '@/services/useSocialFeed';
+import { useCreatePost, useUpdatePost, PostType, Post } from '@/services/useSocialFeed';
 import { format } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -47,6 +48,18 @@ interface TeamMember {
   };
 }
 
+interface ExistingMedia {
+  id: string;
+  file_url: string;
+  media_type: string;
+}
+
+interface PollOptionWithId {
+  id?: string;
+  text: string;
+  hasVotes?: boolean;
+}
+
 interface CreatePostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +67,7 @@ interface CreatePostModalProps {
   initialWithPoll?: boolean;
   canPostAnnouncement?: boolean;
   canPostExecutive?: boolean;
+  editPost?: Post | null;
 }
 
 export const CreatePostModal = ({
@@ -63,10 +77,14 @@ export const CreatePostModal = ({
   initialWithPoll = false,
   canPostAnnouncement = false,
   canPostExecutive = false,
+  editPost = null,
 }: CreatePostModalProps) => {
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
   const createPost = useCreatePost();
+  const updatePost = useUpdatePost();
+  
+  const isEditMode = !!editPost;
   
   const [selectedType, setSelectedType] = useState<PostType | null>(initialPostType);
   const [content, setContent] = useState('');
@@ -75,6 +93,9 @@ export const CreatePostModal = ({
   // Media
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  const [existingMedia, setExistingMedia] = useState<ExistingMedia[]>([]);
+  const [removedMediaIds, setRemovedMediaIds] = useState<string[]>([]);
+  const [removedMediaUrls, setRemovedMediaUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Team members (for kudos and mentions)
@@ -94,8 +115,11 @@ export const CreatePostModal = ({
   // Poll
   const [showPoll, setShowPoll] = useState(initialWithPoll);
   const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollOptions, setPollOptions] = useState<PollOptionWithId[]>([{ text: '' }, { text: '' }]);
   const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  const [existingPollId, setExistingPollId] = useState<string | null>(null);
+  const [removedOptionIds, setRemovedOptionIds] = useState<string[]>([]);
+  const [optionsWithVotes, setOptionsWithVotes] = useState<Set<string>>(new Set());
   
   // Scheduling (for executive messages)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
@@ -134,13 +158,81 @@ export const CreatePostModal = ({
     fetchTeamMembers();
   }, [open, currentOrg?.id]);
 
-  // Set initial values when modal opens
+  // Pre-populate form when editing
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+
+    if (editPost) {
+      // Pre-populate from editPost
+      setSelectedType(editPost.post_type);
+      setContent(editPost.content);
+      setAccessScope(editPost.access_scope as AccessScope || 'company');
+      setKudosRecipients(editPost.kudos_recipient_ids || []);
+      
+      // Pre-populate existing media
+      if (editPost.post_media?.length) {
+        setExistingMedia(editPost.post_media.map(m => ({
+          id: m.id,
+          file_url: m.file_url,
+          media_type: m.media_type,
+        })));
+      }
+      
+      // Pre-populate visibility scopes
+      if (editPost.post_offices?.length) {
+        setSelectedOfficeIds(editPost.post_offices.map(o => o.office?.name).filter(Boolean) as string[]);
+      }
+      if (editPost.post_departments?.length) {
+        setSelectedDepartments(editPost.post_departments.map(d => d.department).filter(Boolean) as string[]);
+      }
+      if (editPost.post_projects?.length) {
+        setSelectedProjectIds(editPost.post_projects.map(p => p.project?.name).filter(Boolean) as string[]);
+      }
+      
+      // Pre-populate poll
+      if (editPost.post_polls?.length) {
+        const poll = editPost.post_polls[0];
+        setShowPoll(true);
+        setPollQuestion(poll.question);
+        setExistingPollId(poll.id);
+        setPollAllowMultiple(poll.allow_multiple);
+        setPollOptions(
+          poll.poll_options?.map(o => ({
+            id: o.id,
+            text: o.option_text,
+          })) || [{ text: '' }, { text: '' }]
+        );
+        
+        // Check for votes on poll options
+        const checkVotes = async () => {
+          const { data: votes } = await supabase
+            .from('poll_votes')
+            .select('option_id')
+            .eq('poll_id', poll.id);
+          
+          if (votes?.length) {
+            const votedOptionIds = new Set(votes.map(v => v.option_id));
+            setOptionsWithVotes(votedOptionIds);
+            // Update poll options with vote status
+            setPollOptions(prev => prev.map(opt => ({
+              ...opt,
+              hasVotes: opt.id ? votedOptionIds.has(opt.id) : false,
+            })));
+          }
+        };
+        checkVotes();
+      }
+      
+      // Pre-populate mentions
+      if (editPost.post_mentions?.length) {
+        setMentionIds(editPost.post_mentions.map(m => m.employee_id));
+      }
+    } else {
+      // New post mode
       setSelectedType(initialPostType);
       setShowPoll(initialWithPoll);
     }
-  }, [open, initialPostType, initialWithPoll]);
+  }, [open, editPost, initialPostType, initialWithPoll]);
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -170,21 +262,44 @@ export const CreatePostModal = ({
     setMediaPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const removeExistingMedia = (media: ExistingMedia) => {
+    setExistingMedia(prev => prev.filter(m => m.id !== media.id));
+    setRemovedMediaIds(prev => [...prev, media.id]);
+    setRemovedMediaUrls(prev => [...prev, media.file_url]);
+  };
+
   const addPollOption = () => {
     if (pollOptions.length < 6) {
-      setPollOptions([...pollOptions, '']);
+      setPollOptions([...pollOptions, { text: '' }]);
     }
   };
 
   const removePollOption = (index: number) => {
     if (pollOptions.length > 2) {
+      const option = pollOptions[index];
+      
+      // Check if this option has votes
+      if (option.id && optionsWithVotes.has(option.id)) {
+        toast({
+          title: 'Cannot remove option',
+          description: 'This option has votes and cannot be deleted',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Track removed option ID for backend
+      if (option.id) {
+        setRemovedOptionIds(prev => [...prev, option.id!]);
+      }
+      
       setPollOptions(pollOptions.filter((_, i) => i !== index));
     }
   };
 
   const updatePollOption = (index: number, value: string) => {
     const updated = [...pollOptions];
-    updated[index] = value;
+    updated[index] = { ...updated[index], text: value };
     setPollOptions(updated);
   };
 
@@ -224,30 +339,56 @@ export const CreatePostModal = ({
         setErrors({ poll: 'Poll question is required' });
         return;
       }
-      const validOptions = pollOptions.filter(o => o.trim());
+      const validOptions = pollOptions.filter(o => o.text.trim());
       if (validOptions.length < 2) {
         setErrors({ poll: 'At least 2 poll options are required' });
         return;
       }
     }
 
-    await createPost.mutateAsync({
-      post_type: selectedType,
-      content,
-      kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
-      access_scope: accessScope,
-      scheduled_at: selectedType === 'executive_message' ? scheduledAt : undefined,
-      media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
-      mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
-      office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
-      departments: accessScope === 'departments' ? selectedDepartments : undefined,
-      project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
-      poll: showPoll ? {
-        question: pollQuestion,
-        options: pollOptions.filter(o => o.trim()),
-        allow_multiple: pollAllowMultiple,
-      } : undefined,
-    });
+    if (isEditMode && editPost) {
+      // Update existing post
+      await updatePost.mutateAsync({
+        postId: editPost.id,
+        content,
+        access_scope: accessScope,
+        kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : [],
+        office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
+        departments: accessScope === 'departments' ? selectedDepartments : undefined,
+        project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
+        newMediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
+        removedMediaIds: removedMediaIds.length > 0 ? removedMediaIds : undefined,
+        removedMediaUrls: removedMediaUrls.length > 0 ? removedMediaUrls : undefined,
+        existingPollId: existingPollId,
+        poll: showPoll ? {
+          question: pollQuestion,
+          options: pollOptions
+            .filter(o => o.text.trim())
+            .map(o => ({ id: o.id, text: o.text })),
+          allow_multiple: pollAllowMultiple,
+        } : undefined,
+        removedOptionIds: removedOptionIds.filter(id => !optionsWithVotes.has(id)),
+      });
+    } else {
+      // Create new post
+      await createPost.mutateAsync({
+        post_type: selectedType,
+        content,
+        kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
+        access_scope: accessScope,
+        scheduled_at: selectedType === 'executive_message' ? scheduledAt : undefined,
+        media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
+        mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
+        office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
+        departments: accessScope === 'departments' ? selectedDepartments : undefined,
+        project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
+        poll: showPoll ? {
+          question: pollQuestion,
+          options: pollOptions.filter(o => o.text.trim()).map(o => o.text),
+          allow_multiple: pollAllowMultiple,
+        } : undefined,
+      });
+    }
 
     resetForm();
     onOpenChange(false);
@@ -258,6 +399,9 @@ export const CreatePostModal = ({
     setContent('');
     setMediaFiles([]);
     setMediaPreviews([]);
+    setExistingMedia([]);
+    setRemovedMediaIds([]);
+    setRemovedMediaUrls([]);
     setKudosRecipients([]);
     setMentionIds([]);
     setSearchQuery('');
@@ -268,8 +412,11 @@ export const CreatePostModal = ({
     setSelectedProjectIds([]);
     setShowPoll(false);
     setPollQuestion('');
-    setPollOptions(['', '']);
+    setPollOptions([{ text: '' }, { text: '' }]);
     setPollAllowMultiple(false);
+    setExistingPollId(null);
+    setRemovedOptionIds([]);
+    setOptionsWithVotes(new Set());
     setScheduledAt(null);
   };
 
@@ -292,20 +439,24 @@ export const CreatePostModal = ({
     m.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const isPending = isEditMode ? updatePost.isPending : createPost.isPending;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
-            {selectedType 
-              ? `Create ${selectedTypeConfig?.label}` 
-              : 'What would you like to share?'}
+            {isEditMode
+              ? `Edit ${selectedTypeConfig?.label || 'Post'}`
+              : selectedType 
+                ? `Create ${selectedTypeConfig?.label}` 
+                : 'What would you like to share?'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Post Type Selection */}
-          {!selectedType && (
+          {/* Post Type Selection (only in create mode) */}
+          {!selectedType && !isEditMode && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {postTypes.map(({ type, icon: Icon, label, color, description }) => (
                 <button
@@ -338,16 +489,27 @@ export const CreatePostModal = ({
           {/* Post Form */}
           {selectedType && (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Back button */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedType(null)}
-                className="text-muted-foreground"
-              >
-                ← Change type
-              </Button>
+              {/* Back button or post type badge */}
+              {isEditMode ? (
+                <Badge variant="secondary" className="gap-1">
+                  {selectedTypeConfig && (
+                    <>
+                      <selectedTypeConfig.icon className="h-3 w-3" />
+                      {selectedTypeConfig.label}
+                    </>
+                  )}
+                </Badge>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedType(null)}
+                  className="text-muted-foreground"
+                >
+                  ← Change type
+                </Button>
+              )}
 
               {/* Kudos Recipients */}
               {selectedType === 'kudos' && (
@@ -455,6 +617,39 @@ export const CreatePostModal = ({
               {/* Media Upload */}
               <div className="space-y-2">
                 <Label>Add Media (optional)</Label>
+                
+                {/* Existing Media (Edit Mode) */}
+                {existingMedia.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {existingMedia.map((media) => (
+                      <div key={media.id} className="relative">
+                        {media.media_type === 'video' ? (
+                          <video
+                            src={media.file_url}
+                            className="w-full h-20 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <img
+                            src={media.file_url}
+                            alt="Existing media"
+                            className="w-full h-20 object-cover rounded-lg"
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => removeExistingMedia(media)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* New Media Previews */}
                 {mediaPreviews.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {mediaPreviews.map((preview, index) => (
@@ -501,16 +696,18 @@ export const CreatePostModal = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Poll</Label>
-                  <Button
-                    type="button"
-                    variant={showPoll ? 'secondary' : 'outline'}
-                    size="sm"
-                    onClick={() => setShowPoll(!showPoll)}
-                    className="gap-2"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    {showPoll ? 'Remove Poll' : 'Add Poll'}
-                  </Button>
+                  {!isEditMode && (
+                    <Button
+                      type="button"
+                      variant={showPoll ? 'secondary' : 'outline'}
+                      size="sm"
+                      onClick={() => setShowPoll(!showPoll)}
+                      className="gap-2"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      {showPoll ? 'Remove Poll' : 'Add Poll'}
+                    </Button>
+                  )}
                 </div>
                 
                 {showPoll && (
@@ -523,21 +720,40 @@ export const CreatePostModal = ({
                     
                     <div className="space-y-2">
                       {pollOptions.map((option, index) => (
-                        <div key={index} className="flex gap-2">
+                        <div key={option.id || index} className="flex gap-2 items-center">
                           <Input
                             placeholder={`Option ${index + 1}`}
-                            value={option}
+                            value={option.text}
                             onChange={(e) => updatePollOption(index, e.target.value)}
                           />
                           {pollOptions.length > 2 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removePollOption(index)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removePollOption(index)}
+                                      disabled={option.hasVotes}
+                                      className={option.hasVotes ? 'opacity-50 cursor-not-allowed' : ''}
+                                    >
+                                      {option.hasVotes ? (
+                                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TooltipTrigger>
+                                {option.hasVotes && (
+                                  <TooltipContent>
+                                    <p>This option has votes and cannot be deleted</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       ))}
@@ -563,6 +779,13 @@ export const CreatePostModal = ({
                       />
                       <span className="text-sm">Allow multiple selections</span>
                     </div>
+                    
+                    {optionsWithVotes.size > 0 && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        Options with votes cannot be deleted
+                      </p>
+                    )}
                     
                     {errors.poll && <p className="text-sm text-destructive">{errors.poll}</p>}
                   </div>
@@ -639,8 +862,8 @@ export const CreatePostModal = ({
                 onProjectIdsChange={setSelectedProjectIds}
               />
 
-              {/* Scheduling (Executive only) */}
-              {selectedType === 'executive_message' && (
+              {/* Scheduling (Executive only, create mode only) */}
+              {selectedType === 'executive_message' && !isEditMode && (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
@@ -665,9 +888,11 @@ export const CreatePostModal = ({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={createPost.isPending}
+                  disabled={isPending}
                 >
-                  {createPost.isPending ? 'Posting...' : 'Post'}
+                  {isPending 
+                    ? (isEditMode ? 'Saving...' : 'Posting...') 
+                    : (isEditMode ? 'Save Changes' : 'Post')}
                 </Button>
               </div>
             </form>

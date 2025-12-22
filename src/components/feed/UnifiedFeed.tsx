@@ -3,14 +3,15 @@
  * Renders posts from the new unified posts table with fallback to legacy data
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { usePosts, PostType } from '@/services/useSocialFeed';
+import { usePosts, PostType, Post } from '@/services/useSocialFeed';
 import { usePostsRealtime } from '@/services/useSocialFeedRealtime';
 import { PostCard } from './PostCard';
 import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from '@/components/KudosCard';
+import { CreatePostModal } from './CreatePostModal';
 import { startOfWeek, startOfMonth, isAfter, parseISO, isSameDay } from 'date-fns';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month';
@@ -113,6 +114,9 @@ export const UnifiedFeed = ({
   
   // Subscribe to real-time updates
   usePostsRealtime();
+  
+  // Edit post state
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   // Filter by date
   const filterByDate = <T extends { created_at: string }>(items: T[]): T[] => {
@@ -169,7 +173,7 @@ export const UnifiedFeed = ({
     return (
       <div className="space-y-4">
         {filteredPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} onEdit={(p) => setEditingPost(p)} />
         ))}
       </div>
     );
@@ -351,12 +355,23 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* New unified posts first (pinned posts appear at top) */}
-      {renderNewPosts()}
+    <>
+      <div className="space-y-4">
+        {/* New unified posts first (pinned posts appear at top) */}
+        {renderNewPosts()}
+        
+        {/* Legacy content below */}
+        {renderLegacyContent()}
+      </div>
       
-      {/* Legacy content below */}
-      {renderLegacyContent()}
-    </div>
+      {/* Edit Post Modal */}
+      <CreatePostModal
+        open={!!editingPost}
+        onOpenChange={(open) => !open && setEditingPost(null)}
+        editPost={editingPost}
+        canPostAnnouncement={true}
+        canPostExecutive={true}
+      />
+    </>
   );
 };
