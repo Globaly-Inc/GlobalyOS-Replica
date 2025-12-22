@@ -404,23 +404,219 @@ export const useTogglePinPost = () => {
 // UPDATE POST
 // ============================================
 
+export interface UpdatePostInput {
+  postId: string;
+  content: string;
+  access_scope?: string;
+  office_ids?: string[];
+  departments?: string[];
+  project_ids?: string[];
+  kudos_recipient_ids?: string[];
+  // Media operations
+  newMediaFiles?: File[];
+  removedMediaIds?: string[];
+  removedMediaUrls?: string[];
+  // Poll operations
+  poll?: {
+    question: string;
+    options: { id?: string; text: string }[];
+    allow_multiple: boolean;
+  };
+  existingPollId?: string | null;
+  removedOptionIds?: string[];
+}
+
 export const useUpdatePost = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
-      const { error } = await supabase
-        .from('posts')
-        .update({ content, updated_at: new Date().toISOString() })
-        .eq('id', postId);
+    mutationFn: async (input: UpdatePostInput) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Must be logged in');
+      }
 
-      if (error) throw error;
+      const warnings: string[] = [];
+
+      // 1. UPDATE POST RECORD
+      const { error: postError } = await supabase
+        .from('posts')
+        .update({
+          content: input.content,
+          access_scope: input.access_scope || 'company',
+          kudos_recipient_ids: input.kudos_recipient_ids || [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', input.postId);
+
+      if (postError) throw new Error(`Post update failed: ${postError.message}`);
+
+      // 2. HANDLE REMOVED MEDIA (with storage cleanup)
+      if (input.removedMediaIds?.length && input.removedMediaUrls?.length) {
+        for (let i = 0; i < input.removedMediaIds.length; i++) {
+          const mediaId = input.removedMediaIds[i];
+          const fileUrl = input.removedMediaUrls[i];
+
+          if (fileUrl) {
+            try {
+              // Extract file path from URL for storage deletion
+              const urlParts = fileUrl.split('/post-media/');
+              if (urlParts[1]) {
+                const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
+                await supabase.storage.from('post-media').remove([filePath]);
+              }
+            } catch (e) {
+              warnings.push(`Failed to remove media file from storage`);
+            }
+          }
+
+          // Delete from database
+          const { error: deleteError } = await supabase
+            .from('post_media')
+            .delete()
+            .eq('id', mediaId);
+
+          if (deleteError) {
+            warnings.push(`Failed to remove media record`);
+          }
+        }
+      }
+
+      // 3. UPLOAD NEW MEDIA FILES
+      if (input.newMediaFiles?.length) {
+        for (let i = 0; i < input.newMediaFiles.length; i++) {
+          const file = input.newMediaFiles[i];
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${currentEmployee.id}/${input.postId}/${Date.now()}_${i}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('post-media')
+            .upload(fileName, file);
+
+          if (uploadError) {
+            warnings.push(`Failed to upload ${file.name}`);
+            continue;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('post-media')
+            .getPublicUrl(fileName);
+
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+
+          await supabase.from('post_media').insert({
+            post_id: input.postId,
+            organization_id: currentOrg.id,
+            media_type: mediaType,
+            file_url: publicUrl,
+            file_name: file.name,
+            file_size: file.size,
+            sort_order: i,
+          });
+        }
+      }
+
+      // 4. UPDATE VISIBILITY SCOPES
+      // Delete old scope associations
+      await supabase.from('post_offices').delete().eq('post_id', input.postId);
+      await supabase.from('post_departments').delete().eq('post_id', input.postId);
+      await supabase.from('post_projects').delete().eq('post_id', input.postId);
+
+      // Insert new scope associations
+      if (input.access_scope === 'offices' && input.office_ids?.length) {
+        await supabase.from('post_offices').insert(
+          input.office_ids.map(officeId => ({
+            post_id: input.postId,
+            office_id: officeId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      if (input.access_scope === 'departments' && input.departments?.length) {
+        await supabase.from('post_departments').insert(
+          input.departments.map(department => ({
+            post_id: input.postId,
+            department,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      if (input.access_scope === 'projects' && input.project_ids?.length) {
+        await supabase.from('post_projects').insert(
+          input.project_ids.map(projectId => ({
+            post_id: input.postId,
+            project_id: projectId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      // 5. UPDATE POLL (with vote protection)
+      if (input.existingPollId && input.poll) {
+        // Update poll question and settings
+        await supabase.from('post_polls').update({
+          question: input.poll.question,
+          allow_multiple: input.poll.allow_multiple,
+        }).eq('id', input.existingPollId);
+
+        // Handle poll options
+        for (const option of input.poll.options) {
+          if (option.id) {
+            // Update existing option text
+            await supabase.from('poll_options').update({
+              option_text: option.text,
+            }).eq('id', option.id);
+          } else {
+            // Add new option
+            const maxSortOrder = input.poll.options
+              .filter(o => o.id)
+              .length;
+            
+            await supabase.from('poll_options').insert({
+              poll_id: input.existingPollId,
+              organization_id: currentOrg.id,
+              option_text: option.text,
+              sort_order: maxSortOrder + input.poll.options.indexOf(option),
+            });
+          }
+        }
+
+        // Delete removed options (only if they have no votes)
+        if (input.removedOptionIds?.length) {
+          for (const optionId of input.removedOptionIds) {
+            // Check for votes first
+            const { count } = await supabase
+              .from('poll_votes')
+              .select('*', { count: 'exact', head: true })
+              .eq('option_id', optionId);
+
+            if (count === 0) {
+              await supabase.from('poll_options').delete().eq('id', optionId);
+            } else {
+              warnings.push(`Cannot delete option with ${count} vote(s)`);
+            }
+          }
+        }
+      }
+
+      return { success: true, warnings };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
       queryClient.invalidateQueries({ queryKey: ['employee-feed'] });
-      toast({ title: 'Post updated' });
+
+      if (result.warnings.length > 0) {
+        toast({
+          title: 'Post updated with warnings',
+          description: result.warnings.join('; '),
+        });
+      } else {
+        toast({ title: 'Post updated' });
+      }
     },
     onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
