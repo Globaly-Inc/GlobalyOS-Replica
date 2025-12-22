@@ -115,8 +115,8 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
           
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="relative">
-              <Avatar className="h-24 w-24 border-4 border-primary/10 transition-transform group-hover:scale-105">
-                {employee.avatar && <AvatarImage src={employee.avatar} alt={employee.name} />}
+              <Avatar className="h-24 w-24 border-4 border-primary/10 transition-transform group-hover:scale-105" data-privacy="avatar">
+                {employee.avatar && <AvatarImage src={employee.avatar} alt={employee.name} data-privacy="avatar" />}
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-2xl font-bold">
                   {employee.name.split(" ").map((n) => n[0]).join("")}
                 </AvatarFallback>
@@ -131,7 +131,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
             
             <div className="space-y-2 w-full">
               <div className="flex items-center justify-center gap-2">
-                <h3 className="font-bold text-lg text-foreground">{employee.name}</h3>
+                <h3 className="font-bold text-lg text-foreground employee-name" data-privacy="name">{employee.name}</h3>
                 {employee.workLocation && (
                   <Badge 
                     variant="secondary" 
@@ -162,7 +162,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
             <div className="space-y-2 w-full pt-4 border-t border-border">
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Mail className="h-3 w-3" />
-                <span className="truncate">{employee.email}</span>
+                <span className="truncate employee-email" data-privacy="email">{employee.email}</span>
               </div>
               {employee.officeName && (
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">

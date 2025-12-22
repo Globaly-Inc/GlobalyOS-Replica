@@ -244,28 +244,53 @@ Be conservative - only suggest updates if there are significant improvements nee
 
     // Fetch analyzed screenshots for this module to provide visual context
     let screenshotContext = '';
+    let availableScreenshots: { route_path: string; description: string; public_url: string }[] = [];
+    
     if (useScreenshots) {
       const { data: screenshots } = await supabase
         .from('support_screenshots')
-        .select('route_path, description, ai_description, feature_context, ui_elements')
+        .select('id, route_path, description, ai_description, feature_context, ui_elements, storage_path, status')
         .eq('module', module)
-        .eq('is_analyzed', true)
         .order('route_path');
 
-      if (screenshots && screenshots.length > 0) {
-        screenshotContext = `\n\n## VISUAL CONTEXT FROM ACTUAL SCREENSHOTS:
-The following are AI-analyzed descriptions of actual screenshots from the ${module} module. Use this information to write accurate, grounded content:
+      // Get completed screenshots with their public URLs
+      const completedScreenshots = screenshots?.filter(s => s.status === 'completed' && s.storage_path) || [];
+      
+      if (completedScreenshots.length > 0) {
+        // Build list of available screenshots with public URLs
+        availableScreenshots = completedScreenshots.map(s => ({
+          route_path: s.route_path,
+          description: s.description || s.ai_description || s.route_path,
+          public_url: `https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/doc_screenshots/${s.storage_path}`,
+        }));
 
-${screenshots.map((s, i) => `
-### Screen ${i + 1}: ${s.feature_context || s.route_path}
+        screenshotContext = `\n\n## AVAILABLE SCREENSHOTS (USE THESE IN ARTICLES):
+The following screenshots have been captured and are ready to use. Include them in your articles using the exact format shown:
+
+${completedScreenshots.map((s, i) => `
+### Screenshot ${i + 1}: ${s.feature_context || s.description || s.route_path}
 - Route: ${s.route_path}
-- Description: ${s.ai_description || s.description || 'No description'}
-- UI Elements: ${Array.isArray(s.ui_elements) ? s.ui_elements.join(', ') : 'Not analyzed'}
+- Description: ${s.ai_description || s.description || 'Screenshot of ' + s.route_path}
+- UI Elements Visible: ${Array.isArray(s.ui_elements) ? s.ui_elements.join(', ') : 'Various UI elements'}
+- **Use in article as:** [Screenshot: ${s.description || s.route_path}]
 `).join('\n')}
 
-IMPORTANT: Reference these actual screens when writing step-by-step guides. Mention specific UI elements that were identified.`;
+IMPORTANT: 
+- Include at least 2-3 of these screenshots in each article where relevant
+- Use the EXACT description format: [Screenshot: description]
+- Place screenshots after the relevant step or section they illustrate
+- Reference specific UI elements that are visible in the screenshots`;
         
-        console.log(`Found ${screenshots.length} analyzed screenshots for context`);
+        console.log(`Found ${completedScreenshots.length} captured screenshots for context`);
+      }
+
+      // Also include analyzed screenshots for additional context
+      const analyzedScreenshots = screenshots?.filter(s => s.ai_description) || [];
+      if (analyzedScreenshots.length > 0 && analyzedScreenshots.length !== completedScreenshots.length) {
+        screenshotContext += `\n\n## AI-ANALYZED SCREEN CONTEXT:
+${analyzedScreenshots.map((s, i) => `
+- ${s.feature_context || s.route_path}: ${s.ai_description}
+`).join('\n')}`;
       }
     }
 
