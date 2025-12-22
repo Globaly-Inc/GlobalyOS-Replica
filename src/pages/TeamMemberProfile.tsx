@@ -50,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { icons } from "lucide-react";
 import { ProfileActivityFeed } from "@/components/feed/ProfileActivityFeed";
 import { PositionAIDescription } from "@/components/PositionAIDescription";
+import { EmployeeRoleDescription } from "@/components/EmployeeRoleDescription";
 import { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 interface EmployeeProject {
