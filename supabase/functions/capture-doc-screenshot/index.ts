@@ -348,16 +348,40 @@ serve(async (req) => {
 
     console.log(`Browserless payload: authenticated=${useAuthenticatedCapture}, scripts=${postNavigationScripts.length}`);
 
-    const browserlessResponse = await fetch(
-      `https://chrome.browserless.io/screenshot?token=${browserlessApiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(browserlessPayload),
+    // Helper: call Browserless with retry logic for 429 errors
+    const callBrowserlessWithRetry = async (payload: any, maxRetries = 3): Promise<Response> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        console.log(`Browserless API call attempt ${attempt}/${maxRetries}`);
+        
+        const response = await fetch(
+          `https://chrome.browserless.io/screenshot?token=${browserlessApiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        // If success or non-retryable error, return
+        if (response.ok || (response.status !== 429 && response.status !== 503)) {
+          return response;
+        }
+
+        // 429 Too Many Requests or 503 Service Unavailable - wait and retry
+        if (attempt < maxRetries) {
+          const backoffDelay = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
+          console.log(`Browserless rate limited (${response.status}), retrying in ${backoffDelay / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          return response; // Return last failed response
+        }
       }
-    );
+      throw new Error('Browserless API max retries exceeded');
+    };
+
+    const browserlessResponse = await callBrowserlessWithRetry(browserlessPayload);
 
     if (!browserlessResponse.ok) {
       const errorText = await browserlessResponse.text();

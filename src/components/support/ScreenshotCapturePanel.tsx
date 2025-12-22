@@ -59,7 +59,74 @@ export const ScreenshotCapturePanel = ({
     return `https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/doc_screenshots/${storagePath}`;
   };
 
-  // Capture all pending screenshots
+  // Helper: wait for a screenshot to complete (poll status)
+  const waitForScreenshotCompletion = async (screenshotId: string, timeoutMs = 90000): Promise<boolean> => {
+    const startTime = Date.now();
+    const pollInterval = 2000; // Check every 2 seconds
+    
+    while (Date.now() - startTime < timeoutMs) {
+      const { data } = await supabase
+        .from('support_screenshots')
+        .select('status')
+        .eq('id', screenshotId)
+        .maybeSingle();
+      
+      if (data?.status === 'completed') return true;
+      if (data?.status === 'failed') return false;
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+    return false;
+  };
+
+  // Helper: capture with retry logic
+  const captureWithRetry = async (
+    screenshot: SupportScreenshot, 
+    maxRetries = 3
+  ): Promise<boolean> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Capture attempt ${attempt}/${maxRetries} for ${screenshot.id}`);
+        
+        const { error } = await supabase.functions.invoke('capture-doc-screenshot', {
+          body: {
+            screenshotId: screenshot.id,
+            accessToken: session?.accessToken,
+            refreshToken: session?.refreshToken,
+            privacyMasks: buildPrivacyMasks(privacyOptions),
+          },
+        });
+
+        if (!error) {
+          // Wait for completion and verify
+          const success = await waitForScreenshotCompletion(screenshot.id);
+          if (success) return true;
+        }
+
+        // If failed and not last attempt, wait with exponential backoff
+        if (attempt < maxRetries) {
+          const backoffDelay = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
+          console.log(`Retry in ${backoffDelay / 1000}s after attempt ${attempt}...`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          
+          // Reset status to pending for retry
+          await supabase
+            .from('support_screenshots')
+            .update({ status: 'pending', error_message: null })
+            .eq('id', screenshot.id);
+        }
+      } catch (err) {
+        console.error(`Attempt ${attempt} error:`, err);
+        if (attempt < maxRetries) {
+          const backoffDelay = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        }
+      }
+    }
+    return false;
+  };
+
+  // Capture all pending screenshots with proper sequential processing
   const handleCaptureAll = async () => {
     if (!session) {
       toast.error('Please authenticate first to capture screenshots');
@@ -86,35 +153,30 @@ export const ScreenshotCapturePanel = ({
 
     let completed = 0;
     let failed = 0;
+    const DELAY_BETWEEN_CAPTURES = 15000; // 15 seconds between captures
 
-    for (const screenshot of pendingScreenshots) {
-      setProgress(prev => prev ? { ...prev, current: screenshot.description || screenshot.route_path } : null);
+    for (let i = 0; i < pendingScreenshots.length; i++) {
+      const screenshot = pendingScreenshots[i];
+      setProgress(prev => prev ? { 
+        ...prev, 
+        current: `[${i + 1}/${pendingScreenshots.length}] ${screenshot.description || screenshot.route_path}` 
+      } : null);
 
-      try {
-        const { error } = await supabase.functions.invoke('capture-doc-screenshot', {
-          body: {
-            screenshotId: screenshot.id,
-            accessToken: session.accessToken,
-            refreshToken: session.refreshToken,
-            privacyMasks: buildPrivacyMasks(privacyOptions),
-          },
-        });
-
-        if (error) {
-          failed++;
-          console.error(`Failed to capture ${screenshot.id}:`, error);
-        } else {
-          completed++;
-        }
-      } catch (err) {
+      const success = await captureWithRetry(screenshot);
+      
+      if (success) {
+        completed++;
+      } else {
         failed++;
-        console.error(`Error capturing ${screenshot.id}:`, err);
       }
 
       setProgress(prev => prev ? { ...prev, completed, failed } : null);
 
-      // Small delay between captures to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait between captures to ensure Browserless session is fully released
+      if (i < pendingScreenshots.length - 1) {
+        console.log(`Waiting ${DELAY_BETWEEN_CAPTURES / 1000}s before next capture...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CAPTURES));
+      }
     }
 
     setIsCapturing(false);
