@@ -3,9 +3,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Globe, Building2, Briefcase, FolderKanban, ChevronDown, Search, Check } from "lucide-react";
+import { Globe, Building2, Briefcase, FolderKanban, ChevronDown, Search, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type AccessScope = 'company' | 'offices' | 'departments' | 'projects';
@@ -127,21 +128,37 @@ export const PostVisibilitySelector = ({
   const currentScopeOption = SCOPE_OPTIONS.find(o => o.value === accessScope)!;
   const ScopeIcon = currentScopeOption.icon;
 
-  const getSelectionCount = () => {
+  const getTriggerLabel = () => {
+    if (accessScope === 'company') return 'Everyone';
+    return currentScopeOption.label;
+  };
+
+  // Get selected items with names for tags
+  const getSelectedItems = (): { id: string; name: string }[] => {
     switch (accessScope) {
-      case 'offices': return selectedOfficeIds.length;
-      case 'departments': return selectedDepartments.length;
-      case 'projects': return selectedProjectIds.length;
-      default: return 0;
+      case 'offices':
+        return offices.filter(o => selectedOfficeIds.includes(o.id));
+      case 'departments':
+        return selectedDepartments.map(d => ({ id: d, name: d }));
+      case 'projects':
+        return projects.filter(p => selectedProjectIds.includes(p.id));
+      default:
+        return [];
     }
   };
 
-  const selectionCount = getSelectionCount();
-
-  const getTriggerLabel = () => {
-    if (accessScope === 'company') return 'Everyone';
-    if (selectionCount === 0) return currentScopeOption.label;
-    return `${currentScopeOption.label} (${selectionCount})`;
+  const handleRemoveItem = (id: string) => {
+    switch (accessScope) {
+      case 'offices':
+        onOfficeIdsChange(selectedOfficeIds.filter(i => i !== id));
+        break;
+      case 'departments':
+        onDepartmentsChange(selectedDepartments.filter(d => d !== id));
+        break;
+      case 'projects':
+        onProjectIdsChange(selectedProjectIds.filter(i => i !== id));
+        break;
+    }
   };
 
   // Filter items based on search query
@@ -167,110 +184,134 @@ export const PostVisibilitySelector = ({
   };
 
   const items = getItemsForScope();
+  const selectedItems = getSelectedItems();
 
   return (
-    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 gap-2 font-normal justify-between"
-        >
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Visible to:</span>
-            <ScopeIcon className="h-4 w-4" />
-            <span>{getTriggerLabel()}</span>
+    <div className="flex flex-wrap items-center gap-2">
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 font-normal justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Visible to:</span>
+              <ScopeIcon className="h-4 w-4" />
+              <span>{getTriggerLabel()}</span>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-0" align="start">
+          {/* Scope Selection */}
+          <div className="p-2 border-b space-y-0.5">
+            {SCOPE_OPTIONS.map(option => {
+              const Icon = option.icon;
+              const isSelected = accessScope === option.value;
+              return (
+                <div
+                  key={option.value}
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors",
+                    isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                  )}
+                  onClick={() => handleScopeChange(option.value)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="text-sm flex-1">{option.label}</span>
+                  {isSelected && <Check className="h-4 w-4" />}
+                </div>
+              );
+            })}
           </div>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
-        {/* Scope Selection */}
-        <div className="p-2 border-b space-y-0.5">
-          {SCOPE_OPTIONS.map(option => {
-            const Icon = option.icon;
-            const isSelected = accessScope === option.value;
-            return (
-              <div
-                key={option.value}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors",
-                  isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+
+          {/* Search & Items (only for non-company scopes) */}
+          {accessScope !== 'company' && (
+            <>
+              {/* Search Input */}
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`Search ${accessScope}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="max-h-[180px] overflow-y-auto p-2 space-y-0.5">
+                {accessScope === 'offices' && filteredItems.offices.map(office => (
+                  <div
+                    key={office.id}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                    onClick={() => toggleOffice(office.id)}
+                  >
+                    <Checkbox checked={selectedOfficeIds.includes(office.id)} className="pointer-events-none" />
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm truncate">{office.name}</span>
+                  </div>
+                ))}
+                {accessScope === 'departments' && filteredItems.departments.map(dept => (
+                  <div
+                    key={dept}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                    onClick={() => toggleDepartment(dept)}
+                  >
+                    <Checkbox checked={selectedDepartments.includes(dept)} className="pointer-events-none" />
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm truncate">{dept}</span>
+                  </div>
+                ))}
+                {accessScope === 'projects' && filteredItems.projects.map(project => (
+                  <div
+                    key={project.id}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                    onClick={() => toggleProject(project.id)}
+                  >
+                    <Checkbox checked={selectedProjectIds.includes(project.id)} className="pointer-events-none" />
+                    <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm truncate">{project.name}</span>
+                  </div>
+                ))}
+                
+                {/* Empty states */}
+                {items.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {searchQuery ? `No ${accessScope} match "${searchQuery}"` : `No ${accessScope} found`}
+                  </p>
                 )}
-                onClick={() => handleScopeChange(option.value)}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="text-sm flex-1">{option.label}</span>
-                {isSelected && <Check className="h-4 w-4" />}
               </div>
-            );
-          })}
-        </div>
+            </>
+          )}
+        </PopoverContent>
+      </Popover>
 
-        {/* Search & Items (only for non-company scopes) */}
-        {accessScope !== 'company' && (
-          <>
-            {/* Search Input */}
-            <div className="p-2 border-b">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={`Search ${accessScope}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Items List */}
-            <div className="max-h-[180px] overflow-y-auto p-2 space-y-0.5">
-              {accessScope === 'offices' && filteredItems.offices.map(office => (
-                <div
-                  key={office.id}
-                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                  onClick={() => toggleOffice(office.id)}
-                >
-                  <Checkbox checked={selectedOfficeIds.includes(office.id)} className="pointer-events-none" />
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate">{office.name}</span>
-                </div>
-              ))}
-              {accessScope === 'departments' && filteredItems.departments.map(dept => (
-                <div
-                  key={dept}
-                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                  onClick={() => toggleDepartment(dept)}
-                >
-                  <Checkbox checked={selectedDepartments.includes(dept)} className="pointer-events-none" />
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate">{dept}</span>
-                </div>
-              ))}
-              {accessScope === 'projects' && filteredItems.projects.map(project => (
-                <div
-                  key={project.id}
-                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                  onClick={() => toggleProject(project.id)}
-                >
-                  <Checkbox checked={selectedProjectIds.includes(project.id)} className="pointer-events-none" />
-                  <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate">{project.name}</span>
-                </div>
-              ))}
-              
-              {/* Empty states */}
-              {items.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  {searchQuery ? `No ${accessScope} match "${searchQuery}"` : `No ${accessScope} found`}
-                </p>
-              )}
-            </div>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
+      {/* Selected items as removable tags */}
+      {selectedItems.map(item => (
+        <Badge 
+          key={item.id} 
+          variant="secondary" 
+          className="gap-1 pr-1"
+        >
+          <span className="truncate max-w-[120px]">{item.name}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveItem(item.id);
+            }}
+            className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+    </div>
   );
 };
