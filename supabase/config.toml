@@ -146,6 +146,3 @@ verify_jwt = true
 
 [functions.generate-position-description]
 verify_jwt = false
-
-[functions.generate-employee-role-description]
-verify_jwt = false

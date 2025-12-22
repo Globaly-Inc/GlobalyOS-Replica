@@ -1970,8 +1970,6 @@ export type Database = {
           postcode: string | null
           remuneration: number | null
           remuneration_currency: string | null
-          role_description: string | null
-          role_description_generated_at: string | null
           salary: number | null
           state: string | null
           status: string
@@ -2008,8 +2006,6 @@ export type Database = {
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
-          role_description?: string | null
-          role_description_generated_at?: string | null
           salary?: number | null
           state?: string | null
           status?: string
@@ -2046,8 +2042,6 @@ export type Database = {
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
-          role_description?: string | null
-          role_description_generated_at?: string | null
           salary?: number | null
           state?: string | null
           status?: string
