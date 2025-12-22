@@ -9,6 +9,7 @@ const corsHeaders = {
 interface CascadeConfig {
   includeOrganization: boolean;
   includeDepartments: boolean;
+  includeProjects: boolean;
   includeOffices: boolean;
   includeIndividuals: boolean;
 }
@@ -21,21 +22,26 @@ interface RequestBody {
   aiInstructions?: string;
   cascadeConfig: CascadeConfig;
   targetDepartments?: string[];
+  targetProjects?: string[];
   targetOffices?: string[];
   targetEmployees?: string[];
   organizationContext: {
     name: string;
     departments: string[];
     offices: { id: string; name: string }[];
+    projects: { id: string; name: string }[];
+    employeeProjects: { employee_id: string; project_id: string }[];
     employees: { id: string; name: string; department: string; position: string; officeId: string }[];
   };
 }
 
 interface GeneratedKpi {
   tempId: string;
-  scopeType: "organization" | "department" | "office" | "individual";
+  scopeType: "organization" | "department" | "project" | "office" | "individual";
   scopeValue?: string;
   scopeId?: string;
+  projectId?: string;
+  projectName?: string;
   employeeId?: string;
   employeeName?: string;
   title: string;
@@ -57,7 +63,7 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { documentContent, periodType, quarter, year, aiInstructions, cascadeConfig, targetDepartments, targetOffices, targetEmployees, organizationContext } = body;
+    const { documentContent, periodType, quarter, year, aiInstructions, cascadeConfig, targetDepartments, targetProjects, targetOffices, targetEmployees, organizationContext } = body;
 
     const periodLabel = periodType === "annual" ? `FY ${year}` : `Q${quarter} ${year}`;
 
@@ -65,6 +71,7 @@ serve(async (req) => {
       periodType, periodLabel,
       cascadeConfig,
       departmentsCount: organizationContext.departments.length,
+      projectsCount: organizationContext.projects?.length || 0,
       employeesCount: organizationContext.employees.length,
       documentLength: documentContent?.length || 0,
       aiInstructionsLength: aiInstructions?.length || 0
@@ -82,16 +89,55 @@ serve(async (req) => {
       filteredEmployees = filteredEmployees.filter(e => targetEmployees.includes(e.id));
     }
 
+    // Filter by projects if specified
+    const employeeProjects = organizationContext.employeeProjects || [];
+    if (targetProjects?.length) {
+      const employeeIdsInProjects = employeeProjects
+        .filter(ep => targetProjects.includes(ep.project_id))
+        .map(ep => ep.employee_id);
+      filteredEmployees = filteredEmployees.filter(e => employeeIdsInProjects.includes(e.id));
+    }
+
     // Filter departments based on filtered employees
     const activeDepartments = cascadeConfig.includeDepartments 
       ? [...new Set(filteredEmployees.map(e => e.department).filter(Boolean))]
       : [];
     
     const activeOffices = cascadeConfig.includeOffices
-      ? organizationContext.offices.filter(o => 
+      ? (organizationContext.offices || []).filter(o => 
           filteredEmployees.some(e => e.officeId === o.id)
         )
       : [];
+
+    // Filter projects based on targets and employee assignments
+    let activeProjects: { id: string; name: string }[] = [];
+    if (cascadeConfig.includeProjects && organizationContext.projects) {
+      if (targetProjects?.length) {
+        activeProjects = organizationContext.projects.filter(p => targetProjects.includes(p.id));
+      } else {
+        // Include projects that have at least one of our filtered employees
+        const activeEmployeeIds = new Set(filteredEmployees.map(e => e.id));
+        const projectsWithEmployees = new Set(
+          employeeProjects
+            .filter(ep => activeEmployeeIds.has(ep.employee_id))
+            .map(ep => ep.project_id)
+        );
+        activeProjects = organizationContext.projects.filter(p => projectsWithEmployees.has(p.id));
+      }
+    }
+
+    // Build project-to-employees mapping for the prompt
+    const projectEmployeeMap: Record<string, { id: string; name: string; position: string }[]> = {};
+    if (cascadeConfig.includeProjects) {
+      activeProjects.forEach(project => {
+        const employeeIds = employeeProjects
+          .filter(ep => ep.project_id === project.id)
+          .map(ep => ep.employee_id);
+        projectEmployeeMap[project.name] = filteredEmployees
+          .filter(e => employeeIds.includes(e.id))
+          .map(e => ({ id: e.id, name: e.name, position: e.position }));
+      });
+    }
 
     // Build prompt for AI
     const systemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
@@ -100,10 +146,12 @@ Your task is to analyze organizational documents and generate a hierarchical KPI
 Guidelines for KPI creation:
 1. Create SMART KPIs (Specific, Measurable, Achievable, Relevant, Time-bound)
 2. Organization KPIs should be high-level strategic goals
-3. Department/Office KPIs should cascade from organization goals
-4. Individual KPIs should be specific, actionable tasks that contribute to department goals
+3. Department/Office/Project KPIs should cascade from organization goals
+4. Individual KPIs should be specific, actionable tasks that contribute to their team/project goals
 5. Use appropriate units (%, count, $, rating, etc.)
 6. Set realistic target values based on industry standards
+7. For project KPIs, focus on product/project-specific outcomes (revenue, features, milestones)
+8. Link individual KPIs to projects when the employee is assigned to that project
 
 CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
 The JSON must follow this exact structure:
@@ -129,6 +177,17 @@ The JSON must follow this exact structure:
       "parentTempId": "org-1"
     },
     {
+      "tempId": "proj-1",
+      "scopeType": "project",
+      "projectId": "uuid",
+      "projectName": "Agentcis",
+      "title": "Revenue Target",
+      "description": "Description",
+      "targetValue": 500000,
+      "unit": "$",
+      "parentTempId": "org-1"
+    },
+    {
       "tempId": "ind-1",
       "scopeType": "individual",
       "employeeId": "uuid",
@@ -137,7 +196,7 @@ The JSON must follow this exact structure:
       "description": "Description",
       "targetValue": 10,
       "unit": "count",
-      "parentTempId": "dept-1"
+      "parentTempId": "proj-1"
     }
   ]
 }`;
@@ -155,6 +214,7 @@ ${documentContent.slice(0, 8000)}
 ` : ''}Organization Structure:
 - Departments: ${activeDepartments.join(', ') || 'N/A'}
 - Offices: ${activeOffices.map(o => o.name).join(', ') || 'N/A'}
+- Projects: ${activeProjects.map(p => p.name).join(', ') || 'N/A'}
 - Team Members: ${filteredEmployees.length} employees
 
 Generate KPIs with this cascade:`;
@@ -165,14 +225,33 @@ Generate KPIs with this cascade:`;
     if (cascadeConfig.includeDepartments && activeDepartments.length > 0) {
       userPrompt += `\n- 2-3 KPIs per department: ${activeDepartments.join(', ')}`;
     }
+    if (cascadeConfig.includeProjects && activeProjects.length > 0) {
+      userPrompt += `\n- 2-3 KPIs per project (product-specific targets):`;
+      activeProjects.forEach(p => {
+        const projectTeam = projectEmployeeMap[p.name] || [];
+        userPrompt += `\n  • ${p.name} (ID: ${p.id}) - Team: ${projectTeam.length} members`;
+        if (projectTeam.length > 0 && projectTeam.length <= 5) {
+          userPrompt += ` (${projectTeam.map(e => e.name).join(', ')})`;
+        }
+      });
+    }
     if (cascadeConfig.includeOffices && activeOffices.length > 0) {
       userPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map(o => o.name).join(', ')}`;
     }
     if (cascadeConfig.includeIndividuals && filteredEmployees.length > 0) {
       userPrompt += `\n- 1-2 Individual KPIs for each of these employees:`;
       filteredEmployees.forEach(e => {
-        userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}) - ID: ${e.id}`;
+        // Find projects this employee is assigned to
+        const empProjects = employeeProjects
+          .filter(ep => ep.employee_id === e.id)
+          .map(ep => activeProjects.find(p => p.id === ep.project_id)?.name)
+          .filter(Boolean);
+        
+        const projectInfo = empProjects.length > 0 ? `, Projects: ${empProjects.join(', ')}` : '';
+        userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}${projectInfo}) - ID: ${e.id}`;
       });
+      
+      userPrompt += `\n\nIMPORTANT: When an employee is assigned to a project, consider linking their individual KPIs to the project KPI as parent (using parentTempId referencing proj-X).`;
     }
 
     userPrompt += `\n\nEnsure parent-child relationships are properly set using parentTempId to link child KPIs to their parent.
@@ -245,8 +324,9 @@ Respond with ONLY the JSON object, no additional text.`;
 
     console.log("Generated KPIs count:", parsed.kpis.length);
 
-    // Add office IDs to office KPIs
+    // Add IDs to scope-specific KPIs
     parsed.kpis = parsed.kpis.map(kpi => {
+      // Add office IDs
       if (kpi.scopeType === 'office' && kpi.scopeValue) {
         const office = activeOffices.find(o => 
           o.name.toLowerCase() === kpi.scopeValue?.toLowerCase()
@@ -255,6 +335,25 @@ Respond with ONLY the JSON object, no additional text.`;
           kpi.scopeId = office.id;
         }
       }
+      
+      // Validate project IDs and add names
+      if (kpi.scopeType === 'project') {
+        if (kpi.projectId) {
+          const project = activeProjects.find(p => p.id === kpi.projectId);
+          if (project) {
+            kpi.projectName = project.name;
+          }
+        } else if (kpi.projectName) {
+          // Try to find project by name if ID not provided
+          const project = activeProjects.find(p => 
+            p.name.toLowerCase() === kpi.projectName?.toLowerCase()
+          );
+          if (project) {
+            kpi.projectId = project.id;
+          }
+        }
+      }
+      
       return kpi;
     });
 
