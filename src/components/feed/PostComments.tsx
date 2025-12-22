@@ -19,6 +19,7 @@ import {
 import { MoreHorizontal, Trash2, Send, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { OrgLink } from '@/components/OrgLink';
+import { CommentReactions } from './CommentReactions';
 import { cn } from '@/lib/utils';
 
 interface PostCommentsProps {
@@ -118,6 +119,7 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
                     {comment.content}
                   </p>
                 </div>
+                <CommentReactions commentId={comment.id} />
               </div>
 
               {/* Delete menu */}
