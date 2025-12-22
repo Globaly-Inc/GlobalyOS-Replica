@@ -49,6 +49,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { icons } from "lucide-react";
 import { ProfileActivityFeed } from "@/components/feed/ProfileActivityFeed";
+import { PositionAIDescription } from "@/components/PositionAIDescription";
 import { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 interface EmployeeProject {
@@ -103,6 +104,7 @@ const TeamMemberProfile = () => {
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
   const [employeeSchedule, setEmployeeSchedule] = useState<any>(null);
   const [performanceReviews, setPerformanceReviews] = useState<any[]>([]);
+  const [positionId, setPositionId] = useState<string | null>(null);
   const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
 
   // Fetch work location for WFH request button
@@ -190,6 +192,13 @@ const TeamMemberProfile = () => {
       loadPerformanceReviews();
     }
   }, [id]);
+  
+  // Load position ID when employee data is available
+  useEffect(() => {
+    if (employee?.position && employee?.organization_id) {
+      loadPositionId(employee.position, employee.organization_id);
+    }
+  }, [employee?.position, employee?.organization_id]);
   const loadPerformanceReviews = async () => {
     if (!id) return;
     const {
@@ -238,6 +247,16 @@ const TeamMemberProfile = () => {
       data
     } = await supabase.from("leave_requests").select("leave_type").eq("employee_id", id).eq("status", "approved").lte("start_date", today).gte("end_date", today).maybeSingle();
     setCurrentLeave(data);
+  };
+  const loadPositionId = async (positionName: string, orgId: string) => {
+    if (!positionName || !orgId) return;
+    const { data } = await supabase
+      .from("positions")
+      .select("id")
+      .eq("name", positionName)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+    setPositionId(data?.id || null);
   };
   const loadUserRole = async () => {
     if (!id) return;
@@ -839,6 +858,17 @@ const TeamMemberProfile = () => {
               </div>}
           </div>
         </Card>
+
+        {/* AI Position Description */}
+        {employee?.position && employee?.organization_id && (
+          <PositionAIDescription
+            positionId={positionId || undefined}
+            positionName={employee.position}
+            department={employee.department}
+            organizationId={employee.organization_id}
+            canEdit={isAdminOrHR}
+          />
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
           <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 contents lg:block">
