@@ -303,13 +303,6 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                 <span className="hidden sm:inline text-xs">Comment</span>
               )}
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>
