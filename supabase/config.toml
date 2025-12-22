@@ -146,3 +146,6 @@ verify_jwt = true
 
 [functions.generate-position-description]
 verify_jwt = false
+
+[functions.parse-document-content]
+verify_jwt = false

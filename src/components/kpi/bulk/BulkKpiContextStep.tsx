@@ -31,10 +31,14 @@ import {
   Sparkles,
   Calendar,
   CalendarDays,
-  Rocket
+  Rocket,
+  FileSpreadsheet,
+  File,
+  Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useToast } from "@/hooks/use-toast";
 import type { BulkKpiWizardState } from "@/pages/BulkKpiCreate";
 
 interface Props {
@@ -45,10 +49,46 @@ interface Props {
 const quarters = [1, 2, 3, 4];
 const years = [2024, 2025, 2026];
 
+const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.csv'];
+const TEXT_EXTENSIONS = ['.txt', '.md'];
+
+const getFileIcon = (fileName: string) => {
+  const ext = fileName.toLowerCase().split('.').pop();
+  switch (ext) {
+    case 'pdf':
+      return <File className="h-8 w-8 text-red-500" />;
+    case 'docx':
+    case 'doc':
+      return <FileText className="h-8 w-8 text-blue-500" />;
+    case 'xlsx':
+    case 'xls':
+    case 'csv':
+      return <FileSpreadsheet className="h-8 w-8 text-green-500" />;
+    default:
+      return <FileText className="h-8 w-8 text-primary" />;
+  }
+};
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const BulkKpiContextStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isParsingDocument, setIsParsingDocument] = useState(false);
 
   // Fetch departments
   const { data: departments = [] } = useQuery({
@@ -114,25 +154,83 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
   });
 
   const handleFileUpload = useCallback(async (file: File) => {
-    try {
-      const text = await file.text();
-      updateState({ 
-        documentContent: text,
-        documentName: file.name 
+    const ext = '.' + file.name.toLowerCase().split('.').pop();
+    const isSupported = SUPPORTED_EXTENSIONS.includes(ext);
+    
+    if (!isSupported) {
+      toast({
+        title: "Unsupported file type",
+        description: `Please upload a supported file: ${SUPPORTED_EXTENSIONS.join(', ')}`,
+        variant: "destructive"
       });
-    } catch (error) {
-      console.error("Error reading file:", error);
+      return;
     }
-  }, [updateState]);
+
+    try {
+      const isTextFile = TEXT_EXTENSIONS.includes(ext);
+      
+      if (isTextFile) {
+        // Direct text reading for simple files
+        const text = await file.text();
+        updateState({ 
+          documentContent: text,
+          documentName: file.name 
+        });
+      } else {
+        // Use edge function for binary documents
+        setIsParsingDocument(true);
+        const base64 = await fileToBase64(file);
+        
+        const { data, error } = await supabase.functions.invoke('parse-document-content', {
+          body: { 
+            fileContent: base64, 
+            fileName: file.name,
+            mimeType: file.type 
+          }
+        });
+        
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        
+        updateState({ 
+          documentContent: data.text,
+          documentName: file.name 
+        });
+        
+        toast({
+          title: "Document parsed successfully",
+          description: `Extracted ${data.characterCount?.toLocaleString() || data.text?.length?.toLocaleString()} characters from ${file.name}`
+        });
+      }
+    } catch (error) {
+      console.error("Error parsing file:", error);
+      toast({
+        title: "Failed to parse document",
+        description: error instanceof Error ? error.message : "Please try a different file format",
+        variant: "destructive"
+      });
+    } finally {
+      setIsParsingDocument(false);
+    }
+  }, [updateState, toast]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && (file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md"))) {
-      handleFileUpload(file);
+    if (file) {
+      const ext = '.' + file.name.toLowerCase().split('.').pop();
+      if (SUPPORTED_EXTENSIONS.includes(ext)) {
+        handleFileUpload(file);
+      } else {
+        toast({
+          title: "Unsupported file type",
+          description: `Please upload a supported file: ${SUPPORTED_EXTENSIONS.join(', ')}`,
+          variant: "destructive"
+        });
+      }
     }
-  }, [handleFileUpload]);
+  }, [handleFileUpload, toast]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -448,16 +546,25 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
               onDragLeave={handleDragLeave}
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors
                 ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}
-                ${state.documentContent ? 'bg-muted/50' : ''}`}
+                ${state.documentContent ? 'bg-muted/50' : ''}
+                ${isParsingDocument ? 'pointer-events-none opacity-70' : ''}`}
             >
-              {state.documentContent ? (
+              {isParsingDocument ? (
+                <div className="space-y-3">
+                  <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin" />
+                  <p className="text-sm font-medium">Parsing document...</p>
+                  <p className="text-xs text-muted-foreground">
+                    Extracting text content
+                  </p>
+                </div>
+              ) : state.documentContent ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-center gap-2">
-                    <FileText className="h-8 w-8 text-primary" />
+                    {getFileIcon(state.documentName || '')}
                     <div className="text-left">
                       <p className="font-medium">{state.documentName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {state.documentContent.length.toLocaleString()} characters
+                        {state.documentContent.length.toLocaleString()} characters extracted
                       </p>
                     </div>
                   </div>
@@ -475,19 +582,19 @@ export const BulkKpiContextStep = ({ state, updateState }: Props) => {
                   <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                   <p className="text-sm font-medium mb-1">Drop your document here</p>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Supports .txt and .md files
+                    Supports: TXT, MD, PDF, DOCX, XLSX, CSV
                   </p>
                   <label>
                     <input
                       type="file"
-                      accept=".txt,.md"
+                      accept=".txt,.md,.pdf,.docx,.doc,.xlsx,.xls,.csv"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleFileUpload(file);
                       }}
                     />
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild disabled={isParsingDocument}>
                       <span className="cursor-pointer">
                         <Upload className="h-4 w-4 mr-2" />
                         Browse Files
