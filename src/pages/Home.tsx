@@ -1,14 +1,16 @@
 import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from "@/components/KudosCard";
+import { PostCard } from "@/components/feed/PostCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SocialFeedComposer } from "@/components/feed/SocialFeedComposer";
+import { usePosts, PostType } from "@/services/useSocialFeed";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AdminSetup } from "@/components/AdminSetup";
@@ -953,7 +955,7 @@ const Home = () => {
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <Select value={feedFilter} onValueChange={setFeedFilter}>
-                  <SelectTrigger className="w-[160px] h-9 bg-background">
+                  <SelectTrigger className="w-[180px] h-9 bg-background">
                     <SelectValue placeholder="Filter posts" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
@@ -962,7 +964,7 @@ const Home = () => {
                         <MessageSquare className="h-4 w-4" /> All Posts
                       </span>
                     </SelectItem>
-                    <SelectItem value="wins">
+                    <SelectItem value="win">
                       <span className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-amber-500" /> Wins
                       </span>
@@ -972,9 +974,19 @@ const Home = () => {
                         <Heart className="h-4 w-4 text-pink-500" /> Kudos
                       </span>
                     </SelectItem>
-                    <SelectItem value="announcements">
+                    <SelectItem value="social">
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-green-500" /> Social
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="announcement">
                       <span className="flex items-center gap-2">
                         <Megaphone className="h-4 w-4 text-blue-500" /> Announcements
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="executive_message">
+                      <span className="flex items-center gap-2">
+                        <Crown className="h-4 w-4 text-purple-500" /> Executive
                       </span>
                     </SelectItem>
                   </SelectContent>
