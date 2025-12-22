@@ -73,27 +73,57 @@ serve(async (req) => {
     // Build scripts for post-navigation (privacy masks, highlights, annotations)
     let postNavigationScripts: any[] = [];
     
+    // Default GlobalyOS privacy masks - always apply these for consistent privacy protection
+    const defaultPrivacyMasks = [
+      // Data-privacy attribute selectors (most reliable)
+      { type: 'replace', selector: '[data-privacy="name"]', replacement: 'Demo User' },
+      { type: 'blur', selector: '[data-privacy="avatar"]' },
+      { type: 'replace', selector: '[data-privacy="email"]', replacement: 'demo@example.com' },
+      
+      // Employee/Team member selectors
+      { type: 'replace', selector: '.employee-name, .profile-name, .team-member-name, .member-name', replacement: 'Demo User' },
+      { type: 'blur', selector: '.employee-avatar, .profile-avatar, .team-member-avatar' },
+      { type: 'replace', selector: '.employee-email, .user-email, .profile-email', replacement: 'demo@example.com' },
+      
+      // Avatar image selectors
+      { type: 'blur', selector: '[data-slot="avatar-image"]' },
+      { type: 'blur', selector: '.avatar img, [class*="avatar"] img, img[class*="profile"]' },
+      
+      // Card content selectors (EmployeeCard, etc.)
+      { type: 'replace', selector: 'h3.font-bold.text-lg', replacement: 'Demo User' },
+      
+      // General name-like text (be careful with this one)
+      { type: 'replace', selector: '[class*="name"]:not([class*="icon"]):not([class*="container"]):not([class*="file"]):not([class*="class"])', replacement: 'Demo User' },
+    ];
+    
+    // Merge default masks with any custom ones provided
+    const effectiveMasks = [
+      ...defaultPrivacyMasks,
+      ...(privacyMasks && Array.isArray(privacyMasks) ? privacyMasks : [])
+    ];
+    
     // Add privacy masking script (runs after page loads)
-    if (privacyMasks && Array.isArray(privacyMasks) && privacyMasks.length > 0) {
-      const masksJson = JSON.stringify(privacyMasks);
-      postNavigationScripts.push({
-        content: `
-          (function() {
-            const masks = ${masksJson};
-            
-            // Demo names for replacement
-            const demoNames = ['Alex Johnson', 'Sarah Smith', 'John Doe', 'Emily Davis', 'Michael Brown', 'Jessica Wilson'];
-            let nameIndex = 0;
-            
-            // Apply privacy masks
-            masks.forEach(mask => {
+    const masksJson = JSON.stringify(effectiveMasks);
+    postNavigationScripts.push({
+      content: `
+        (function() {
+          const masks = ${masksJson};
+          
+          // Demo names for variety when replacing multiple elements
+          const demoNames = ['Alex Johnson', 'Sarah Smith', 'John Doe', 'Emily Davis', 'Michael Brown', 'Jessica Wilson', 'David Lee', 'Lisa Chen'];
+          let nameIndex = 0;
+          
+          // Apply privacy masks
+          masks.forEach(mask => {
+            try {
               const elements = document.querySelectorAll(mask.selector);
               elements.forEach(el => {
                 if (mask.type === 'blur') {
                   el.style.filter = 'blur(8px)';
                   el.style.transition = 'none';
                 } else if (mask.type === 'replace') {
-                  if (mask.selector.includes('name') || mask.selector.includes('Name')) {
+                  // For name fields, use rotating demo names for variety
+                  if (mask.selector.includes('name') || mask.selector.includes('Name') || mask.replacement === 'Demo User') {
                     el.textContent = demoNames[nameIndex % demoNames.length];
                     nameIndex++;
                   } else if (mask.replacement) {
@@ -103,19 +133,20 @@ serve(async (req) => {
                   el.style.visibility = 'hidden';
                 }
               });
-            });
-            
-            // Also apply common privacy patterns
-            // Blur all avatar images
-            document.querySelectorAll('.avatar img, [class*="avatar"] img, img[class*="profile"]').forEach(img => {
-              img.style.filter = 'blur(8px)';
-            });
-            
-            console.log('Privacy masks applied:', masks.length);
-          })();
-        `
-      });
-    }
+            } catch (e) {
+              console.log('Selector error:', mask.selector, e);
+            }
+          });
+          
+          // Additional comprehensive avatar blur
+          document.querySelectorAll('img[src*="avatar"], img[src*="profile"], img[alt*="avatar"], img[alt*="profile"]').forEach(img => {
+            img.style.filter = 'blur(8px)';
+          });
+          
+          console.log('Privacy masks applied: ' + masks.length + ' rules, ' + nameIndex + ' names replaced');
+        })();
+      `
+    });
 
     // Build script to inject for highlighting elements
     if (effectiveHighlightSelector) {

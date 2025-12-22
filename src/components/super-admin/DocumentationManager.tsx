@@ -14,6 +14,7 @@ import { ArticleBulkActionsBar } from './ArticleBulkActionsBar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIGenerateCard } from './AIGenerateCard';
 import { AIUpdateCard } from './AIUpdateCard';
+import { ScreenshotCapturePanel } from '@/components/support/ScreenshotCapturePanel';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ import {
   ApiDocumentation,
 } from '@/services/useSupportArticles';
 import { useAISmartCapture, useCaptureAllPending, PrivacyOptions, ScreenshotSession } from '@/services/useSupportScreenshots';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const DocumentationManager = () => {
   const [activeTab, setActiveTab] = useState('articles');
@@ -693,7 +695,7 @@ const CategoriesManager = () => {
 
 // Screenshots Manager
 const ScreenshotsManager = () => {
-  const { data: screenshots, isLoading: screenshotsLoading } = useSupportScreenshots();
+  const { data: screenshots, isLoading: screenshotsLoading, refetch: refetchScreenshots } = useSupportScreenshots();
   const { data: routes, isLoading: routesLoading } = useScreenshotRoutes();
   const { data: articles } = useSupportArticles();
   const createScreenshot = useCreateScreenshot();
@@ -703,6 +705,7 @@ const ScreenshotsManager = () => {
   const captureAllPending = useCaptureAllPending();
   const captureModuleScreenshots = useCaptureModuleScreenshots();
   const analyzeAllScreenshots = useAnalyzeAllScreenshots();
+  const queryClient = useQueryClient();
 
   const [newScreenshot, setNewScreenshot] = useState({ route_path: '', description: '', article_id: '' });
   const [smartCaptureOpen, setSmartCaptureOpen] = useState(false);
@@ -968,6 +971,16 @@ const ScreenshotsManager = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Screenshot Capture Panel */}
+      <ScreenshotCapturePanel 
+        screenshots={screenshots || []}
+        session={screenshotSession}
+        onRefresh={() => {
+          refetchScreenshots();
+          queryClient.invalidateQueries({ queryKey: ['support-screenshots'] });
+        }}
+      />
 
       {/* AI Smart Capture Card */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
