@@ -796,6 +796,13 @@ export interface Reaction {
   id: string;
   emoji: string;
   employee_id: string;
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string | null;
+      avatar_url: string | null;
+    };
+  };
 }
 
 export const EMOJI_OPTIONS = ['👍', '❤️', '🎉', '👏', '🔥', '💯', '😂', '🤔'];
@@ -806,7 +813,13 @@ export const usePostReactions = (postId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('post_reactions')
-        .select('id, emoji, employee_id')
+        .select(`
+          id, emoji, employee_id,
+          employee:employees!post_reactions_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
         .eq('post_id', postId);
 
       if (error) throw error;
