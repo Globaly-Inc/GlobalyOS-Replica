@@ -6,8 +6,9 @@
 import { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, X, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VideoPlayer } from './VideoPlayer';
 
 interface MediaItem {
   id: string;
@@ -62,32 +63,21 @@ export const PostMedia = ({ media }: PostMediaProps) => {
     const isGif = item.media_type === 'gif' || item.file_url.toLowerCase().endsWith('.gif');
     
     if (item.media_type === 'video') {
+      if (isInLightbox) {
+        return (
+          <video
+            src={item.file_url}
+            controls
+            autoPlay
+            className="max-w-full max-h-[80vh] mx-auto rounded-lg"
+          />
+        );
+      }
       return (
-        <div className="relative w-full h-full">
-          {isInLightbox ? (
-            <video
-              src={item.file_url}
-              controls
-              className="max-w-full max-h-[80vh] mx-auto rounded-lg"
-            />
-          ) : (
-            <div 
-              className="relative w-full h-full cursor-pointer group"
-              onClick={() => openLightbox(index)}
-            >
-              <video
-                src={item.file_url}
-                className="w-full h-full object-cover"
-                muted
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
-                <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
-                  <Play className="h-5 w-5 text-foreground ml-0.5" fill="currentColor" />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <VideoPlayer 
+          src={item.file_url} 
+          onExpand={() => openLightbox(index)}
+        />
       );
     }
 
