@@ -8,6 +8,8 @@ import { format, startOfWeek, endOfWeek, differenceInMinutes, addWeeks, subWeeks
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { useWfhDays } from "@/services/useWfh";
+import { useTimezone } from "@/hooks/useTimezone";
+import { formatTimeInTimezone } from "@/utils/timezone";
 
 interface AttendanceTrackerProps {
   employeeId: string;
@@ -16,6 +18,7 @@ interface AttendanceTrackerProps {
 
 export const AttendanceTracker = ({ employeeId, showCheckIn = false }: AttendanceTrackerProps) => {
   const queryClient = useQueryClient();
+  const { timezone } = useTimezone();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const currentDate = new Date();
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -74,8 +77,6 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
       return data;
     },
   });
-
-  // Fetch WFH days for the week
 
   // Fetch WFH days for the week
   const { data: wfhDaysCount = 0 } = useWfhDays(
@@ -140,15 +141,7 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
     return <Badge className={variants[status] || ""}>{status.replace("_", " ")}</Badge>;
   };
 
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Calculate weekly metrics
+  // Calculate weekly metrics using timezone-aware times
   const calculateWeeklyMetrics = () => {
     if (!weekRecords || !schedule) {
       return { lateMinutes: 0, earlyMinutes: 0, earlyCheckouts: 0, totalWorkHours: 0, daysWorked: 0 };
@@ -166,30 +159,32 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
     weekRecords.forEach((record) => {
       if (record.check_in_time) {
         daysWorked++;
-        const checkInTime = new Date(record.check_in_time);
-        const checkInHHMM = format(checkInTime, "HH:mm:ss");
+        
+        // Get check-in time in user's timezone for comparison
+        const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, timezone, 'HH:mm:ss');
         
         // Calculate late minutes
-        if (checkInHHMM > scheduleStart) {
+        if (checkInTimeLocal > scheduleStart) {
           const [schedH, schedM] = scheduleStart.split(":").map(Number);
-          const schedDate = new Date(checkInTime);
-          schedDate.setHours(schedH, schedM, 0, 0);
-          lateMinutes += Math.max(0, differenceInMinutes(checkInTime, schedDate));
+          const [checkH, checkM] = checkInTimeLocal.split(":").map(Number);
+          const schedMinutes = schedH * 60 + schedM;
+          const checkMinutes = checkH * 60 + checkM;
+          lateMinutes += Math.max(0, checkMinutes - schedMinutes);
         }
         
         // Calculate early arrival
-        if (checkInHHMM < scheduleStart) {
+        if (checkInTimeLocal < scheduleStart) {
           const [schedH, schedM] = scheduleStart.split(":").map(Number);
-          const schedDate = new Date(checkInTime);
-          schedDate.setHours(schedH, schedM, 0, 0);
-          earlyMinutes += Math.max(0, differenceInMinutes(schedDate, checkInTime));
+          const [checkH, checkM] = checkInTimeLocal.split(":").map(Number);
+          const schedMinutes = schedH * 60 + schedM;
+          const checkMinutes = checkH * 60 + checkM;
+          earlyMinutes += Math.max(0, schedMinutes - checkMinutes);
         }
 
         // Calculate early checkouts
         if (record.check_out_time) {
-          const checkOutTime = new Date(record.check_out_time);
-          const checkOutHHMM = format(checkOutTime, "HH:mm:ss");
-          if (checkOutHHMM < scheduleEnd) {
+          const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, timezone, 'HH:mm:ss');
+          if (checkOutTimeLocal < scheduleEnd) {
             earlyCheckouts++;
           }
         }
@@ -257,14 +252,16 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
             </div>
           </div>
           
-          {/* Completed sessions */}
+          {/* Completed sessions - format times in user's timezone */}
           {completedSessions.length > 0 && (
             <div className="space-y-2">
               {completedSessions.map((session, idx) => (
                 <div key={session.id} className="flex items-center justify-between text-xs p-2 bg-background rounded-lg">
                   <span className="text-muted-foreground">Session {idx + 1}</span>
                   <div className="flex items-center gap-3">
-                    <span>{format(new Date(session.check_in_time), "h:mm a")} - {format(new Date(session.check_out_time!), "h:mm a")}</span>
+                    <span>
+                      {formatTimeInTimezone(session.check_in_time, timezone, "h:mm a")} - {formatTimeInTimezone(session.check_out_time!, timezone, "h:mm a")}
+                    </span>
                     <span className="font-medium">{session.work_hours?.toFixed(1)}h</span>
                   </div>
                 </div>
@@ -272,14 +269,14 @@ export const AttendanceTracker = ({ employeeId, showCheckIn = false }: Attendanc
             </div>
           )}
           
-          {/* Active session */}
+          {/* Active session - format time in user's timezone */}
           {activeSession && (
             <div className={`${completedSessions.length > 0 ? 'mt-3' : ''}`}>
               <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900/50">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                   <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    Checked in at {format(new Date(activeSession.check_in_time), "h:mm a")}
+                    Checked in at {formatTimeInTimezone(activeSession.check_in_time, timezone, "h:mm a")}
                   </span>
                 </div>
                 {getStatusBadge(activeSession.status)}

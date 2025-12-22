@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { useTimezone } from "@/hooks/useTimezone";
+import { toUTCDateTime, fromUTCDateTime } from "@/utils/timezone";
 
 interface BulkEditAttendanceDialogProps {
   open: boolean;
@@ -30,13 +32,14 @@ export const BulkEditAttendanceDialog = ({
   onSuccess,
 }: BulkEditAttendanceDialogProps) => {
   const queryClient = useQueryClient();
+  const { timezone } = useTimezone();
   const [updating, setUpdating] = useState(false);
   
   // Toggle states for which fields to update
   const [updateCheckIn, setUpdateCheckIn] = useState(false);
   const [updateCheckOut, setUpdateCheckOut] = useState(false);
   
-  // Time values
+  // Time values (in user's local timezone)
   const [checkInTime, setCheckInTime] = useState("09:00");
   const [checkOutTime, setCheckOutTime] = useState("18:00");
 
@@ -71,33 +74,40 @@ export const BulkEditAttendanceDialog = ({
 
       if (fetchError) throw fetchError;
 
-      // Update each record individually to handle date-specific times
+      // Update each record individually to handle date-specific times with proper timezone conversion
       const updates = existingRecords?.map(async (record) => {
         const updateData: Record<string, any> = {};
 
-        // Get existing times (extract time portion if exists)
-        let existingCheckIn = record.check_in_time
-          ? new Date(record.check_in_time).toTimeString().slice(0, 5)
-          : null;
-        let existingCheckOut = record.check_out_time
-          ? new Date(record.check_out_time).toTimeString().slice(0, 5)
-          : null;
+        // Get existing times in user's timezone (for work hours calculation)
+        let existingCheckInLocal: string | null = null;
+        let existingCheckOutLocal: string | null = null;
+        
+        if (record.check_in_time) {
+          const { time } = fromUTCDateTime(record.check_in_time, timezone);
+          existingCheckInLocal = time;
+        }
+        if (record.check_out_time) {
+          const { time } = fromUTCDateTime(record.check_out_time, timezone);
+          existingCheckOutLocal = time;
+        }
 
-        // Apply updates
-        const finalCheckIn = updateCheckIn ? checkInTime : existingCheckIn;
-        const finalCheckOut = updateCheckOut ? checkOutTime : existingCheckOut;
+        // Apply updates - convert local time to UTC for storage
+        const finalCheckInLocal = updateCheckIn ? checkInTime : existingCheckInLocal;
+        const finalCheckOutLocal = updateCheckOut ? checkOutTime : existingCheckOutLocal;
 
         if (updateCheckIn) {
-          updateData.check_in_time = `${record.date}T${checkInTime}:00`;
+          // Convert user's local time to UTC for database storage
+          updateData.check_in_time = toUTCDateTime(record.date, checkInTime, timezone);
         }
 
         if (updateCheckOut) {
-          updateData.check_out_time = `${record.date}T${checkOutTime}:00`;
+          // Convert user's local time to UTC for database storage
+          updateData.check_out_time = toUTCDateTime(record.date, checkOutTime, timezone);
         }
 
-        // Recalculate work hours if we have both times
-        if (finalCheckIn && finalCheckOut) {
-          updateData.work_hours = calculateWorkHours(finalCheckIn, finalCheckOut);
+        // Recalculate work hours if we have both times (using local times)
+        if (finalCheckInLocal && finalCheckOutLocal) {
+          updateData.work_hours = calculateWorkHours(finalCheckInLocal, finalCheckOutLocal);
         }
 
         return supabase
@@ -118,6 +128,7 @@ export const BulkEditAttendanceDialog = ({
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-history"] });
       
       // Reset form
       setUpdateCheckIn(false);

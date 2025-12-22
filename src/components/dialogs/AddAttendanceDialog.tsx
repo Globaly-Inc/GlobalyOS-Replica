@@ -12,6 +12,8 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, Save, UserPlus, Search, MapPin, Building2 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useTimezone } from "@/hooks/useTimezone";
+import { toUTCDateTime } from "@/utils/timezone";
 
 interface AddAttendanceDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ interface AddAttendanceDialogProps {
 export const AddAttendanceDialog = ({ open, onOpenChange }: AddAttendanceDialogProps) => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { timezone } = useTimezone();
   const [saving, setSaving] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [recordDate, setRecordDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -103,8 +106,11 @@ export const AddAttendanceDialog = ({ open, onOpenChange }: AddAttendanceDialogP
 
     setSaving(true);
     try {
-      const checkInDateTime = `${recordDate}T${checkInTime}:00`;
-      const checkOutDateTime = checkOutTime ? `${recordDate}T${checkOutTime}:00` : null;
+      // Convert local times to UTC for database storage
+      const checkInDateTime = toUTCDateTime(recordDate, checkInTime, timezone);
+      const checkOutDateTime = checkOutTime 
+        ? toUTCDateTime(recordDate, checkOutTime, timezone) 
+        : null;
 
       const { error } = await supabase
         .from("attendance_records")
@@ -125,6 +131,7 @@ export const AddAttendanceDialog = ({ open, onOpenChange }: AddAttendanceDialogP
       toast.success("Attendance record added successfully");
       queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-history"] });
       
       // Reset form
       setEmployeeId("");
