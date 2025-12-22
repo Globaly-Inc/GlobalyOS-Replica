@@ -1,5 +1,3 @@
-import { UpdateCard } from '@/components/UpdateCard';
-import { KudosCard } from "@/components/KudosCard";
 import { PostCard } from "@/components/feed/PostCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,11 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
 import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
-import { usePosts, PostType } from "@/services/useSocialFeed";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AdminSetup } from "@/components/AdminSetup";
@@ -24,61 +21,10 @@ import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { UserHelpRequests } from "@/components/home/UserHelpRequests";
 import { OrgLink } from "@/components/OrgLink";
-import { format, addDays, isSameDay, parseISO, differenceInYears, subDays, startOfWeek, startOfMonth, isAfter } from "date-fns";
+import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
+
 type DateFilter = "all" | "today" | "week" | "month";
-interface FeedItem {
-  id: string;
-  type: string;
-  content: string;
-  created_at: string;
-  image_url: string | null;
-  employee_id: string;
-  access_scope: string | null;
-  employee: {
-    profiles: {
-      full_name: string;
-      avatar_url: string | null;
-    };
-  };
-  mentions?: {
-    id: string;
-    employee_id: string;
-    employee: {
-      id: string;
-      profiles: {
-        full_name: string;
-        avatar_url: string | null;
-      };
-    };
-  }[];
-  update_offices?: Array<{ office: { name: string } }>;
-  update_departments?: Array<{ department: string }>;
-  update_projects?: Array<{ project: { name: string } }>;
-}
-interface KudosItem {
-  id: string;
-  comment: string;
-  created_at: string;
-  batch_id: string | null;
-  access_scope: string | null;
-  employee: {
-    id: string;
-    profiles: {
-      full_name: string;
-      avatar_url: string | null;
-    };
-  };
-  given_by: {
-    id: string;
-    profiles: {
-      full_name: string;
-      avatar_url: string | null;
-    };
-  };
-  kudos_offices?: Array<{ office: { name: string } }>;
-  kudos_departments?: Array<{ department: string }>;
-  kudos_projects?: Array<{ project: { name: string } }>;
-}
+
 interface PersonOnLeave {
   id: string;
   employee: {
@@ -92,6 +38,7 @@ interface PersonOnLeave {
   leave_type: string;
   half_day_type: string;
 }
+
 interface UpcomingTeamLeave {
   id: string;
   start_date: string;
@@ -106,6 +53,7 @@ interface UpcomingTeamLeave {
     };
   };
 }
+
 interface UpcomingEvent {
   id: string;
   date: Date;
@@ -128,15 +76,7 @@ interface UpcomingCalendarEvent {
   daysUntil: number;
 }
 
-// Map database type to UI type (database uses "update", UI uses "announcement")
-const mapDbTypeToUiType = (dbType: string): "win" | "announcement" | "achievement" => {
-  if (dbType === "update") return "announcement";
-  return dbType as "win" | "announcement" | "achievement";
-};
 const Home = () => {
-  const [updates, setUpdates] = useState<FeedItem[]>([]);
-  const [kudos, setKudos] = useState<KudosItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [feedFilter, setFeedFilter] = useState<string>("all");
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
@@ -156,45 +96,20 @@ const Home = () => {
     windSpeed: number;
     forecast: { date: string; tempMax: number; tempMin: number; condition: string }[];
   } | null>(null);
-  const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
-  const seenItemIdsRef = useRef<Set<string>>(new Set());
-  const isInitialLoadRef = useRef(true);
-  const {
-    role,
-    isHR,
-    isAdmin,
-    isOwner
-  } = useUserRole();
-  const {
-    currentOrg
-  } = useOrganization();
+
+  const { role, isHR, isAdmin, isOwner } = useUserRole();
+  const { currentOrg } = useOrganization();
+
   useEffect(() => {
     if (currentOrg?.id) {
       checkEmployeeProfile();
-      loadFeed();
       loadLeaveData();
       loadUpcomingEvents();
       loadUpcomingCalendarEvents();
       loadWeather();
 
-      // Set up real-time subscriptions for auto-refresh
+      // Set up real-time subscription for leave
       const orgId = currentOrg.id;
-      const updatesChannel = supabase.channel('home-updates').on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'updates',
-        filter: `organization_id=eq.${orgId}`
-      }, () => {
-        loadFeed();
-      }).subscribe();
-      const kudosChannel = supabase.channel('home-kudos').on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'kudos',
-        filter: `organization_id=eq.${orgId}`
-      }, () => {
-        loadFeed();
-      }).subscribe();
       const leaveChannel = supabase.channel('home-leave').on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -204,20 +119,14 @@ const Home = () => {
         loadLeaveData();
       }).subscribe();
 
-      // Cleanup subscriptions on unmount
       return () => {
-        supabase.removeChannel(updatesChannel);
-        supabase.removeChannel(kudosChannel);
         supabase.removeChannel(leaveChannel);
       };
-    } else {
-      // No org yet - set loading to false to show empty state
-      setLoading(false);
     }
   }, [currentOrg?.id]);
+
   const loadWeather = async () => {
     try {
-      // Get user's location
       if (!navigator.geolocation) {
         console.log("Geolocation not supported");
         return;
@@ -227,7 +136,6 @@ const Home = () => {
         async (position) => {
           const { latitude, longitude } = position.coords;
           
-          // Fetch weather with 7-day forecast from Open-Meteo (free, no API key needed)
           const weatherResponse = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=7`
           );
@@ -237,7 +145,6 @@ const Home = () => {
             const current = weatherData.current;
             const daily = weatherData.daily;
             
-            // Get location name using reverse geocoding
             const geoResponse = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
             );
@@ -247,7 +154,6 @@ const Home = () => {
               locationName = geoData.address?.city || geoData.address?.town || geoData.address?.village || "Your Location";
             }
             
-            // Map weather code to condition
             const getCondition = (code: number): string => {
               if (code === 0) return "Clear";
               if (code <= 3) return "Partly Cloudy";
@@ -258,7 +164,6 @@ const Home = () => {
               return "Cloudy";
             };
             
-            // Build 7-day forecast (skip today, show next 7 days)
             const forecast = daily.time.slice(1, 8).map((date: string, i: number) => ({
               date,
               tempMax: Math.round(daily.temperature_2m_max[i + 1]),
@@ -284,38 +189,28 @@ const Home = () => {
       console.error("Failed to load weather:", error);
     }
   };
+
   const checkEmployeeProfile = async () => {
     if (!currentOrg?.id) return;
-    const {
-      data: {
-        user
-      }
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Get user's profile name
-    const {
-      data: profileData
-    } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    const { data: profileData } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
     if (profileData) {
       const firstName = profileData.full_name.split(" ")[0];
       setCurrentUserName(firstName);
     }
-    const {
-      data
-    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
+    const { data } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     setHasEmployeeProfile(!!data);
     setCurrentEmployeeId(data?.id || null);
   };
+
   const loadUpcomingEvents = async () => {
     if (!currentOrg?.id) return;
     const today = new Date();
-    const nextDays = 30; // Look ahead 30 days
+    const nextDays = 30;
 
-    // Load all employees with their dates
-    const {
-      data: employees
-    } = await supabase.from("employees").select(`
+    const { data: employees } = await supabase.from("employees").select(`
         id,
         date_of_birth,
         join_date,
@@ -325,15 +220,14 @@ const Home = () => {
         )
       `).eq("organization_id", currentOrg.id).eq("status", "active");
     if (!employees) return;
+
     const birthdays: UpcomingEvent[] = [];
     const anniversaries: UpcomingEvent[] = [];
+
     employees.forEach((emp: any) => {
-      // Check birthday
       if (emp.date_of_birth) {
         const dob = parseISO(emp.date_of_birth);
         const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-
-        // If birthday has passed this year, check next year
         if (thisYearBirthday < today && !isSameDay(thisYearBirthday, today)) {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
         }
@@ -348,16 +242,11 @@ const Home = () => {
         }
       }
 
-      // Check work anniversary
       if (emp.join_date) {
         const joinDate = parseISO(emp.join_date);
         const yearsWorked = differenceInYears(today, joinDate);
-
-        // Only show if they've worked at least 1 year
         if (yearsWorked >= 1) {
           const thisYearAnniversary = new Date(today.getFullYear(), joinDate.getMonth(), joinDate.getDate());
-
-          // If anniversary has passed this year, check next year
           if (thisYearAnniversary < today && !isSameDay(thisYearAnniversary, today)) {
             thisYearAnniversary.setFullYear(today.getFullYear() + 1);
           }
@@ -376,7 +265,6 @@ const Home = () => {
       }
     });
 
-    // Sort by days until event
     birthdays.sort((a, b) => a.daysUntil - b.daysUntil);
     anniversaries.sort((a, b) => a.daysUntil - b.daysUntil);
     setUpcomingBirthdays(birthdays.slice(0, 5));
@@ -406,18 +294,13 @@ const Home = () => {
       setUpcomingCalendarEvents(eventsWithDays);
     }
   };
+
   const loadLeaveData = async () => {
     if (!currentOrg?.id) return;
-    const {
-      data: {
-        user
-      }
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const today = format(new Date(), "yyyy-MM-dd");
-    const currentYear = new Date().getFullYear();
 
-    // Load people on leave today
     const { data: leaveRequests } = await supabase
       .from("leave_requests")
       .select("id, leave_type, employee_id, half_day_type")
@@ -471,16 +354,11 @@ const Home = () => {
       setPeopleOnLeave(normalized as PersonOnLeave[]);
     }
 
-    // Load upcoming team leave for managers (direct reports' approved leave in the future)
-    const {
-      data: employeeCheck
-    } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
+    const { data: employeeCheck } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     if (employeeCheck) {
       const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
       const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
-      const {
-        data: teamLeave
-      } = await supabase.from("leave_requests").select(`
+      const { data: teamLeave } = await supabase.from("leave_requests").select(`
           id,
           start_date,
           end_date,
@@ -502,278 +380,8 @@ const Home = () => {
         setUpcomingTeamLeave(directReportsLeave as UpcomingTeamLeave[]);
       }
     }
-
-  };
-  const loadFeed = async () => {
-    if (!currentOrg?.id) return;
-    setLoading(true);
-
-    // Load updates with visibility data
-    const {
-      data: updatesData
-    } = await supabase.from("updates").select(`
-        id,
-        type,
-        content,
-        created_at,
-        image_url,
-        employee_id,
-        access_scope,
-        employee:employees!inner(
-          profiles!inner(
-            full_name,
-            avatar_url
-          )
-        ),
-        mentions:update_mentions(
-          id,
-          employee_id,
-          employee:employees!update_mentions_employee_id_fkey(
-            id,
-            profiles!inner(
-              full_name,
-              avatar_url
-            )
-          )
-        ),
-        update_offices(office:offices(name)),
-        update_departments(department),
-        update_projects(project:projects(name))
-      `).eq("organization_id", currentOrg.id).order("created_at", {
-      ascending: false
-    });
-
-    // Load kudos with visibility data
-    const {
-      data: kudosData
-    } = await supabase.from("kudos").select(`
-        id,
-        comment,
-        created_at,
-        batch_id,
-        access_scope,
-        employee:employees!kudos_employee_id_fkey(
-          id,
-          profiles!inner(
-            full_name,
-            avatar_url
-          )
-        ),
-        given_by:employees!kudos_given_by_id_fkey(
-          id,
-          profiles!inner(
-            full_name,
-            avatar_url
-          )
-        ),
-        kudos_offices(office:offices(name)),
-        kudos_departments(department),
-        kudos_projects(project:projects(name))
-      `).eq("organization_id", currentOrg.id).order("created_at", {
-      ascending: false
-    });
-    if (updatesData) {
-      // Track new items for animation
-      const newUpdates: string[] = [];
-      updatesData.forEach((item: any) => {
-        if (!seenItemIdsRef.current.has(item.id) && !isInitialLoadRef.current) {
-          newUpdates.push(item.id);
-        }
-        seenItemIdsRef.current.add(item.id);
-      });
-      if (newUpdates.length > 0) {
-        setNewItemIds(prev => new Set([...prev, ...newUpdates]));
-        // Clear animation after it plays
-        setTimeout(() => {
-          setNewItemIds(prev => {
-            const next = new Set(prev);
-            newUpdates.forEach(id => next.delete(id));
-            return next;
-          });
-        }, 600);
-      }
-      setUpdates(updatesData as FeedItem[]);
-    }
-    if (kudosData) {
-      // Track new kudos for animation
-      const newKudosIds: string[] = [];
-      kudosData.forEach((item: any) => {
-        const itemId = item.batch_id || item.id;
-        if (!seenItemIdsRef.current.has(itemId) && !isInitialLoadRef.current) {
-          newKudosIds.push(itemId);
-        }
-        seenItemIdsRef.current.add(itemId);
-      });
-      if (newKudosIds.length > 0) {
-        setNewItemIds(prev => new Set([...prev, ...newKudosIds]));
-        // Clear animation after it plays
-        setTimeout(() => {
-          setNewItemIds(prev => {
-            const next = new Set(prev);
-            newKudosIds.forEach(id => next.delete(id));
-            return next;
-          });
-        }, 600);
-      }
-      setKudos(kudosData as KudosItem[]);
-    }
-    isInitialLoadRef.current = false;
-    setLoading(false);
   };
 
-  // Filter items by date
-  const filterByDate = <T extends {
-    created_at: string;
-  },>(items: T[]): T[] => {
-    if (dateFilter === "all") return items;
-    const now = new Date();
-    let cutoffDate: Date;
-    switch (dateFilter) {
-      case "today":
-        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case "week":
-        cutoffDate = startOfWeek(now, {
-          weekStartsOn: 1
-        });
-        break;
-      case "month":
-        cutoffDate = startOfMonth(now);
-        break;
-      default:
-        return items;
-    }
-    return items.filter(item => isAfter(new Date(item.created_at), cutoffDate));
-  };
-  const filteredUpdates = filterByDate(updates);
-  const filteredKudos = filterByDate(kudos);
-  const winsAndAchievements = filteredUpdates.filter(u => u.type === "win" || u.type === "achievement");
-  const regularUpdates = filteredUpdates.filter(u => u.type === "update");
-
-  // Group kudos by batch_id to show multiple recipients in one card
-  type GroupedKudosItem = KudosItem & {
-    otherRecipients?: {
-      id: string;
-      name: string;
-      avatar?: string;
-    }[];
-  };
-  const groupedKudos: GroupedKudosItem[] = (() => {
-    // Filter out kudos with null employee or given_by references (deleted users)
-    const validKudos = filteredKudos.filter(k => k.employee && k.given_by && k.employee.profiles && k.given_by.profiles);
-    
-    const grouped: Map<string, KudosItem[]> = new Map();
-    const standalone: GroupedKudosItem[] = [];
-    validKudos.forEach(k => {
-      if (k.batch_id) {
-        const existing = grouped.get(k.batch_id) || [];
-        existing.push(k);
-        grouped.set(k.batch_id, existing);
-      } else {
-        standalone.push({
-          ...k,
-          otherRecipients: undefined
-        });
-      }
-    });
-
-    // Convert grouped kudos to single representative items with otherRecipients
-    const result: GroupedKudosItem[] = [];
-    grouped.forEach(items => {
-      if (items.length > 0) {
-        const first = items[0];
-        const others = items.slice(1)
-          .filter(k => k.employee && k.employee.profiles) // Extra safety check
-          .map(k => ({
-            id: k.employee.id,
-            name: k.employee.profiles.full_name,
-            avatar: k.employee.profiles.avatar_url || undefined
-          }));
-        result.push({
-          ...first,
-          otherRecipients: others
-        });
-      }
-    });
-    return [...result, ...standalone];
-  })();
-  const renderFeedContent = (items: (FeedItem | (KudosItem & {
-    otherRecipients?: {
-      id: string;
-      name: string;
-      avatar?: string;
-    }[];
-  }))[]) => <>
-      {items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(item => {
-      const itemKey = "comment" in item ? ((item as any).batch_id || item.id) : item.id;
-      const isNew = newItemIds.has(itemKey);
-      
-      if ("comment" in item) {
-        const kudosItem = item as KudosItem & {
-          otherRecipients?: {
-            id: string;
-            name: string;
-            avatar?: string;
-          }[];
-        };
-        // Skip if employee or given_by is null (shouldn't happen after filter, but safety check)
-        if (!kudosItem.employee || !kudosItem.given_by) return null;
-        
-        return <div key={kudosItem.batch_id || item.id} className={isNew ? "animate-fade-in" : ""}>
-          <KudosCard kudos={{
-            id: kudosItem.id,
-            employeeId: kudosItem.employee.id,
-            employeeName: kudosItem.employee.profiles?.full_name || "Unknown",
-            givenBy: kudosItem.given_by.profiles?.full_name || "Unknown",
-            givenById: kudosItem.given_by.id,
-            givenByAvatar: kudosItem.given_by.profiles?.avatar_url || undefined,
-            comment: kudosItem.comment,
-            date: kudosItem.created_at,
-            avatar: kudosItem.employee.profiles?.avatar_url || undefined,
-            batchId: kudosItem.batch_id || undefined,
-            otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-            otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
-            accessScope: (kudosItem as any).access_scope,
-            kudosOffices: (kudosItem as any).kudos_offices,
-            kudosDepartments: (kudosItem as any).kudos_departments,
-            kudosProjects: (kudosItem as any).kudos_projects,
-          }} onDelete={loadFeed} />
-        </div>;
-      } else {
-        const updateItem = item as FeedItem & {
-          access_scope?: string | null;
-          update_offices?: Array<{ office: { name: string } }>;
-          update_departments?: Array<{ department: string }>;
-          update_projects?: Array<{ project: { name: string } }>;
-        };
-        // Skip if employee is null
-        if (!updateItem.employee) return null;
-        
-        return <div key={item.id} className={isNew ? "animate-fade-in" : ""}>
-          <UpdateCard update={{
-            id: updateItem.id,
-            employeeId: updateItem.employee_id,
-            employeeName: updateItem.employee.profiles?.full_name || "Unknown",
-            content: updateItem.content,
-            date: updateItem.created_at,
-            type: mapDbTypeToUiType(updateItem.type),
-            avatar: updateItem.employee.profiles?.avatar_url || undefined,
-            imageUrl: updateItem.image_url || undefined,
-            mentions: updateItem.mentions?.map(m => ({
-              id: m.id,
-              employeeId: m.employee_id,
-              employeeName: m.employee?.profiles?.full_name || "Unknown",
-              avatar: m.employee?.profiles?.avatar_url || undefined
-            })),
-            accessScope: updateItem.access_scope,
-            updateOffices: updateItem.update_offices,
-            updateDepartments: updateItem.update_departments,
-            updateProjects: updateItem.update_projects,
-          }} onDelete={loadFeed} />
-        </div>;
-      }
-    }).filter(Boolean)}
-    </>;
   return <>
       <div className="space-y-6">
         <AdminSetup />
@@ -782,15 +390,15 @@ const Home = () => {
         {(() => {
         const hour = new Date().getHours();
         let greeting = "Good evening";
-        let gradientClass = "from-primary/80 via-accent to-primary"; // Evening
+        let gradientClass = "from-primary/80 via-accent to-primary";
         let TimeIcon = Moon;
         if (hour < 12) {
           greeting = "Good morning";
-          gradientClass = "from-primary/70 via-primary to-accent"; // Morning
+          gradientClass = "from-primary/70 via-primary to-accent";
           TimeIcon = Sunrise;
         } else if (hour < 17) {
           greeting = "Good afternoon";
-          gradientClass = "from-accent via-primary/80 to-primary"; // Afternoon
+          gradientClass = "from-accent via-primary/80 to-primary";
           TimeIcon = Sun;
         }
         return <div className={`relative overflow-hidden rounded-xl p-6 shadow-lg bg-gradient-to-r ${gradientClass} animate-fade-in`} style={{
@@ -805,7 +413,6 @@ const Home = () => {
                 }
               `}</style>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                {/* Left side - Greeting */}
                 <div>
                   <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
                     {greeting}{currentUserName ? `, ${currentUserName}` : ""}
@@ -815,10 +422,8 @@ const Home = () => {
                   </p>
                 </div>
                 
-                {/* Mobile separator */}
                 <hr className="md:hidden border-white/20" />
                 
-                {/* Right side - Weather */}
                 {weather && <div className="md:text-right">
                     <div className="flex md:justify-end gap-3 items-center">
                       <div className="flex items-center gap-2">
@@ -839,7 +444,6 @@ const Home = () => {
                           <span className="flex items-center gap-0.5"><Wind className="h-3 w-3" /> {weather.windSpeed} km/h</span>
                         </div>
                       </div>
-                      {/* 7-day forecast */}
                       <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
                         {weather.forecast.slice(0, 7).map((day, i) => {
                           const WeatherIcon = day.condition === "Clear" ? Sun 
@@ -875,7 +479,6 @@ const Home = () => {
               </div>
               <AddEmployeeDialog onSuccess={() => {
             checkEmployeeProfile();
-            loadFeed();
           }} />
             </div>
           </Card>}
@@ -896,10 +499,8 @@ const Home = () => {
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
           <PendingWfhApprovals />
           
-          {/* GlobalyOS Help - Mobile */}
           <UserHelpRequests />
           
-          {/* People on Leave Today - Mobile */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -938,10 +539,8 @@ const Home = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
-            {/* Onboarding Checklist - inline at top of feed */}
             <OnboardingChecklist userRole={role} variant="inline" />
             
-            {/* Social Feed Composer */}
             {hasEmployeeProfile && (
               <div className="mb-6">
                 <InlinePostComposer 
@@ -1012,25 +611,14 @@ const Home = () => {
             <UnifiedFeed 
               feedFilter={feedFilter} 
               dateFilter={dateFilter}
-              legacyUpdates={updates}
-              legacyKudos={kudos}
-              legacyLoading={loading}
-              onLegacyRefresh={loadFeed}
             />
           </div>
 
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
           <div className="hidden lg:block space-y-6">
-            {/* Pending Leave Approvals for Managers/HR */}
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
-            
-            {/* Pending WFH Approvals for Managers/HR */}
             <PendingWfhApprovals />
-            
-            {/* Pending KPI Updates */}
             <PendingKpiUpdates />
-
-            {/* GlobalyOS Help Section */}
             <UserHelpRequests />
 
             {/* People on Leave Today */}
@@ -1089,7 +677,6 @@ const Home = () => {
                     </HoverCard>)}
                 </div> : <p className="text-sm text-muted-foreground">No one is on leave today</p>}
               
-              {/* Upcoming Team Leave - for managers */}
               {upcomingTeamLeave.length > 0 && <>
                   <div className="border-t border-border my-4" />
                   <div>
@@ -1126,7 +713,7 @@ const Home = () => {
             {upcomingCalendarEvents.length > 0 && (
               <Card className="p-6">
                 <OrgLink to="/calendar" className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors">
-                  <CalendarPlus className="h-5 w-5 text-primary" />
+                  <Calendar className="h-5 w-5 text-primary" />
                   Upcoming Events
                 </OrgLink>
                 <div className="space-y-3">

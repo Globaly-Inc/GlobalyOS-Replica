@@ -7,12 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { KudosCard } from "@/components/KudosCard";
 import WinCard from "@/components/WinCard";
 import { FeedReactions } from "@/components/FeedReactions";
-import { UpdateCard } from "@/components/UpdateCard";
 import { Update } from "@/types/employee";
-import { GiveKudosDialog } from "@/components/dialogs/GiveKudosDialog";
 import { PositionTimeline } from "@/components/PositionTimeline";
 import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
 import { LearningDevelopment } from "@/components/LearningDevelopment";
@@ -1116,87 +1113,7 @@ const TeamMemberProfile = () => {
                 <AddWfhRequestDialog open={wfhDialogOpen} onOpenChange={setWfhDialogOpen} />
               </Card>}
 
-            {/* Kudos and Wins */}
-            <Card className="overflow-hidden order-6 lg:order-none">
-              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 bg-card border-b gap-2">
-                <h2 className="flex items-center gap-2 text-sm sm:text-base font-semibold text-foreground min-w-0">
-                  <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                  <span className="hidden sm:inline">Kudos and Wins</span>
-                  <span className="sm:hidden">Recognition</span>
-                  <div className="flex items-center gap-1 ml-1">
-                    <Badge variant="secondary" className="text-xs px-1.5 sm:px-2">
-                      <span className="sm:hidden">{kudos.length + wins.length}</span>
-                      <span className="hidden sm:inline">All {kudos.length + wins.length}</span>
-                    </Badge>
-                    <Badge variant="outline" className="bg-pink-50 text-pink-600 border-pink-200 text-xs px-1.5 sm:px-2">
-                      <Heart className="h-3 w-3 sm:hidden" />
-                      <span className="hidden sm:inline">Kudos</span>
-                      <span className="ml-0.5">{kudos.length}</span>
-                    </Badge>
-                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs px-1.5 sm:px-2">
-                      <Trophy className="h-3 w-3 sm:hidden" />
-                      <span className="hidden sm:inline">Wins</span>
-                      <span className="ml-0.5">{wins.length}</span>
-                    </Badge>
-                  </div>
-                </h2>
-                {canGiveKudos && <GiveKudosDialog preselectedEmployeeId={id} onSuccess={loadKudos} variant="outline" />}
-              </div>
-              <div className="p-4">
-                {kudos.length > 0 || wins.length > 0 ? <>
-                    {/* Mobile: Horizontal scroll */}
-                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:hidden snap-x snap-mandatory">
-                      {[...kudos.map(k => ({
-                    type: 'kudos' as const,
-                    date: k.created_at,
-                    data: k
-                  })), ...wins.map(w => ({
-                    type: 'win' as const,
-                    date: w.date,
-                    data: w
-                  }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(item => <div key={item.type === 'kudos' ? `kudos-${item.data.id}` : `win-${item.data.id}`} className="min-w-[280px] max-w-[300px] shrink-0 snap-start">
-                            {item.type === 'kudos' ? <KudosCard kudos={{
-                      id: item.data.id,
-                      employeeId: item.data.employee.id,
-                      employeeName: item.data.employee.profiles.full_name,
-                      givenBy: item.data.given_by.profiles.full_name,
-                      givenById: item.data.given_by.id,
-                      givenByAvatar: item.data.given_by.profiles.avatar_url,
-                      comment: item.data.comment,
-                      date: item.data.created_at,
-                      batchId: item.data.batch_id || undefined,
-                      otherRecipients: item.data.otherRecipients,
-                      otherRecipientIds: item.data.otherRecipientIds
-                    }} onDelete={loadKudos} /> : <WinCard win={item.data} />}
-                          </div>)}
-                    </div>
-                    {/* Desktop: Grid layout */}
-                    <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {[...kudos.map(k => ({
-                    type: 'kudos' as const,
-                    date: k.created_at,
-                    data: k
-                  })), ...wins.map(w => ({
-                    type: 'win' as const,
-                    date: w.date,
-                    data: w
-                  }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(item => item.type === 'kudos' ? <KudosCard key={`kudos-${item.data.id}`} kudos={{
-                    id: item.data.id,
-                    employeeId: item.data.employee.id,
-                    employeeName: item.data.employee.profiles.full_name,
-                    givenBy: item.data.given_by.profiles.full_name,
-                    givenById: item.data.given_by.id,
-                    givenByAvatar: item.data.given_by.profiles.avatar_url,
-                    comment: item.data.comment,
-                    date: item.data.created_at,
-                    batchId: item.data.batch_id || undefined,
-                    otherRecipients: item.data.otherRecipients,
-                    otherRecipientIds: item.data.otherRecipientIds
-                  }} onDelete={loadKudos} /> : <WinCard key={`win-${item.data.id}`} win={item.data} />)}
-                    </div>
-                  </> : <p className="text-sm text-muted-foreground text-center py-6">No recognition or wins yet</p>}
-              </div>
-            </Card>
+            {/* Legacy Kudos and Wins section removed - Activity Feed now covers all posts including kudos and wins */}
 
 
             {/* Learning & Development */}
