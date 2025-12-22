@@ -3,9 +3,7 @@
  * Emoji reactions with toggle functionality and real-time updates
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useOrganization } from '@/hooks/useOrganization';
+import { usePostReactions, useTogglePostReaction, EMOJI_OPTIONS } from '@/services/useSocialFeed';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,82 +11,33 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { SmilePlus, ThumbsUp } from 'lucide-react';
+import { SmilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PostReactionsProps {
   postId: string;
 }
 
-const EMOJI_OPTIONS = ['👍', '❤️', '🎉', '👏', '🔥', '💯', '😂', '🤔'];
-
-interface Reaction {
-  id: string;
-  emoji: string;
-  employee_id: string;
-}
-
 export const PostReactions = ({ postId }: PostReactionsProps) => {
-  const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
-  const queryClient = useQueryClient();
 
-  // Fetch reactions
-  const { data: reactions = [] } = useQuery({
-    queryKey: ['post-reactions', postId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('post_reactions')
-        .select('id, emoji, employee_id')
-        .eq('post_id', postId);
-
-      if (error) throw error;
-      return data as Reaction[];
-    },
-    enabled: !!postId,
-  });
+  // Use centralized hooks
+  const { data: reactions = [] } = usePostReactions(postId);
+  const toggleReaction = useTogglePostReaction();
 
   // Group reactions by emoji
   const groupedReactions = reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = [];
     acc[r.emoji].push(r);
     return acc;
-  }, {} as Record<string, Reaction[]>);
-
-  // Toggle reaction mutation
-  const toggleReaction = useMutation({
-    mutationFn: async (emoji: string) => {
-      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
-
-      const existingReaction = reactions.find(
-        r => r.emoji === emoji && r.employee_id === currentEmployee.id
-      );
-
-      if (existingReaction) {
-        // Remove reaction
-        const { error } = await supabase
-          .from('post_reactions')
-          .delete()
-          .eq('id', existingReaction.id);
-        if (error) throw error;
-      } else {
-        // Add reaction
-        const { error } = await supabase.from('post_reactions').insert({
-          post_id: postId,
-          employee_id: currentEmployee.id,
-          organization_id: currentOrg.id,
-          emoji,
-        });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['post-reactions', postId] });
-    },
-  });
+  }, {} as Record<string, typeof reactions>);
 
   const hasReacted = (emoji: string) => {
     return reactions.some(r => r.emoji === emoji && r.employee_id === currentEmployee?.id);
+  };
+
+  const handleToggle = (emoji: string) => {
+    toggleReaction.mutate({ postId, emoji, existingReactions: reactions });
   };
 
   return (
@@ -105,7 +54,7 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
               ? "bg-primary/10 hover:bg-primary/20 text-primary" 
               : "hover:bg-muted"
           )}
-          onClick={() => toggleReaction.mutate(emoji)}
+          onClick={() => handleToggle(emoji)}
           disabled={toggleReaction.isPending}
         >
           <span>{emoji}</span>
@@ -135,7 +84,7 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
                   "h-8 w-8 p-0 text-lg hover:bg-muted rounded-full",
                   hasReacted(emoji) && "bg-primary/10"
                 )}
-                onClick={() => toggleReaction.mutate(emoji)}
+                onClick={() => handleToggle(emoji)}
               >
                 {emoji}
               </Button>

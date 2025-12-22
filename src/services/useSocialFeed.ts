@@ -399,3 +399,436 @@ export const useTogglePinPost = () => {
     },
   });
 };
+
+// ============================================
+// UPDATE POST
+// ============================================
+
+export const useUpdatePost = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+      const { error } = await supabase
+        .from('posts')
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq('id', postId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-feed'] });
+      toast({ title: 'Post updated' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+};
+
+// ============================================
+// POLL HOOKS
+// ============================================
+
+interface PollVote {
+  option_id: string;
+  employee_id: string;
+}
+
+export const usePollVotes = (pollId: string) => {
+  return useQuery({
+    queryKey: ['poll-votes', pollId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('poll_votes')
+        .select('option_id, employee_id')
+        .eq('poll_id', pollId);
+
+      if (error) throw error;
+      return data as PollVote[];
+    },
+    enabled: !!pollId,
+  });
+};
+
+export const usePollVote = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ pollId, optionIds }: { pollId: string; optionIds: string[] }) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
+
+      // Delete existing votes
+      await supabase
+        .from('poll_votes')
+        .delete()
+        .eq('poll_id', pollId)
+        .eq('employee_id', currentEmployee.id);
+
+      // Insert new votes
+      if (optionIds.length > 0) {
+        const { error } = await supabase.from('poll_votes').insert(
+          optionIds.map(optionId => ({
+            poll_id: pollId,
+            option_id: optionId,
+            employee_id: currentEmployee.id,
+            organization_id: currentOrg.id,
+          }))
+        );
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { pollId }) => {
+      queryClient.invalidateQueries({ queryKey: ['poll-votes', pollId] });
+      toast({ title: 'Vote recorded', description: 'Your vote has been submitted' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to submit vote', variant: 'destructive' });
+    },
+  });
+};
+
+// ============================================
+// COMMENT HOOKS
+// ============================================
+
+export interface Comment {
+  id: string;
+  content: string;
+  employee_id: string;
+  parent_comment_id: string | null;
+  created_at: string;
+  employee: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+}
+
+export const usePostComments = (postId: string) => {
+  return useQuery({
+    queryKey: ['post-comments', postId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('post_comments')
+        .select(`
+          id,
+          content,
+          employee_id,
+          parent_comment_id,
+          created_at,
+          employee:employees!post_comments_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq('post_id', postId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data as Comment[];
+    },
+    enabled: !!postId,
+  });
+};
+
+export const useCreateComment = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
+
+      const { error } = await supabase.from('post_comments').insert({
+        post_id: postId,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        content,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { postId }) => {
+      queryClient.invalidateQueries({ queryKey: ['post-comments', postId] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to post comment', variant: 'destructive' });
+    },
+  });
+};
+
+export const useDeleteComment = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ commentId, postId }: { commentId: string; postId: string }) => {
+      const { error } = await supabase
+        .from('post_comments')
+        .update({ is_deleted: true })
+        .eq('id', commentId);
+
+      if (error) throw error;
+      return { postId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['post-comments', data.postId] });
+      toast({ title: 'Comment deleted' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete comment', variant: 'destructive' });
+    },
+  });
+};
+
+// ============================================
+// REACTION HOOKS
+// ============================================
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  employee_id: string;
+}
+
+export const EMOJI_OPTIONS = ['👍', '❤️', '🎉', '👏', '🔥', '💯', '😂', '🤔'];
+
+export const usePostReactions = (postId: string) => {
+  return useQuery({
+    queryKey: ['post-reactions', postId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('post_reactions')
+        .select('id, emoji, employee_id')
+        .eq('post_id', postId);
+
+      if (error) throw error;
+      return data as Reaction[];
+    },
+    enabled: !!postId,
+  });
+};
+
+export const useTogglePostReaction = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId, emoji, existingReactions }: { 
+      postId: string; 
+      emoji: string; 
+      existingReactions: Reaction[];
+    }) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
+
+      const existingReaction = existingReactions.find(
+        r => r.emoji === emoji && r.employee_id === currentEmployee.id
+      );
+
+      if (existingReaction) {
+        const { error } = await supabase
+          .from('post_reactions')
+          .delete()
+          .eq('id', existingReaction.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('post_reactions').insert({
+          post_id: postId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          emoji,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { postId }) => {
+      queryClient.invalidateQueries({ queryKey: ['post-reactions', postId] });
+    },
+  });
+};
+
+// ============================================
+// EMPLOYEE FEED HOOK
+// ============================================
+
+export const useEmployeeFeed = (employeeId: string | undefined) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['employee-feed', currentOrg?.id, employeeId],
+    queryFn: async (): Promise<Post[]> => {
+      if (!currentOrg?.id || !employeeId) return [];
+
+      // Get posts created by employee
+      const { data: createdPosts, error: createdError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          employee:employees!posts_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          ),
+          post_media(*),
+          post_mentions(
+            id,
+            employee_id,
+            employee:employees!post_mentions_employee_id_fkey(
+              id,
+              profiles!inner(full_name, avatar_url)
+            )
+          ),
+          post_offices(office:offices(name)),
+          post_departments(department),
+          post_projects(project:projects(name)),
+          post_polls(
+            id,
+            question,
+            allow_multiple,
+            ends_at,
+            is_anonymous,
+            poll_options(id, option_text, sort_order)
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('employee_id', employeeId)
+        .eq('is_deleted', false)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+
+      if (createdError) throw createdError;
+
+      // Get posts where employee is mentioned
+      const { data: mentionedPostIds } = await supabase
+        .from('post_mentions')
+        .select('post_id')
+        .eq('employee_id', employeeId);
+
+      let mentionedPosts: Post[] = [];
+      if (mentionedPostIds && mentionedPostIds.length > 0) {
+        const ids = mentionedPostIds.map(m => m.post_id);
+        const { data, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            employee:employees!posts_employee_id_fkey(
+              id,
+              profiles!inner(full_name, avatar_url)
+            ),
+            post_media(*),
+            post_mentions(
+              id,
+              employee_id,
+              employee:employees!post_mentions_employee_id_fkey(
+                id,
+                profiles!inner(full_name, avatar_url)
+              )
+            ),
+            post_offices(office:offices(name)),
+            post_departments(department),
+            post_projects(project:projects(name)),
+            post_polls(
+              id,
+              question,
+              allow_multiple,
+              ends_at,
+              is_anonymous,
+              poll_options(id, option_text, sort_order)
+            )
+          `)
+          .eq('organization_id', currentOrg.id)
+          .eq('is_deleted', false)
+          .eq('is_published', true)
+          .in('id', ids);
+
+        if (!error && data) mentionedPosts = data as Post[];
+      }
+
+      // Get kudos posts where employee is a recipient
+      const { data: kudosPostsData } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          employee:employees!posts_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          ),
+          post_media(*),
+          post_mentions(
+            id,
+            employee_id,
+            employee:employees!post_mentions_employee_id_fkey(
+              id,
+              profiles!inner(full_name, avatar_url)
+            )
+          ),
+          post_offices(office:offices(name)),
+          post_departments(department),
+          post_projects(project:projects(name)),
+          post_polls(
+            id,
+            question,
+            allow_multiple,
+            ends_at,
+            is_anonymous,
+            poll_options(id, option_text, sort_order)
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('post_type', 'kudos')
+        .eq('is_deleted', false)
+        .eq('is_published', true)
+        .contains('kudos_recipient_ids', [employeeId]);
+
+      const kudosPosts = kudosPostsData as Post[] || [];
+
+      // Combine and deduplicate
+      const allPosts = [...(createdPosts as Post[]), ...mentionedPosts, ...kudosPosts];
+      const uniquePosts = Array.from(new Map(allPosts.map(p => [p.id, p])).values());
+
+      // Fetch kudos recipients for kudos posts
+      const kudosPostsWithRecipients = uniquePosts.filter(
+        p => p.post_type === 'kudos' && p.kudos_recipient_ids?.length > 0
+      );
+
+      if (kudosPostsWithRecipients.length > 0) {
+        const allRecipientIds = kudosPostsWithRecipients.flatMap(p => p.kudos_recipient_ids);
+        const uniqueIds = [...new Set(allRecipientIds)];
+
+        const { data: recipients } = await supabase
+          .from('employees')
+          .select('id, profiles!inner(full_name, avatar_url)')
+          .in('id', uniqueIds);
+
+        if (recipients) {
+          const recipientMap = new Map(recipients.map(r => [r.id, r]));
+          uniquePosts.forEach(post => {
+            if (post.post_type === 'kudos' && post.kudos_recipient_ids?.length > 0) {
+              post.kudos_recipients = post.kudos_recipient_ids
+                .map(id => recipientMap.get(id))
+                .filter(Boolean) as Post['kudos_recipients'];
+            }
+          });
+        }
+      }
+
+      // Sort by created_at descending
+      return uniquePosts.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    },
+    enabled: !!currentOrg?.id && !!employeeId,
+    staleTime: 30 * 1000,
+  });
+};
