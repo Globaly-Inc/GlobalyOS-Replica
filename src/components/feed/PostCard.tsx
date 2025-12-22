@@ -40,6 +40,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { OrgLink } from '@/components/OrgLink';
 import { cn } from '@/lib/utils';
+import { useCommentCount } from '@/services/usePostStats';
+import { useReactionsRealtime, useCommentsRealtime } from '@/services/useSocialFeedRealtime';
 
 interface PostCardProps {
   post: Post;
@@ -90,6 +92,11 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const { data: currentEmployee } = useCurrentEmployee();
   const deletePost = useDeletePost();
   const togglePin = useTogglePinPost();
+  const { data: commentCount = 0 } = useCommentCount(post.id);
+  
+  // Subscribe to real-time updates
+  useReactionsRealtime(post.id);
+  useCommentsRealtime(post.id);
 
   const config = POST_TYPE_CONFIG[post.post_type];
   const Icon = config.icon;
@@ -285,11 +292,15 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
             <Button
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground gap-1"
               onClick={() => setShowComments(!showComments)}
             >
-              <MessageSquare className="h-4 w-4 mr-1" />
-              Comments
+              <MessageSquare className="h-4 w-4" />
+              {commentCount > 0 ? (
+                <span className="text-xs">{commentCount}</span>
+              ) : (
+                <span className="hidden sm:inline text-xs">Comment</span>
+              )}
             </Button>
             <Button
               variant="ghost"
