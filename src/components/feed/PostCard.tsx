@@ -41,6 +41,7 @@ import { OrgLink } from '@/components/OrgLink';
 import { cn } from '@/lib/utils';
 import { useCommentCount } from '@/services/usePostStats';
 import { useReactionsRealtime, useCommentsRealtime } from '@/services/useSocialFeedRealtime';
+import { DeletePostDialog } from '@/components/dialogs/DeletePostDialog';
 
 interface PostCardProps {
   post: Post;
@@ -87,6 +88,7 @@ const POST_TYPE_CONFIG = {
 
 export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const [showComments, setShowComments] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { isOwner, isAdmin, isHR } = useUserRole();
   const { data: currentEmployee } = useCurrentEmployee();
   const deletePost = useDeletePost();
@@ -108,9 +110,9 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const { isOnline } = useOnlineStatus(post.employee_id);
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this post?')) {
-      deletePost.mutate(post.id);
-    }
+    deletePost.mutate(post.id, {
+      onSuccess: () => setDeleteDialogOpen(false),
+    });
   };
 
   const handleTogglePin = () => {
@@ -235,7 +237,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={handleDelete}
+                    onClick={() => setDeleteDialogOpen(true)}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -317,6 +319,15 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
           <PostComments postId={post.id} />
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeletePostDialog
+        postType={post.post_type}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDelete}
+        isLoading={deletePost.isPending}
+      />
     </Card>
   );
 };
