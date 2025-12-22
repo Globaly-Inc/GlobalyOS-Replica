@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useTimezone } from "@/hooks/useTimezone";
-import { toUTCDateTime, fromUTCDateTime } from "@/utils/timezone";
+import { toUTCDateTime } from "@/utils/timezone";
 
 interface BulkEditAttendanceDialogProps {
   open: boolean;
@@ -43,14 +43,6 @@ export const BulkEditAttendanceDialog = ({
   const [checkInTime, setCheckInTime] = useState("09:00");
   const [checkOutTime, setCheckOutTime] = useState("18:00");
 
-  const calculateWorkHours = (checkIn: string, checkOut: string): number | null => {
-    if (!checkIn || !checkOut) return null;
-    const [inH, inM] = checkIn.split(":").map(Number);
-    const [outH, outM] = checkOut.split(":").map(Number);
-    const inMinutes = inH * 60 + inM;
-    const outMinutes = outH * 60 + outM;
-    return (outMinutes - inMinutes) / 60;
-  };
 
   const handleSave = async () => {
     if (!updateCheckIn && !updateCheckOut) {
@@ -75,25 +67,9 @@ export const BulkEditAttendanceDialog = ({
       if (fetchError) throw fetchError;
 
       // Update each record individually to handle date-specific times with proper timezone conversion
+      // Update each record - work_hours is a generated column, so we don't include it
       const updates = existingRecords?.map(async (record) => {
         const updateData: Record<string, any> = {};
-
-        // Get existing times in user's timezone (for work hours calculation)
-        let existingCheckInLocal: string | null = null;
-        let existingCheckOutLocal: string | null = null;
-        
-        if (record.check_in_time) {
-          const { time } = fromUTCDateTime(record.check_in_time, timezone);
-          existingCheckInLocal = time;
-        }
-        if (record.check_out_time) {
-          const { time } = fromUTCDateTime(record.check_out_time, timezone);
-          existingCheckOutLocal = time;
-        }
-
-        // Apply updates - convert local time to UTC for storage
-        const finalCheckInLocal = updateCheckIn ? checkInTime : existingCheckInLocal;
-        const finalCheckOutLocal = updateCheckOut ? checkOutTime : existingCheckOutLocal;
 
         if (updateCheckIn) {
           // Convert user's local time to UTC for database storage
@@ -103,11 +79,6 @@ export const BulkEditAttendanceDialog = ({
         if (updateCheckOut) {
           // Convert user's local time to UTC for database storage
           updateData.check_out_time = toUTCDateTime(record.date, checkOutTime, timezone);
-        }
-
-        // Recalculate work hours if we have both times (using local times)
-        if (finalCheckInLocal && finalCheckOutLocal) {
-          updateData.work_hours = calculateWorkHours(finalCheckInLocal, finalCheckOutLocal);
         }
 
         return supabase
