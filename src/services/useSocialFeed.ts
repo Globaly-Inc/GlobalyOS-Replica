@@ -869,6 +869,71 @@ export const useTogglePostReaction = () => {
 };
 
 // ============================================
+// COMMENT REACTION HOOKS
+// ============================================
+
+export const useCommentReactions = (commentId: string) => {
+  return useQuery({
+    queryKey: ['comment-reactions', commentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comment_reactions')
+        .select(`
+          id, emoji, employee_id,
+          employee:employees!comment_reactions_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq('comment_id', commentId);
+
+      if (error) throw error;
+      return data as Reaction[];
+    },
+    enabled: !!commentId,
+  });
+};
+
+export const useToggleCommentReaction = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, emoji, existingReactions }: { 
+      commentId: string; 
+      emoji: string; 
+      existingReactions: Reaction[];
+    }) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
+
+      const existingReaction = existingReactions.find(
+        r => r.emoji === emoji && r.employee_id === currentEmployee.id
+      );
+
+      if (existingReaction) {
+        const { error } = await supabase
+          .from('comment_reactions')
+          .delete()
+          .eq('id', existingReaction.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('comment_reactions').insert({
+          comment_id: commentId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          emoji,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { commentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['comment-reactions', commentId] });
+    },
+  });
+};
+
+// ============================================
 // EMPLOYEE FEED HOOK
 // ============================================
 
