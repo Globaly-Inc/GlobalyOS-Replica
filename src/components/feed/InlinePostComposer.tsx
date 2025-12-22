@@ -75,6 +75,7 @@ export const InlinePostComposer = ({
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   
   // Team members (for kudos and mentions)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -628,7 +629,15 @@ export const InlinePostComposer = ({
             type="file"
             ref={fileInputRef}
             className="hidden"
-            accept="image/*,video/*"
+            accept="image/*"
+            multiple
+            onChange={handleMediaSelect}
+          />
+          <input
+            type="file"
+            ref={videoInputRef}
+            className="hidden"
+            accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,video/x-matroska,video/x-ms-wmv,.mp4,.mov,.avi,.webm,.mkv,.wmv"
             multiple
             onChange={handleMediaSelect}
           />
@@ -651,7 +660,7 @@ export const InlinePostComposer = ({
             className="text-muted-foreground hover:text-foreground gap-2"
             onClick={() => {
               if (!isExpanded) setIsExpanded(true);
-              fileInputRef.current?.click();
+              videoInputRef.current?.click();
             }}
           >
             <Video className="h-4 w-4 text-blue-500" />
