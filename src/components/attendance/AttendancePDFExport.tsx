@@ -1,5 +1,7 @@
 import { format } from "date-fns";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useTimezone } from "@/hooks/useTimezone";
+import { formatTimeInTimezone } from "@/utils/timezone";
 
 interface AttendanceMetrics {
   totalRecords: number;
@@ -53,6 +55,7 @@ export const AttendancePDFExport = ({
   dateRangeLabel,
 }: AttendancePDFExportProps) => {
   const { currentOrg } = useOrganization();
+  const { timezone } = useTimezone();
 
   const handleExport = () => {
     const printWindow = window.open("", "_blank");
@@ -92,13 +95,13 @@ export const AttendancePDFExport = ({
       </svg>
     ` : '<p class="no-data">No chart data available for this period</p>';
 
-    // Generate records table
+    // Generate records table - use timezone-aware formatting
     const recordsTable = records.slice(0, 100).map(record => `
       <tr>
         <td>${(record.employee as any)?.profiles?.full_name || 'Unknown'}</td>
         <td>${format(new Date(record.date), "MMM d, yyyy")}</td>
-        <td>${record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</td>
-        <td>${record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</td>
+        <td>${record.check_in_time ? formatTimeInTimezone(record.check_in_time, timezone, "h:mm a") : "—"}</td>
+        <td>${record.check_out_time ? formatTimeInTimezone(record.check_out_time, timezone, "h:mm a") : "—"}</td>
         <td>${record.work_hours ? record.work_hours.toFixed(1) + "h" : "—"}</td>
         <td><span class="status status-${record.status}">${record.status}</span></td>
       </tr>

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, Save } from "lucide-react";
+import { useTimezone } from "@/hooks/useTimezone";
+import { toUTCDateTime, fromUTCDateTime } from "@/utils/timezone";
 
 interface AttendanceRecord {
   id: string;
@@ -39,6 +41,7 @@ export const EditAttendanceDialog = ({
   date,
 }: EditAttendanceDialogProps) => {
   const queryClient = useQueryClient();
+  const { timezone } = useTimezone();
   const [saving, setSaving] = useState(false);
   const [checkInTime, setCheckInTime] = useState("");
   const [checkOutTime, setCheckOutTime] = useState("");
@@ -50,9 +53,21 @@ export const EditAttendanceDialog = ({
   useEffect(() => {
     if (open) {
       if (record) {
-        // Extract time from datetime for existing record
-        setCheckInTime(record.check_in_time ? format(new Date(record.check_in_time), "HH:mm") : "");
-        setCheckOutTime(record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "");
+        // Extract time from datetime for existing record - convert from UTC to user's timezone
+        if (record.check_in_time) {
+          const { time } = fromUTCDateTime(record.check_in_time, timezone);
+          setCheckInTime(time);
+        } else {
+          setCheckInTime("");
+        }
+        
+        if (record.check_out_time) {
+          const { time } = fromUTCDateTime(record.check_out_time, timezone);
+          setCheckOutTime(time);
+        } else {
+          setCheckOutTime("");
+        }
+        
         setNotes(record.notes || "");
         setRecordDate(record.date);
       } else {
@@ -63,7 +78,7 @@ export const EditAttendanceDialog = ({
         setRecordDate(date || format(new Date(), "yyyy-MM-dd"));
       }
     }
-  }, [open, record, date]);
+  }, [open, record, date, timezone]);
 
   const calculateWorkHours = (checkIn: string, checkOut: string): number | null => {
     if (!checkIn || !checkOut) return null;
@@ -87,10 +102,13 @@ export const EditAttendanceDialog = ({
 
     setSaving(true);
     try {
-      // Construct full datetime strings
-      const checkInDateTime = checkInTime ? `${recordDate}T${checkInTime}:00` : null;
-      const checkOutDateTime = checkOutTime ? `${recordDate}T${checkOutTime}:00` : null;
-      const workHours = calculateWorkHours(checkInTime, checkOutTime);
+      // Convert local times to UTC for database storage
+      const checkInDateTime = checkInTime 
+        ? toUTCDateTime(recordDate, checkInTime, timezone) 
+        : null;
+      const checkOutDateTime = checkOutTime 
+        ? toUTCDateTime(recordDate, checkOutTime, timezone) 
+        : null;
 
       if (isEditing && record) {
         // Update existing record (work_hours is auto-calculated by DB)
@@ -128,6 +146,7 @@ export const EditAttendanceDialog = ({
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-month"] });
       queryClient.invalidateQueries({ queryKey: ["org-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-history"] });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving attendance:", error);

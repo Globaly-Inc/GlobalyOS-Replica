@@ -27,11 +27,14 @@ import { useState } from "react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
 import { cn } from "@/lib/utils";
+import { useTimezone } from "@/hooks/useTimezone";
+import { formatTimeInTimezone } from "@/utils/timezone";
 
 const AttendanceHistory = () => {
   const { id } = useParams<{ id: string }>();
   const { navigateOrg } = useOrgNavigation();
   const { isAdmin, isHR } = useUserRole();
+  const { timezone } = useTimezone();
   const canEditAttendance = isAdmin || isHR;
   
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
@@ -48,13 +51,15 @@ const AttendanceHistory = () => {
     if (!record.check_in_time || !schedule) return false;
     if (!schedule.work_start_time || schedule.late_threshold_minutes === null || schedule.late_threshold_minutes === undefined) return false;
     
-    const checkInTime = new Date(record.check_in_time);
+    // Get check-in time in user's timezone
+    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, timezone, 'HH:mm:ss');
+    const [checkInH, checkInM] = checkInTimeLocal.split(':').map(Number);
     const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
     
-    const workStartWithThreshold = new Date(checkInTime);
-    workStartWithThreshold.setHours(startHours, startMinutes + (schedule.late_threshold_minutes || 0), 0, 0);
+    const checkInTotalMinutes = checkInH * 60 + checkInM;
+    const thresholdTotalMinutes = startHours * 60 + startMinutes + (schedule.late_threshold_minutes || 0);
     
-    return checkInTime > workStartWithThreshold;
+    return checkInTotalMinutes > thresholdTotalMinutes;
   };
 
   // Helper function to check if check-out is early
@@ -62,13 +67,15 @@ const AttendanceHistory = () => {
     if (!record.check_out_time || !schedule) return false;
     if (!schedule.work_end_time) return false;
     
-    const checkOutTime = new Date(record.check_out_time);
+    // Get check-out time in user's timezone
+    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, timezone, 'HH:mm:ss');
+    const [checkOutH, checkOutM] = checkOutTimeLocal.split(':').map(Number);
     const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
     
-    const workEndTime = new Date(checkOutTime);
-    workEndTime.setHours(endHours, endMinutes, 0, 0);
+    const checkOutTotalMinutes = checkOutH * 60 + checkOutM;
+    const endTotalMinutes = endHours * 60 + endMinutes;
     
-    return checkOutTime < workEndTime;
+    return checkOutTotalMinutes < endTotalMinutes;
   };
 
   // Fetch employee info
@@ -354,7 +361,7 @@ const AttendanceHistory = () => {
                         <div className="flex flex-col gap-0.5">
                           <span>
                             In: {record.check_in_time 
-                              ? format(new Date(record.check_in_time), "h:mm a") 
+                              ? formatTimeInTimezone(record.check_in_time, timezone, "h:mm a")
                               : "-"}
                           </span>
                           {isLateArrival(record) && (
@@ -367,7 +374,7 @@ const AttendanceHistory = () => {
                         <div className="flex flex-col gap-0.5">
                           <span>
                             Out: {record.check_out_time 
-                              ? format(new Date(record.check_out_time), "h:mm a") 
+                              ? formatTimeInTimezone(record.check_out_time, timezone, "h:mm a")
                               : "-"}
                           </span>
                           {isEarlyDeparture(record) && (
