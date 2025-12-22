@@ -766,15 +766,8 @@ export const InlinePostComposer = ({
           </Popover>
         </div>
 
-        {/* Right: Cancel + Post buttons (when expanded) or visibility hint (when collapsed) */}
+        {/* Right: Cancel + Post buttons (when expanded) */}
         <div className="flex items-center gap-2">
-          {!isExpanded && (
-            <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-              <Globe className="h-4 w-4" />
-              <span className="hidden sm:inline">Everyone</span>
-            </Button>
-          )}
-
           {isExpanded && (
             <>
               <Button
