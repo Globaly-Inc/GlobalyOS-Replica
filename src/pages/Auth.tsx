@@ -290,7 +290,7 @@ const Auth = () => {
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-4">
-            <img src={globalyosIcon} alt="GlobalyOS" className="h-24 w-24 object-contain" />
+            <img src={globalyosIcon} alt="GlobalyOS" className="h-32 w-32 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Welcome to GlobalyOS</h1>
           <p className="text-muted-foreground mt-2">Operating System for Ambitious Teams</p>
