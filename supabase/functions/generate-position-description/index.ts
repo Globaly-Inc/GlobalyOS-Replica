@@ -38,7 +38,17 @@ serve(async (req) => {
       );
     }
 
-    const { positionId, positionName, department, keywords, organizationId, forceRegenerate } = await req.json();
+    const { 
+      positionId, 
+      positionName, 
+      department, 
+      keywords, 
+      organizationId, 
+      forceRegenerate,
+      existingDescription,
+      existingResponsibilities,
+      mode = "generate" // "generate" | "improve"
+    } = await req.json();
 
     if (!positionName || !organizationId) {
       return new Response(
@@ -47,8 +57,8 @@ serve(async (req) => {
       );
     }
 
-    // Check for cached description if not forcing regeneration
-    if (!forceRegenerate && positionId) {
+    // Check for cached description if not forcing regeneration and not in improve mode
+    if (!forceRegenerate && mode !== "improve" && positionId) {
       const { data: cached } = await supabase
         .from("positions")
         .select("description, responsibilities, ai_generated_at")
@@ -74,11 +84,51 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Generating AI description for position:", positionName);
+    console.log(`${mode === "improve" ? "Improving" : "Generating"} AI description for position:`, positionName);
 
     const keywordsContext = keywords?.length > 0 
       ? `Additional context/keywords: ${keywords.join(', ')}` 
       : '';
+
+    // Build prompt based on mode
+    let userPrompt: string;
+    
+    if (mode === "improve" && (existingDescription || existingResponsibilities?.length > 0)) {
+      const existingContent = existingDescription 
+        ? `Current description:\n"${existingDescription}"\n\n` 
+        : '';
+      const existingResp = existingResponsibilities?.length > 0
+        ? `Current responsibilities:\n${existingResponsibilities.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}\n\n`
+        : '';
+
+      userPrompt = `Improve and enhance the job description for: ${positionName}
+Department: ${department || 'General'}
+${keywordsContext}
+
+${existingContent}${existingResp}
+
+Please improve the content by:
+- Making it more professional and engaging
+- Ensuring clarity and conciseness
+- Adding any missing key aspects based on the role
+- Incorporating the keywords naturally if provided
+
+Provide a JSON response with:
+1. "description": An improved professional description (100-150 words) explaining the role's purpose and scope
+2. "responsibilities": An improved array of 5-8 key responsibilities as concise bullet points (each 10-20 words)
+
+Respond ONLY with valid JSON, no markdown formatting.`;
+    } else {
+      userPrompt = `Generate a job description for: ${positionName}
+Department: ${department || 'General'}
+${keywordsContext}
+
+Provide a JSON response with:
+1. "description": A professional description (100-150 words) explaining the role's purpose and scope
+2. "responsibilities": An array of 5-8 key responsibilities as concise bullet points (each 10-20 words)
+
+Respond ONLY with valid JSON, no markdown formatting.`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -95,15 +145,7 @@ serve(async (req) => {
           },
           { 
             role: "user", 
-            content: `Generate a job description for: ${positionName}
-Department: ${department || 'General'}
-${keywordsContext}
-
-Provide a JSON response with:
-1. "description": A professional description (100-150 words) explaining the role's purpose and scope
-2. "responsibilities": An array of 5-8 key responsibilities as concise bullet points (each 10-20 words)
-
-Respond ONLY with valid JSON, no markdown formatting.` 
+            content: userPrompt 
           },
         ],
         tools: [
@@ -111,7 +153,7 @@ Respond ONLY with valid JSON, no markdown formatting.`
             type: "function",
             function: {
               name: "generate_position_content",
-              description: "Generate job description and responsibilities",
+              description: "Generate or improve job description and responsibilities",
               parameters: {
                 type: "object",
                 properties: {

@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { 
   Table, 
   TableBody, 
@@ -32,7 +34,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { List, Briefcase, Building, Plus, Pencil, Trash2, Loader2, Calendar } from "lucide-react";
+import { 
+  List, 
+  Briefcase, 
+  Building, 
+  Plus, 
+  Pencil, 
+  Trash2, 
+  Loader2, 
+  Calendar,
+  Sparkles,
+  Wand2,
+  X
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { LeaveSettings } from "./LeaveSettings";
@@ -41,6 +55,9 @@ interface Position {
   id: string;
   name: string;
   department: string | null;
+  description: string | null;
+  responsibilities: string[] | null;
+  ai_generated_at: string | null;
   created_at: string;
 }
 
@@ -63,6 +80,10 @@ export const FieldsSettings = () => {
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [positionName, setPositionName] = useState("");
   const [positionDepartment, setPositionDepartment] = useState("");
+  const [positionDescription, setPositionDescription] = useState("");
+  const [positionResponsibilities, setPositionResponsibilities] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState("");
+  const [generatingAI, setGeneratingAI] = useState(false);
 
   // Department dialog state
   const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
@@ -84,10 +105,10 @@ export const FieldsSettings = () => {
     if (!currentOrg) return;
     setLoading(true);
     try {
-      // Load positions
+      // Load positions with description fields
       const { data: positionsData, error: positionsError } = await supabase
         .from("positions")
-        .select("*")
+        .select("id, name, department, description, responsibilities, ai_generated_at, created_at")
         .eq("organization_id", currentOrg.id)
         .order("name");
 
@@ -136,19 +157,81 @@ export const FieldsSettings = () => {
     }
   };
 
+  // AI generation function
+  const handleGenerateDescription = async (mode: "generate" | "improve" = "generate") => {
+    if (!currentOrg || !positionName.trim()) {
+      toast({
+        title: "Position name required",
+        description: "Please enter a position name before generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingAI(true);
+    try {
+      const keywordsArray = keywords
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+
+      const { data, error } = await supabase.functions.invoke('generate-position-description', {
+        body: {
+          positionId: editingPosition?.id,
+          positionName: positionName.trim(),
+          department: positionDepartment.trim() || null,
+          keywords: keywordsArray,
+          organizationId: currentOrg.id,
+          forceRegenerate: true,
+          mode,
+          existingDescription: mode === "improve" ? positionDescription : undefined,
+          existingResponsibilities: mode === "improve" ? positionResponsibilities : undefined,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setPositionDescription(data.description || "");
+      setPositionResponsibilities(data.responsibilities || []);
+      
+      toast({
+        title: mode === "improve" ? "Description improved" : "Description generated",
+        description: "AI has created content for this position.",
+      });
+    } catch (error: any) {
+      console.error("Error generating description:", error);
+      toast({
+        title: "Error generating description",
+        description: error.message || "Failed to generate AI content",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
   // Position CRUD operations
   const handleSavePosition = async () => {
     if (!currentOrg || !positionName.trim()) return;
     setSaving(true);
     try {
+      const positionData = {
+        name: positionName.trim(),
+        department: positionDepartment.trim() || null,
+        description: positionDescription.trim() || null,
+        responsibilities: positionResponsibilities.filter(r => r.trim()),
+        ai_generated_at: positionDescription ? new Date().toISOString() : null,
+      };
+
       if (editingPosition) {
         // Update existing position
         const { error } = await supabase
           .from("positions")
-          .update({
-            name: positionName.trim(),
-            department: positionDepartment.trim() || null,
-          })
+          .update(positionData)
           .eq("id", editingPosition.id);
 
         if (error) throw error;
@@ -156,8 +239,7 @@ export const FieldsSettings = () => {
       } else {
         // Create new position
         const { error } = await supabase.from("positions").insert({
-          name: positionName.trim(),
-          department: positionDepartment.trim() || null,
+          ...positionData,
           organization_id: currentOrg.id,
         });
 
@@ -165,10 +247,7 @@ export const FieldsSettings = () => {
         toast({ title: "Position created" });
       }
 
-      setPositionDialogOpen(false);
-      setEditingPosition(null);
-      setPositionName("");
-      setPositionDepartment("");
+      resetPositionDialog();
       loadData();
     } catch (error: any) {
       toast({
@@ -286,10 +365,38 @@ export const FieldsSettings = () => {
     }
   };
 
+  // Responsibility management
+  const handleAddResponsibility = () => {
+    setPositionResponsibilities([...positionResponsibilities, ""]);
+  };
+
+  const handleRemoveResponsibility = (index: number) => {
+    setPositionResponsibilities(positionResponsibilities.filter((_, i) => i !== index));
+  };
+
+  const handleResponsibilityChange = (index: number, value: string) => {
+    const updated = [...positionResponsibilities];
+    updated[index] = value;
+    setPositionResponsibilities(updated);
+  };
+
+  const resetPositionDialog = () => {
+    setPositionDialogOpen(false);
+    setEditingPosition(null);
+    setPositionName("");
+    setPositionDepartment("");
+    setPositionDescription("");
+    setPositionResponsibilities([]);
+    setKeywords("");
+  };
+
   const openEditPosition = (position: Position) => {
     setEditingPosition(position);
     setPositionName(position.name);
     setPositionDepartment(position.department || "");
+    setPositionDescription(position.description || "");
+    setPositionResponsibilities(position.responsibilities || []);
+    setKeywords("");
     setPositionDialogOpen(true);
   };
 
@@ -304,6 +411,9 @@ export const FieldsSettings = () => {
     setEditingPosition(null);
     setPositionName("");
     setPositionDepartment("");
+    setPositionDescription("");
+    setPositionResponsibilities([]);
+    setKeywords("");
     setPositionDialogOpen(true);
   };
 
@@ -312,6 +422,11 @@ export const FieldsSettings = () => {
     setDepartmentName("");
     setOriginalDepartmentName("");
     setDepartmentDialogOpen(true);
+  };
+
+  // Word count helper
+  const getWordCount = (text: string) => {
+    return text.trim() ? text.trim().split(/\s+/).length : 0;
   };
 
   if (loading) {
@@ -433,18 +548,35 @@ export const FieldsSettings = () => {
                     <TableRow>
                       <TableHead>Position Name</TableHead>
                       <TableHead>Department</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {positions.map((position) => (
                       <TableRow key={position.id}>
-                        <TableCell className="font-medium">{position.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {position.name}
+                            {position.ai_generated_at && (
+                              <Sparkles className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {position.department ? (
                             <Badge variant="outline">{position.department}</Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          {position.description ? (
+                            <span className="text-sm text-muted-foreground truncate block">
+                              {position.description.slice(0, 50)}...
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No description</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -480,8 +612,8 @@ export const FieldsSettings = () => {
       </Card>
 
       {/* Position Dialog */}
-      <Dialog open={positionDialogOpen} onOpenChange={setPositionDialogOpen}>
-        <DialogContent>
+      <Dialog open={positionDialogOpen} onOpenChange={(open) => !open && resetPositionDialog()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingPosition ? "Edit Position" : "Add New Position"}
@@ -492,28 +624,158 @@ export const FieldsSettings = () => {
                 : "Enter the details for the new position."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="positionName">Position Name</Label>
-              <Input
-                id="positionName"
-                value={positionName}
-                onChange={(e) => setPositionName(e.target.value)}
-                placeholder="e.g., Software Engineer"
-              />
+          
+          <div className="space-y-6 py-4">
+            {/* Basic Info */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="positionName">Position Name *</Label>
+                <Input
+                  id="positionName"
+                  value={positionName}
+                  onChange={(e) => setPositionName(e.target.value)}
+                  placeholder="e.g., Software Engineer"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="positionDepartment">Department (Optional)</Label>
+                <Input
+                  id="positionDepartment"
+                  value={positionDepartment}
+                  onChange={(e) => setPositionDepartment(e.target.value)}
+                  placeholder="e.g., Engineering"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="positionDepartment">Department (Optional)</Label>
-              <Input
-                id="positionDepartment"
-                value={positionDepartment}
-                onChange={(e) => setPositionDepartment(e.target.value)}
-                placeholder="e.g., Engineering"
+
+            <Separator />
+
+            {/* AI Description Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="positionDescription" className="text-base font-medium">
+                  Description
+                </Label>
+                <div className="flex gap-2">
+                  {!positionDescription && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleGenerateDescription("generate")}
+                      disabled={generatingAI || !positionName.trim()}
+                      className="gap-2"
+                    >
+                      {generatingAI ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Generate with AI
+                    </Button>
+                  )}
+                  {positionDescription && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleGenerateDescription("improve")}
+                      disabled={generatingAI || !positionName.trim()}
+                      className="gap-2"
+                    >
+                      {generatingAI ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-4 w-4" />
+                      )}
+                      Improve
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              <Textarea
+                id="positionDescription"
+                value={positionDescription}
+                onChange={(e) => setPositionDescription(e.target.value)}
+                placeholder="Describe the role's purpose, scope, and key responsibilities..."
+                rows={4}
+                className="resize-none"
               />
+              <p className="text-xs text-muted-foreground text-right">
+                {getWordCount(positionDescription)} words
+              </p>
+
+              {/* Keywords Input */}
+              <div className="space-y-2">
+                <Label htmlFor="keywords" className="text-sm">
+                  Keywords for AI (Optional)
+                </Label>
+                <Input
+                  id="keywords"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="e.g., leadership, data analysis, customer relations"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Comma-separated keywords to guide AI generation
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Responsibilities Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-medium">Key Responsibilities</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddResponsibility}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+
+              {positionResponsibilities.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-md">
+                  No responsibilities added. Click "Add" or use AI to generate.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {positionResponsibilities.map((resp, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground w-6 flex-shrink-0">
+                        {index + 1}.
+                      </span>
+                      <Input
+                        value={resp}
+                        onChange={(e) => handleResponsibilityChange(index, e.target.value)}
+                        placeholder="Enter responsibility..."
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveResponsibility(index)}
+                        className="flex-shrink-0"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPositionDialogOpen(false)}>
+            <Button variant="outline" onClick={resetPositionDialog}>
               Cancel
             </Button>
             <Button onClick={handleSavePosition} disabled={saving || !positionName.trim()}>
