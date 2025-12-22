@@ -85,6 +85,10 @@ export const FieldsSettings = () => {
   const [keywords, setKeywords] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
 
+  // Bulk AI update state
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+
   // Department dialog state
   const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<string | null>(null);
@@ -424,6 +428,71 @@ export const FieldsSettings = () => {
     setDepartmentDialogOpen(true);
   };
 
+  // Bulk AI update function
+  const handleBulkAIUpdate = async () => {
+    if (!currentOrg) return;
+
+    const emptyPositions = positions.filter(
+      p => !p.description || !p.responsibilities?.length
+    );
+
+    if (emptyPositions.length === 0) {
+      toast({
+        title: "All positions updated",
+        description: "All positions already have AI-generated content.",
+      });
+      return;
+    }
+
+    setBulkUpdating(true);
+    setBulkProgress({ current: 0, total: emptyPositions.length });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < emptyPositions.length; i++) {
+      const position = emptyPositions[i];
+      setBulkProgress({ current: i + 1, total: emptyPositions.length });
+
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-position-description', {
+          body: {
+            positionId: position.id,
+            positionName: position.name,
+            department: position.department,
+            keywords: [],
+            organizationId: currentOrg.id,
+            forceRegenerate: true,
+            mode: "generate",
+          }
+        });
+
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+
+        const { error: updateError } = await supabase.from("positions").update({
+          description: data.description,
+          responsibilities: data.responsibilities,
+          ai_generated_at: new Date().toISOString(),
+        }).eq("id", position.id);
+
+        if (updateError) throw updateError;
+        successCount++;
+      } catch (err: any) {
+        console.error(`Error updating position ${position.name}:`, err);
+        errorCount++;
+      }
+    }
+
+    setBulkUpdating(false);
+    loadData();
+
+    toast({
+      title: "Bulk AI Update Complete",
+      description: `Updated ${successCount} position(s).${errorCount > 0 ? ` ${errorCount} failed.` : ''}`,
+    });
+  };
+
   // Word count helper
   const getWordCount = (text: string) => {
     return text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -532,10 +601,31 @@ export const FieldsSettings = () => {
                 <p className="text-sm text-muted-foreground">
                   Positions define job titles within your organization.
                 </p>
-                <Button onClick={openNewPosition} size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Position
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleBulkAIUpdate}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={bulkUpdating || positions.filter(p => !p.description).length === 0}
+                  >
+                    {bulkUpdating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Updating {bulkProgress.current}/{bulkProgress.total}...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Bulk AI Update
+                      </>
+                    )}
+                  </Button>
+                  <Button onClick={openNewPosition} size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Position
+                  </Button>
+                </div>
               </div>
 
               {positions.length === 0 ? (
