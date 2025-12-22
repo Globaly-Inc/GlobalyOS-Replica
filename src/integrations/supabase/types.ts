@@ -7310,6 +7310,10 @@ export type Database = {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean
       }
+      can_insert_update: {
+        Args: { _employee_id: string; _organization_id: string }
+        Returns: boolean
+      }
       can_view_employee_sensitive_data: {
         Args: { _employee_id: string }
         Returns: boolean
