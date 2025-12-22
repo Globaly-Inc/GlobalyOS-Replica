@@ -7,7 +7,7 @@ export * from './useCurrentEmployee';
 export * from './useEmployees';
 export * from './useLeave';
 export * from './useAttendance';
-export * from './useFeed';
+export * from './useSocialFeed';
 export * from './useWiki';
 export * from './useKpi';
 export * from './useNotifications';

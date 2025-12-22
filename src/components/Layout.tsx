@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
-import { PostUpdateDialog } from "./dialogs/PostUpdateDialog";
+import { CreatePostModal } from "./feed/CreatePostModal";
 import { QRScannerDialog } from "./dialogs/QRScannerDialog";
 import { RemoteCheckInDialog } from "./dialogs/RemoteCheckInDialog";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
@@ -730,10 +730,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             open={leaveDialogOpen}
             onOpenChange={setLeaveDialogOpen}
           />
-          <PostUpdateDialog
+          <CreatePostModal
             open={postDialogOpen}
             onOpenChange={setPostDialogOpen}
             canPostAnnouncement={userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr'}
+            canPostExecutive={userProfile?.role === 'owner' || userProfile?.role === 'admin'}
           />
           <RemoteCheckInDialog
             open={remoteCheckInOpen}
