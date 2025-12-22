@@ -114,25 +114,25 @@ const SuperAdminCustomerSuccess = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground">
+            <Headphones className="h-4 w-4" />
+            Support Requests
+          </div>
+          <Link
+            to="/super-admin/documentation"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <BookOpen className="h-4 w-4" />
+            Documentation
+          </Link>
+        </div>
+
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">Customer Success</h1>
+          <h1 className="text-2xl font-bold">Support Requests</h1>
           <p className="text-muted-foreground">Manage bug reports and feature requests</p>
-          
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-1 mt-4">
-            <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground">
-              <Headphones className="h-4 w-4" />
-              Support Requests
-            </div>
-            <Link
-              to="/super-admin/documentation"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <BookOpen className="h-4 w-4" />
-              Documentation
-            </Link>
-          </div>
         </div>
 
         {/* Stats Badges */}
