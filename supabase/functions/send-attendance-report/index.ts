@@ -57,6 +57,36 @@ function getTrendIndicator(change: number): string {
   return `<span style="font-size: 10px; color: ${color}; margin-left: 4px;">${arrow} ${Math.abs(change).toFixed(0)}%</span>`;
 }
 
+/**
+ * Format a UTC date to time string (HH:mm:ss) in a given timezone.
+ * This is a simple implementation for Deno without date-fns-tz.
+ */
+function formatTimeInTimezone(utcDateString: string, timezone: string): string {
+  try {
+    const date = new Date(utcDateString);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    return formatter.format(date);
+  } catch {
+    // Fallback: return UTC time
+    const date = new Date(utcDateString);
+    return date.toISOString().slice(11, 19);
+  }
+}
+
+/**
+ * Parse time string (HH:mm or HH:mm:ss) to total minutes from midnight.
+ */
+function timeToMinutes(timeStr: string): number {
+  const parts = timeStr.split(':').map(Number);
+  return parts[0] * 60 + (parts[1] || 0);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -77,11 +107,11 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Fetch organization details
+    // Fetch organization details including timezone
     console.log("Fetching organization details...");
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, name, logo_url, slug")
+      .select("id, name, logo_url, slug, timezone")
       .eq("id", organizationId)
       .single();
 
@@ -89,7 +119,8 @@ serve(async (req) => {
       console.error("Organization fetch error:", orgError);
       throw new Error("Organization not found");
     }
-    console.log("Organization found:", org.name);
+    const orgTimezone = org.timezone || 'UTC';
+    console.log("Organization found:", org.name, "Timezone:", orgTimezone);
 
     // Get schedule settings
     const { data: schedule } = await supabase
@@ -209,7 +240,7 @@ serve(async (req) => {
       return totalMins > 0 ? totalMins : 480;
     };
 
-    // Calculate metrics for a set of records
+    // Calculate metrics for a set of records using timezone-aware time comparisons
     const calculateMetricsFromRecords = (recs: any[]) => {
       let totalRecords = recs?.length || 0;
       let lateCount = 0, lateMinutes = 0;
@@ -245,32 +276,36 @@ serve(async (req) => {
           }
         }
 
-        // Late arrivals
+        // Late arrivals - use timezone-aware comparison
         if (record.check_in_time && empSchedule?.work_start_time) {
-          const checkInTime = new Date(record.check_in_time);
+          // Convert UTC check-in time to local time string in org's timezone
+          const checkInLocalTime = formatTimeInTimezone(record.check_in_time, orgTimezone);
+          const checkInMinutes = timeToMinutes(checkInLocalTime);
+          
           const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
           const threshold = empSchedule.late_threshold_minutes || 0;
-          const expectedStart = new Date(checkInTime);
-          expectedStart.setHours(startH, startM + threshold, 0, 0);
+          const expectedStartMinutes = startH * 60 + startM + threshold;
 
-          if (checkInTime > expectedStart) {
+          if (checkInMinutes > expectedStartMinutes) {
             lateCount++;
-            lateMinutes += Math.round((checkInTime.getTime() - expectedStart.getTime()) / 60000);
+            lateMinutes += checkInMinutes - expectedStartMinutes;
           } else {
             onTimeCount++;
           }
         }
 
-        // Early departures
+        // Early departures - use timezone-aware comparison
         if (record.check_out_time && empSchedule?.work_end_time) {
-          const checkOutTime = new Date(record.check_out_time);
+          // Convert UTC check-out time to local time string in org's timezone
+          const checkOutLocalTime = formatTimeInTimezone(record.check_out_time, orgTimezone);
+          const checkOutMinutes = timeToMinutes(checkOutLocalTime);
+          
           const [endH, endM] = empSchedule.work_end_time.split(":").map(Number);
-          const expectedEnd = new Date(checkOutTime);
-          expectedEnd.setHours(endH, endM, 0, 0);
+          const expectedEndMinutes = endH * 60 + endM;
 
-          if (checkOutTime < expectedEnd) {
+          if (checkOutMinutes < expectedEndMinutes) {
             earlyCount++;
-            earlyMinutes += Math.round((expectedEnd.getTime() - checkOutTime.getTime()) / 60000);
+            earlyMinutes += expectedEndMinutes - checkOutMinutes;
           }
         }
       });
@@ -289,7 +324,7 @@ serve(async (req) => {
       };
     };
 
-    // Calculate personal metrics for a single employee
+    // Calculate personal metrics for a single employee using timezone-aware comparisons
     const calculatePersonalMetrics = (allRecords: any[], employeeId: string): PersonalMetrics => {
       const personalRecords = allRecords?.filter(r => r.employee_id === employeeId) || [];
       let onTimeCount = 0;
@@ -301,13 +336,15 @@ serve(async (req) => {
         totalMinutes += (record.work_hours || 0) * 60;
 
         if (record.check_in_time && empSchedule?.work_start_time) {
-          const checkInTime = new Date(record.check_in_time);
+          // Convert UTC check-in time to local time string in org's timezone
+          const checkInLocalTime = formatTimeInTimezone(record.check_in_time, orgTimezone);
+          const checkInMinutes = timeToMinutes(checkInLocalTime);
+          
           const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
           const threshold = empSchedule.late_threshold_minutes || 0;
-          const expectedStart = new Date(checkInTime);
-          expectedStart.setHours(startH, startM + threshold, 0, 0);
+          const expectedStartMinutes = startH * 60 + startM + threshold;
 
-          if (checkInTime > expectedStart) {
+          if (checkInMinutes > expectedStartMinutes) {
             lateCount++;
           } else {
             onTimeCount++;
@@ -355,7 +392,7 @@ serve(async (req) => {
 
     console.log("Metrics calculated:", metrics);
 
-    // Calculate daily data for trend chart
+    // Calculate daily data for trend chart using timezone-aware comparisons
     const dailyDataMap: Record<string, DailyData> = {};
     records?.forEach((record: any) => {
       const date = record.date;
@@ -366,12 +403,15 @@ serve(async (req) => {
       
       const empSchedule = record.employee?.employee_schedules?.[0];
       if (record.check_in_time && empSchedule?.work_start_time) {
-        const checkInTime = new Date(record.check_in_time);
+        // Convert UTC check-in time to local time string in org's timezone
+        const checkInLocalTime = formatTimeInTimezone(record.check_in_time, orgTimezone);
+        const checkInMinutes = timeToMinutes(checkInLocalTime);
+        
         const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
         const threshold = empSchedule.late_threshold_minutes || 0;
-        const expectedStart = new Date(checkInTime);
-        expectedStart.setHours(startH, startM + threshold, 0, 0);
-        if (checkInTime <= expectedStart) {
+        const expectedStartMinutes = startH * 60 + startM + threshold;
+        
+        if (checkInMinutes <= expectedStartMinutes) {
           dailyDataMap[date].onTime++;
         }
       }
@@ -382,7 +422,7 @@ serve(async (req) => {
     const peakDay = dailyData.reduce((max, d) => d.total > max.total ? d : max, { date: "", total: 0, onTime: 0 });
     const lowDay = dailyData.filter(d => d.total > 0).reduce((min, d) => d.total < min.total ? d : min, dailyData[0] || { date: "", total: 999, onTime: 0 });
 
-    // Identify employees needing attention and recognition
+    // Identify employees needing attention and recognition using timezone-aware comparisons
     const lateEmployees: string[] = [];
     const perfectAttendance: string[] = [];
     const employeeStats: Record<string, { name: string; lateCount: number; onTimeCount: number }> = {};
@@ -397,13 +437,15 @@ serve(async (req) => {
 
       const empSchedule = record.employee?.employee_schedules?.[0];
       if (record.check_in_time && empSchedule?.work_start_time) {
-        const checkInTime = new Date(record.check_in_time);
+        // Convert UTC check-in time to local time string in org's timezone
+        const checkInLocalTime = formatTimeInTimezone(record.check_in_time, orgTimezone);
+        const checkInMinutes = timeToMinutes(checkInLocalTime);
+        
         const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
         const threshold = empSchedule.late_threshold_minutes || 0;
-        const expectedStart = new Date(checkInTime);
-        expectedStart.setHours(startH, startM + threshold, 0, 0);
+        const expectedStartMinutes = startH * 60 + startM + threshold;
 
-        if (checkInTime > expectedStart) {
+        if (checkInMinutes > expectedStartMinutes) {
           employeeStats[employeeId].lateCount++;
         } else {
           employeeStats[employeeId].onTimeCount++;
@@ -653,7 +695,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
       // Calculate personal metrics
       const personalMetrics = calculatePersonalMetrics(records || [], recipient.id);
       
-      // Calculate personal daily data
+      // Calculate personal daily data using timezone-aware comparisons
       const personalDailyDataMap: Record<string, DailyData> = {};
       records?.filter(r => r.employee_id === recipient.id).forEach((record: any) => {
         const date = record.date;
@@ -664,12 +706,15 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
         
         const empSchedule = record.employee?.employee_schedules?.[0];
         if (record.check_in_time && empSchedule?.work_start_time) {
-          const checkInTime = new Date(record.check_in_time);
+          // Convert UTC check-in time to local time string in org's timezone
+          const checkInLocalTime = formatTimeInTimezone(record.check_in_time, orgTimezone);
+          const checkInMinutes = timeToMinutes(checkInLocalTime);
+          
           const [startH, startM] = empSchedule.work_start_time.split(":").map(Number);
           const threshold = empSchedule.late_threshold_minutes || 0;
-          const expectedStart = new Date(checkInTime);
-          expectedStart.setHours(startH, startM + threshold, 0, 0);
-          if (checkInTime <= expectedStart) {
+          const expectedStartMinutes = startH * 60 + startM + threshold;
+          
+          if (checkInMinutes <= expectedStartMinutes) {
             personalDailyDataMap[date].onTime++;
           }
         }
