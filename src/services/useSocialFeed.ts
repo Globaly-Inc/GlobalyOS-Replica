@@ -751,17 +751,71 @@ export const useCreateComment = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+    mutationFn: async ({ postId, content, mentionIds }: { postId: string; content: string; mentionIds?: string[] }) => {
       if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Must be logged in');
 
-      const { error } = await supabase.from('post_comments').insert({
+      const { data: comment, error } = await supabase.from('post_comments').insert({
         post_id: postId,
         employee_id: currentEmployee.id,
         organization_id: currentOrg.id,
         content,
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      // Insert comment mentions
+      if (mentionIds && mentionIds.length > 0 && comment) {
+        await supabase.from('comment_mentions').insert(
+          mentionIds.map(employeeId => ({
+            comment_id: comment.id,
+            employee_id: employeeId,
+            organization_id: currentOrg.id,
+          }))
+        );
+
+        // Send notifications to mentioned users
+        const { data: mentionedEmployees } = await supabase
+          .from('employees')
+          .select('user_id, profiles!inner(full_name)')
+          .in('id', mentionIds);
+
+        if (mentionedEmployees?.length) {
+          await supabase.from('notifications').insert(
+            mentionedEmployees.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'mention',
+              title: 'You were mentioned in a comment',
+              message: `${currentEmployee.profiles?.full_name || 'Someone'} mentioned you in a comment`,
+              reference_type: 'update',
+              reference_id: postId,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
+      // Notify post author (if not self)
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('employee_id, employee:employees!posts_employee_id_fkey(user_id)')
+        .eq('id', postId)
+        .single();
+
+      if (postData && postData.employee_id !== currentEmployee.id && postData.employee) {
+        await supabase.from('notifications').insert({
+          user_id: (postData.employee as any).user_id,
+          organization_id: currentOrg.id,
+          type: 'mention',
+          title: 'New comment on your post',
+          message: `${currentEmployee.profiles?.full_name || 'Someone'} commented on your post`,
+          reference_type: 'update',
+          reference_id: postId,
+          actor_id: currentEmployee.user_id,
+        });
+      }
+
+      return comment;
     },
     onSuccess: (_, { postId }) => {
       queryClient.invalidateQueries({ queryKey: ['post-comments', postId] });

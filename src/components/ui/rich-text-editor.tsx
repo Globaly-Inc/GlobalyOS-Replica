@@ -7,11 +7,16 @@ import DOMPurify from "dompurify";
 // Configure DOMPurify with allowed tags and no attributes
 const sanitizeHtml = (html: string) => {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div'],
-    ALLOWED_ATTR: [],
+    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span'],
+    ALLOWED_ATTR: ['class', 'data-mention-id'],
     KEEP_CONTENT: true
   });
 };
+
+export interface MentionState {
+  isOpen: boolean;
+  searchText: string;
+}
 
 interface RichTextEditorProps {
   value: string;
@@ -19,6 +24,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   minHeight?: string;
+  onMentionStateChange?: (state: MentionState) => void;
+  onMentionInsert?: (memberId: string, memberName: string) => void;
 }
 
 export const RichTextEditor = ({ 
@@ -26,10 +33,13 @@ export const RichTextEditor = ({
   onChange, 
   placeholder = "Write something...",
   className,
-  minHeight = "100px"
+  minHeight = "100px",
+  onMentionStateChange,
+  onMentionInsert,
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const mentionStartRef = useRef<number>(-1);
 
   // Sync editor content when value prop changes externally (e.g., from AI generation)
   useEffect(() => {
@@ -42,11 +52,100 @@ export const RichTextEditor = ({
     }
   }, [value]);
 
+  const getCaretPosition = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return -1;
+    
+    const range = selection.getRangeAt(0);
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(editorRef.current!);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+    return preCaretRange.toString().length;
+  };
+
+  const getTextContent = () => {
+    return editorRef.current?.textContent || '';
+  };
+
+  const checkForMention = useCallback(() => {
+    if (!onMentionStateChange) return;
+
+    const text = getTextContent();
+    const caretPos = getCaretPosition();
+    
+    if (caretPos === -1) {
+      onMentionStateChange({ isOpen: false, searchText: '' });
+      return;
+    }
+
+    const textBeforeCaret = text.slice(0, caretPos);
+    const lastAtIndex = textBeforeCaret.lastIndexOf('@');
+
+    if (lastAtIndex !== -1) {
+      // Check if @ is at start or preceded by whitespace
+      const charBefore = lastAtIndex > 0 ? textBeforeCaret[lastAtIndex - 1] : ' ';
+      if (charBefore === ' ' || charBefore === '\n' || lastAtIndex === 0) {
+        const textAfterAt = textBeforeCaret.slice(lastAtIndex + 1);
+        // Only open if no spaces in the search text
+        if (!textAfterAt.includes(' ')) {
+          mentionStartRef.current = lastAtIndex;
+          onMentionStateChange({ isOpen: true, searchText: textAfterAt });
+          return;
+        }
+      }
+    }
+
+    mentionStartRef.current = -1;
+    onMentionStateChange({ isOpen: false, searchText: '' });
+  }, [onMentionStateChange]);
+
   const handleInput = useCallback(() => {
     if (editorRef.current) {
       onChange(sanitizeHtml(editorRef.current.innerHTML));
+      checkForMention();
     }
-  }, [onChange]);
+  }, [onChange, checkForMention]);
+
+  const insertMention = useCallback((memberId: string, memberName: string) => {
+    if (!editorRef.current || mentionStartRef.current === -1) return;
+
+    const text = getTextContent();
+    const caretPos = getCaretPosition();
+    
+    // Find the @ and replace with mention span
+    const beforeAt = text.slice(0, mentionStartRef.current);
+    const afterCaret = text.slice(caretPos);
+    
+    // Create the mention HTML
+    const mentionHtml = `<span class="text-primary font-medium" data-mention-id="${memberId}">@${memberName}</span>&nbsp;`;
+    
+    // Replace content
+    editorRef.current.innerHTML = sanitizeHtml(beforeAt + mentionHtml + afterCaret);
+    onChange(sanitizeHtml(editorRef.current.innerHTML));
+    
+    // Notify parent
+    onMentionInsert?.(memberId, memberName);
+    
+    // Reset mention state
+    mentionStartRef.current = -1;
+    onMentionStateChange?.({ isOpen: false, searchText: '' });
+
+    // Move cursor to end of inserted mention
+    editorRef.current.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.current);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, [onChange, onMentionInsert, onMentionStateChange]);
+
+  // Expose insertMention through ref pattern
+  useEffect(() => {
+    if (editorRef.current) {
+      (editorRef.current as any).insertMention = insertMention;
+    }
+  }, [insertMention]);
 
   const execCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -148,6 +247,8 @@ export const RichTextEditor = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
+          onKeyUp={checkForMention}
+          onClick={checkForMention}
           data-placeholder={placeholder}
         />
         {!value && !isFocused && (
@@ -161,6 +262,17 @@ export const RichTextEditor = ({
       </div>
     </div>
   );
+};
+
+// Helper to extract mention IDs from HTML content
+export const extractMentionIds = (html: string): string[] => {
+  const mentionIds: string[] = [];
+  const regex = /data-mention-id="([^"]+)"/g;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    mentionIds.push(match[1]);
+  }
+  return mentionIds;
 };
 
 // Component to render rich text content safely
