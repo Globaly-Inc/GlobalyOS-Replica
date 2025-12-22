@@ -341,7 +341,7 @@ export const useCreatePost = () => {
               message: `${currentEmployee.profiles?.full_name} mentioned you in a post`,
               reference_type: 'update',
               reference_id: post.id,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -364,7 +364,7 @@ export const useCreatePost = () => {
               message: `${currentEmployee.profiles?.full_name} gave you kudos`,
               reference_type: 'update',
               reference_id: post.id,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -388,7 +388,7 @@ export const useCreatePost = () => {
               message: `${currentEmployee.profiles?.full_name} posted in your office`,
               reference_type: 'update',
               reference_id: post.id,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -411,7 +411,7 @@ export const useCreatePost = () => {
               message: `${currentEmployee.profiles?.full_name} posted in your department`,
               reference_type: 'update',
               reference_id: post.id,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -437,7 +437,7 @@ export const useCreatePost = () => {
               message: `${currentEmployee.profiles?.full_name} posted in your project`,
               reference_type: 'update',
               reference_id: post.id,
-              actor_id: currentEmployee.user_id,
+              actor_id: currentEmployee.id,
             }))
           );
         }
@@ -1042,6 +1042,26 @@ export const useTogglePostReaction = () => {
           emoji,
         });
         if (error) throw error;
+
+        // Notify post author (if not self)
+        const { data: postData } = await supabase
+          .from('posts')
+          .select('employee_id, employee:employees!posts_employee_id_fkey(user_id)')
+          .eq('id', postId)
+          .single();
+
+        if (postData && postData.employee_id !== currentEmployee.id && postData.employee) {
+          await supabase.from('notifications').insert({
+            user_id: (postData.employee as any).user_id,
+            organization_id: currentOrg.id,
+            type: 'mention',
+            title: `${emoji} reaction on your post`,
+            message: `${currentEmployee.profiles?.full_name || 'Someone'} reacted to your post`,
+            reference_type: 'update',
+            reference_id: postId,
+            actor_id: currentEmployee.id,
+          });
+        }
       }
     },
     onSuccess: (_, { postId }) => {
@@ -1082,8 +1102,9 @@ export const useToggleCommentReaction = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ commentId, emoji, existingReactions }: { 
+    mutationFn: async ({ commentId, postId, emoji, existingReactions }: { 
       commentId: string; 
+      postId: string;
       emoji: string; 
       existingReactions: Reaction[];
     }) => {
@@ -1107,6 +1128,26 @@ export const useToggleCommentReaction = () => {
           emoji,
         });
         if (error) throw error;
+
+        // Notify comment author (if not self)
+        const { data: commentData } = await supabase
+          .from('post_comments')
+          .select('employee_id, employee:employees!post_comments_employee_id_fkey(user_id)')
+          .eq('id', commentId)
+          .single();
+
+        if (commentData && commentData.employee_id !== currentEmployee.id && commentData.employee) {
+          await supabase.from('notifications').insert({
+            user_id: (commentData.employee as any).user_id,
+            organization_id: currentOrg.id,
+            type: 'mention',
+            title: `${emoji} reaction on your comment`,
+            message: `${currentEmployee.profiles?.full_name || 'Someone'} reacted to your comment`,
+            reference_type: 'update',
+            reference_id: postId,
+            actor_id: currentEmployee.id,
+          });
+        }
       }
     },
     onSuccess: (_, { commentId }) => {

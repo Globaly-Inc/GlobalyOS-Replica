@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 
 interface CommentReactionsProps {
   commentId: string;
+  postId: string;
 }
 
 interface ReactionUser {
@@ -31,7 +32,7 @@ interface GroupedReaction {
 
 const MAX_VISIBLE_AVATARS = 4;
 
-export const CommentReactions = ({ commentId }: CommentReactionsProps) => {
+export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) => {
   const { data: reactions = [], isLoading } = useCommentReactions(commentId);
   const { data: currentEmployee } = useCurrentEmployee();
   const toggleReaction = useToggleCommentReaction();
@@ -99,7 +100,7 @@ export const CommentReactions = ({ commentId }: CommentReactionsProps) => {
       setLocalReactions(prev => [...prev, optimisticReaction]);
     }
 
-    toggleReaction.mutate({ commentId, emoji, existingReactions: localReactions });
+    toggleReaction.mutate({ commentId, postId, emoji, existingReactions: localReactions });
   };
 
   const getInitials = (name: string) => {

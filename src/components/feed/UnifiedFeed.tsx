@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { usePosts, PostType, Post } from '@/services/useSocialFeed';
-import { usePostsRealtime } from '@/services/useSocialFeedRealtime';
+import { useFeedRealtime } from '@/services/useSocialFeedRealtime';
 import { PostCard } from './PostCard';
 import { UpdateCard } from '@/components/UpdateCard';
 import { KudosCard } from '@/components/KudosCard';
@@ -112,8 +112,8 @@ export const UnifiedFeed = ({
   const postTypeFilter = feedFilter === 'all' ? 'all' : (feedFilter as PostType);
   const { data: posts = [], isLoading: postsLoading } = usePosts(postTypeFilter);
   
-  // Subscribe to real-time updates
-  usePostsRealtime();
+  // Subscribe to real-time updates for posts, comments, and reactions
+  useFeedRealtime();
   
   // Edit post state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
