@@ -200,61 +200,67 @@ export const PostVisibilitySelector = ({
   };
 
   return (
-    <div className="space-y-3">
-      <Label>Who can see this?</Label>
-      
-      <Select value={accessScope} onValueChange={(v) => handleScopeChange(v as AccessScope)}>
-        <SelectTrigger className="w-full">
-          <SelectValue>
-            <div className="flex items-center gap-2">
-              {getScopeIcon(accessScope)}
-              <span>{getScopeLabel(accessScope)}</span>
-            </div>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="company">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              <span>Everyone</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="offices">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span>Specific Offices</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="departments">
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              <span>Specific Departments</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="projects">
-            <div className="flex items-center gap-2">
-              <FolderKanban className="h-4 w-4" />
-              <span>Specific Projects</span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+    <div className="flex flex-col gap-3">
+      {/* Horizontal row with scope selector and item selector */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Scope selector */}
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground shrink-0">Visible to:</span>
+          <Select value={accessScope} onValueChange={(v) => handleScopeChange(v as AccessScope)}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue>
+                <div className="flex items-center gap-2">
+                  {getScopeIcon(accessScope)}
+                  <span>{getScopeLabel(accessScope)}</span>
+                </div>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="company">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span>Everyone</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="offices">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>Specific Offices</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="departments">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  <span>Specific Departments</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="projects">
+                <div className="flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4" />
+                  <span>Specific Projects</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Selection dropdowns for offices, departments, projects */}
-      {accessScope !== 'company' && (
-        <div className="space-y-2">
+        {/* Item selector (inline with scope) */}
+        {accessScope !== 'company' && (
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-between font-normal h-auto min-h-10"
+                size="sm"
+                className="h-9 gap-2 font-normal"
               >
+                {getScopeIcon(accessScope)}
                 <span className="text-muted-foreground">{getSelectionLabel()}</span>
-                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <PopoverContent className="w-64 p-0" align="start">
               <div className="max-h-[200px] overflow-y-auto p-2 space-y-1">
                 {accessScope === 'offices' && offices.map(office => (
                   <div
@@ -301,13 +307,13 @@ export const PostVisibilitySelector = ({
               </div>
             </PopoverContent>
           </Popover>
+        )}
+      </div>
 
-          {/* Selected badges */}
-          {(selectedOfficeIds.length > 0 || selectedDepartments.length > 0 || selectedProjectIds.length > 0) && (
-            <div className="flex flex-wrap gap-1">
-              {getSelectedBadges()}
-            </div>
-          )}
+      {/* Selected items as badges */}
+      {(selectedOfficeIds.length > 0 || selectedDepartments.length > 0 || selectedProjectIds.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {getSelectedBadges()}
         </div>
       )}
     </div>
