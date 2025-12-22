@@ -539,6 +539,7 @@ export interface UpdatePostInput {
   departments?: string[];
   project_ids?: string[];
   kudos_recipient_ids?: string[];
+  mention_ids?: string[];
   // Media operations
   newMediaFiles?: File[];
   removedMediaIds?: string[];
@@ -682,7 +683,88 @@ export const useUpdatePost = () => {
         );
       }
 
-      // 5. UPDATE POLL (with vote protection)
+      // 5. UPDATE MENTIONS
+      // Get existing mentions for comparison
+      const { data: existingMentions } = await supabase
+        .from('post_mentions')
+        .select('employee_id')
+        .eq('post_id', input.postId);
+
+      const existingMentionIds = existingMentions?.map(m => m.employee_id) || [];
+      const newMentionIds = input.mention_ids || [];
+
+      // Delete all old mentions and insert new ones
+      await supabase.from('post_mentions').delete().eq('post_id', input.postId);
+
+      if (newMentionIds.length > 0) {
+        await supabase.from('post_mentions').insert(
+          newMentionIds.map(employeeId => ({
+            post_id: input.postId,
+            employee_id: employeeId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      // 6. SEND NOTIFICATIONS FOR NEW MENTIONS
+      const newlyAddedMentionIds = newMentionIds.filter(id => !existingMentionIds.includes(id));
+      if (newlyAddedMentionIds.length > 0) {
+        const { data: mentionedEmployees } = await supabase
+          .from('employees')
+          .select('id, user_id, profiles!inner(full_name)')
+          .in('id', newlyAddedMentionIds);
+
+        if (mentionedEmployees?.length) {
+          await supabase.from('notifications').insert(
+            mentionedEmployees.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'mention',
+              title: 'You were mentioned in a post',
+              message: `${currentEmployee.profiles?.full_name} mentioned you in a post`,
+              reference_type: 'update',
+              reference_id: input.postId,
+              actor_id: currentEmployee.id,
+            }))
+          );
+        }
+      }
+
+      // 7. SEND NOTIFICATIONS FOR NEW KUDOS RECIPIENTS
+      // Get existing kudos recipients from the post before update
+      const { data: existingPost } = await supabase
+        .from('posts')
+        .select('kudos_recipient_ids')
+        .eq('id', input.postId)
+        .single();
+
+      const existingKudosIds: string[] = existingPost?.kudos_recipient_ids || [];
+      const newKudosIds = input.kudos_recipient_ids || [];
+      const newlyAddedKudosIds = newKudosIds.filter(id => !existingKudosIds.includes(id));
+
+      if (newlyAddedKudosIds.length > 0) {
+        const { data: kudosRecipients } = await supabase
+          .from('employees')
+          .select('id, user_id, profiles!inner(full_name)')
+          .in('id', newlyAddedKudosIds);
+
+        if (kudosRecipients?.length) {
+          await supabase.from('notifications').insert(
+            kudosRecipients.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'kudos',
+              title: 'You received kudos! 🎉',
+              message: `${currentEmployee.profiles?.full_name} gave you kudos`,
+              reference_type: 'update',
+              reference_id: input.postId,
+              actor_id: currentEmployee.id,
+            }))
+          );
+        }
+      }
+
+      // 8. UPDATE POLL (with vote protection)
       if (input.existingPollId && input.poll) {
         // Update poll question and settings
         await supabase.from('post_polls').update({
