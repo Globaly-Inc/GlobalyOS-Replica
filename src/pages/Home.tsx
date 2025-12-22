@@ -10,6 +10,7 @@ import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Awar
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SocialFeedComposer } from "@/components/feed/SocialFeedComposer";
+import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
 import { usePosts, PostType } from "@/services/useSocialFeed";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
@@ -1007,106 +1008,15 @@ const Home = () => {
               </Select>
             </div>
 
-            {/* Feed Content */}
-            <div className="space-y-4">
-              {loading ? (
-                <Card className="p-12 text-center">
-                  <p className="text-muted-foreground">Loading feed...</p>
-                </Card>
-              ) : (
-                <>
-                  {feedFilter === "all" && (
-                    <>
-                      {renderFeedContent([...filteredUpdates, ...groupedKudos])}
-                      {filteredUpdates.length === 0 && groupedKudos.length === 0 && (
-                        <Card className="p-12 text-center">
-                          <p className="text-muted-foreground">No updates yet. Be the first to share!</p>
-                        </Card>
-                      )}
-                    </>
-                  )}
-                  {feedFilter === "wins" && (
-                    <>
-                      {winsAndAchievements.map(update => (
-                        <UpdateCard key={update.id} update={{
-                          id: update.id,
-                          employeeId: update.employee_id,
-                          employeeName: update.employee.profiles.full_name,
-                          content: update.content,
-                          date: update.created_at,
-                          type: update.type as "win" | "achievement",
-                          avatar: update.employee.profiles.avatar_url || undefined,
-                          imageUrl: update.image_url || undefined,
-                          accessScope: (update as any).access_scope,
-                          updateOffices: (update as any).update_offices,
-                          updateDepartments: (update as any).update_departments,
-                          updateProjects: (update as any).update_projects,
-                        }} onDelete={loadFeed} />
-                      ))}
-                      {winsAndAchievements.length === 0 && (
-                        <Card className="p-12 text-center">
-                          <p className="text-muted-foreground">No wins yet!</p>
-                        </Card>
-                      )}
-                    </>
-                  )}
-                  {feedFilter === "kudos" && (
-                    <>
-                      {groupedKudos.map(kudosItem => (
-                        <KudosCard key={kudosItem.batch_id || kudosItem.id} kudos={{
-                          id: kudosItem.id,
-                          employeeId: kudosItem.employee.id,
-                          employeeName: kudosItem.employee.profiles.full_name,
-                          givenBy: kudosItem.given_by.profiles.full_name,
-                          givenById: kudosItem.given_by.id,
-                          givenByAvatar: kudosItem.given_by.profiles.avatar_url || undefined,
-                          comment: kudosItem.comment,
-                          date: kudosItem.created_at,
-                          avatar: kudosItem.employee.profiles.avatar_url || undefined,
-                          batchId: kudosItem.batch_id || undefined,
-                          otherRecipients: kudosItem.otherRecipients?.map(r => r.name),
-                          otherRecipientIds: kudosItem.otherRecipients?.map(r => r.id),
-                          accessScope: (kudosItem as any).access_scope,
-                          kudosOffices: (kudosItem as any).kudos_offices,
-                          kudosDepartments: (kudosItem as any).kudos_departments,
-                          kudosProjects: (kudosItem as any).kudos_projects,
-                        }} onDelete={loadFeed} />
-                      ))}
-                      {groupedKudos.length === 0 && (
-                        <Card className="p-12 text-center">
-                          <p className="text-muted-foreground">No kudos yet!</p>
-                        </Card>
-                      )}
-                    </>
-                  )}
-                  {feedFilter === "announcements" && (
-                    <>
-                      {regularUpdates.map(update => (
-                        <UpdateCard key={update.id} update={{
-                          id: update.id,
-                          employeeId: update.employee_id,
-                          employeeName: update.employee.profiles.full_name,
-                          content: update.content,
-                          date: update.created_at,
-                          type: "announcement",
-                          avatar: update.employee.profiles.avatar_url || undefined,
-                          imageUrl: update.image_url || undefined,
-                          accessScope: (update as any).access_scope,
-                          updateOffices: (update as any).update_offices,
-                          updateDepartments: (update as any).update_departments,
-                          updateProjects: (update as any).update_projects,
-                        }} onDelete={loadFeed} />
-                      ))}
-                      {regularUpdates.length === 0 && (
-                        <Card className="p-12 text-center">
-                          <p className="text-muted-foreground">No announcements yet!</p>
-                        </Card>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+            {/* Feed Content - Unified Posts */}
+            <UnifiedFeed 
+              feedFilter={feedFilter} 
+              dateFilter={dateFilter}
+              legacyUpdates={updates}
+              legacyKudos={kudos}
+              legacyLoading={loading}
+              onLegacyRefresh={loadFeed}
+            />
           </div>
 
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
