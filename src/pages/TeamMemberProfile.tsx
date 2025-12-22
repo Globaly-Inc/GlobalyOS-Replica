@@ -1080,6 +1080,13 @@ const TeamMemberProfile = () => {
           </div>
 
           <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0 contents lg:block">
+            {/* Personalized Role Description */}
+            <EmployeeRoleDescription
+              employeeId={id!}
+              canEdit={isHR || isAdmin}
+              initialDescription={employee.role_description}
+              initialGeneratedAt={employee.role_description_generated_at}
+            />
             {employee.superpowers && employee.superpowers.length > 0 && <Card className="overflow-hidden order-3 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
