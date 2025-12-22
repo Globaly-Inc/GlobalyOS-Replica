@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Mail, AlertCircle, UserX } from "lucide-react";
+import { Mail, AlertCircle, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { GoogleAuthButton, SecurityBadges } from "@/components/onboarding";
+import globalyosIcon from "@/assets/globalyos-icon.png";
 const otpEmailSchema = z.object({
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters")
 });
@@ -288,8 +289,8 @@ const Auth = () => {
   return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary-dark to-primary p-4">
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark mb-4">
-            <Users className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark mb-4 overflow-hidden">
+            <img src={globalyosIcon} alt="GlobalyOS" className="h-10 w-10 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Welcome to GlobalyOS</h1>
           <p className="text-muted-foreground mt-2">Operating System for Ambitious Teams</p>
