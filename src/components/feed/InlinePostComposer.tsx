@@ -26,6 +26,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisibilitySelector';
 import { useCreatePost, PostType } from '@/services/useSocialFeed';
+import { AIWritingAssist } from '@/components/AIWritingAssist';
 
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -266,6 +267,17 @@ export const InlinePostComposer = ({
     .map(n => n[0])
     .join('');
 
+  const getAIType = (postType: PostType): "win" | "announcement" | "kudos" | "social" => {
+    switch (postType) {
+      case 'win': return 'win';
+      case 'kudos': return 'kudos';
+      case 'announcement':
+      case 'executive_message': return 'announcement';
+      case 'social':
+      default: return 'social';
+    }
+  };
+
   const canSubmit = getTextLength(content) >= 3 && (selectedType !== 'kudos' || kudosRecipients.length > 0);
 
   return (
@@ -408,6 +420,18 @@ export const InlinePostComposer = ({
                 minHeight="80px"
               />
               {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
+
+              {/* AI Writing Assist */}
+              <div className="flex justify-end -mt-1">
+                <AIWritingAssist
+                  type={getAIType(selectedType)}
+                  currentText={content}
+                  onTextGenerated={setContent}
+                  context={selectedType === 'kudos' && kudosRecipients.length > 0 
+                    ? `Giving kudos to ${kudosRecipients.length} team member(s)` 
+                    : undefined}
+                />
+              </div>
 
               {/* Media Previews */}
               {mediaPreviews.length > 0 && (

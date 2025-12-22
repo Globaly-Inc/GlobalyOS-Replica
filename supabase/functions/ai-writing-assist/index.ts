@@ -47,9 +47,19 @@ Do not use emojis. Be clear and direct.`;
 Your task is to help write or improve a heartfelt, genuine message of appreciation for a colleague.
 Keep the tone warm, specific, and sincere. Use 2-3 sentences maximum.
 Do not use emojis. Focus on specific contributions or qualities.`;
-        userPrompt = currentText
+      userPrompt = currentText
           ? `Please improve and polish this kudos message while keeping its core sentiment:\n\n"${currentText}"\n\nMake it more heartfelt and specific.`
           : `Write a brief, genuine appreciation message for a colleague. ${context || "The user hasn't provided specific details, so write a template about thanking someone for their help or great work."}`;
+        break;
+
+      case "social":
+        systemPrompt = `You are a helpful writing assistant for workplace social posts.
+Your task is to help write or improve a friendly, engaging social post for colleagues.
+Keep the tone conversational, positive, and professional. Use 2-4 sentences maximum.
+Do not use emojis. Be relatable and engaging.`;
+        userPrompt = currentText
+          ? `Please improve and polish this social post while keeping its core message:\n\n"${currentText}"\n\nMake it more engaging and relatable.`
+          : `Write a brief, friendly social post for colleagues. ${context || "The user hasn't provided specific details, so write a general template about sharing an update, thought, or question with the team."}`;
         break;
         
       default:

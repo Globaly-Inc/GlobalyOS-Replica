@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AIWritingAssistProps {
-  type: "win" | "announcement" | "kudos";
+  type: "win" | "announcement" | "kudos" | "social";
   currentText: string;
   onTextGenerated: (text: string) => void;
   context?: string;
