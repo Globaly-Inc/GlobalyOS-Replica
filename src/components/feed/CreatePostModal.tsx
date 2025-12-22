@@ -28,6 +28,9 @@ import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisib
 import { useCreatePost, useUpdatePost, PostType, Post } from '@/services/useSocialFeed';
 import { format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import UploadProgress, { UploadingFile } from '@/components/chat/UploadProgress';
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -123,6 +126,9 @@ export const CreatePostModal = ({
   
   // Scheduling (for executive messages)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  
+  // Upload progress
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
 
   // Load team members
   const hasFetchedRef = useRef(false);
@@ -236,12 +242,12 @@ export const CreatePostModal = ({
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.size <= 10 * 1024 * 1024);
+    const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
     
     if (validFiles.length < files.length) {
       toast({
         title: 'Some files skipped',
-        description: 'Files must be under 10MB',
+        description: 'Files must be under 25MB',
         variant: 'destructive',
       });
     }
@@ -370,24 +376,47 @@ export const CreatePostModal = ({
         removedOptionIds: removedOptionIds.filter(id => !optionsWithVotes.has(id)),
       });
     } else {
-      // Create new post
-      await createPost.mutateAsync({
-        post_type: selectedType,
-        content,
-        kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
-        access_scope: accessScope,
-        scheduled_at: selectedType === 'executive_message' ? scheduledAt : undefined,
-        media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
-        mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
-        office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
-        departments: accessScope === 'departments' ? selectedDepartments : undefined,
-        project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
-        poll: showPoll ? {
-          question: pollQuestion,
-          options: pollOptions.filter(o => o.text.trim()).map(o => o.text),
-          allow_multiple: pollAllowMultiple,
-        } : undefined,
-      });
+      // Create new post - initialize upload progress if there are media files
+      if (mediaFiles.length > 0) {
+        setUploadingFiles(mediaFiles.map((file, index) => ({
+          id: `upload-${index}`,
+          name: file.name,
+          progress: 0,
+          status: 'uploading' as const,
+          preview: mediaPreviews[index],
+        })));
+      }
+
+      try {
+        await createPost.mutateAsync({
+          post_type: selectedType,
+          content,
+          kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
+          access_scope: accessScope,
+          scheduled_at: selectedType === 'executive_message' ? scheduledAt : undefined,
+          media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
+          mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
+          office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
+          departments: accessScope === 'departments' ? selectedDepartments : undefined,
+          project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
+          poll: showPoll ? {
+            question: pollQuestion,
+            options: pollOptions.filter(o => o.text.trim()).map(o => o.text),
+            allow_multiple: pollAllowMultiple,
+          } : undefined,
+          onUploadProgress: ({ current, total, fileIndex }) => {
+            setUploadingFiles(prev => prev.map((f, idx) => 
+              idx === fileIndex 
+                ? { ...f, progress: Math.round((current / total) * 100), status: current >= total ? 'complete' : 'uploading' }
+                : idx < fileIndex 
+                  ? { ...f, progress: 100, status: 'complete' }
+                  : f
+            ));
+          },
+        });
+      } finally {
+        setUploadingFiles([]);
+      }
     }
 
     resetForm();
@@ -418,6 +447,7 @@ export const CreatePostModal = ({
     setRemovedOptionIds([]);
     setOptionsWithVotes(new Set());
     setScheduledAt(null);
+    setUploadingFiles([]);
   };
 
   const handleClose = (open: boolean) => {
@@ -881,6 +911,11 @@ export const CreatePostModal = ({
                     </p>
                   )}
                 </div>
+              )}
+
+              {/* Upload Progress */}
+              {uploadingFiles.length > 0 && (
+                <UploadProgress files={uploadingFiles} />
               )}
 
               {/* Submit */}

@@ -27,6 +27,9 @@ import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisibilitySelector';
 import { useCreatePost, PostType } from '@/services/useSocialFeed';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
+import UploadProgress, { UploadingFile } from '@/components/chat/UploadProgress';
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -90,6 +93,9 @@ export const InlinePostComposer = ({
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  
+  // Upload progress
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
 
   // Load team members when expanded
   const hasFetchedRef = useRef(false);
@@ -127,12 +133,12 @@ export const InlinePostComposer = ({
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.size <= 10 * 1024 * 1024);
+    const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
     
     if (validFiles.length < files.length) {
       toast({
         title: 'Some files skipped',
-        description: 'Files must be under 10MB',
+        description: 'Files must be under 25MB',
         variant: 'destructive',
       });
     }
@@ -208,24 +214,47 @@ export const InlinePostComposer = ({
       }
     }
 
-    await createPost.mutateAsync({
-      post_type: selectedType,
-      content,
-      kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
-      access_scope: accessScope,
-      media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
-      mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
-      office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
-      departments: accessScope === 'departments' ? selectedDepartments : undefined,
-      project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
-      poll: showPoll ? {
-        question: pollQuestion,
-        options: pollOptions.filter(o => o.trim()),
-        allow_multiple: pollAllowMultiple,
-      } : undefined,
-    });
+    // Initialize upload progress if there are media files
+    if (mediaFiles.length > 0) {
+      setUploadingFiles(mediaFiles.map((file, index) => ({
+        id: `upload-${index}`,
+        name: file.name,
+        progress: 0,
+        status: 'uploading' as const,
+        preview: mediaPreviews[index],
+      })));
+    }
 
-    resetForm();
+    try {
+      await createPost.mutateAsync({
+        post_type: selectedType,
+        content,
+        kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : undefined,
+        access_scope: accessScope,
+        media_files: mediaFiles.length > 0 ? mediaFiles : undefined,
+        mention_ids: mentionIds.length > 0 ? mentionIds : undefined,
+        office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
+        departments: accessScope === 'departments' ? selectedDepartments : undefined,
+        project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
+        poll: showPoll ? {
+          question: pollQuestion,
+          options: pollOptions.filter(o => o.trim()),
+          allow_multiple: pollAllowMultiple,
+        } : undefined,
+        onUploadProgress: ({ current, total, fileIndex }) => {
+          setUploadingFiles(prev => prev.map((f, idx) => 
+            idx === fileIndex 
+              ? { ...f, progress: Math.round((current / total) * 100), status: current >= total ? 'complete' : 'uploading' }
+              : idx < fileIndex 
+                ? { ...f, progress: 100, status: 'complete' }
+                : f
+          ));
+        },
+      });
+      resetForm();
+    } finally {
+      setUploadingFiles([]);
+    }
   };
 
   const resetForm = () => {
@@ -246,6 +275,7 @@ export const InlinePostComposer = ({
     setPollQuestion('');
     setPollOptions(['', '']);
     setPollAllowMultiple(false);
+    setUploadingFiles([]);
   };
 
   const postTypes = [
@@ -539,6 +569,11 @@ export const InlinePostComposer = ({
                     );
                   })}
                 </div>
+              )}
+
+              {/* Upload Progress */}
+              {uploadingFiles.length > 0 && (
+                <UploadProgress files={uploadingFiles} />
               )}
 
               {/* Visibility Row - dedicated section */}
