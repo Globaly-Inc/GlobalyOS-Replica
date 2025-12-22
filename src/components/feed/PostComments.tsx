@@ -157,7 +157,7 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
                     {comment.content}
                   </p>
                 </div>
-                <CommentReactions commentId={comment.id} />
+                <CommentReactions commentId={comment.id} postId={postId} />
               </div>
 
               {/* Delete menu */}

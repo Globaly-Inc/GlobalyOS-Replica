@@ -9,7 +9,91 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 
 /**
+ * Unified real-time subscription for all feed updates
+ * Subscribes to posts, comments, and reactions for instant updates
+ */
+export const useFeedRealtime = () => {
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+
+    const channel = supabase
+      .channel('social-feed-unified-realtime')
+      // Posts subscription
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'posts',
+          filter: `organization_id=eq.${currentOrg.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+        }
+      )
+      // Comments subscription - invalidate for any org comment
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_comments',
+          filter: `organization_id=eq.${currentOrg.id}`,
+        },
+        (payload) => {
+          const postId = (payload.new as any)?.post_id || (payload.old as any)?.post_id;
+          if (postId) {
+            queryClient.invalidateQueries({ queryKey: ['post-comments', postId] });
+            queryClient.invalidateQueries({ queryKey: ['post-comment-count', postId] });
+          }
+        }
+      )
+      // Post reactions subscription
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_reactions',
+          filter: `organization_id=eq.${currentOrg.id}`,
+        },
+        (payload) => {
+          const postId = (payload.new as any)?.post_id || (payload.old as any)?.post_id;
+          if (postId) {
+            queryClient.invalidateQueries({ queryKey: ['post-reactions', postId] });
+          }
+        }
+      )
+      // Comment reactions subscription
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comment_reactions',
+          filter: `organization_id=eq.${currentOrg.id}`,
+        },
+        (payload) => {
+          const commentId = (payload.new as any)?.comment_id || (payload.old as any)?.comment_id;
+          if (commentId) {
+            queryClient.invalidateQueries({ queryKey: ['comment-reactions', commentId] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrg?.id, queryClient]);
+};
+
+/**
  * Subscribe to real-time post updates (new posts, edits, deletes)
+ * @deprecated Use useFeedRealtime() instead for unified subscriptions
  */
 export const usePostsRealtime = () => {
   const { currentOrg } = useOrganization();
