@@ -33,6 +33,8 @@ export interface GeneratedKpi {
   targetValue: number;
   unit: string;
   parentTempId?: string;
+  quarter?: number; // For quarterly breakdown (1-4)
+  isQuarterlyChild?: boolean; // Marks if this is a quarterly breakdown of an annual KPI
   // For editing
   selected: boolean;
   isEditing?: boolean;
@@ -43,6 +45,7 @@ export interface BulkKpiWizardState {
   periodType: "annual" | "quarterly";
   quarter: number;
   year: number;
+  quarterlyBreakdown: boolean; // Enable AI quarterly breakdown for annual KPIs
   cascadeConfig: CascadeConfig;
   targetDepartments: string[];
   targetProjects: string[];
@@ -78,6 +81,7 @@ const BulkKpiCreate = () => {
     periodType: "quarterly",
     quarter: getCurrentQuarter(),
     year: getCurrentYear(),
+    quarterlyBreakdown: false,
     cascadeConfig: {
       includeOrganization: true,
       includeDepartments: true,

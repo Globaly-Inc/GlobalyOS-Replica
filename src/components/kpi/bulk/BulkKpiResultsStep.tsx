@@ -62,10 +62,18 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
     const mappings: CreatedKpiMapping[] = [];
     const errorList: string[] = [];
     
-    // Sort KPIs by hierarchy - parents first
+    // Sort KPIs by hierarchy - parents first, then quarterly breakdown children
     const sortedKpis = [...selectedKpis].sort((a, b) => {
-      const order = { organization: 0, department: 1, office: 2, individual: 3 };
-      return order[a.scopeType] - order[b.scopeType];
+      const order = { organization: 0, department: 1, project: 2, office: 3, individual: 4 };
+      const orderA = order[a.scopeType] ?? 5;
+      const orderB = order[b.scopeType] ?? 5;
+      if (orderA !== orderB) return orderA - orderB;
+      // Put annual KPIs before their quarterly children
+      if (a.isQuarterlyChild && !b.isQuarterlyChild) return 1;
+      if (!a.isQuarterlyChild && b.isQuarterlyChild) return -1;
+      // Sort quarterly children by quarter
+      if (a.quarter && b.quarter) return a.quarter - b.quarter;
+      return 0;
     });
 
     for (let i = 0; i < sortedKpis.length; i++) {
@@ -83,6 +91,17 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
           }
         }
 
+        // Determine quarter value for the KPI
+        // For annual mode with quarterly breakdown, use the KPI's quarter field
+        // For quarterly mode, use the state's quarter
+        // For annual mode without breakdown, quarter can be null (annual)
+        let kpiQuarter: number | null = null;
+        if (state.periodType === "quarterly") {
+          kpiQuarter = state.quarter;
+        } else if (kpi.quarter) {
+          kpiQuarter = kpi.quarter;
+        }
+
         // Build KPI data based on scope type
         const kpiData: any = {
           organization_id: currentOrg.id,
@@ -92,7 +111,7 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
           current_value: 0,
           unit: kpi.unit,
           status: "on_track",
-          quarter: state.quarter,
+          quarter: kpiQuarter,
           year: state.year,
           scope_type: kpi.scopeType,
           parent_kpi_id: parentKpiId,

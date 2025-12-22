@@ -96,6 +96,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
           periodType: state.periodType,
           quarter: state.quarter,
           year: state.year,
+          quarterlyBreakdown: state.quarterlyBreakdown,
           aiInstructions: state.aiInstructions,
           cascadeConfig: state.cascadeConfig,
           targetDepartments: state.targetDepartments,
@@ -293,7 +294,19 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
                         className="flex items-start justify-between p-3 bg-muted/50 rounded-lg border"
                       >
                         <div className="flex-1">
-                          <p className="font-medium text-sm">{kpi.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{kpi.title}</p>
+                            {kpi.quarter && (
+                              <Badge variant="secondary" className="text-xs">
+                                Q{kpi.quarter}
+                              </Badge>
+                            )}
+                            {kpi.isQuarterlyChild && (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                Quarterly
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground line-clamp-1">
                             {kpi.description}
                           </p>
