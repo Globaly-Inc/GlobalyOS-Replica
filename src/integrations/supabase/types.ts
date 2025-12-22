@@ -4727,25 +4727,34 @@ export type Database = {
       }
       positions: {
         Row: {
+          ai_generated_at: string | null
           created_at: string
           department: string | null
+          description: string | null
           id: string
           name: string
           organization_id: string | null
+          responsibilities: string[] | null
         }
         Insert: {
+          ai_generated_at?: string | null
           created_at?: string
           department?: string | null
+          description?: string | null
           id?: string
           name: string
           organization_id?: string | null
+          responsibilities?: string[] | null
         }
         Update: {
+          ai_generated_at?: string | null
           created_at?: string
           department?: string | null
+          description?: string | null
           id?: string
           name?: string
           organization_id?: string | null
+          responsibilities?: string[] | null
         }
         Relationships: [
           {
