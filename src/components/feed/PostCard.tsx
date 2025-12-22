@@ -151,12 +151,17 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <OrgLink to={`/team/${post.employee_id}`}>
-              <Avatar className="h-10 w-10 ring-2 ring-background">
-                <AvatarImage src={post.employee?.profiles?.avatar_url || undefined} />
-                <AvatarFallback className={cn(config.bgColor, config.color)}>
-                  {post.employee?.profiles?.full_name?.charAt(0) || '?'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="h-10 w-10 ring-2 ring-background">
+                  <AvatarImage src={post.employee?.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className={cn(config.bgColor, config.color)}>
+                    {post.employee?.profiles?.full_name?.charAt(0) || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                {isOnline && (
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+                )}
+              </div>
             </OrgLink>
             <div className="flex-1 min-w-0">
               {/* Row 1: Name + Post Type Badge */}
@@ -178,17 +183,11 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                   </Badge>
                 )}
               </div>
-              {/* Row 2: Time + Online Status */}
+              {/* Row 2: Time */}
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-muted-foreground text-sm">
                   {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                 </span>
-                {isOnline && (
-                  <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                    Online
-                  </span>
-                )}
               </div>
             </div>
           </div>

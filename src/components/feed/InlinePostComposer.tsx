@@ -20,8 +20,9 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2,
-  BarChart3, Users, Globe, Video, Loader2
+  BarChart3, Users, Globe, Video, Loader2, Smile
 } from 'lucide-react';
+import { GifPicker } from './GifPicker';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
@@ -656,6 +657,26 @@ export const InlinePostComposer = ({
             <Video className="h-4 w-4 text-blue-500" />
             <span className="hidden sm:inline">Video</span>
           </Button>
+
+          <GifPicker
+            onSelect={(gifUrl) => {
+              if (!isExpanded) setIsExpanded(true);
+              // Add GIF as a preview (treat as image)
+              setMediaPreviews(prev => [...prev, gifUrl]);
+              // Create a fake File for submission
+              fetch(gifUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'gif.gif', { type: 'image/gif' });
+                  setMediaFiles(prev => [...prev, file]);
+                })
+                .catch(() => {
+                  // Fallback: add as external URL
+                  setMediaPreviews(prev => [...prev, gifUrl]);
+                });
+            }}
+            triggerClassName="text-muted-foreground hover:text-foreground"
+          />
 
           <Button
             variant="ghost"

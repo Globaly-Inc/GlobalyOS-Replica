@@ -324,6 +324,125 @@ export const useCreatePost = () => {
         }
       }
 
+      // Send notifications for mentions
+      if (input.mention_ids && input.mention_ids.length > 0) {
+        const { data: mentionedEmployees } = await supabase
+          .from('employees')
+          .select('user_id, profiles!inner(full_name)')
+          .in('id', input.mention_ids);
+        
+        if (mentionedEmployees?.length) {
+          await supabase.from('notifications').insert(
+            mentionedEmployees.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'mention',
+              title: 'You were mentioned in a post',
+              message: `${currentEmployee.profiles?.full_name} mentioned you in a post`,
+              reference_type: 'update',
+              reference_id: post.id,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
+      // Send notifications for kudos recipients
+      if (input.post_type === 'kudos' && input.kudos_recipient_ids?.length) {
+        const { data: kudosRecipients } = await supabase
+          .from('employees')
+          .select('user_id, profiles!inner(full_name)')
+          .in('id', input.kudos_recipient_ids);
+        
+        if (kudosRecipients?.length) {
+          await supabase.from('notifications').insert(
+            kudosRecipients.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'kudos',
+              title: 'You received kudos! 🎉',
+              message: `${currentEmployee.profiles?.full_name} gave you kudos`,
+              reference_type: 'update',
+              reference_id: post.id,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
+      // Send notifications for group-scoped posts (office/department/project)
+      if (input.access_scope === 'offices' && input.office_ids?.length) {
+        const { data: officeMembers } = await supabase
+          .from('employees')
+          .select('user_id')
+          .in('office_id', input.office_ids)
+          .neq('id', currentEmployee.id);
+        
+        if (officeMembers?.length) {
+          await supabase.from('notifications').insert(
+            officeMembers.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'announcement',
+              title: 'New post in your office',
+              message: `${currentEmployee.profiles?.full_name} posted in your office`,
+              reference_type: 'update',
+              reference_id: post.id,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
+      if (input.access_scope === 'departments' && input.departments?.length) {
+        const { data: deptMembers } = await supabase
+          .from('employees')
+          .select('user_id')
+          .in('department', input.departments)
+          .neq('id', currentEmployee.id);
+        
+        if (deptMembers?.length) {
+          await supabase.from('notifications').insert(
+            deptMembers.map(emp => ({
+              user_id: emp.user_id,
+              organization_id: currentOrg.id,
+              type: 'announcement',
+              title: 'New post in your department',
+              message: `${currentEmployee.profiles?.full_name} posted in your department`,
+              reference_type: 'update',
+              reference_id: post.id,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
+      if (input.access_scope === 'projects' && input.project_ids?.length) {
+        const { data: projectMembers } = await supabase
+          .from('employee_projects')
+          .select('employee:employees!inner(user_id)')
+          .in('project_id', input.project_ids);
+        
+        const userIds = projectMembers
+          ?.map(pm => (pm.employee as any)?.user_id)
+          .filter((id: string) => id && id !== currentEmployee.user_id);
+        
+        if (userIds?.length) {
+          await supabase.from('notifications').insert(
+            userIds.map((userId: string) => ({
+              user_id: userId,
+              organization_id: currentOrg.id,
+              type: 'announcement',
+              title: 'New post in your project',
+              message: `${currentEmployee.profiles?.full_name} posted in your project`,
+              reference_type: 'update',
+              reference_id: post.id,
+              actor_id: currentEmployee.user_id,
+            }))
+          );
+        }
+      }
+
       return post;
     },
     onSuccess: () => {
