@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getModuleUIContextText, NAVIGATION_STRUCTURE } from './ui-context.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -268,10 +269,28 @@ IMPORTANT: Reference these actual screens when writing step-by-step guides. Ment
       }
     }
 
-    // Enhanced system prompt with structured content requirements
+    // Get detailed UI context for this module
+    const moduleUIContext = getModuleUIContextText(module);
+    console.log(`Generated UI context for module: ${module} (${moduleUIContext.length} chars)`);
+
+    // Enhanced system prompt with structured content requirements and UI context
     const systemPrompt = `You are a SaaS documentation expert for GlobalyOS, a comprehensive business operating system with HRMS, CRM, Wiki, and team communication features.
 
 Generate professional support documentation with STRUCTURED formatting and SPECIAL SYNTAX for enhanced rendering.
+
+## CRITICAL: USE ONLY THE PROVIDED UI CONTEXT
+You MUST reference ONLY the actual UI elements, navigation paths, buttons, and pages documented below.
+DO NOT invent or assume UI elements that are not listed here.
+DO NOT reference a "Settings gear icon" - Settings is accessed via the profile avatar dropdown.
+DO NOT create navigation paths that don't exist in GlobalyOS.
+
+${moduleUIContext}
+
+## NAVIGATION RULES (FOLLOW EXACTLY):
+- Main navigation bar contains: ${NAVIGATION_STRUCTURE.topNav.items.map(i => i.name).join(', ')}
+- The Team section has a sub-navigation bar with: ${NAVIGATION_STRUCTURE.teamSubNav.items.map(i => `${i.name}${i.adminOnly ? ' (Admin/HR only)' : ''}`).join(', ')}
+- Settings is accessed by: "${NAVIGATION_STRUCTURE.settingsAccess}"
+- Personal pages (My Leave, My Attendance, My Payslips) are accessed via the profile avatar dropdown menu
 
 ## CONTENT STRUCTURE (follow this order for every article):
 
@@ -295,8 +314,9 @@ Example:
 
 ### 4. Step-by-Step Guide (## Step-by-Step Guide)
 - Use numbered list for clear steps
+- COPY THE EXACT STEPS from the "Common Actions" in the UI context above
 - After key steps, add screenshot placeholder: [Screenshot: description of what to show]
-- Be specific about button names, menu locations, form fields
+- Be specific about button names, menu locations, form fields - USE ONLY WHAT IS DOCUMENTED
 
 ### 5. Tips Section (## Tips & Best Practices)
 - Use :::tip callout for helpful hints
@@ -336,9 +356,10 @@ If you see an error message, make sure you have the required permissions before 
 
 ## IMPORTANT GUIDELINES:
 - Write 500-800 words per article
-- Be specific to GlobalyOS UI and features
+- Be specific to GlobalyOS UI and features - ONLY USE UI ELEMENTS FROM THE CONTEXT ABOVE
 - Include 2-4 screenshot placeholders per article
 - AVOID these existing slugs: ${existingSlugs.join(', ') || 'none'}
+- NEVER invent UI elements - if unsure, leave it generic rather than specific and wrong
 ${screenshotContext}`;
 
     const userPrompt = `Generate 3-5 comprehensive support articles for the "${module}" module in GlobalyOS.
