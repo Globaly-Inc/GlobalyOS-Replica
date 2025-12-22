@@ -260,7 +260,8 @@ serve(async (req) => {
       `;
 
       // Build the payload for two-phase navigation
-      // Use a simpler approach: inject auth, wait for network idle, then let scripts run
+      // CRITICAL: Don't use waitForSelector or waitForFunction as they fail during client-side redirects
+      // Instead, use only waitForTimeout and bestAttempt to handle navigation gracefully
       
       // Combine auth injection with a wait-for-redirect mechanism
       const combinedScript = `
@@ -278,32 +279,42 @@ serve(async (req) => {
             localStorage.setItem(storageKey, JSON.stringify(authData));
             console.log('Auth tokens injected, redirecting to target...');
             
-            // Redirect to the actual target URL
-            window.location.replace('${targetUrl}');
+            // Redirect to the actual target URL after a small delay
+            setTimeout(function() {
+              window.location.replace('${targetUrl}');
+            }, 100);
           } catch (e) {
             console.error('Failed to inject auth tokens:', e);
           }
         })();
       `;
 
+      // Post-navigation scripts that run after redirect completes
+      const allScripts = [{ content: combinedScript }];
+      
+      // Add post-navigation scripts (for highlights, privacy masks, etc.)
+      // These run AFTER the redirect is complete via setTimeout
+      if (postNavigationScripts.length > 0) {
+        // Wrap post-navigation scripts to run after a longer delay (after redirect)
+        const delayedPostScripts = postNavigationScripts.map(script => ({
+          content: `setTimeout(function() { ${script.content} }, 6000);`
+        }));
+        allScripts.push(...delayedPostScripts);
+      }
+
       browserlessPayload = {
         // Phase 1: Navigate to public landing page first
         url: `${appBaseUrl}/`,
         
         // Inject auth tokens and trigger redirect
-        addScriptTag: [
-          { content: combinedScript }
-        ],
+        addScriptTag: allScripts,
         
-        // Use waitForSelector instead of waitForFunction to avoid DOM issues
-        // Wait for the body to exist after navigation
-        waitForSelector: {
-          selector: 'body',
-          timeout: 30000,
-        },
+        // Use a long waitForTimeout to allow redirect and render
+        // This is the safest approach - no DOM queries that can fail during navigation
+        waitForTimeout: 12000,
         
-        // Wait for the page to fully render after redirect
-        waitForTimeout: 8000,
+        // bestAttempt continues even if async events timeout (handles navigation edge cases)
+        bestAttempt: true,
         
         viewport: {
           width: 1920,
@@ -315,20 +326,10 @@ serve(async (req) => {
           fullPage: false,
         },
         gotoOptions: {
-          waitUntil: 'networkidle0',
+          waitUntil: 'networkidle2',
           timeout: 60000,
         },
       };
-
-      // Add post-navigation scripts (for highlights, privacy masks, etc.)
-      // These run AFTER the redirect is complete
-      if (postNavigationScripts.length > 0) {
-        // Wrap post-navigation scripts to run after a delay
-        const delayedPostScripts = postNavigationScripts.map(script => ({
-          content: `setTimeout(function() { ${script.content} }, 3000);`
-        }));
-        browserlessPayload.addScriptTag.push(...delayedPostScripts);
-      }
 
     } else {
       // Non-authenticated capture - direct navigation
