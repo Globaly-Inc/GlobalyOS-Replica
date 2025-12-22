@@ -26,6 +26,71 @@ interface Organization {
   id: string;
   max_day_in_lieu_days: number | null;
   auto_attendance_adjustments_enabled: boolean;
+  timezone: string | null;
+}
+
+interface Employee {
+  id: string;
+  user_id: string;
+}
+
+interface Profile {
+  id: string;
+  timezone: string | null;
+}
+
+/**
+ * Get the effective timezone for an employee.
+ * Priority: User's profile timezone > Organization timezone > 'UTC'
+ */
+async function getEmployeeTimezone(
+  supabase: any,
+  employeeId: string,
+  orgTimezone: string | null
+): Promise<string> {
+  // Get employee's user_id
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('user_id')
+    .eq('id', employeeId)
+    .single();
+
+  if (employee?.user_id) {
+    // Get user's profile timezone
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('timezone')
+      .eq('id', employee.user_id)
+      .single();
+
+    if (profile?.timezone) {
+      return profile.timezone;
+    }
+  }
+
+  // Fallback to organization timezone or UTC
+  return orgTimezone || 'UTC';
+}
+
+/**
+ * Format a UTC date to time string (HH:mm) in a given timezone.
+ * This is a simple implementation for Deno without date-fns-tz.
+ */
+function formatTimeInTimezone(utcDateString: string, timezone: string): string {
+  try {
+    const date = new Date(utcDateString);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return formatter.format(date);
+  } catch {
+    // Fallback: return UTC time
+    const date = new Date(utcDateString);
+    return date.toISOString().slice(11, 16);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -50,7 +115,7 @@ Deno.serve(async (req) => {
     // Get all organizations with their settings (only those with feature enabled)
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
-      .select('id, max_day_in_lieu_days, auto_attendance_adjustments_enabled')
+      .select('id, max_day_in_lieu_days, auto_attendance_adjustments_enabled, timezone')
       .eq('auto_attendance_adjustments_enabled', true);
 
     if (orgError) {
@@ -61,7 +126,7 @@ Deno.serve(async (req) => {
     const results: { organization: string; processed: number; adjustments: number }[] = [];
 
     for (const org of organizations as Organization[]) {
-      console.log(`Processing organization: ${org.id}`);
+      console.log(`Processing organization: ${org.id} (timezone: ${org.timezone || 'not set'})`);
       
       // Get attendance records for the target date
       const { data: attendanceRecords, error: attError } = await supabase
@@ -103,6 +168,9 @@ Deno.serve(async (req) => {
 
       // Process each employee
       for (const [employeeId, data] of Object.entries(employeeWorkHours)) {
+        // Get employee's timezone for proper schedule comparison
+        const employeeTimezone = await getEmployeeTimezone(supabase, employeeId, org.timezone);
+        
         // Get employee's schedule
         const { data: scheduleData } = await supabase
           .from('employee_schedules')
@@ -114,13 +182,18 @@ Deno.serve(async (req) => {
         
         if (scheduleData) {
           // Calculate expected work hours from schedule
+          // Schedule times are in local time, so we compare directly
           const [startH, startM] = scheduleData.work_start_time.split(':').map(Number);
           const [endH, endM] = scheduleData.work_end_time.split(':').map(Number);
           expectedMinutes = (endH * 60 + endM) - (startH * 60 + startM);
         }
 
+        // For overtime/undertime calculation, we use actual worked minutes
+        // which is already timezone-agnostic (duration between check-in and check-out)
         const workedMinutes = data.totalMinutes;
         const difference = workedMinutes - expectedMinutes;
+
+        console.log(`Employee ${employeeId}: worked ${workedMinutes}min, expected ${expectedMinutes}min, diff ${difference}min (tz: ${employeeTimezone})`);
 
         if (Math.abs(difference) < 5) {
           // Less than 5 minutes difference, ignore
