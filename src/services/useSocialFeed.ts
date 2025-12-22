@@ -1,0 +1,401 @@
+/**
+ * Social Feed Service Hooks
+ * Unified hooks for the new posts system
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useCurrentEmployee } from '@/services/useCurrentEmployee';
+import { useToast } from '@/hooks/use-toast';
+
+export type PostType = 'win' | 'kudos' | 'announcement' | 'social' | 'executive_message';
+
+export interface Post {
+  id: string;
+  organization_id: string;
+  employee_id: string;
+  post_type: PostType;
+  content: string;
+  kudos_recipient_ids: string[];
+  access_scope: string;
+  is_pinned: boolean;
+  pinned_at: string | null;
+  pinned_by: string | null;
+  scheduled_at: string | null;
+  is_published: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  employee: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+  post_media?: {
+    id: string;
+    media_type: string;
+    file_url: string;
+    thumbnail_url: string | null;
+  }[];
+  post_mentions?: {
+    id: string;
+    employee_id: string;
+    employee: {
+      id: string;
+      profiles: {
+        full_name: string;
+        avatar_url: string | null;
+      };
+    };
+  }[];
+  post_offices?: { office: { name: string } }[];
+  post_departments?: { department: string }[];
+  post_projects?: { project: { name: string } }[];
+  post_polls?: {
+    id: string;
+    question: string;
+    allow_multiple: boolean;
+    ends_at: string | null;
+    is_anonymous: boolean;
+    poll_options: {
+      id: string;
+      option_text: string;
+      sort_order: number;
+    }[];
+  }[];
+  kudos_recipients?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  }[];
+}
+
+export interface CreatePostInput {
+  post_type: PostType;
+  content: string;
+  kudos_recipient_ids?: string[];
+  access_scope?: string;
+  scheduled_at?: string | null;
+  media_files?: File[];
+  mention_ids?: string[];
+  office_ids?: string[];
+  departments?: string[];
+  project_ids?: string[];
+  poll?: {
+    question: string;
+    options: string[];
+    allow_multiple?: boolean;
+    ends_at?: string | null;
+    is_anonymous?: boolean;
+  };
+}
+
+export const usePosts = (filter?: PostType | 'all') => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['social-feed-posts', currentOrg?.id, filter],
+    queryFn: async (): Promise<Post[]> => {
+      if (!currentOrg?.id) return [];
+
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          employee:employees!posts_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          ),
+          post_media(*),
+          post_mentions(
+            id,
+            employee_id,
+            employee:employees!post_mentions_employee_id_fkey(
+              id,
+              profiles!inner(full_name, avatar_url)
+            )
+          ),
+          post_offices(office:offices(name)),
+          post_departments(department),
+          post_projects(project:projects(name)),
+          post_polls(
+            id,
+            question,
+            allow_multiple,
+            ends_at,
+            is_anonymous,
+            poll_options(id, option_text, sort_order)
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('is_deleted', false)
+        .eq('is_published', true)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (filter && filter !== 'all') {
+        query = query.eq('post_type', filter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Fetch kudos recipients if there are any kudos posts
+      const posts = data as Post[];
+      const kudosPosts = posts.filter(p => p.post_type === 'kudos' && p.kudos_recipient_ids?.length > 0);
+      
+      if (kudosPosts.length > 0) {
+        const allRecipientIds = kudosPosts.flatMap(p => p.kudos_recipient_ids);
+        const uniqueIds = [...new Set(allRecipientIds)];
+        
+        const { data: recipients } = await supabase
+          .from('employees')
+          .select('id, profiles!inner(full_name, avatar_url)')
+          .in('id', uniqueIds);
+        
+        if (recipients) {
+          const recipientMap = new Map(recipients.map(r => [r.id, r]));
+          posts.forEach(post => {
+            if (post.post_type === 'kudos' && post.kudos_recipient_ids?.length > 0) {
+              post.kudos_recipients = post.kudos_recipient_ids
+                .map(id => recipientMap.get(id))
+                .filter(Boolean) as Post['kudos_recipients'];
+            }
+          });
+        }
+      }
+
+      return posts;
+    },
+    enabled: !!currentOrg?.id,
+    staleTime: 30 * 1000,
+  });
+};
+
+export const useCreatePost = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: CreatePostInput) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Must be logged in with an employee profile');
+      }
+
+      // Validate kudos recipients
+      if (input.post_type === 'kudos' && (!input.kudos_recipient_ids || input.kudos_recipient_ids.length === 0)) {
+        throw new Error('Kudos must have at least one recipient');
+      }
+
+      // Create the post
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          organization_id: currentOrg.id,
+          employee_id: currentEmployee.id,
+          post_type: input.post_type,
+          content: input.content,
+          kudos_recipient_ids: input.kudos_recipient_ids || [],
+          access_scope: input.access_scope || 'company',
+          scheduled_at: input.scheduled_at,
+          is_published: !input.scheduled_at,
+        })
+        .select('id')
+        .single();
+
+      if (postError) throw postError;
+
+      // Upload media files if any
+      if (input.media_files && input.media_files.length > 0) {
+        for (let i = 0; i < input.media_files.length; i++) {
+          const file = input.media_files[i];
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${currentEmployee.id}/${post.id}/${Date.now()}_${i}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('post-media')
+            .upload(fileName, file);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            continue;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('post-media')
+            .getPublicUrl(fileName);
+
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          
+          await supabase.from('post_media').insert({
+            post_id: post.id,
+            organization_id: currentOrg.id,
+            media_type: mediaType,
+            file_url: publicUrl,
+            file_name: file.name,
+            file_size: file.size,
+            sort_order: i,
+          });
+        }
+      }
+
+      // Insert mentions
+      if (input.mention_ids && input.mention_ids.length > 0) {
+        await supabase.from('post_mentions').insert(
+          input.mention_ids.map(employeeId => ({
+            post_id: post.id,
+            employee_id: employeeId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      // Insert visibility scopes
+      if (input.access_scope === 'offices' && input.office_ids?.length) {
+        await supabase.from('post_offices').insert(
+          input.office_ids.map(officeId => ({
+            post_id: post.id,
+            office_id: officeId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      if (input.access_scope === 'departments' && input.departments?.length) {
+        await supabase.from('post_departments').insert(
+          input.departments.map(department => ({
+            post_id: post.id,
+            department,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      if (input.access_scope === 'projects' && input.project_ids?.length) {
+        await supabase.from('post_projects').insert(
+          input.project_ids.map(projectId => ({
+            post_id: post.id,
+            project_id: projectId,
+            organization_id: currentOrg.id,
+          }))
+        );
+      }
+
+      // Create poll if provided
+      if (input.poll) {
+        const { data: poll, error: pollError } = await supabase
+          .from('post_polls')
+          .insert({
+            post_id: post.id,
+            organization_id: currentOrg.id,
+            question: input.poll.question,
+            allow_multiple: input.poll.allow_multiple || false,
+            ends_at: input.poll.ends_at,
+            is_anonymous: input.poll.is_anonymous || false,
+          })
+          .select('id')
+          .single();
+
+        if (!pollError && poll) {
+          await supabase.from('poll_options').insert(
+            input.poll.options.map((option, index) => ({
+              poll_id: poll.id,
+              organization_id: currentOrg.id,
+              option_text: option,
+              sort_order: index,
+            }))
+          );
+        }
+      }
+
+      return post;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+      toast({
+        title: 'Posted! 🎉',
+        description: 'Your post has been shared with the team',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useDeletePost = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase
+        .from('posts')
+        .update({ is_deleted: true })
+        .eq('id', postId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+      toast({
+        title: 'Post deleted',
+        description: 'The post has been removed',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useTogglePinPost = () => {
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ postId, isPinned }: { postId: string; isPinned: boolean }) => {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          is_pinned: isPinned,
+          pinned_at: isPinned ? new Date().toISOString() : null,
+          pinned_by: isPinned ? currentEmployee?.id : null,
+        })
+        .eq('id', postId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { isPinned }) => {
+      queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+      toast({
+        title: isPinned ? 'Post pinned' : 'Post unpinned',
+        description: isPinned ? 'This post will appear at the top' : 'Post has been unpinned',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
