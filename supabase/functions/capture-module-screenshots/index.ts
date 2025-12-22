@@ -142,45 +142,100 @@ serve(async (req) => {
 
     console.log(`Created ${screenshotsToCapture.length} screenshot records`);
 
-    // Capture screenshots (with delay between each to avoid rate limits)
+    // Helper: wait for screenshot completion with polling
+    const waitForCompletion = async (screenshotId: string, timeoutMs = 90000): Promise<'completed' | 'failed' | 'timeout'> => {
+      const startTime = Date.now();
+      const pollInterval = 2000;
+      
+      while (Date.now() - startTime < timeoutMs) {
+        const { data } = await supabase
+          .from('support_screenshots')
+          .select('status')
+          .eq('id', screenshotId)
+          .maybeSingle();
+        
+        if (data?.status === 'completed') return 'completed';
+        if (data?.status === 'failed') return 'failed';
+        
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      }
+      return 'timeout';
+    };
+
+    // Helper: capture with retry and exponential backoff
+    const captureWithRetry = async (screenshotId: string, maxRetries = 3): Promise<boolean> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`Capture attempt ${attempt}/${maxRetries} for ${screenshotId}`);
+          
+          const { error: captureError } = await supabase.functions.invoke('capture-doc-screenshot', {
+            body: { 
+              screenshotId,
+              accessToken,
+              refreshToken,
+            },
+          });
+
+          if (!captureError) {
+            const result = await waitForCompletion(screenshotId);
+            if (result === 'completed') return true;
+          }
+
+          // If failed and not last attempt, retry with exponential backoff
+          if (attempt < maxRetries) {
+            const backoffDelay = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
+            console.log(`Retry in ${backoffDelay / 1000}s after attempt ${attempt}...`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            
+            // Reset status for retry
+            await supabase
+              .from('support_screenshots')
+              .update({ status: 'pending', error_message: null })
+              .eq('id', screenshotId);
+          }
+        } catch (err) {
+          console.error(`Attempt ${attempt} error for ${screenshotId}:`, err);
+          if (attempt < maxRetries) {
+            const backoffDelay = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          }
+        }
+      }
+      return false;
+    };
+
+    // Capture screenshots sequentially with proper delays for 1 max concurrent session
+    const DELAY_BETWEEN_CAPTURES = 15000; // 15 seconds between captures
     let capturedCount = 0;
     let failedCount = 0;
 
-    for (const screenshotId of screenshotsToCapture) {
-      try {
-        // Call the capture function with session tokens
-        const { error: captureError } = await supabase.functions.invoke('capture-doc-screenshot', {
-          body: { 
-            screenshotId,
-            accessToken,
-            refreshToken,
-          },
-        });
-
-        if (captureError) {
-          console.error(`Capture failed for ${screenshotId}:`, captureError);
-          failedCount++;
-        } else {
-          capturedCount++;
-
-          // Analyze after capture if enabled
-          if (analyzeAfterCapture) {
-            try {
-              await supabase.functions.invoke('ai-analyze-screenshot', {
-                body: { screenshotId },
-              });
-            } catch (analyzeError) {
-              console.warn(`Analysis failed for ${screenshotId}:`, analyzeError);
-              // Don't count as failure - capture was successful
-            }
+    for (let i = 0; i < screenshotsToCapture.length; i++) {
+      const screenshotId = screenshotsToCapture[i];
+      console.log(`Processing screenshot ${i + 1}/${screenshotsToCapture.length}: ${screenshotId}`);
+      
+      const success = await captureWithRetry(screenshotId);
+      
+      if (success) {
+        capturedCount++;
+        
+        // Analyze after capture if enabled
+        if (analyzeAfterCapture) {
+          try {
+            await supabase.functions.invoke('ai-analyze-screenshot', {
+              body: { screenshotId },
+            });
+          } catch (analyzeError) {
+            console.warn(`Analysis failed for ${screenshotId}:`, analyzeError);
           }
         }
-
-        // Delay between captures to avoid rate limiting (429 errors)
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      } catch (err) {
-        console.error(`Error capturing ${screenshotId}:`, err);
+      } else {
         failedCount++;
+      }
+
+      // Wait between captures to ensure Browserless session is fully released
+      if (i < screenshotsToCapture.length - 1) {
+        console.log(`Waiting ${DELAY_BETWEEN_CAPTURES / 1000}s before next capture...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CAPTURES));
       }
     }
 
