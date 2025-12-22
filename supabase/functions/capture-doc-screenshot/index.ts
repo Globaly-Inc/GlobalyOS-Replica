@@ -260,38 +260,50 @@ serve(async (req) => {
       `;
 
       // Build the payload for two-phase navigation
+      // Use a simpler approach: inject auth, wait for network idle, then let scripts run
+      
+      // Combine auth injection with a wait-for-redirect mechanism
+      const combinedScript = `
+        (function() {
+          try {
+            // Inject Supabase auth tokens into localStorage
+            const storageKey = 'sb-${projectRef}-auth-token';
+            const authData = {
+              access_token: '${accessToken}',
+              refresh_token: '${refreshToken}',
+              token_type: 'bearer',
+              expires_in: 3600,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+            };
+            localStorage.setItem(storageKey, JSON.stringify(authData));
+            console.log('Auth tokens injected, redirecting to target...');
+            
+            // Redirect to the actual target URL
+            window.location.replace('${targetUrl}');
+          } catch (e) {
+            console.error('Failed to inject auth tokens:', e);
+          }
+        })();
+      `;
+
       browserlessPayload = {
         // Phase 1: Navigate to public landing page first
         url: `${appBaseUrl}/`,
         
         // Inject auth tokens and trigger redirect
         addScriptTag: [
-          { content: authInjectionScript }
+          { content: combinedScript }
         ],
         
-        // Wait for the redirect to complete - check that we're on the target route
-        waitForFunction: {
-          fn: `() => {
-            // Check if we've navigated away from the landing page to the target route
-            const currentPath = window.location.pathname;
-            const targetPath = '${screenshot.route_path}';
-            const isOnTarget = currentPath === targetPath || currentPath.startsWith(targetPath);
-            
-            // Also check that the page has rendered (look for common app elements)
-            const hasContent = document.querySelector('main') !== null || 
-                              document.querySelector('[data-app-loaded]') !== null ||
-                              document.querySelector('.App') !== null ||
-                              document.body.children.length > 1;
-            
-            console.log('Checking navigation: currentPath=' + currentPath + ', targetPath=' + targetPath + ', isOnTarget=' + isOnTarget + ', hasContent=' + hasContent);
-            
-            return isOnTarget && hasContent;
-          }`,
-          timeout: 20000
+        // Use waitForSelector instead of waitForFunction to avoid DOM issues
+        // Wait for the body to exist after navigation
+        waitForSelector: {
+          selector: 'body',
+          timeout: 30000,
         },
         
-        // Additional wait after redirect completes for React app to fully render
-        waitForTimeout: 5000,
+        // Wait for the page to fully render after redirect
+        waitForTimeout: 8000,
         
         viewport: {
           width: 1920,
@@ -303,7 +315,7 @@ serve(async (req) => {
           fullPage: false,
         },
         gotoOptions: {
-          waitUntil: 'networkidle2',
+          waitUntil: 'networkidle0',
           timeout: 60000,
         },
       };
@@ -311,9 +323,9 @@ serve(async (req) => {
       // Add post-navigation scripts (for highlights, privacy masks, etc.)
       // These run AFTER the redirect is complete
       if (postNavigationScripts.length > 0) {
-        // Wrap post-navigation scripts to run after a delay (after waitForFunction passes)
+        // Wrap post-navigation scripts to run after a delay
         const delayedPostScripts = postNavigationScripts.map(script => ({
-          content: `setTimeout(function() { ${script.content} }, 500);`
+          content: `setTimeout(function() { ${script.content} }, 3000);`
         }));
         browserlessPayload.addScriptTag.push(...delayedPostScripts);
       }
