@@ -1,6 +1,6 @@
 /**
  * Post Reactions Component
- * Emoji reactions with toggle functionality
+ * Emoji reactions with toggle functionality and real-time updates
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { SmilePlus } from 'lucide-react';
+import { SmilePlus, ThumbsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PostReactionsProps {
