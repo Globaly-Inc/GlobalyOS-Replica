@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { RichTextEditor, MentionState, extractMentionIds } from '@/components/ui/rich-text-editor';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import MentionAutocomplete from '@/components/chat/MentionAutocomplete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -96,6 +97,9 @@ export const InlinePostComposer = ({
   
   // Upload progress
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  
+  // Mention state for @ detection in rich text
+  const [mentionState, setMentionState] = useState<MentionState>({ isOpen: false, searchText: '' });
 
   // Load team members when expanded
   const hasFetchedRef = useRef(false);
@@ -438,17 +442,35 @@ export const InlinePostComposer = ({
               )}
 
               {/* Rich Text Editor */}
-              <RichTextEditor
-                value={content}
-                onChange={setContent}
-                placeholder={
-                  selectedType === 'kudos' ? 'Why are you giving kudos?' :
-                  selectedType === 'announcement' ? 'Share an important announcement...' :
-                  selectedType === 'win' ? 'Share your win or achievement...' :
-                  'What\'s on your mind?'
-                }
-                minHeight="80px"
-              />
+              <div className="relative">
+                <RichTextEditor
+                  value={content}
+                  onChange={setContent}
+                  placeholder={
+                    selectedType === 'kudos' ? 'Why are you giving kudos? Use @ to mention...' :
+                    selectedType === 'announcement' ? 'Share an important announcement... Use @ to mention...' :
+                    selectedType === 'win' ? 'Share your win or achievement... Use @ to mention...' :
+                    'What\'s on your mind? Use @ to mention...'
+                  }
+                  minHeight="80px"
+                  onMentionStateChange={setMentionState}
+                  onMentionInsert={(memberId) => {
+                    if (!mentionIds.includes(memberId)) {
+                      setMentionIds(prev => [...prev, memberId]);
+                    }
+                  }}
+                />
+                <MentionAutocomplete
+                  isOpen={mentionState.isOpen}
+                  searchText={mentionState.searchText}
+                  onSelect={(member) => {
+                    // The RichTextEditor handles insertion, we just need to close
+                    const editorEl = document.querySelector('[contenteditable]') as any;
+                    editorEl?.insertMention?.(member.id, member.name);
+                  }}
+                  onClose={() => setMentionState({ isOpen: false, searchText: '' })}
+                />
+              </div>
               {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
 
               {/* AI Writing Assist */}

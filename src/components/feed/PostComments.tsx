@@ -21,6 +21,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { OrgLink } from '@/components/OrgLink';
 import { CommentReactions } from './CommentReactions';
 import { cn } from '@/lib/utils';
+import MentionAutocomplete from '@/components/chat/MentionAutocomplete';
+import { useMentionInput } from '@/hooks/useMentionInput';
 
 interface PostCommentsProps {
   postId: string;
@@ -30,18 +32,37 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
   const { data: currentEmployee } = useCurrentEmployee();
   const { isOwner, isAdmin, isHR } = useUserRole();
   const [newComment, setNewComment] = useState('');
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
 
   // Use centralized hooks
   const { data: comments = [], isLoading } = usePostComments(postId);
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment();
 
+  // Mention input hook
+  const {
+    mentionState,
+    handleInputChange,
+    handleMentionSelect,
+    closeMention,
+    inputRef,
+  } = useMentionInput(
+    newComment,
+    setNewComment,
+    (memberId) => setMentionIds(prev => [...prev, memberId])
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
     createComment.mutate(
-      { postId, content: newComment.trim() },
-      { onSuccess: () => setNewComment('') }
+      { postId, content: newComment.trim(), mentionIds },
+      { 
+        onSuccess: () => {
+          setNewComment('');
+          setMentionIds([]);
+        } 
+      }
     );
   };
 
@@ -59,14 +80,23 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
             {currentEmployee?.profiles?.full_name?.charAt(0) || '?'}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 flex gap-2">
-          <Input
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write a comment..."
-            className="flex-1"
-            disabled={createComment.isPending}
-          />
+        <div className="flex-1 flex gap-2 relative">
+          <div className="flex-1 relative">
+            <Input
+              ref={inputRef}
+              value={newComment}
+              onChange={handleInputChange}
+              placeholder="Write a comment... Use @ to mention"
+              className="flex-1"
+              disabled={createComment.isPending}
+            />
+            <MentionAutocomplete
+              isOpen={mentionState.isOpen}
+              searchText={mentionState.searchText}
+              onSelect={handleMentionSelect}
+              onClose={closeMention}
+            />
+          </div>
           <Button 
             type="submit" 
             size="icon"

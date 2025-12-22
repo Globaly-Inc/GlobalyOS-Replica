@@ -49,6 +49,8 @@ export const PostMedia = ({ media }: PostMediaProps) => {
         return 'grid-cols-2';
       case 4:
         return 'grid-cols-2';
+      case 5:
+        return 'grid-cols-3';
       default:
         return 'grid-cols-3';
     }
@@ -106,7 +108,7 @@ export const PostMedia = ({ media }: PostMediaProps) => {
         "grid gap-1 px-4 pb-3",
         getGridClass()
       )}>
-        {media.slice(0, 4).map((item, index) => (
+        {media.slice(0, 5).map((item, index) => (
           <div
             key={item.id}
             className={cn(
@@ -115,19 +117,21 @@ export const PostMedia = ({ media }: PostMediaProps) => {
               media.length === 2 && "aspect-square",
               media.length === 3 && index === 0 && "row-span-2 aspect-auto h-full",
               media.length === 3 && index > 0 && "aspect-square",
-              media.length >= 4 && "aspect-square"
+              media.length === 4 && "aspect-square",
+              media.length >= 5 && index < 3 && "aspect-square",
+              media.length >= 5 && index >= 3 && "aspect-[4/3]"
             )}
           >
             {renderMediaItem(item, index)}
             
-            {/* More indicator */}
-            {index === 3 && media.length > 4 && (
+            {/* More indicator - show on 5th item if there are more */}
+            {index === 4 && media.length > 5 && (
               <div 
                 className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
-                onClick={() => openLightbox(3)}
+                onClick={() => openLightbox(4)}
               >
                 <span className="text-white text-2xl font-semibold">
-                  +{media.length - 4}
+                  +{media.length - 5}
                 </span>
               </div>
             )}

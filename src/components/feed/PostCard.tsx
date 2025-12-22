@@ -26,11 +26,10 @@ import {
   PinOff,
   Trash2,
   Pencil,
-  Share2,
   Bookmark,
-  Send,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Post, useDeletePost, useTogglePinPost } from '@/services/useSocialFeed';
 import { PostMedia } from './PostMedia';
 import { PostPoll } from './PostPoll';
@@ -104,6 +103,9 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const canEdit = isOwnPost || isOwner || isAdmin || isHR;
   const canDelete = isOwnPost || isOwner || isAdmin || isHR;
   const canPin = isOwner || isAdmin;
+  
+  // Online status for the post author
+  const { isOnline } = useOnlineStatus(post.employee_id);
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this post?')) {
@@ -157,6 +159,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
               </Avatar>
             </OrgLink>
             <div className="flex-1 min-w-0">
+              {/* Row 1: Name + Post Type Badge */}
               <div className="flex items-center gap-2 flex-wrap">
                 <OrgLink 
                   to={`/team/${post.employee_id}`}
@@ -164,12 +167,6 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                 >
                   {post.employee?.profiles?.full_name || 'Unknown'}
                 </OrgLink>
-                <span className="text-muted-foreground text-sm">·</span>
-                <span className="text-muted-foreground text-sm">
-                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
                 <Badge variant="secondary" className={cn("text-xs gap-1", config.bgColor, config.color)}>
                   <Icon className="h-3 w-3" />
                   {config.label}
@@ -179,6 +176,18 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                     <Pin className="h-3 w-3" />
                     Pinned
                   </Badge>
+                )}
+              </div>
+              {/* Row 2: Time + Online Status */}
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-muted-foreground text-sm">
+                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                </span>
+                {isOnline && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                    Online
+                  </span>
                 )}
               </div>
             </div>
