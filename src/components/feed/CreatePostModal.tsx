@@ -359,6 +359,7 @@ export const CreatePostModal = ({
         content,
         access_scope: accessScope,
         kudos_recipient_ids: selectedType === 'kudos' ? kudosRecipients : [],
+        mention_ids: mentionIds.length > 0 ? mentionIds : [],
         office_ids: accessScope === 'offices' ? selectedOfficeIds : undefined,
         departments: accessScope === 'departments' ? selectedDepartments : undefined,
         project_ids: accessScope === 'projects' ? selectedProjectIds : undefined,
