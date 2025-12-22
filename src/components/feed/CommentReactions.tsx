@@ -37,10 +37,16 @@ export const CommentReactions = ({ commentId }: CommentReactionsProps) => {
   const toggleReaction = useToggleCommentReaction();
 
   const [localReactions, setLocalReactions] = useState<Reaction[]>([]);
+  const [reactionsKey, setReactionsKey] = useState('');
 
+  // Only update local state when reactions data actually changes (by comparing stringified values)
   useEffect(() => {
-    setLocalReactions(reactions);
-  }, [reactions]);
+    const newKey = JSON.stringify(reactions.map(r => ({ id: r.id, emoji: r.emoji, employee_id: r.employee_id })));
+    if (newKey !== reactionsKey) {
+      setReactionsKey(newKey);
+      setLocalReactions(reactions);
+    }
+  }, [reactions, reactionsKey]);
 
   const groupedReactions: GroupedReaction[] = localReactions.reduce((acc, reaction) => {
     const existingGroup = acc.find(g => g.emoji === reaction.emoji);
