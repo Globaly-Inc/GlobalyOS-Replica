@@ -8144,6 +8144,14 @@ export type Database = {
         }
         Returns: Json
       }
+      debug_can_insert_post: {
+        Args: {
+          _employee_id: string
+          _organization_id: string
+          _post_type: string
+        }
+        Returns: Json
+      }
       delete_wiki_folder_recursive: {
         Args: { _folder_id: string }
         Returns: boolean
