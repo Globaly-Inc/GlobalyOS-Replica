@@ -8,6 +8,8 @@ import { OrganizationProvider } from '@/hooks/useOrganization';
 import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
 import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
+import { UpdatePrompt } from '@/components/ui/UpdatePrompt';
+import { AppVersionBadge } from '@/components/ui/AppVersionBadge';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 
@@ -17,10 +19,21 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 
-// Component to handle SW updates
+// Component to handle SW updates and show version
 const ServiceWorkerUpdater = () => {
-  useServiceWorkerUpdate();
-  return null;
+  const { showPrompt, isUpdating, handleUpdate } = useServiceWorkerUpdate();
+  
+  return (
+    <>
+      {showPrompt && (
+        <UpdatePrompt onUpdate={handleUpdate} isUpdating={isUpdating} />
+      )}
+      {/* Version badge in bottom-left corner */}
+      <div className="fixed bottom-2 left-2 z-40">
+        <AppVersionBadge />
+      </div>
+    </>
+  );
 };
 
 // Lazy load pages for code splitting
