@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { RichTextContent } from '@/components/ui/rich-text-editor';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -252,9 +253,10 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
 
       {/* Content */}
       <div className="px-4 py-3">
-        <p className="text-foreground whitespace-pre-wrap break-words">
-          {post.content}
-        </p>
+        <RichTextContent 
+          content={post.content || ''} 
+          className="text-foreground"
+        />
 
         {/* Kudos Recipients */}
         {renderKudosRecipients()}
