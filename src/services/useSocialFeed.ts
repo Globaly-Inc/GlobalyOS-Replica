@@ -214,69 +214,46 @@ export const useCreatePost = () => {
         throw new Error('Kudos must have at least one recipient');
       }
 
-      // Create the post
-      const { data: post, error: postError } = await supabase
-        .from('posts')
-        .insert({
-          organization_id: currentOrg.id,
-          employee_id: currentEmployee.id,
-          post_type: input.post_type,
-          content: input.content,
-          kudos_recipient_ids: input.kudos_recipient_ids || [],
-          access_scope: input.access_scope || 'company',
-          scheduled_at: input.scheduled_at,
-          is_published: !input.scheduled_at,
-        })
-        .select('id')
-        .single();
+      // Create the post using secure server-side RPC
+      // This bypasses RLS issues by deriving employee_id/organization_id from auth.uid() server-side
+      const { data: postId, error: postError } = await supabase.rpc('create_post_for_current_user', {
+        _post_type: input.post_type,
+        _content: input.content,
+        _access_scope: input.access_scope || 'company',
+        _scheduled_at: input.scheduled_at || null,
+        _is_published: !input.scheduled_at,
+      });
 
       if (postError) {
-        console.error('[useCreatePost] Post insert error:', postError);
+        console.error('[useCreatePost] Post creation error:', postError);
         
-        // Call debug RPC to diagnose the issue
-        const { data: debugInfo, error: debugError } = await supabase.rpc('debug_can_insert_post', {
-          _employee_id: currentEmployee.id,
-          _organization_id: currentOrg.id,
-          _post_type: input.post_type,
-        });
+        // Parse server error message for user-friendly display
+        const errorMessage = postError.message || 'Failed to create post';
         
-        if (debugError) {
-          console.error('[useCreatePost] Debug RPC error:', debugError);
-        } else {
-          console.log('[useCreatePost] Debug info:', debugInfo);
-          
-          // Create a user-friendly error message based on debug info
-          const info = debugInfo as {
-            auth_uid: string | null;
-            employee_match: boolean;
-            employee_active: boolean;
-            allowed_by_post_type: boolean;
-            would_pass_rls: boolean;
-            error?: string;
-          };
-          
-          if (info.error) {
-            throw new Error(info.error);
-          }
-          
-          if (!info.auth_uid) {
-            throw new Error('Your session has expired. Please log out and log in again.');
-          }
-          
-          if (!info.employee_match) {
-            throw new Error('Your account is not properly linked to an employee profile in this organization.');
-          }
-          
-          if (!info.employee_active) {
-            throw new Error('Your employee profile is not active. Please contact HR.');
-          }
-          
-          if (!info.allowed_by_post_type) {
-            throw new Error(`You don't have permission to create ${input.post_type} posts.`);
-          }
+        if (errorMessage.includes('Not authenticated')) {
+          throw new Error('Your session has expired. Please log out and log in again.');
+        }
+        if (errorMessage.includes('No employee profile')) {
+          throw new Error('Your account is not properly linked to an employee profile.');
+        }
+        if (errorMessage.includes('not active')) {
+          throw new Error('Your employee profile is not active. Please contact HR.');
+        }
+        if (errorMessage.includes('Only HR') || errorMessage.includes('Only Admin')) {
+          throw new Error(errorMessage);
         }
         
         throw postError;
+      }
+
+      const post = { id: postId as string };
+
+      // Handle kudos_recipient_ids separately since RPC doesn't handle it
+      if (input.post_type === 'kudos' && input.kudos_recipient_ids?.length) {
+        await supabase
+          .from('posts')
+          .update({ kudos_recipient_ids: input.kudos_recipient_ids })
+          .eq('id', post.id);
       }
 
       // Upload media files if any

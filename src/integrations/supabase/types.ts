@@ -8144,6 +8144,16 @@ export type Database = {
         }
         Returns: Json
       }
+      create_post_for_current_user: {
+        Args: {
+          _access_scope?: string
+          _content: string
+          _is_published?: boolean
+          _post_type: string
+          _scheduled_at?: string
+        }
+        Returns: string
+      }
       debug_can_insert_post: {
         Args: {
           _employee_id: string
