@@ -187,7 +187,25 @@ export const useCreatePost = () => {
 
   return useMutation({
     mutationFn: async (input: CreatePostInput) => {
+      // Get current auth user for diagnostics
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      // Diagnostic logging
+      console.log('[useCreatePost] Attempting to create post:', {
+        authUserId: authUser?.id,
+        currentOrgId: currentOrg?.id,
+        currentEmployeeId: currentEmployee?.id,
+        employeeOrgId: currentEmployee?.organization_id,
+        postType: input.post_type,
+        accessScope: input.access_scope || 'company',
+      });
+
       if (!currentOrg?.id || !currentEmployee?.id) {
+        console.error('[useCreatePost] Missing required data:', {
+          hasOrg: !!currentOrg?.id,
+          hasEmployee: !!currentEmployee?.id,
+          hasAuth: !!authUser?.id,
+        });
         throw new Error('Must be logged in with an employee profile');
       }
 
@@ -212,7 +230,54 @@ export const useCreatePost = () => {
         .select('id')
         .single();
 
-      if (postError) throw postError;
+      if (postError) {
+        console.error('[useCreatePost] Post insert error:', postError);
+        
+        // Call debug RPC to diagnose the issue
+        const { data: debugInfo, error: debugError } = await supabase.rpc('debug_can_insert_post', {
+          _employee_id: currentEmployee.id,
+          _organization_id: currentOrg.id,
+          _post_type: input.post_type,
+        });
+        
+        if (debugError) {
+          console.error('[useCreatePost] Debug RPC error:', debugError);
+        } else {
+          console.log('[useCreatePost] Debug info:', debugInfo);
+          
+          // Create a user-friendly error message based on debug info
+          const info = debugInfo as {
+            auth_uid: string | null;
+            employee_match: boolean;
+            employee_active: boolean;
+            allowed_by_post_type: boolean;
+            would_pass_rls: boolean;
+            error?: string;
+          };
+          
+          if (info.error) {
+            throw new Error(info.error);
+          }
+          
+          if (!info.auth_uid) {
+            throw new Error('Your session has expired. Please log out and log in again.');
+          }
+          
+          if (!info.employee_match) {
+            throw new Error('Your account is not properly linked to an employee profile in this organization.');
+          }
+          
+          if (!info.employee_active) {
+            throw new Error('Your employee profile is not active. Please contact HR.');
+          }
+          
+          if (!info.allowed_by_post_type) {
+            throw new Error(`You don't have permission to create ${input.post_type} posts.`);
+          }
+        }
+        
+        throw postError;
+      }
 
       // Upload media files if any
       if (input.media_files && input.media_files.length > 0) {
