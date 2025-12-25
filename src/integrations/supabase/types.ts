@@ -1690,6 +1690,30 @@ export type Database = {
           },
         ]
       }
+      daily_horoscopes: {
+        Row: {
+          content: string
+          created_at: string | null
+          horoscope_date: string
+          id: string
+          zodiac_sign: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          horoscope_date?: string
+          id?: string
+          zodiac_sign: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          horoscope_date?: string
+          id?: string
+          zodiac_sign?: string
+        }
+        Relationships: []
+      }
       employee_bank_accounts: {
         Row: {
           account_name: string

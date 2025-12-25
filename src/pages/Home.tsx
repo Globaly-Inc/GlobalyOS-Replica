@@ -20,6 +20,7 @@ import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { UserHelpRequests } from "@/components/home/UserHelpRequests";
+import { DailyHoroscope } from "@/components/home/DailyHoroscope";
 import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
 
@@ -82,6 +83,7 @@ const Home = () => {
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [currentUserBirthday, setCurrentUserBirthday] = useState<string | null>(null);
   const [peopleOnLeave, setPeopleOnLeave] = useState<PersonOnLeave[]>([]);
   const [upcomingTeamLeave, setUpcomingTeamLeave] = useState<UpcomingTeamLeave[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
@@ -200,9 +202,10 @@ const Home = () => {
       const firstName = profileData.full_name.split(" ")[0];
       setCurrentUserName(firstName);
     }
-    const { data } = await supabase.from("employees").select("id").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
+    const { data } = await supabase.from("employees").select("id, date_of_birth").eq("user_id", user.id).eq("organization_id", currentOrg.id).maybeSingle();
     setHasEmployeeProfile(!!data);
     setCurrentEmployeeId(data?.id || null);
+    setCurrentUserBirthday(data?.date_of_birth || null);
   };
 
   const loadUpcomingEvents = async () => {
@@ -464,6 +467,9 @@ const Home = () => {
                       </div>
                     </div>
                   </div>}
+                
+                {/* Daily Horoscope */}
+                <DailyHoroscope dateOfBirth={currentUserBirthday} />
               </div>
             </div>;
       })()}
