@@ -61,16 +61,11 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
     return null;
   }
 
-  // Truncate horoscope for display
-  const truncatedHoroscope = horoscope && horoscope.length > 80 
-    ? horoscope.substring(0, 80) + '...' 
-    : horoscope;
-
   return (
     <div className="flex items-start gap-3 pl-4 border-l border-white/20">
       <HoverCard>
         <HoverCardTrigger asChild>
-          <button className="flex items-start gap-2 text-left hover:opacity-80 transition-opacity max-w-xs">
+          <button className="flex items-start gap-2 text-left hover:opacity-80 transition-opacity max-w-sm">
             <span className="text-2xl">{zodiac.symbol}</span>
             <div className="min-w-0">
               <p className="text-sm text-white/90 font-medium flex items-center gap-1">
@@ -84,8 +79,8 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
                 </div>
               ) : error ? (
                 <p className="text-xs text-white/60 italic">{error}</p>
-              ) : truncatedHoroscope ? (
-                <p className="text-xs text-white/70 line-clamp-2">{truncatedHoroscope}</p>
+              ) : horoscope ? (
+                <p className="text-xs text-white/70 line-clamp-3">{horoscope}</p>
               ) : (
                 <p className="text-xs text-white/60">{zodiac.element} Sign</p>
               )}
