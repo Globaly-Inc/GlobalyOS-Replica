@@ -599,9 +599,9 @@ const Home = () => {
               </div>
 
               <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-                <SelectTrigger className="w-auto md:w-[130px] h-9 bg-background">
-                  <CalendarDays className="h-4 w-4 md:mr-2 text-muted-foreground" />
-                  <span className="hidden md:inline">
+                <SelectTrigger className="w-9 md:w-[130px] h-9 bg-background px-2 md:px-3">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="hidden md:inline md:ml-2">
                     <SelectValue />
                   </span>
                 </SelectTrigger>
