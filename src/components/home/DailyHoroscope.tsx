@@ -61,18 +61,34 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
     return null;
   }
 
+  // Truncate horoscope for display
+  const truncatedHoroscope = horoscope && horoscope.length > 80 
+    ? horoscope.substring(0, 80) + '...' 
+    : horoscope;
+
   return (
     <div className="flex items-start gap-3 pl-4 border-l border-white/20">
       <HoverCard>
         <HoverCardTrigger asChild>
-          <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+          <button className="flex items-start gap-2 text-left hover:opacity-80 transition-opacity max-w-xs">
             <span className="text-2xl">{zodiac.symbol}</span>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-white/90 font-medium flex items-center gap-1">
                 {zodiac.sign}
                 <Sparkles className="h-3 w-3 text-yellow-300" />
               </p>
-              <p className="text-xs text-white/60">{zodiac.element} Sign</p>
+              {loading ? (
+                <div className="flex items-center gap-1 text-xs text-white/60">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : error ? (
+                <p className="text-xs text-white/60 italic">{error}</p>
+              ) : truncatedHoroscope ? (
+                <p className="text-xs text-white/70 line-clamp-2">{truncatedHoroscope}</p>
+              ) : (
+                <p className="text-xs text-white/60">{zodiac.element} Sign</p>
+              )}
             </div>
           </button>
         </HoverCardTrigger>
@@ -82,7 +98,7 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
               <span className="text-2xl">{zodiac.symbol}</span>
               <div>
                 <h4 className="font-medium">{zodiac.sign}</h4>
-                <p className="text-xs text-muted-foreground">{zodiac.dateRange}</p>
+                <p className="text-xs text-muted-foreground">{zodiac.dateRange} • {zodiac.element} Sign</p>
               </div>
             </div>
             <div className="pt-2 border-t">
@@ -97,7 +113,7 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
               ) : horoscope ? (
                 <p className="text-sm">{horoscope}</p>
               ) : (
-                <p className="text-sm text-muted-foreground italic">Hover to load your horoscope</p>
+                <p className="text-sm text-muted-foreground italic">No horoscope available</p>
               )}
             </div>
           </div>
