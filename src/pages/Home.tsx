@@ -467,7 +467,9 @@ const Home = () => {
                       </div>
                     </div>
                   </div>}
-                <DailyHoroscope dateOfBirth={currentUserBirthday} />
+                <div className="hidden lg:block">
+                  <DailyHoroscope dateOfBirth={currentUserBirthday} />
+                </div>
               </div>
             </div>;
       })()}
@@ -503,7 +505,6 @@ const Home = () => {
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
           <PendingWfhApprovals />
           
-          <UserHelpRequests />
           
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
