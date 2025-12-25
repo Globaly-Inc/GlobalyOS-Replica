@@ -467,8 +467,6 @@ const Home = () => {
                       </div>
                     </div>
                   </div>}
-                
-                {/* Daily Horoscope */}
                 <DailyHoroscope dateOfBirth={currentUserBirthday} />
               </div>
             </div>;
