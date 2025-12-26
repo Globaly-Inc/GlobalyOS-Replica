@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,8 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ value: 0, message: "Initializing..." });
 
   // Fetch organization context with enhanced data
   const { data: orgContext } = useQuery({
@@ -155,14 +157,71 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
     enabled: !!currentOrg?.id,
   });
 
+  // Subscribe to job updates via Realtime
+  useEffect(() => {
+    if (!jobId) return;
+
+    console.log("Subscribing to job updates:", jobId);
+
+    const channel = supabase
+      .channel(`kpi-job-${jobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'kpi_generation_jobs',
+          filter: `id=eq.${jobId}`,
+        },
+        (payload) => {
+          const job = payload.new as any;
+          console.log("Job update received:", { 
+            status: job.status, 
+            progress: job.progress, 
+            message: job.progress_message 
+          });
+
+          setProgress({ 
+            value: job.progress || 0, 
+            message: job.progress_message || "" 
+          });
+
+          if (job.status === 'completed' && job.generated_kpis) {
+            const kpisWithSelection: GeneratedKpi[] = job.generated_kpis.map((kpi: any) => ({
+              ...kpi,
+              selected: true,
+            }));
+            updateState({ generatedKpis: kpisWithSelection });
+            toast.success(`Generated ${kpisWithSelection.length} KPIs`);
+            setIsGenerating(false);
+            setJobId(null);
+          } else if (job.status === 'failed') {
+            setError(job.error_message || "Failed to generate KPIs");
+            toast.error("Failed to generate KPIs");
+            setIsGenerating(false);
+            setJobId(null);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
+
+    return () => {
+      console.log("Unsubscribing from job updates");
+      supabase.removeChannel(channel);
+    };
+  }, [jobId, updateState]);
+
   const handleGenerate = async () => {
     if (!orgContext) return;
     
     setIsGenerating(true);
     setError(null);
+    setProgress({ value: 0, message: "Starting generation..." });
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("bulk-generate-kpis", {
+      const { data, error: fnError } = await supabase.functions.invoke("start-kpi-generation", {
         body: {
           documentContent: state.documentContent,
           periodType: state.periodType,
@@ -185,28 +244,27 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         throw new Error(data.error);
       }
 
-      const kpisWithSelection: GeneratedKpi[] = (data.kpis || []).map((kpi: any) => ({
-        ...kpi,
-        selected: true,
-      }));
-
-      updateState({ generatedKpis: kpisWithSelection });
-      toast.success(`Generated ${kpisWithSelection.length} KPIs`);
+      if (data.jobId) {
+        console.log("Job started:", data.jobId);
+        setJobId(data.jobId);
+        setProgress({ value: 5, message: "Job created, waiting for updates..." });
+      } else {
+        throw new Error("No job ID returned");
+      }
     } catch (err: any) {
       console.error("Generation error:", err);
       
       // Handle specific error types
       if (err.message?.includes("Failed to fetch") || err.message?.includes("timeout") || err.message?.includes("network")) {
-        setError("Request timed out. Try reducing the number of employees or disabling 'Individuals' cascade level.");
+        setError("Request timed out. Please try again.");
       } else if (err.message?.includes("Rate limit") || err.message?.includes("429")) {
         setError("AI rate limit reached. Please wait a moment and try again.");
       } else if (err.message?.includes("402") || err.message?.includes("credits")) {
         setError("AI credits exhausted. Please add credits to continue.");
       } else {
-        setError(err.message || "Failed to generate KPIs");
+        setError(err.message || "Failed to start KPI generation");
       }
-      toast.error("Failed to generate KPIs");
-    } finally {
+      toast.error("Failed to start generation");
       setIsGenerating(false);
     }
   };
@@ -311,22 +369,29 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
             </div>
           )}
 
-          {/* Loading State */}
+          {/* Loading State with Real-time Progress */}
           {isGenerating && (
-            <div className="py-12 text-center space-y-4">
+            <div className="py-12 text-center space-y-6">
               <div className="relative">
                 <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
                   <Loader2 className="h-8 w-8 text-primary animate-spin" />
                 </div>
               </div>
               <div>
-                <p className="font-medium">Generating KPIs...</p>
-                <p className="text-sm text-muted-foreground">
-                  AI is analyzing your organization structure
-                  {state.documentContent && " and document"}
+                <p className="font-medium text-lg">Generating KPIs...</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {progress.message || "AI is analyzing your organization structure"}
                 </p>
               </div>
-              <Progress value={33} className="w-64 mx-auto" />
+              <div className="max-w-sm mx-auto space-y-2">
+                <Progress value={progress.value} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {progress.value}% complete
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This may take 1-2 minutes for large organizations
+              </p>
             </div>
           )}
         </CardContent>
