@@ -119,16 +119,27 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
 
   // Get potential parent KPIs
   const getParentOptions = (currentKpi: GeneratedKpi) => {
-    if (currentKpi.scopeType === "organization") return [];
+    // Non-quarterly org KPIs have no parent
+    if (currentKpi.scopeType === "organization" && !currentKpi.isQuarterlyChild) {
+      return [];
+    }
     
+    // For quarterly children, include same scope type but only non-quarterly (annual) KPIs
+    if (currentKpi.isQuarterlyChild) {
+      return state.generatedKpis.filter(k => 
+        k.scopeType === currentKpi.scopeType && 
+        !k.isQuarterlyChild && 
+        k.tempId !== currentKpi.tempId
+      );
+    }
+    
+    // Regular hierarchy logic
     let parentScopes: string[] = [];
     switch (currentKpi.scopeType) {
+      case "organization":
+        return []; // Should not reach here due to check above
       case "department":
-        parentScopes = ["organization"];
-        break;
       case "project":
-        parentScopes = ["organization"];
-        break;
       case "office":
         parentScopes = ["organization"];
         break;
@@ -138,7 +149,9 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
     }
     
     return state.generatedKpis.filter(k => 
-      parentScopes.includes(k.scopeType) && k.tempId !== currentKpi.tempId
+      parentScopes.includes(k.scopeType) && 
+      k.tempId !== currentKpi.tempId &&
+      !k.isQuarterlyChild // Don't allow linking to quarterly children
     );
   };
 
@@ -311,24 +324,31 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
                               </TableCell>
                               <TableCell>
                                 {parentOptions.length > 0 ? (
-                                  <Select
-                                    value={kpi.parentTempId || "none"}
-                                    onValueChange={(v) => updateKpi(kpi.tempId, { 
-                                      parentTempId: v === "none" ? undefined : v 
-                                    })}
-                                  >
-                                    <SelectTrigger className="h-8 text-sm">
-                                      <SelectValue placeholder="None" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">None</SelectItem>
-                                      {parentOptions.map(p => (
-                                        <SelectItem key={p.tempId} value={p.tempId}>
-                                          {p.title.slice(0, 25)}...
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <div className="flex items-center gap-1">
+                                    <Select
+                                      value={kpi.parentTempId || "none"}
+                                      onValueChange={(v) => updateKpi(kpi.tempId, { 
+                                        parentTempId: v === "none" ? undefined : v 
+                                      })}
+                                    >
+                                      <SelectTrigger className="h-8 text-sm flex-1">
+                                        <SelectValue placeholder="None" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {parentOptions.map(p => (
+                                          <SelectItem key={p.tempId} value={p.tempId}>
+                                            {p.title.slice(0, 25)}...
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {!kpi.parentTempId && (kpi.scopeType !== 'organization' || kpi.isQuarterlyChild) && (
+                                      <Badge variant="destructive" className="text-xs shrink-0">
+                                        Missing
+                                      </Badge>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">-</span>
                                 )}
