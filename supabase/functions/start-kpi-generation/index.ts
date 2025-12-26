@@ -519,27 +519,75 @@ Respond with ONLY the JSON object, no additional text.`;
     }));
 
     // Post-process: Auto-assign parent KPIs if AI failed to set them
-    const orgKpis = validatedKpis.filter(k => k.scopeType === 'organization');
-    const deptKpis = validatedKpis.filter(k => k.scopeType === 'department');
-    const officeKpis = validatedKpis.filter(k => k.scopeType === 'office');
-    const projectKpis = validatedKpis.filter(k => k.scopeType === 'project');
+    const orgKpis = validatedKpis.filter(k => k.scopeType === 'organization' && !k.isQuarterlyChild);
+    const deptKpis = validatedKpis.filter(k => k.scopeType === 'department' && !k.isQuarterlyChild);
+    const officeKpis = validatedKpis.filter(k => k.scopeType === 'office' && !k.isQuarterlyChild);
+    const projectKpis = validatedKpis.filter(k => k.scopeType === 'project' && !k.isQuarterlyChild);
     
-    // Create lookup maps for finding appropriate parents
-    const deptKpiMap = new Map(deptKpis.map(k => [k.scopeValue, k.tempId]));
-    const officeKpiMap = new Map(officeKpis.map(k => [k.scopeValue, k.tempId]));
-    const projectKpiMap = new Map(projectKpis.map(k => [k.projectId || k.projectName, k.tempId]));
+    // Create lookup maps for finding appropriate parents (case-insensitive for departments)
+    const deptKpiMap = new Map<string, string>();
+    deptKpis.forEach(k => {
+      if (k.scopeValue) {
+        deptKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
+      }
+    });
+    
+    // Office lookup by both name and ID
+    const officeKpiMap = new Map<string, string>();
+    officeKpis.forEach(k => {
+      if (k.scopeValue) officeKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
+      if (k.scopeId) officeKpiMap.set(k.scopeId, k.tempId);
+    });
+    
+    // Project lookup by ID and name
+    const projectKpiMap = new Map<string, string>();
+    projectKpis.forEach(k => {
+      if (k.projectId) projectKpiMap.set(k.projectId, k.tempId);
+      if (k.projectName) projectKpiMap.set(k.projectName.toLowerCase(), k.tempId);
+    });
     
     // Default org KPI tempId for fallback
     const defaultOrgKpiTempId = orgKpis[0]?.tempId;
     
+    // First pass: Auto-assign quarterly children to their annual parents
     validatedKpis = validatedKpis.map(kpi => {
-      // Organization KPIs should not have parents
-      if (kpi.scopeType === 'organization') {
+      if (kpi.isQuarterlyChild && !kpi.parentTempId) {
+        // Find the annual parent with same scope type and matching scope value/employee/project
+        const annualParent = validatedKpis.find(k => 
+          k.scopeType === kpi.scopeType &&
+          !k.isQuarterlyChild &&
+          !k.quarter &&
+          (
+            (kpi.scopeType === 'organization') ||
+            (kpi.scopeType === 'individual' && k.employeeId === kpi.employeeId) ||
+            (kpi.scopeType === 'project' && k.projectId === kpi.projectId) ||
+            (kpi.scopeType === 'department' && k.scopeValue?.toLowerCase() === kpi.scopeValue?.toLowerCase()) ||
+            (kpi.scopeType === 'office' && (k.scopeValue === kpi.scopeValue || k.scopeId === kpi.scopeId))
+          )
+        );
+        
+        if (annualParent) {
+          console.log(`Auto-linked quarterly Q${kpi.quarter} "${kpi.title}" to annual: "${annualParent.title}"`);
+          return { ...kpi, parentTempId: annualParent.tempId };
+        }
+      }
+      return kpi;
+    });
+    
+    // Second pass: Auto-assign hierarchy parents for non-quarterly KPIs
+    validatedKpis = validatedKpis.map(kpi => {
+      // Non-quarterly organization KPIs should not have parents
+      if (kpi.scopeType === 'organization' && !kpi.isQuarterlyChild) {
         return { ...kpi, parentTempId: undefined };
       }
       
       // If parentTempId is already set and valid, keep it
       if (kpi.parentTempId && validatedKpis.some(k => k.tempId === kpi.parentTempId)) {
+        return kpi;
+      }
+      
+      // Skip quarterly children - they were handled in first pass
+      if (kpi.isQuarterlyChild) {
         return kpi;
       }
       
@@ -550,7 +598,7 @@ Respond with ONLY the JSON object, no additional text.`;
         // Departments and offices link to first org KPI
         assignedParent = defaultOrgKpiTempId;
       } else if (kpi.scopeType === 'project') {
-        // Projects link to department KPI if scopeValue matches, otherwise to org
+        // Projects link to first org KPI
         assignedParent = defaultOrgKpiTempId;
       } else if (kpi.scopeType === 'individual') {
         // Individuals: try to find their department/project/office KPI
@@ -568,14 +616,19 @@ Respond with ONLY the JSON object, no additional text.`;
             }
           }
           
-          // Fall back to department KPI
-          if (!assignedParent && employee.department && deptKpiMap.has(employee.department)) {
-            assignedParent = deptKpiMap.get(employee.department);
+          // Fall back to department KPI (case-insensitive)
+          if (!assignedParent && employee.department) {
+            const deptKey = employee.department.toLowerCase();
+            if (deptKpiMap.has(deptKey)) {
+              assignedParent = deptKpiMap.get(deptKey);
+            }
           }
           
-          // Fall back to office KPI
-          if (!assignedParent && employee.officeId && officeKpiMap.has(employee.officeId)) {
-            assignedParent = officeKpiMap.get(employee.officeId);
+          // Fall back to office KPI (by ID or name)
+          if (!assignedParent && employee.officeId) {
+            if (officeKpiMap.has(employee.officeId)) {
+              assignedParent = officeKpiMap.get(employee.officeId);
+            }
           }
         }
         
