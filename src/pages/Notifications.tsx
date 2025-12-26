@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDateTime } from "@/lib/utils";
-import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus } from "lucide-react";
+import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -185,6 +185,8 @@ const Notifications = () => {
       navigateOrg("/");
     } else if (notification.reference_type === "leave_request") {
       navigateOrg("/leave-history");
+    } else if (notification.reference_type === "kpi") {
+      navigateOrg("/kpi");
     }
   };
 
@@ -199,6 +201,8 @@ const Notifications = () => {
       case "leave_request":
       case "leave_decision":
         return <Calendar className="h-4 w-4 text-green-500" />;
+      case "kpi_assigned":
+        return <Target className="h-4 w-4 text-purple-500" />;
       default:
         return <Bell className="h-4 w-4 text-muted-foreground" />;
     }

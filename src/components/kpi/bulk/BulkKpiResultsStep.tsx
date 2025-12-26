@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { sendKpiNotifications } from "@/services/kpiNotifications";
 import type { BulkKpiWizardState, GeneratedKpi } from "@/pages/BulkKpiCreate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,22 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
 
         mappings.push({ tempId: kpi.tempId, realId: data.id });
         setCreatedMappings([...mappings]);
+
+        // Send notifications for the created KPI
+        if (currentEmployee?.id && data?.id) {
+          await sendKpiNotifications({
+            kpiId: data.id,
+            kpiTitle: kpi.title,
+            scopeType: kpi.scopeType as any,
+            organizationId: currentOrg.id,
+            actorEmployeeId: currentEmployee.id,
+            targetEmployeeId: kpi.employeeId,
+            scopeDepartment: kpi.scopeType === 'department' ? kpi.scopeValue : undefined,
+            scopeOfficeId: kpi.scopeType === 'office' ? kpi.scopeId : undefined,
+            scopeProjectId: kpi.scopeType === 'project' ? kpi.scopeId : undefined,
+            scopeName: kpi.scopeValue,
+          });
+        }
       } catch (err: any) {
         console.error("Error creating KPI:", err);
         errorList.push(`${kpi.title}: ${err.message}`);

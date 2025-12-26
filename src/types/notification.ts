@@ -23,13 +23,15 @@ export type NotificationType =
   | 'leave_decision' 
   | 'reaction'
   | 'announcement'
+  | 'kpi_assigned'
   | 'system';
 
 export type NotificationReferenceType = 
   | 'kudos' 
   | 'update' 
   | 'leave_request' 
-  | 'employee';
+  | 'employee'
+  | 'kpi';
 
 export interface NotificationWithActor extends Notification {
   actor?: {
