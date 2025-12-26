@@ -135,7 +135,7 @@ export const PositionAIDescription = ({
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-foreground">Role Description</span>
                   {!isOpen && description && (
-                    <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5">
+                    <p className="text-xs text-muted-foreground line-clamp-5 mt-0.5">
                       {getPersonalizedSummary()}
                     </p>
                   )}
