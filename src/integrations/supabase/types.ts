@@ -2422,6 +2422,62 @@ export type Database = {
           },
         ]
       }
+      kpi_owners: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_primary: boolean | null
+          kpi_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_primary?: boolean | null
+          kpi_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_primary?: boolean | null
+          kpi_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_owners_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_owners_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_owners_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_owners_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_templates: {
         Row: {
           category: string | null
