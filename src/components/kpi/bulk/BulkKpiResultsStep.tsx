@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +20,7 @@ import { sendKpiNotifications } from "@/services/kpiNotifications";
 import type { BulkKpiWizardState, GeneratedKpi } from "@/pages/BulkKpiCreate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { addDays, nextMonday, setHours, setMinutes, setSeconds } from "date-fns";
 
 interface Props {
   state: BulkKpiWizardState;
@@ -51,6 +52,142 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
       createKpis();
     }
   }, []);
+
+  // Calculate next biweekly reminder (next Monday at 9 AM, at least 2 weeks out)
+  const calculateNextBiweeklyReminder = (): string => {
+    const now = new Date();
+    let nextDate = nextMonday(now);
+    // Ensure it's at least 2 weeks out
+    nextDate = addDays(nextDate, 14);
+    // Set to 9 AM
+    nextDate = setHours(setMinutes(setSeconds(nextDate, 0), 0), 9);
+    return nextDate.toISOString();
+  };
+
+  // Find managers for a group KPI based on scope
+  const findGroupKpiOwners = async (
+    kpi: GeneratedKpi,
+    organizationId: string
+  ): Promise<string[]> => {
+    const ownerIds: string[] = [];
+
+    try {
+      if (kpi.scopeType === "department" && kpi.scopeValue) {
+        // Find employees in this department who have direct reports (are managers)
+        const { data: deptEmployees } = await supabase
+          .from("employees")
+          .select("id, manager_id")
+          .eq("organization_id", organizationId)
+          .eq("department", kpi.scopeValue)
+          .eq("status", "active");
+
+        if (deptEmployees && deptEmployees.length > 0) {
+          // Get unique manager IDs within the department
+          const managerIds = [...new Set(
+            deptEmployees
+              .map(e => e.manager_id)
+              .filter(Boolean) as string[]
+          )];
+
+          // Also find employees in the department who manage others
+          const employeeIds = deptEmployees.map(e => e.id);
+          const { data: managersInDept } = await supabase
+            .from("employees")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("department", kpi.scopeValue)
+            .eq("status", "active")
+            .in("id", managerIds);
+
+          if (managersInDept) {
+            managersInDept.forEach(m => {
+              if (!ownerIds.includes(m.id)) ownerIds.push(m.id);
+            });
+          }
+
+          // If no managers found in dept, add managers of dept employees
+          if (ownerIds.length === 0 && managerIds.length > 0) {
+            managerIds.slice(0, 3).forEach(id => {
+              if (!ownerIds.includes(id)) ownerIds.push(id);
+            });
+          }
+        }
+      } else if (kpi.scopeType === "office" && kpi.scopeId) {
+        // Find managers of employees in this office
+        const { data: officeEmployees } = await supabase
+          .from("employees")
+          .select("id, manager_id")
+          .eq("organization_id", organizationId)
+          .eq("office_id", kpi.scopeId)
+          .eq("status", "active");
+
+        if (officeEmployees && officeEmployees.length > 0) {
+          const managerIds = [...new Set(
+            officeEmployees
+              .map(e => e.manager_id)
+              .filter(Boolean) as string[]
+          )];
+
+          // Find managers who are also in this office
+          const employeeIds = officeEmployees.map(e => e.id);
+          const managersInOffice = managerIds.filter(mid => employeeIds.includes(mid));
+
+          if (managersInOffice.length > 0) {
+            managersInOffice.slice(0, 3).forEach(id => {
+              if (!ownerIds.includes(id)) ownerIds.push(id);
+            });
+          } else if (managerIds.length > 0) {
+            // Fallback to managers of office employees
+            managerIds.slice(0, 3).forEach(id => {
+              if (!ownerIds.includes(id)) ownerIds.push(id);
+            });
+          }
+        }
+      } else if (kpi.scopeType === "project" && kpi.scopeId) {
+        // Find managers of project members
+        const { data: projectMembers } = await supabase
+          .from("employee_projects")
+          .select("employee_id")
+          .eq("project_id", kpi.scopeId);
+
+        if (projectMembers && projectMembers.length > 0) {
+          const memberIds = projectMembers.map(pm => pm.employee_id);
+
+          const { data: members } = await supabase
+            .from("employees")
+            .select("id, manager_id")
+            .in("id", memberIds)
+            .eq("status", "active");
+
+          if (members) {
+            const managerIds = [...new Set(
+              members
+                .map(e => e.manager_id)
+                .filter(Boolean) as string[]
+            )];
+
+            // Find managers who are also project members
+            const managersInProject = managerIds.filter(mid => memberIds.includes(mid));
+
+            if (managersInProject.length > 0) {
+              managersInProject.slice(0, 3).forEach(id => {
+                if (!ownerIds.includes(id)) ownerIds.push(id);
+              });
+            } else if (managerIds.length > 0) {
+              // Fallback to managers of project members
+              managerIds.slice(0, 3).forEach(id => {
+                if (!ownerIds.includes(id)) ownerIds.push(id);
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error finding group KPI owners:", err);
+    }
+
+    return ownerIds;
+  };
 
   const createKpis = async () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
@@ -93,9 +230,6 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
         }
 
         // Determine quarter value for the KPI
-        // For annual mode with quarterly breakdown, use the KPI's quarter field
-        // For quarterly mode, use the state's quarter
-        // For annual mode without breakdown, quarter can be null (annual)
         let kpiQuarter: number | null = null;
         if (state.periodType === "quarterly") {
           kpiQuarter = state.quarter;
@@ -140,6 +274,46 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
         mappings.push({ tempId: kpi.tempId, realId: data.id });
         setCreatedMappings([...mappings]);
 
+        // Create default 2-week reminder for this KPI
+        const { error: reminderError } = await supabase
+          .from("kpi_update_settings")
+          .insert({
+            kpi_id: data.id,
+            organization_id: currentOrg.id,
+            frequency: "biweekly",
+            day_of_week: 1, // Monday
+            reminder_time: "09:00:00",
+            is_enabled: true,
+            next_reminder_at: calculateNextBiweeklyReminder(),
+            created_by: currentEmployee.id,
+          });
+
+        if (reminderError) {
+          console.error("Error creating reminder settings:", reminderError);
+        }
+
+        // Auto-assign owners for group KPIs (department, office, project)
+        if (["department", "office", "project"].includes(kpi.scopeType)) {
+          const ownerIds = await findGroupKpiOwners(kpi, currentOrg.id);
+          
+          if (ownerIds.length > 0) {
+            const ownerRecords = ownerIds.map((empId, index) => ({
+              kpi_id: data.id,
+              employee_id: empId,
+              organization_id: currentOrg.id,
+              is_primary: index === 0, // First one is primary
+            }));
+
+            const { error: ownerError } = await supabase
+              .from("kpi_owners")
+              .insert(ownerRecords);
+
+            if (ownerError) {
+              console.error("Error assigning KPI owners:", ownerError);
+            }
+          }
+        }
+
         // Send notifications for the created KPI
         if (currentEmployee?.id && data?.id) {
           await sendKpiNotifications({
@@ -179,9 +353,10 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
     queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
     queryClient.invalidateQueries({ queryKey: ["group-kpis"] });
     queryClient.invalidateQueries({ queryKey: ["organization-kpis"] });
+    queryClient.invalidateQueries({ queryKey: ["kpi-owners"] });
 
     if (errorList.length === 0) {
-      toast.success(`Successfully created ${mappings.length} KPIs`);
+      toast.success(`Successfully created ${mappings.length} KPIs with default reminders`);
     } else {
       toast.warning(`Created ${mappings.length} KPIs with ${errorList.length} errors`);
     }
