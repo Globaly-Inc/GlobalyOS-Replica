@@ -267,6 +267,14 @@ Guidelines for KPI creation:
 9. For individual KPIs, use position responsibilities to create role-aligned KPIs
 10. For NEW employees (<6 months), focus on onboarding, learning
 11. For VETERAN employees (>3 years), include leadership, mentoring
+
+CRITICAL HIERARCHY RULES - YOU MUST FOLLOW THESE:
+- Organization KPIs have NO parentTempId (they are the root)
+- Department KPIs MUST have parentTempId pointing to an organization KPI's tempId
+- Office KPIs MUST have parentTempId pointing to an organization KPI's tempId
+- Project KPIs MUST have parentTempId pointing to an organization or department KPI's tempId
+- Individual KPIs MUST have parentTempId pointing to their department, project, or office KPI's tempId
+- EVERY non-organization KPI MUST have a valid parentTempId that references another KPI in the response
 ${quarterlyBreakdownInstructions}
 CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
 The JSON must follow this exact structure:
@@ -282,7 +290,7 @@ The JSON must follow this exact structure:
       "unit": "%"
     },
     {
-      "tempId": "dept-1",
+      "tempId": "dept-eng-1",
       "scopeType": "department",
       "scopeValue": "Engineering",
       "title": "KPI Title",
@@ -300,10 +308,10 @@ The JSON must follow this exact structure:
       "description": "Description",
       "targetValue": 500000,
       "unit": "$",
-      "parentTempId": "org-1"
+      "parentTempId": "dept-eng-1"
     },
     {
-      "tempId": "ind-1",
+      "tempId": "ind-john-1",
       "scopeType": "individual",
       "employeeId": "uuid",
       "employeeName": "John Doe",
@@ -382,8 +390,8 @@ Generate KPIs with this cascade:`;
       });
     }
 
-    userPrompt += `\n\nEnsure parent-child relationships are properly set using parentTempId.
-${quarterlyBreakdown && periodType === "annual" ? 'REMEMBER: Generate quarterly breakdowns (Q1-Q4) for each annual KPI.' : ''}
+    userPrompt += `\n\nCRITICAL: Every department/office/project KPI MUST have parentTempId referencing an organization KPI. Every individual KPI MUST have parentTempId referencing their department, project, or office KPI. Do NOT leave parentTempId empty or null for non-organization KPIs.
+${quarterlyBreakdown && periodType === "annual" ? 'REMEMBER: Generate quarterly breakdowns (Q1-Q4) for each annual KPI with parentTempId linking to the annual parent.' : ''}
 Respond with ONLY the JSON object, no additional text.`;
 
     console.log("Prompt lengths:", { 
@@ -504,13 +512,89 @@ Respond with ONLY the JSON object, no additional text.`;
     console.log(`Successfully parsed ${parsed.kpis.length} KPIs`);
 
     // Validate and add missing fields
-    const validatedKpis = parsed.kpis.map((kpi, index) => ({
+    let validatedKpis = parsed.kpis.map((kpi, index) => ({
       ...kpi,
       tempId: kpi.tempId || `kpi-${Date.now()}-${index}`,
       targetValue: typeof kpi.targetValue === 'number' ? kpi.targetValue : parseFloat(kpi.targetValue) || 100,
     }));
 
-    console.log(`Generated ${validatedKpis.length} KPIs for job ${jobId}`);
+    // Post-process: Auto-assign parent KPIs if AI failed to set them
+    const orgKpis = validatedKpis.filter(k => k.scopeType === 'organization');
+    const deptKpis = validatedKpis.filter(k => k.scopeType === 'department');
+    const officeKpis = validatedKpis.filter(k => k.scopeType === 'office');
+    const projectKpis = validatedKpis.filter(k => k.scopeType === 'project');
+    
+    // Create lookup maps for finding appropriate parents
+    const deptKpiMap = new Map(deptKpis.map(k => [k.scopeValue, k.tempId]));
+    const officeKpiMap = new Map(officeKpis.map(k => [k.scopeValue, k.tempId]));
+    const projectKpiMap = new Map(projectKpis.map(k => [k.projectId || k.projectName, k.tempId]));
+    
+    // Default org KPI tempId for fallback
+    const defaultOrgKpiTempId = orgKpis[0]?.tempId;
+    
+    validatedKpis = validatedKpis.map(kpi => {
+      // Organization KPIs should not have parents
+      if (kpi.scopeType === 'organization') {
+        return { ...kpi, parentTempId: undefined };
+      }
+      
+      // If parentTempId is already set and valid, keep it
+      if (kpi.parentTempId && validatedKpis.some(k => k.tempId === kpi.parentTempId)) {
+        return kpi;
+      }
+      
+      // Auto-assign parent based on hierarchy
+      let assignedParent: string | undefined;
+      
+      if (kpi.scopeType === 'department' || kpi.scopeType === 'office') {
+        // Departments and offices link to first org KPI
+        assignedParent = defaultOrgKpiTempId;
+      } else if (kpi.scopeType === 'project') {
+        // Projects link to department KPI if scopeValue matches, otherwise to org
+        assignedParent = defaultOrgKpiTempId;
+      } else if (kpi.scopeType === 'individual') {
+        // Individuals: try to find their department/project/office KPI
+        const employee = filteredEmployees.find((e: any) => e.id === kpi.employeeId);
+        if (employee) {
+          // Check for project KPI first (if employee has projects)
+          const empProjects = employeeProjects
+            .filter((ep: any) => ep.employee_id === kpi.employeeId)
+            .map((ep: any) => ep.project_id);
+          
+          for (const projId of empProjects) {
+            if (projectKpiMap.has(projId)) {
+              assignedParent = projectKpiMap.get(projId);
+              break;
+            }
+          }
+          
+          // Fall back to department KPI
+          if (!assignedParent && employee.department && deptKpiMap.has(employee.department)) {
+            assignedParent = deptKpiMap.get(employee.department);
+          }
+          
+          // Fall back to office KPI
+          if (!assignedParent && employee.officeId && officeKpiMap.has(employee.officeId)) {
+            assignedParent = officeKpiMap.get(employee.officeId);
+          }
+        }
+        
+        // Ultimate fallback to org KPI
+        if (!assignedParent) {
+          assignedParent = defaultOrgKpiTempId;
+        }
+      }
+      
+      if (assignedParent && !kpi.parentTempId) {
+        console.log(`Auto-assigned parent ${assignedParent} to ${kpi.scopeType} KPI: ${kpi.title}`);
+      }
+      
+      return { ...kpi, parentTempId: kpi.parentTempId || assignedParent };
+    });
+
+    const kpisWithParents = validatedKpis.filter(k => k.parentTempId).length;
+    const kpisWithoutParents = validatedKpis.filter(k => !k.parentTempId && k.scopeType !== 'organization').length;
+    console.log(`Generated ${validatedKpis.length} KPIs (${kpisWithParents} with parents, ${kpisWithoutParents} missing parents) for job ${jobId}`);
 
     // Save results and mark as completed
     await supabase
