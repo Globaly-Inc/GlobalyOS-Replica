@@ -13,6 +13,8 @@ interface PositionAIDescriptionProps {
   department: string;
   organizationId: string;
   canEdit?: boolean;
+  employeeName?: string;
+  projectNames?: string[];
 }
 
 export const PositionAIDescription = ({
@@ -20,7 +22,9 @@ export const PositionAIDescription = ({
   positionName,
   department,
   organizationId,
-  canEdit = false
+  canEdit = false,
+  employeeName,
+  projectNames = []
 }: PositionAIDescriptionProps) => {
   const [description, setDescription] = useState<string | null>(null);
   const [responsibilities, setResponsibilities] = useState<string[]>([]);
@@ -86,6 +90,23 @@ export const PositionAIDescription = ({
     setResponsibilities(newResponsibilities);
   };
 
+  const getPersonalizedSummary = () => {
+    const firstName = employeeName?.split(' ')[0] || 'This person';
+    const departmentText = department ? ` in ${department}` : '';
+    
+    // Build responsibility context from first responsibility
+    const responsibilityText = responsibilities.length > 0 
+      ? ` Responsible for ${responsibilities[0].toLowerCase().replace(/\.$/, '')}.`
+      : '';
+    
+    // Build project context
+    const projectText = projectNames.length > 0
+      ? ` Works on ${projectNames.slice(0, 2).join(' and ')}${projectNames.length > 2 ? ' and more' : ''}.`
+      : '';
+    
+    return `${firstName} is a ${positionName}${departmentText}.${responsibilityText}${projectText}`;
+  };
+
   if (loading) {
     return (
       <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
@@ -114,8 +135,8 @@ export const PositionAIDescription = ({
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-foreground">Role Description</span>
                   {!isOpen && description && (
-                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                      {description.length > 100 ? `${description.slice(0, 100)}...` : description}
+                    <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5">
+                      {getPersonalizedSummary()}
                     </p>
                   )}
                 </div>

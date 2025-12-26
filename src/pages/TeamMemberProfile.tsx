@@ -1080,6 +1080,8 @@ const TeamMemberProfile = () => {
                 department={employee.department}
                 organizationId={employee.organization_id}
                 canEdit={canEditPositionDescription}
+                employeeName={employee.name}
+                projectNames={employeeProjects.map(ep => ep.project?.name).filter(Boolean)}
               />
             )}
 
