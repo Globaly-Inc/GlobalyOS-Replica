@@ -8,6 +8,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
 import type { Kpi, KpiWithEmployee, KpiTemplate, KpiAiInsight, GroupKpiWithScope, KpiScopeType, KpiWithHierarchy, OrganizationKpi } from '@/types';
+import { sendKpiNotifications } from './kpiNotifications';
 
 // Fetch KPIs for an employee (individual KPIs only)
 export const useEmployeeKpis = (employeeId: string | undefined, quarter?: number, year?: number) => {
@@ -395,12 +396,13 @@ interface CreateKpiInput {
 export const useCreateKpi = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async (input: CreateKpiInput) => {
       if (!currentOrg?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('kpis')
         .insert({
           employee_id: input.employeeId,
@@ -412,9 +414,25 @@ export const useCreateKpi = () => {
           quarter: input.quarter,
           year: input.year,
           scope_type: 'individual',
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Send notification to the assigned employee
+      if (currentEmployee?.id && data?.id) {
+        await sendKpiNotifications({
+          kpiId: data.id,
+          kpiTitle: input.title,
+          scopeType: 'individual',
+          organizationId: currentOrg.id,
+          actorEmployeeId: currentEmployee.id,
+          targetEmployeeId: input.employeeId,
+        });
+      }
+
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
@@ -439,6 +457,7 @@ interface CreateGroupKpiInput {
   scopeDepartment?: string;
   scopeOfficeId?: string;
   scopeProjectId?: string;
+  scopeName?: string; // For better notification messages
   parentKpiId?: string;
   autoRollup?: boolean;
 }
@@ -446,12 +465,13 @@ interface CreateGroupKpiInput {
 export const useCreateGroupKpi = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async (input: CreateGroupKpiInput) => {
       if (!currentOrg?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('kpis')
         .insert({
           organization_id: currentOrg.id,
@@ -468,9 +488,28 @@ export const useCreateGroupKpi = () => {
           employee_id: null,
           parent_kpi_id: input.parentKpiId || null,
           auto_rollup: input.autoRollup || false,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Send notifications to affected employees (skip organization scope)
+      if (currentEmployee?.id && data?.id && input.scopeType !== 'organization') {
+        await sendKpiNotifications({
+          kpiId: data.id,
+          kpiTitle: input.title,
+          scopeType: input.scopeType,
+          organizationId: currentOrg.id,
+          actorEmployeeId: currentEmployee.id,
+          scopeDepartment: input.scopeDepartment,
+          scopeOfficeId: input.scopeOfficeId,
+          scopeProjectId: input.scopeProjectId,
+          scopeName: input.scopeName,
+        });
+      }
+
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
