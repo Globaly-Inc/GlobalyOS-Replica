@@ -117,42 +117,54 @@ export const BulkKpiReviewStep = ({ state, updateState }: Props) => {
 
   const scopeOrder = ["organization", "department", "project", "office", "individual"];
 
-  // Get potential parent KPIs
+  // Get potential parent KPIs - must include currently selected parent even if it wouldn't otherwise be in the list
   const getParentOptions = (currentKpi: GeneratedKpi) => {
     // Non-quarterly org KPIs have no parent
     if (currentKpi.scopeType === "organization" && !currentKpi.isQuarterlyChild) {
       return [];
     }
     
+    let options: GeneratedKpi[] = [];
+    
     // For quarterly children, include same scope type but only non-quarterly (annual) KPIs
     if (currentKpi.isQuarterlyChild) {
-      return state.generatedKpis.filter(k => 
+      options = state.generatedKpis.filter(k => 
         k.scopeType === currentKpi.scopeType && 
         !k.isQuarterlyChild && 
         k.tempId !== currentKpi.tempId
       );
+    } else {
+      // Regular hierarchy logic
+      let parentScopes: string[] = [];
+      switch (currentKpi.scopeType) {
+        case "organization":
+          return []; // Should not reach here due to check above
+        case "department":
+        case "project":
+        case "office":
+          parentScopes = ["organization"];
+          break;
+        case "individual":
+          // Individuals can link to org, dept, project, office (both annual AND quarterly)
+          parentScopes = ["organization", "department", "project", "office"];
+          break;
+      }
+      
+      options = state.generatedKpis.filter(k => 
+        parentScopes.includes(k.scopeType) && 
+        k.tempId !== currentKpi.tempId
+      );
     }
     
-    // Regular hierarchy logic
-    let parentScopes: string[] = [];
-    switch (currentKpi.scopeType) {
-      case "organization":
-        return []; // Should not reach here due to check above
-      case "department":
-      case "project":
-      case "office":
-        parentScopes = ["organization"];
-        break;
-      case "individual":
-        parentScopes = ["organization", "department", "project", "office"];
-        break;
+    // Always ensure the currently selected parent is in the list (even if it wouldn't match the filter)
+    if (currentKpi.parentTempId) {
+      const currentParent = state.generatedKpis.find(k => k.tempId === currentKpi.parentTempId);
+      if (currentParent && !options.some(o => o.tempId === currentParent.tempId)) {
+        options = [currentParent, ...options];
+      }
     }
     
-    return state.generatedKpis.filter(k => 
-      parentScopes.includes(k.scopeType) && 
-      k.tempId !== currentKpi.tempId &&
-      !k.isQuarterlyChild // Don't allow linking to quarterly children
-    );
+    return options;
   };
 
   const selectedCount = state.generatedKpis.filter(k => k.selected).length;

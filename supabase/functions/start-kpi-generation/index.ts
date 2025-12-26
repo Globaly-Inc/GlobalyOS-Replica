@@ -524,11 +524,25 @@ Respond with ONLY the JSON object, no additional text.`;
     const officeKpis = validatedKpis.filter(k => k.scopeType === 'office' && !k.isQuarterlyChild);
     const projectKpis = validatedKpis.filter(k => k.scopeType === 'project' && !k.isQuarterlyChild);
     
+    // Also get quarterly versions for individual KPI assignment
+    const deptKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'department' && k.isQuarterlyChild);
+    const officeKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'office' && k.isQuarterlyChild);
+    const projectKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'project' && k.isQuarterlyChild);
+    
     // Create lookup maps for finding appropriate parents (case-insensitive for departments)
+    // Annual maps
     const deptKpiMap = new Map<string, string>();
     deptKpis.forEach(k => {
       if (k.scopeValue) {
         deptKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
+      }
+    });
+    
+    // Quarterly maps keyed by "scopeValue|quarter"
+    const deptKpiQuarterlyMap = new Map<string, string>();
+    deptKpisQuarterly.forEach(k => {
+      if (k.scopeValue && k.quarter) {
+        deptKpiQuarterlyMap.set(`${k.scopeValue.toLowerCase()}|${k.quarter}`, k.tempId);
       }
     });
     
@@ -539,11 +553,27 @@ Respond with ONLY the JSON object, no additional text.`;
       if (k.scopeId) officeKpiMap.set(k.scopeId, k.tempId);
     });
     
+    const officeKpiQuarterlyMap = new Map<string, string>();
+    officeKpisQuarterly.forEach(k => {
+      if (k.quarter) {
+        if (k.scopeValue) officeKpiQuarterlyMap.set(`${k.scopeValue.toLowerCase()}|${k.quarter}`, k.tempId);
+        if (k.scopeId) officeKpiQuarterlyMap.set(`${k.scopeId}|${k.quarter}`, k.tempId);
+      }
+    });
+    
     // Project lookup by ID and name
     const projectKpiMap = new Map<string, string>();
     projectKpis.forEach(k => {
       if (k.projectId) projectKpiMap.set(k.projectId, k.tempId);
       if (k.projectName) projectKpiMap.set(k.projectName.toLowerCase(), k.tempId);
+    });
+    
+    const projectKpiQuarterlyMap = new Map<string, string>();
+    projectKpisQuarterly.forEach(k => {
+      if (k.quarter) {
+        if (k.projectId) projectKpiQuarterlyMap.set(`${k.projectId}|${k.quarter}`, k.tempId);
+        if (k.projectName) projectKpiQuarterlyMap.set(`${k.projectName.toLowerCase()}|${k.quarter}`, k.tempId);
+      }
     });
     
     // Default org KPI tempId for fallback
@@ -603,6 +633,10 @@ Respond with ONLY the JSON object, no additional text.`;
       } else if (kpi.scopeType === 'individual') {
         // Individuals: try to find their department/project/office KPI
         const employee = filteredEmployees.find((e: any) => e.id === kpi.employeeId);
+        
+        // Determine if this individual KPI has a quarter (for quarterly breakdown)
+        const kpiQuarter = kpi.quarter;
+        
         if (employee) {
           // Check for project KPI first (if employee has projects)
           const empProjects = employeeProjects
@@ -610,6 +644,12 @@ Respond with ONLY the JSON object, no additional text.`;
             .map((ep: any) => ep.project_id);
           
           for (const projId of empProjects) {
+            // Try quarterly project KPI first if this individual has a quarter
+            if (kpiQuarter && projectKpiQuarterlyMap.has(`${projId}|${kpiQuarter}`)) {
+              assignedParent = projectKpiQuarterlyMap.get(`${projId}|${kpiQuarter}`);
+              break;
+            }
+            // Fall back to annual project KPI
             if (projectKpiMap.has(projId)) {
               assignedParent = projectKpiMap.get(projId);
               break;
@@ -619,14 +659,20 @@ Respond with ONLY the JSON object, no additional text.`;
           // Fall back to department KPI (case-insensitive)
           if (!assignedParent && employee.department) {
             const deptKey = employee.department.toLowerCase();
-            if (deptKpiMap.has(deptKey)) {
+            // Try quarterly dept KPI first
+            if (kpiQuarter && deptKpiQuarterlyMap.has(`${deptKey}|${kpiQuarter}`)) {
+              assignedParent = deptKpiQuarterlyMap.get(`${deptKey}|${kpiQuarter}`);
+            } else if (deptKpiMap.has(deptKey)) {
               assignedParent = deptKpiMap.get(deptKey);
             }
           }
           
           // Fall back to office KPI (by ID or name)
           if (!assignedParent && employee.officeId) {
-            if (officeKpiMap.has(employee.officeId)) {
+            // Try quarterly office KPI first
+            if (kpiQuarter && officeKpiQuarterlyMap.has(`${employee.officeId}|${kpiQuarter}`)) {
+              assignedParent = officeKpiQuarterlyMap.get(`${employee.officeId}|${kpiQuarter}`);
+            } else if (officeKpiMap.has(employee.officeId)) {
               assignedParent = officeKpiMap.get(employee.officeId);
             }
           }
