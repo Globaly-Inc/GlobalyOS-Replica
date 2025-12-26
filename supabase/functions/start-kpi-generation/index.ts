@@ -96,6 +96,10 @@ async function updateJobProgress(
   }
 }
 
+// Constants for limiting scope to prevent AI response truncation
+const MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS = 25;
+const KPIS_PER_INDIVIDUAL_LARGE_TEAM = 1;
+
 async function processKpiGeneration(jobId: string, config: JobConfig) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -144,6 +148,24 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
         .filter((ep: any) => targetProjects.includes(ep.project_id))
         .map((ep: any) => ep.employee_id);
       filteredEmployees = filteredEmployees.filter((e: any) => employeeIdsInProjects.includes(e.id));
+    }
+
+    // Limit employees for large teams to prevent AI response truncation
+    const originalEmployeeCount = filteredEmployees.length;
+    let isLargeTeam = false;
+    if (cascadeConfig.includeIndividuals && filteredEmployees.length > MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS) {
+      isLargeTeam = true;
+      console.log(`Large team detected (${filteredEmployees.length} employees), limiting to ${MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS}`);
+      
+      // Prioritize by projects and tenure
+      filteredEmployees = filteredEmployees
+        .map((e: any) => {
+          const projectCount = employeeProjects.filter((ep: any) => ep.employee_id === e.id).length;
+          const tenureScore = e.tenure === 'veteran' ? 2 : e.tenure === 'new' ? 1 : 0;
+          return { ...e, priorityScore: projectCount * 2 + tenureScore };
+        })
+        .sort((a: any, b: any) => b.priorityScore - a.priorityScore)
+        .slice(0, MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS);
     }
 
     // Filter departments based on filtered employees
@@ -332,10 +354,8 @@ Generate KPIs with this cascade:`;
       userPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map((o: any) => o.name).join(', ')}`;
     }
     if (cascadeConfig.includeIndividuals && filteredEmployees.length > 0) {
-      userPrompt += `\n- 1-2 Individual KPIs for each employee:`;
-      
-      const isLargeTeam = filteredEmployees.length > 20;
-      
+      const kpisPerEmployee = isLargeTeam ? KPIS_PER_INDIVIDUAL_LARGE_TEAM : 2;
+      userPrompt += `\n- ${kpisPerEmployee} Individual KPI${kpisPerEmployee > 1 ? 's' : ''} for each employee${isLargeTeam ? ` (showing top ${filteredEmployees.length} of ${originalEmployeeCount} employees)` : ''}:`;
       filteredEmployees.forEach((e: any) => {
         const empProjects = employeeProjects
           .filter((ep: any) => ep.employee_id === e.id)
@@ -392,6 +412,7 @@ Respond with ONLY the JSON object, no additional text.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        max_tokens: 16000, // Ensure complete response for large KPI sets
       }),
     });
 
@@ -436,12 +457,51 @@ Respond with ONLY the JSON object, no additional text.`;
       parsed = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error("Failed to parse AI response:", cleanedContent.substring(0, 500));
-      throw new Error("Invalid response format from AI");
+      console.error("Response length:", cleanedContent.length);
+      
+      // Check if response was truncated
+      const isTruncated = !cleanedContent.endsWith('}') && !cleanedContent.endsWith(']');
+      
+      if (isTruncated) {
+        console.log("Attempting to salvage truncated response...");
+        
+        // Try to find the last complete KPI object and salvage partial data
+        const lastKpiEnd = cleanedContent.lastIndexOf('},');
+        const lastArrayEnd = cleanedContent.lastIndexOf('}]');
+        
+        if (lastKpiEnd > 0 || lastArrayEnd > 0) {
+          const salvagePoint = Math.max(lastKpiEnd, lastArrayEnd);
+          let salvaged = cleanedContent.substring(0, salvagePoint + 1);
+          
+          // Close the JSON structure properly
+          if (!salvaged.endsWith(']}')) {
+            if (salvaged.endsWith('},')) {
+              salvaged = salvaged.slice(0, -1) + ']}'; // Remove trailing comma, close array and object
+            } else if (salvaged.endsWith('}')) {
+              salvaged += ']}';
+            }
+          }
+          
+          try {
+            parsed = JSON.parse(salvaged);
+            console.log(`Salvaged ${parsed.kpis?.length || 0} KPIs from truncated response`);
+          } catch (salvageError) {
+            console.error("Failed to salvage truncated response");
+            throw new Error("AI response was truncated. Try with fewer employees or disable quarterly breakdown.");
+          }
+        } else {
+          throw new Error("AI response was truncated and could not be recovered. Try reducing team size or disabling quarterly breakdown.");
+        }
+      } else {
+        throw new Error("Invalid response format from AI. Please try again.");
+      }
     }
 
     if (!parsed.kpis || !Array.isArray(parsed.kpis)) {
       throw new Error("Invalid KPI structure in response");
     }
+    
+    console.log(`Successfully parsed ${parsed.kpis.length} KPIs`);
 
     // Validate and add missing fields
     const validatedKpis = parsed.kpis.map((kpi, index) => ({
