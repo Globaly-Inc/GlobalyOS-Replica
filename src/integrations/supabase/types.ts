@@ -2355,6 +2355,73 @@ export type Database = {
           },
         ]
       }
+      kpi_generation_jobs: {
+        Row: {
+          completed_at: string | null
+          config: Json
+          created_at: string
+          created_by: string
+          error_message: string | null
+          generated_kpis: Json | null
+          id: string
+          organization_id: string
+          progress: number | null
+          progress_message: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          config: Json
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          generated_kpis?: Json | null
+          id?: string
+          organization_id: string
+          progress?: number | null
+          progress_message?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          generated_kpis?: Json | null
+          id?: string
+          organization_id?: string
+          progress?: number | null
+          progress_message?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_generation_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_generation_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_generation_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_templates: {
         Row: {
           category: string | null
