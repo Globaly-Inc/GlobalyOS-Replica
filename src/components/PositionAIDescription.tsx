@@ -107,17 +107,23 @@ export const PositionAIDescription = ({
     <>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div className="bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
-          <CollapsibleTrigger asChild>
+        <CollapsibleTrigger asChild>
             <button className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">Role Description</span>
-                <span className="text-xs text-muted-foreground">AI Generated</span>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-foreground">Role Description</span>
+                  {!isOpen && description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                      {description.length > 100 ? `${description.slice(0, 100)}...` : description}
+                    </p>
+                  )}
+                </div>
               </div>
               {isOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
             </button>
           </CollapsibleTrigger>
