@@ -35,12 +35,79 @@ const calculateTenure = (joinDate: string | null): "new" | "experienced" | "vete
   return "experienced";
 };
 
+// Check if a job is stale (processing for >3 minutes without completion)
+const isJobStale = (job: any) => {
+  if (!job?.started_at || job.status !== 'processing') return false;
+  const ageMinutes = (Date.now() - new Date(job.started_at).getTime()) / 60000;
+  return ageMinutes > 3;
+};
+
 export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState({ value: 0, message: "Initializing..." });
+  const [existingJobChecked, setExistingJobChecked] = useState(false);
+
+  // Check for existing in-progress jobs on mount
+  const { data: existingJob, refetch: refetchExistingJob } = useQuery({
+    queryKey: ["existing-kpi-job", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return null;
+      const { data } = await supabase
+        .from("kpi_generation_jobs")
+        .select("*")
+        .eq("organization_id", currentOrg.id)
+        .in("status", ["pending", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!currentOrg?.id && !existingJobChecked,
+    staleTime: 0,
+  });
+
+  // Auto-subscribe to existing job if found
+  useEffect(() => {
+    if (existingJob && !jobId && !existingJobChecked) {
+      console.log("Found existing job:", existingJob.id, existingJob.status);
+      setJobId(existingJob.id);
+      setIsGenerating(true);
+      setProgress({
+        value: existingJob.progress || 0,
+        message: existingJob.progress_message || "Resuming previous generation..."
+      });
+      setExistingJobChecked(true);
+    } else if (!existingJob && !existingJobChecked) {
+      setExistingJobChecked(true);
+    }
+  }, [existingJob, jobId, existingJobChecked]);
+
+  // Cancel a stuck job
+  const cancelJob = async (jobIdToCancel: string) => {
+    try {
+      await supabase
+        .from("kpi_generation_jobs")
+        .update({
+          status: 'failed',
+          error_message: 'Cancelled by user - job timed out',
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", jobIdToCancel);
+      
+      setJobId(null);
+      setIsGenerating(false);
+      setProgress({ value: 0, message: "Initializing..." });
+      setError(null);
+      refetchExistingJob();
+      toast.success("Job cancelled. You can start fresh.");
+    } catch (err) {
+      console.error("Failed to cancel job:", err);
+      toast.error("Failed to cancel job");
+    }
+  };
 
   // Fetch organization context with enhanced data
   const { data: orgContext } = useQuery({
@@ -349,7 +416,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
             )}
           </div>
 
-          {/* Generate Button */}
+          {/* Generate Button or Existing Job UI */}
           {state.generatedKpis.length === 0 && !isGenerating && (
             <div className="text-center py-8">
               <Button
@@ -372,13 +439,36 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
           {/* Loading State with Real-time Progress */}
           {isGenerating && (
             <div className="py-12 text-center space-y-6">
+              {/* Stale job warning */}
+              {existingJob && isJobStale(existingJob) && (
+                <div className="max-w-md mx-auto p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 mb-2">
+                    <AlertCircle className="h-5 w-5" />
+                    <span className="font-medium">Job appears stuck</span>
+                  </div>
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
+                    This job has been processing for over 3 minutes without updates.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => cancelJob(existingJob.id)}
+                    className="border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  >
+                    Cancel & Start Fresh
+                  </Button>
+                </div>
+              )}
+              
               <div className="relative">
                 <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
                   <Loader2 className="h-8 w-8 text-primary animate-spin" />
                 </div>
               </div>
               <div>
-                <p className="font-medium text-lg">Generating KPIs...</p>
+                <p className="font-medium text-lg">
+                  {existingJob ? "Resuming KPI Generation..." : "Generating KPIs..."}
+                </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {progress.message || "AI is analyzing your organization structure"}
                 </p>
