@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +27,8 @@ interface RequestBody {
   targetEmployees?: string[];
   organizationContext: {
     name: string;
+    industry?: string;
+    companySize?: string;
     departments: string[];
     offices: { id: string; name: string }[];
     projects: { id: string; name: string; description?: string }[];
@@ -39,7 +40,23 @@ interface RequestBody {
       position: string; 
       positionDescription?: string;
       positionResponsibilities?: string[];
-      officeId: string 
+      officeId: string;
+      managerId?: string;
+      tenure?: "new" | "experienced" | "veteran";
+    }[];
+    historicalContext?: {
+      lastYearKpis: {
+        title: string;
+        target: number;
+        achieved: number;
+        unit: string;
+        scope: string;
+      }[];
+    };
+    preferredKpiStyles?: {
+      title: string;
+      unit: string;
+      category: string | null;
     }[];
   };
 }
@@ -62,6 +79,23 @@ interface GeneratedKpi {
   isQuarterlyChild?: boolean;
 }
 
+// Industry-specific KPI guidelines
+function getIndustryKpiGuidelines(industry: string): string {
+  const guidelines: Record<string, string> = {
+    "Technology": "Focus on: MRR/ARR growth, customer churn, NPS, sprint velocity, deployment frequency, uptime SLAs, feature adoption rates, bug resolution time",
+    "Healthcare": "Focus on: Patient satisfaction, treatment outcomes, wait times, compliance rates, staff-to-patient ratios, readmission rates",
+    "Finance": "Focus on: Assets under management, portfolio returns, client acquisition cost, regulatory compliance, risk metrics, processing time",
+    "Retail": "Focus on: Sales per square foot, inventory turnover, customer retention, average transaction value, foot traffic, conversion rate",
+    "Manufacturing": "Focus on: Production efficiency, defect rates, on-time delivery, equipment uptime, cost per unit, safety incidents",
+    "Education": "Focus on: Student outcomes, enrollment rates, retention, course completion, satisfaction scores, placement rates",
+    "Consulting": "Focus on: Billable utilization, client satisfaction, project profitability, repeat business rate, proposal win rate",
+    "SaaS": "Focus on: MRR growth, churn rate, LTV/CAC ratio, activation rate, feature adoption, NPS, expansion revenue",
+    "Marketing": "Focus on: Lead generation, conversion rates, CAC, ROAS, brand awareness, engagement metrics",
+    "Real Estate": "Focus on: Occupancy rates, rental yield, property appreciation, tenant retention, maintenance costs",
+  };
+  return guidelines[industry] || "Focus on: Revenue growth, customer satisfaction, operational efficiency, employee productivity, quality metrics, cost optimization";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,19 +108,28 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { documentContent, periodType, quarter, year, quarterlyBreakdown, aiInstructions, cascadeConfig, targetDepartments, targetProjects, targetOffices, targetEmployees, organizationContext } = body;
+    const { 
+      documentContent, periodType, quarter, year, quarterlyBreakdown, 
+      aiInstructions, cascadeConfig, targetDepartments, targetProjects, 
+      targetOffices, targetEmployees, organizationContext 
+    } = body;
 
     const periodLabel = periodType === "annual" ? `FY ${year}` : `Q${quarter} ${year}`;
+    const { historicalContext, preferredKpiStyles } = organizationContext;
 
     console.log("Bulk KPI Generation Request:", { 
       periodType, periodLabel,
       quarterlyBreakdown,
       cascadeConfig,
+      industry: organizationContext.industry,
+      companySize: organizationContext.companySize,
       departmentsCount: organizationContext.departments.length,
       projectsCount: organizationContext.projects?.length || 0,
       employeesCount: organizationContext.employees.length,
       documentLength: documentContent?.length || 0,
-      aiInstructionsLength: aiInstructions?.length || 0
+      aiInstructionsLength: aiInstructions?.length || 0,
+      hasHistoricalContext: !!historicalContext?.lastYearKpis?.length,
+      hasKpiTemplates: !!preferredKpiStyles?.length,
     });
 
     // Filter employees based on targets
@@ -164,51 +207,56 @@ Since this is an annual plan with quarterly breakdown enabled, for EACH annual K
 - Set "quarter" field to 1, 2, 3, or 4 for quarterly KPIs
 - Set "isQuarterlyChild" to true for quarterly KPIs
 - Link quarterly KPIs to their annual parent via "parentTempId"
-
-Example quarterly breakdown:
-{
-  "tempId": "org-annual-1",
-  "scopeType": "organization",
-  "title": "Annual Revenue FY ${year}",
-  "targetValue": 1000000,
-  "unit": "$"
-},
-{
-  "tempId": "org-q1-1",
-  "scopeType": "organization", 
-  "title": "Revenue Q1 ${year}",
-  "targetValue": 200000,
-  "unit": "$",
-  "quarter": 1,
-  "isQuarterlyChild": true,
-  "parentTempId": "org-annual-1"
-},
-{
-  "tempId": "org-q2-1",
-  "scopeType": "organization",
-  "title": "Revenue Q2 ${year}",
-  "targetValue": 250000,
-  "unit": "$",
-  "quarter": 2,
-  "isQuarterlyChild": true,
-  "parentTempId": "org-annual-1"
-}
-... (Q3, Q4 similarly)
 ` : '';
+
+    // Get industry-specific guidance
+    const industryGuidelines = getIndustryKpiGuidelines(organizationContext.industry || "General");
+
+    // Build historical context section
+    let historicalSection = '';
+    if (historicalContext?.lastYearKpis?.length) {
+      historicalSection = `
+HISTORICAL PERFORMANCE (Last Year):
+${historicalContext.lastYearKpis.slice(0, 5).map(k => {
+  const achievementPct = k.target > 0 ? Math.round((k.achieved / k.target) * 100) : 0;
+  return `- ${k.scope} | ${k.title}: Target ${k.target}${k.unit}, Achieved ${k.achieved}${k.unit} (${achievementPct}%)`;
+}).join('\n')}
+Use these as baseline for realistic target-setting. Consider 10-20% growth for successful KPIs.
+`;
+    }
+
+    // Build KPI template preferences section
+    let templateSection = '';
+    if (preferredKpiStyles?.length) {
+      templateSection = `
+ORGANIZATION'S KPI NAMING PREFERENCES:
+${preferredKpiStyles.slice(0, 5).map(t => `- ${t.title} (${t.unit}${t.category ? `, Category: ${t.category}` : ''})`).join('\n')}
+Follow similar naming conventions and units where appropriate.
+`;
+    }
 
     const systemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
 Your task is to analyze organizational documents and generate a hierarchical KPI structure.
 
+ORGANIZATION PROFILE:
+- Industry: ${organizationContext.industry || "General Business"}
+- Company Size: ${organizationContext.companySize || "Unknown"}
+
+INDUSTRY-SPECIFIC GUIDANCE:
+${industryGuidelines}
+${historicalSection}${templateSection}
 Guidelines for KPI creation:
 1. Create SMART KPIs (Specific, Measurable, Achievable, Relevant, Time-bound)
 2. Organization KPIs should be high-level strategic goals
 3. Department/Office/Project KPIs should cascade from organization goals
 4. Individual KPIs should be specific, actionable tasks that contribute to their team/project goals
 5. Use appropriate units (%, count, $, rating, etc.)
-6. Set realistic target values based on industry standards
+6. Set realistic target values based on industry standards and historical performance
 7. For project KPIs, use the project description to create relevant product-specific outcomes
 8. Link individual KPIs to projects when the employee is assigned to that project
 9. For individual KPIs, use position responsibilities to create role-aligned, actionable KPIs
+10. For NEW employees (<6 months), focus on onboarding, learning, and initial contributions
+11. For VETERAN employees (>3 years), include leadership, mentoring, and strategic initiatives
 ${quarterlyBreakdownInstructions}
 CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
 The JSON must follow this exact structure:
@@ -265,7 +313,7 @@ ${aiInstructions}
 
 ` : ''}${documentContent ? `Reference Document Content:
 ---
-${documentContent.slice(0, 8000)}
+${documentContent.slice(0, 6000)}
 ---
 
 ` : ''}Organization Structure:
@@ -290,9 +338,9 @@ Generate KPIs with this cascade:`;
         if (projectTeam.length > 0 && projectTeam.length <= 5) {
           userPrompt += ` (${projectTeam.map(e => e.name).join(', ')})`;
         }
-        // Include project description for context
+        // Include project description for context (truncated)
         if (p.description) {
-          userPrompt += `\n    Project focus: ${p.description.slice(0, 200)}`;
+          userPrompt += `\n    Project focus: ${p.description.slice(0, 150)}`;
         }
       });
     }
@@ -300,7 +348,11 @@ Generate KPIs with this cascade:`;
       userPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map(o => o.name).join(', ')}`;
     }
     if (cascadeConfig.includeIndividuals && filteredEmployees.length > 0) {
-      userPrompt += `\n- 1-2 Individual KPIs for each of these employees:`;
+      userPrompt += `\n- 1-2 Individual KPIs for each employee:`;
+      
+      // For large teams, only include detailed responsibilities for employees with projects
+      const isLargeTeam = filteredEmployees.length > 20;
+      
       filteredEmployees.forEach(e => {
         // Find projects this employee is assigned to
         const empProjects = employeeProjects
@@ -309,12 +361,23 @@ Generate KPIs with this cascade:`;
           .filter(Boolean);
         
         const projectInfo = empProjects.length > 0 ? `, Projects: ${empProjects.join(', ')}` : '';
-        userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}${projectInfo}) - ID: ${e.id}`;
         
-        // Include position responsibilities for role-aligned KPIs
-        if (e.positionResponsibilities && e.positionResponsibilities.length > 0) {
-          const topResponsibilities = e.positionResponsibilities.slice(0, 3);
-          userPrompt += `\n    Role responsibilities: ${topResponsibilities.join('; ')}`;
+        // Add tenure context for appropriate KPI assignment
+        const tenureNote = e.tenure === "new" 
+          ? " [NEW - focus on learning/onboarding]"
+          : e.tenure === "veteran"
+          ? " [VETERAN - include leadership/mentoring]"
+          : "";
+        
+        userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}${projectInfo})${tenureNote} - ID: ${e.id}`;
+        
+        // Smart inclusion of responsibilities: only for key employees to save prompt size
+        const shouldIncludeDetails = !isLargeTeam || empProjects.length > 0;
+        if (shouldIncludeDetails && e.positionResponsibilities && e.positionResponsibilities.length > 0) {
+          const topResponsibilities = e.positionResponsibilities
+            .slice(0, 2)
+            .map((r: string) => r.slice(0, 80));
+          userPrompt += `\n    Role: ${topResponsibilities.join('; ')}`;
         }
       });
       
@@ -328,7 +391,16 @@ ${aiInstructions ? 'Follow the user instructions provided above when creating KP
 
 Respond with ONLY the JSON object, no additional text.`;
 
-    console.log("Sending prompt to AI...", { promptLength: userPrompt.length });
+    // Log prompt statistics for debugging
+    console.log("Prompt stats:", { 
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+      totalPromptLength: systemPrompt.length + userPrompt.length,
+      filteredEmployeesCount: filteredEmployees.length,
+      activeProjectsCount: activeProjects.length,
+      activeDepartmentsCount: activeDepartments.length,
+      industry: organizationContext.industry
+    });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

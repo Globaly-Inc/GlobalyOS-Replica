@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Sparkles, 
@@ -27,21 +26,37 @@ interface Props {
   updateState: (updates: Partial<BulkKpiWizardState>) => void;
 }
 
+// Calculate employee tenure based on join date
+const calculateTenure = (joinDate: string | null): "new" | "experienced" | "veteran" => {
+  if (!joinDate) return "experienced";
+  const months = Math.floor((Date.now() - new Date(joinDate).getTime()) / (1000 * 60 * 60 * 24 * 30));
+  if (months < 6) return "new";
+  if (months > 36) return "veteran";
+  return "experienced";
+};
+
 export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch organization context
+  // Fetch organization context with enhanced data
   const { data: orgContext } = useQuery({
     queryKey: ["org-context-for-kpi", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return null;
 
-      // Fetch employees with profiles
+      // Fetch organization metadata (industry, company_size)
+      const { data: orgMetadata } = await supabase
+        .from("organizations")
+        .select("industry, company_size")
+        .eq("id", currentOrg.id)
+        .single();
+
+      // Fetch employees with profiles and tenure info
       const { data: employees } = await supabase
         .from("employees")
-        .select("id, department, office_id, position, profiles(full_name)")
+        .select("id, department, office_id, position, manager_id, join_date, profiles(full_name)")
         .eq("organization_id", currentOrg.id)
         .eq("status", "active");
 
@@ -69,16 +84,36 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         .select("name, description, responsibilities")
         .eq("organization_id", currentOrg.id);
 
+      // Fetch last year's KPIs for historical context
+      const lastYear = new Date().getFullYear() - 1;
+      const { data: pastKpis } = await supabase
+        .from("kpis")
+        .select("title, target_value, current_value, unit, scope_type, scope_department")
+        .eq("organization_id", currentOrg.id)
+        .eq("year", lastYear)
+        .in("scope_type", ["organization", "department"])
+        .limit(15);
+
+      // Fetch KPI templates for naming preferences
+      const { data: kpiTemplates } = await supabase
+        .from("kpi_templates")
+        .select("title, description, unit, category")
+        .eq("organization_id", currentOrg.id)
+        .limit(10);
+
       const departments = [...new Set(employees?.map(e => e.department).filter(Boolean))];
 
       return {
         name: currentOrg.name || "Organization",
+        industry: orgMetadata?.industry || "General",
+        companySize: orgMetadata?.company_size || "Unknown",
         departments: departments as string[],
         offices: offices || [],
+        // Truncate project descriptions to reduce payload size
         projects: (projects || []).map(p => ({
           id: p.id,
           name: p.name,
-          description: p.description || "",
+          description: (p.description || "").slice(0, 150),
         })),
         employeeProjects: employeeProjects || [],
         employees: (employees || []).map(e => {
@@ -88,11 +123,33 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
             name: (e.profiles as any)?.full_name || "Unknown",
             department: e.department || "",
             position: e.position || "",
-            positionDescription: positionDetails?.description || "",
-            positionResponsibilities: positionDetails?.responsibilities || [],
+            // Truncate description to save payload size
+            positionDescription: (positionDetails?.description || "").slice(0, 150),
+            // Only include top 3 responsibilities, truncated
+            positionResponsibilities: (positionDetails?.responsibilities || [])
+              .slice(0, 3)
+              .map((r: string) => r.slice(0, 100)),
             officeId: e.office_id || "",
+            managerId: e.manager_id || "",
+            tenure: calculateTenure(e.join_date),
           };
         }),
+        // Historical context for realistic targets
+        historicalContext: {
+          lastYearKpis: (pastKpis || []).slice(0, 10).map(k => ({
+            title: (k.title || "").slice(0, 60),
+            target: k.target_value,
+            achieved: k.current_value,
+            unit: k.unit,
+            scope: k.scope_department || "Organization"
+          }))
+        },
+        // KPI template preferences for naming conventions
+        preferredKpiStyles: (kpiTemplates || []).map(t => ({
+          title: (t.title || "").slice(0, 50),
+          unit: t.unit,
+          category: t.category
+        }))
       };
     },
     enabled: !!currentOrg?.id,
@@ -137,7 +194,17 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
       toast.success(`Generated ${kpisWithSelection.length} KPIs`);
     } catch (err: any) {
       console.error("Generation error:", err);
-      setError(err.message || "Failed to generate KPIs");
+      
+      // Handle specific error types
+      if (err.message?.includes("Failed to fetch") || err.message?.includes("timeout") || err.message?.includes("network")) {
+        setError("Request timed out. Try reducing the number of employees or disabling 'Individuals' cascade level.");
+      } else if (err.message?.includes("Rate limit") || err.message?.includes("429")) {
+        setError("AI rate limit reached. Please wait a moment and try again.");
+      } else if (err.message?.includes("402") || err.message?.includes("credits")) {
+        setError("AI credits exhausted. Please add credits to continue.");
+      } else {
+        setError(err.message || "Failed to generate KPIs");
+      }
       toast.error("Failed to generate KPIs");
     } finally {
       setIsGenerating(false);
