@@ -5443,6 +5443,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string
+          description: string | null
           icon: string
           id: string
           name: string
@@ -5452,6 +5453,7 @@ export type Database = {
         Insert: {
           color?: string
           created_at?: string
+          description?: string | null
           icon?: string
           id?: string
           name: string
@@ -5461,6 +5463,7 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string
+          description?: string | null
           icon?: string
           id?: string
           name?: string

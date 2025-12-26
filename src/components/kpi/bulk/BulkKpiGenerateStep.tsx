@@ -51,10 +51,10 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         .select("id, name")
         .eq("organization_id", currentOrg.id);
 
-      // Fetch projects
+      // Fetch projects with descriptions
       const { data: projects } = await supabase
         .from("projects")
-        .select("id, name")
+        .select("id, name, description")
         .eq("organization_id", currentOrg.id);
 
       // Fetch employee-project assignments
@@ -63,21 +63,36 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         .select("employee_id, project_id")
         .eq("organization_id", currentOrg.id);
 
+      // Fetch positions with descriptions and responsibilities
+      const { data: positions } = await supabase
+        .from("positions")
+        .select("name, description, responsibilities")
+        .eq("organization_id", currentOrg.id);
+
       const departments = [...new Set(employees?.map(e => e.department).filter(Boolean))];
 
       return {
         name: currentOrg.name || "Organization",
         departments: departments as string[],
         offices: offices || [],
-        projects: projects || [],
-        employeeProjects: employeeProjects || [],
-        employees: (employees || []).map(e => ({
-          id: e.id,
-          name: (e.profiles as any)?.full_name || "Unknown",
-          department: e.department || "",
-          position: e.position || "",
-          officeId: e.office_id || "",
+        projects: (projects || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || "",
         })),
+        employeeProjects: employeeProjects || [],
+        employees: (employees || []).map(e => {
+          const positionDetails = positions?.find(p => p.name === e.position);
+          return {
+            id: e.id,
+            name: (e.profiles as any)?.full_name || "Unknown",
+            department: e.department || "",
+            position: e.position || "",
+            positionDescription: positionDetails?.description || "",
+            positionResponsibilities: positionDetails?.responsibilities || [],
+            officeId: e.office_id || "",
+          };
+        }),
       };
     },
     enabled: !!currentOrg?.id,

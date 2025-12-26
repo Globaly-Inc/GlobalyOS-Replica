@@ -30,9 +30,17 @@ interface RequestBody {
     name: string;
     departments: string[];
     offices: { id: string; name: string }[];
-    projects: { id: string; name: string }[];
+    projects: { id: string; name: string; description?: string }[];
     employeeProjects: { employee_id: string; project_id: string }[];
-    employees: { id: string; name: string; department: string; position: string; officeId: string }[];
+    employees: { 
+      id: string; 
+      name: string; 
+      department: string; 
+      position: string; 
+      positionDescription?: string;
+      positionResponsibilities?: string[];
+      officeId: string 
+    }[];
   };
 }
 
@@ -114,7 +122,7 @@ serve(async (req) => {
       : [];
 
     // Filter projects based on targets and employee assignments
-    let activeProjects: { id: string; name: string }[] = [];
+    let activeProjects: { id: string; name: string; description?: string }[] = [];
     if (cascadeConfig.includeProjects && organizationContext.projects) {
       if (targetProjects?.length) {
         activeProjects = organizationContext.projects.filter(p => targetProjects.includes(p.id));
@@ -198,8 +206,9 @@ Guidelines for KPI creation:
 4. Individual KPIs should be specific, actionable tasks that contribute to their team/project goals
 5. Use appropriate units (%, count, $, rating, etc.)
 6. Set realistic target values based on industry standards
-7. For project KPIs, focus on product/project-specific outcomes (revenue, features, milestones)
+7. For project KPIs, use the project description to create relevant product-specific outcomes
 8. Link individual KPIs to projects when the employee is assigned to that project
+9. For individual KPIs, use position responsibilities to create role-aligned, actionable KPIs
 ${quarterlyBreakdownInstructions}
 CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
 The JSON must follow this exact structure:
@@ -281,6 +290,10 @@ Generate KPIs with this cascade:`;
         if (projectTeam.length > 0 && projectTeam.length <= 5) {
           userPrompt += ` (${projectTeam.map(e => e.name).join(', ')})`;
         }
+        // Include project description for context
+        if (p.description) {
+          userPrompt += `\n    Project focus: ${p.description.slice(0, 200)}`;
+        }
       });
     }
     if (cascadeConfig.includeOffices && activeOffices.length > 0) {
@@ -297,9 +310,15 @@ Generate KPIs with this cascade:`;
         
         const projectInfo = empProjects.length > 0 ? `, Projects: ${empProjects.join(', ')}` : '';
         userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}${projectInfo}) - ID: ${e.id}`;
+        
+        // Include position responsibilities for role-aligned KPIs
+        if (e.positionResponsibilities && e.positionResponsibilities.length > 0) {
+          const topResponsibilities = e.positionResponsibilities.slice(0, 3);
+          userPrompt += `\n    Role responsibilities: ${topResponsibilities.join('; ')}`;
+        }
       });
       
-      userPrompt += `\n\nIMPORTANT: When an employee is assigned to a project, consider linking their individual KPIs to the project KPI as parent (using parentTempId referencing proj-X).`;
+      userPrompt += `\n\nIMPORTANT: When an employee is assigned to a project, consider linking their individual KPIs to the project KPI as parent (using parentTempId referencing proj-X). Use position responsibilities to create relevant, role-specific KPIs.`;
     }
 
     userPrompt += `\n\nEnsure parent-child relationships are properly set using parentTempId to link child KPIs to their parent.
