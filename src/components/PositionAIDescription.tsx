@@ -94,14 +94,18 @@ export const PositionAIDescription = ({
     const firstName = employeeName?.split(' ')[0] || 'This person';
     const departmentText = department ? ` in ${department}` : '';
     
-    // Build responsibility context from first responsibility
-    const responsibilityText = responsibilities.length > 0 
-      ? ` Responsible for ${responsibilities[0].toLowerCase().replace(/\.$/, '')}.`
-      : '';
+    // Build responsibility context from first 3 responsibilities
+    let responsibilityText = '';
+    if (responsibilities.length > 0) {
+      const topResponsibilities = responsibilities.slice(0, 3).map(r => 
+        r.toLowerCase().replace(/\.$/, '')
+      );
+      responsibilityText = ` Key responsibilities include ${topResponsibilities.join(', ')}.`;
+    }
     
     // Build project context
     const projectText = projectNames.length > 0
-      ? ` Works on ${projectNames.slice(0, 2).join(' and ')}${projectNames.length > 2 ? ' and more' : ''}.`
+      ? ` Currently working on ${projectNames.slice(0, 3).join(', ')}${projectNames.length > 3 ? ' and more' : ''}.`
       : '';
     
     return `${firstName} is a ${positionName}${departmentText}.${responsibilityText}${projectText}`;
