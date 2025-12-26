@@ -82,7 +82,8 @@ const TeamMemberProfile = () => {
   } = useToast();
   const {
     isHR,
-    isAdmin
+    isAdmin,
+    isOwner
   } = useUserRole();
   const [employee, setEmployee] = useState<any>(null);
   const [kudos, setKudos] = useState<any[]>([]);
@@ -153,6 +154,9 @@ const TeamMemberProfile = () => {
 
   // Can edit position timeline - Admin/HR only
   const canEditPositionTimeline = isAdminOrHR;
+
+  // Can edit position description - Owner, Admin, HR, or Manager
+  const canEditPositionDescription = isOwner || isAdminOrHR || isManagerOfEmployee;
 
   // Can add learning records - everyone can add
   const canAddLearning = true;
@@ -859,17 +863,6 @@ const TeamMemberProfile = () => {
           </div>
         </Card>
 
-        {/* AI Position Description */}
-        {employee?.position && employee?.organization_id && (
-          <PositionAIDescription
-            positionId={positionId || undefined}
-            positionName={employee.position}
-            department={employee.department}
-            organizationId={employee.organization_id}
-            canEdit={isAdminOrHR}
-          />
-        )}
-
         <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
           <div className="space-y-4 sm:space-y-6 lg:col-span-1 min-w-0 contents lg:block">
 
@@ -1079,6 +1072,17 @@ const TeamMemberProfile = () => {
           </div>
 
           <div className="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0 contents lg:block">
+            {/* AI Position Description - above Leave Balance */}
+            {employee?.position && employee?.organization_id && (
+              <PositionAIDescription
+                positionId={positionId || undefined}
+                positionName={employee.position}
+                department={employee.department}
+                organizationId={employee.organization_id}
+                canEdit={canEditPositionDescription}
+              />
+            )}
+
             {employee.superpowers && employee.superpowers.length > 0 && <Card className="overflow-hidden order-3 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
