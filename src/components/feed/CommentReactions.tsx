@@ -176,8 +176,8 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
               </PopoverTrigger>
               <PopoverContent className="w-48 p-2" align="start">
                 <p className="text-xs font-medium mb-2">Reacted with {group.emoji}</p>
-                <ScrollArea className="max-h-32">
-                  <div className="space-y-1.5">
+                <ScrollArea className="h-auto max-h-32">
+                  <div className="space-y-1.5 pr-3">
                     {group.users.map((user, idx) => (
                       <div key={user.id + idx} className="flex items-center gap-2">
                         <Avatar className="h-5 w-5">

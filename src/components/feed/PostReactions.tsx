@@ -175,8 +175,8 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
                 <span className="text-lg">{emoji}</span>
                 <span className="text-muted-foreground">{users.length} reaction{users.length !== 1 ? 's' : ''}</span>
               </div>
-              <ScrollArea className="max-h-48">
-                <div className="space-y-1">
+              <ScrollArea className="h-auto max-h-48">
+                <div className="space-y-1 pr-3">
                   {users.map(user => (
                     <div key={user.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted">
                       <Avatar className="h-6 w-6">
