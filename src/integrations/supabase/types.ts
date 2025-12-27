@@ -3080,49 +3080,61 @@ export type Database = {
       }
       leave_balance_logs: {
         Row: {
+          action: string | null
           change_amount: number
           created_at: string
           created_by: string
           effective_date: string | null
           employee_id: string
           id: string
+          leave_request_id: string | null
           leave_type: string
+          leave_type_id: string | null
           new_balance: number
           organization_id: string | null
           previous_balance: number
           reason: string | null
           updated_at: string | null
           updated_by: string | null
+          year: number | null
         }
         Insert: {
+          action?: string | null
           change_amount: number
           created_at?: string
           created_by: string
           effective_date?: string | null
           employee_id: string
           id?: string
+          leave_request_id?: string | null
           leave_type: string
+          leave_type_id?: string | null
           new_balance: number
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          year?: number | null
         }
         Update: {
+          action?: string | null
           change_amount?: number
           created_at?: string
           created_by?: string
           effective_date?: string | null
           employee_id?: string
           id?: string
+          leave_request_id?: string | null
           leave_type?: string
+          leave_type_id?: string | null
           new_balance?: number
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          year?: number | null
         }
         Relationships: [
           {
@@ -3151,6 +3163,20 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
           {
@@ -3243,6 +3269,7 @@ export type Database = {
           half_day_type: string
           id: string
           leave_type: string
+          leave_type_id: string | null
           organization_id: string | null
           reason: string
           reviewed_at: string | null
@@ -3261,6 +3288,7 @@ export type Database = {
           half_day_type?: string
           id?: string
           leave_type: string
+          leave_type_id?: string | null
           organization_id?: string | null
           reason: string
           reviewed_at?: string | null
@@ -3279,6 +3307,7 @@ export type Database = {
           half_day_type?: string
           id?: string
           leave_type?: string
+          leave_type_id?: string | null
           organization_id?: string | null
           reason?: string
           reviewed_at?: string | null
@@ -3302,6 +3331,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
           {
