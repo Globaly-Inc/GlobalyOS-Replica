@@ -138,6 +138,11 @@ const OrgLeaveHistory = () => {
   
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   
+  // All active leave types for stats display
+  const [allLeaveTypes, setAllLeaveTypes] = useState<Array<{ id: string; name: string }>>([]);
+  // Actual balances from leave_type_balances table
+  const [actualBalancesByType, setActualBalancesByType] = useState<Record<string, number>>({});
+  
   // Stats for cards - comparing with previous period
   const [prevPeriodStats, setPrevPeriodStats] = useState<Record<string, { days: number }>>({});
   const [leaveTypeStats, setLeaveTypeStats] = useState<Array<{
@@ -203,7 +208,7 @@ const OrgLeaveHistory = () => {
     if (!currentEmployee?.id) return;
 
     loadData();
-  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, format(dateRange.startDate, 'yyyy-MM-dd'), format(dateRange.endDate, 'yyyy-MM-dd')]);
+  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, format(dateRange.startDate, 'yyyy-MM-dd'), format(dateRange.endDate, 'yyyy-MM-dd'), selectedEmployees]);
 
   const loadData = async () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
@@ -219,11 +224,15 @@ const OrgLeaveHistory = () => {
       const startOfPrevPeriod = format(prevPeriod.startDate, 'yyyy-MM-dd');
       const endOfPrevPeriod = format(prevPeriod.endDate, 'yyyy-MM-dd');
 
-      // Fetch leave types from database for name normalization
+      // Fetch leave types from database for name normalization and stats display
       const { data: leaveTypesData } = await supabase
         .from("leave_types")
-        .select("name")
-        .eq("organization_id", currentOrg.id);
+        .select("id, name, is_active")
+        .eq("organization_id", currentOrg.id)
+        .eq("is_active", true);
+      
+      // Store all active leave types for stats cards
+      setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
       
       // Build a lookup map to normalize leave type names to official casing
       const leaveTypeNameMap: Record<string, string> = {};
@@ -362,24 +371,53 @@ const OrgLeaveHistory = () => {
 
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
-      // Calculate leave type stats (days taken and balance) - already normalized above
-      const typeStats: Record<string, { total_days: number; adjustments: number }> = {};
+      // Fetch actual balances from leave_type_balances table
+      let balancesQuery = supabase
+        .from("leave_type_balances")
+        .select(`
+          leave_type_id,
+          balance,
+          leave_type:leave_types!inner(name)
+        `)
+        .eq("organization_id", currentOrg.id)
+        .eq("year", currentYear);
+
+      if (allowedEmployeeIds) {
+        balancesQuery = balancesQuery.in("employee_id", allowedEmployeeIds);
+      }
+      
+      // Apply employee filter if specific employees are selected
+      if (selectedEmployees.length > 0) {
+        balancesQuery = balancesQuery.in("employee_id", selectedEmployees);
+      }
+
+      const { data: balancesData } = await balancesQuery;
+
+      // Aggregate balances by leave type name
+      const balancesByType: Record<string, number> = {};
+      (balancesData || []).forEach((b: any) => {
+        const typeName = b.leave_type?.name;
+        if (typeName) {
+          balancesByType[typeName] = (balancesByType[typeName] || 0) + (b.balance || 0);
+        }
+      });
+      setActualBalancesByType(balancesByType);
+
+      // Calculate leave type stats (days taken only) - balance comes from actual table
+      const typeStats: Record<string, { total_days: number }> = {};
       allTransactions.forEach(t => {
         if (!typeStats[t.leave_type]) {
-          typeStats[t.leave_type] = { total_days: 0, adjustments: 0 };
+          typeStats[t.leave_type] = { total_days: 0 };
         }
         if (t.type === 'leave_taken' && t.status === 'approved') {
           typeStats[t.leave_type].total_days += Math.abs(t.days);
-        }
-        if (t.type === 'adjustment') {
-          typeStats[t.leave_type].adjustments += t.days;
         }
       });
 
       const leaveTypeStatsArray = Object.entries(typeStats).map(([leave_type, stats]) => ({
         leave_type,
         total_days: stats.total_days,
-        balance: stats.adjustments - stats.total_days
+        balance: balancesByType[leave_type] || 0
       }));
       setLeaveTypeStats(leaveTypeStatsArray);
 
@@ -592,27 +630,31 @@ const OrgLeaveHistory = () => {
     return Object.values(totals);
   }, [filteredTransactions]);
 
-  // Calculate filtered leave type stats
+  // Calculate filtered leave type stats - includes ALL leave types, even with 0 days
   const filteredLeaveTypeStats = useMemo(() => {
-    const typeStats: Record<string, { total_days: number; adjustments: number }> = {};
+    // Initialize all leave types with 0 days taken
+    const typeStats: Record<string, { total_days: number }> = {};
+    allLeaveTypes.forEach(lt => {
+      typeStats[lt.name] = { total_days: 0 };
+    });
+    
+    // Merge in actual transaction data from filtered transactions
     filteredTransactions.forEach(t => {
       if (!typeStats[t.leave_type]) {
-        typeStats[t.leave_type] = { total_days: 0, adjustments: 0 };
+        typeStats[t.leave_type] = { total_days: 0 };
       }
       if (t.type === 'leave_taken' && t.status === 'approved') {
         typeStats[t.leave_type].total_days += Math.abs(t.days);
       }
-      if (t.type === 'adjustment') {
-        typeStats[t.leave_type].adjustments += t.days;
-      }
     });
 
+    // Use actual balances from leave_type_balances table
     return Object.entries(typeStats).map(([leave_type, stats]) => ({
       leave_type,
       total_days: stats.total_days,
-      balance: stats.adjustments - stats.total_days
+      balance: actualBalancesByType[leave_type] || 0
     }));
-  }, [filteredTransactions]);
+  }, [filteredTransactions, allLeaveTypes, actualBalancesByType]);
 
   const mostLeaveTaken = useMemo(() => {
     if (employeeLeaveTotals.length === 0) return null;
