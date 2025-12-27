@@ -27,7 +27,7 @@ const DEFAULT_FILTERS: LeaveHistoryFilters = {
   leaveTypeFilter: "all",
   transactionTypeFilter: "all",
   yearFilter: new Date().getFullYear().toString(),
-  dateRangeFilter: "last7days",
+  dateRangeFilter: "thisYear",
   selectedEmployees: [],
   customStartDate: null,
   customEndDate: null,
