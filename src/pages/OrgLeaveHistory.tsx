@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -834,7 +834,7 @@ const OrgLeaveHistory = () => {
       </div>
 
       {/* Mobile Request Leave Button */}
-      <div className="md:hidden">
+      <div className="md:hidden mb-2">
         <Button onClick={() => navigateOrg('/leave')} className="w-full gap-2">
           <Plus className="h-4 w-4" />
           Request Leave
@@ -842,7 +842,7 @@ const OrgLeaveHistory = () => {
       </div>
 
       {/* Sticky Filter Bar - Light Purple Background */}
-      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
           {/* Employee Multi-Select Dropdown - Read-only for regular users, interactive for Owner/Admin/HR/Manager - Hidden on mobile */}
           <div className="hidden md:block">
@@ -970,21 +970,22 @@ const OrgLeaveHistory = () => {
             </Select>
           </div>
 
-          {/* Leave Type Filter */}
-          <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-            <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
-              <SelectValue placeholder="Leave Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Leave Types</SelectItem>
-              {leaveTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Mobile: Full-width filters */}
+          <div className="flex md:hidden w-full gap-2">
+            {/* Leave Type Filter - Mobile */}
+            <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+              <SelectTrigger className="h-9 flex-1 bg-background">
+                <SelectValue placeholder="Leave Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Leave Types</SelectItem>
+                {leaveTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {/* Date Range Filter */}
-          <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
+            {/* Date Range Filter - Mobile */}
             <Select 
               value={dateRangeFilter} 
               onValueChange={(value: DateRangeOption) => {
@@ -994,7 +995,7 @@ const OrgLeaveHistory = () => {
                 }
               }}
             >
-              <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+              <SelectTrigger className="h-9 flex-1 bg-background">
                 <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
                 <SelectValue placeholder="Date Range" />
               </SelectTrigger>
@@ -1006,6 +1007,48 @@ const OrgLeaveHistory = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Desktop: Leave Type Filter */}
+          <div className="hidden md:block">
+            <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+              <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                <SelectValue placeholder="Leave Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Leave Types</SelectItem>
+                {leaveTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Desktop: Date Range Filter */}
+          <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
+            <div className="hidden md:block">
+              <Select 
+                value={dateRangeFilter} 
+                onValueChange={(value: DateRangeOption) => {
+                  setDateRangeFilter(value);
+                  if (value === "custom") {
+                    setCustomDatePopoverOpen(true);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                  <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                  <SelectValue placeholder="Date Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_RANGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <PopoverTrigger asChild>
               <span />
             </PopoverTrigger>
@@ -1246,10 +1289,13 @@ const OrgLeaveHistory = () => {
                       </TableHead>
                     )}
                     <TableHead className="w-[180px] hidden md:table-cell">Employee</TableHead>
-                    <TableHead className="w-[85px] whitespace-nowrap">Applied</TableHead>
+                    <TableHead className="w-[85px] whitespace-nowrap hidden md:table-cell">Applied</TableHead>
                     <TableHead className="w-[155px]">Leave Dates</TableHead>
                     <TableHead className="w-[70px] hidden md:table-cell">Type</TableHead>
-                    <TableHead className="w-[120px] whitespace-nowrap">Leave Type</TableHead>
+                    <TableHead className="w-[120px] md:whitespace-nowrap">
+                      <span className="hidden md:inline">Leave Type</span>
+                      <span className="md:hidden">Type</span>
+                    </TableHead>
                     <TableHead className="text-center w-[50px]">Days</TableHead>
                     <TableHead className="w-[85px] hidden md:table-cell">Status</TableHead>
                     <TableHead className="text-center w-[60px]">Balance</TableHead>
@@ -1295,7 +1341,7 @@ const OrgLeaveHistory = () => {
                           </div>
                         </OrgLink>
                       </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
+                      <TableCell className="text-sm whitespace-nowrap hidden md:table-cell">
                         {format(new Date(t.effective_date), "dd MMM")}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
@@ -1327,7 +1373,28 @@ const OrgLeaveHistory = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">{t.leave_type}</Badge>
+                        {/* Mobile: icon with tooltip */}
+                        <div className="md:hidden">
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <div className="flex items-center justify-center p-1.5 rounded-full bg-primary/10 text-primary">
+                                {(() => {
+                                  const type = t.leave_type.toLowerCase();
+                                  if (type.includes('annual') || type.includes('vacation')) return <Sun className="h-4 w-4" />;
+                                  if (type.includes('sick') || type.includes('medical')) return <Heart className="h-4 w-4" />;
+                                  if (type.includes('menstrual') || type.includes('period')) return <Moon className="h-4 w-4" />;
+                                  if (type.includes('unpaid')) return <Clock className="h-4 w-4" />;
+                                  if (type.includes('maternity') || type.includes('paternity') || type.includes('parental')) return <Baby className="h-4 w-4" />;
+                                  if (type.includes('travel') || type.includes('holiday')) return <Plane className="h-4 w-4" />;
+                                  return <Briefcase className="h-4 w-4" />;
+                                })()}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>{t.leave_type}</TooltipContent>
+                          </Tooltip>
+                        </div>
+                        {/* Desktop: text badge */}
+                        <Badge variant="outline" className="text-xs whitespace-nowrap hidden md:inline-flex">{t.leave_type}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         {formatDays(t.days)}
