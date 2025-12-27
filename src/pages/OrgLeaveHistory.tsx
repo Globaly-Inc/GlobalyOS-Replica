@@ -38,7 +38,7 @@ import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDia
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
-import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption } from "@/hooks/useLeaveHistoryFilters";
+import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
 
 interface LeaveTransaction {
@@ -128,13 +128,13 @@ const OrgLeaveHistory = () => {
   
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   
-  // Stats for cards
-  const [prevYearStats, setPrevYearStats] = useState<Record<string, { days: number }>>({});
+  // Stats for cards - comparing with previous period
+  const [prevPeriodStats, setPrevPeriodStats] = useState<Record<string, { days: number }>>({});
   const [leaveTypeStats, setLeaveTypeStats] = useState<Array<{
     leave_type: string;
     total_days: number;
     balance: number;
-  }>>([]);
+  }>>();
   
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
@@ -193,7 +193,7 @@ const OrgLeaveHistory = () => {
     if (!currentEmployee?.id) return;
 
     loadData();
-  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds]);
+  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, dateRange.startDate.getTime(), dateRange.endDate.getTime()]);
 
   const loadData = async () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
@@ -201,11 +201,13 @@ const OrgLeaveHistory = () => {
     
     try {
       const currentYear = parseInt(yearFilter);
-      const prevYear = currentYear - 1;
       const startOfYear = `${yearFilter}-01-01`;
       const endOfYear = `${yearFilter}-12-31`;
-      const startOfPrevYear = `${prevYear}-01-01`;
-      const endOfPrevYear = `${prevYear}-12-31`;
+
+      // Calculate previous period range based on current date filter
+      const prevPeriod = getPreviousPeriodRange(dateRange);
+      const startOfPrevPeriod = format(prevPeriod.startDate, 'yyyy-MM-dd');
+      const endOfPrevPeriod = format(prevPeriod.endDate, 'yyyy-MM-dd');
 
       // Fetch leave types from database for name normalization
       const { data: leaveTypesData } = await supabase
@@ -295,14 +297,14 @@ const OrgLeaveHistory = () => {
 
       if (logsError) throw logsError;
 
-      // Load previous year data for comparison
+      // Load previous period data for comparison
       let prevRequestsQuery = supabase
         .from("leave_requests")
         .select("leave_type, days_count, status")
         .eq("organization_id", currentOrg.id)
         .eq("status", "approved")
-        .gte("start_date", startOfPrevYear)
-        .lte("start_date", endOfPrevYear);
+        .gte("start_date", startOfPrevPeriod)
+        .lte("start_date", endOfPrevPeriod);
 
       if (allowedEmployeeIds) {
         prevRequestsQuery = prevRequestsQuery.in("employee_id", allowedEmployeeIds);
@@ -310,7 +312,7 @@ const OrgLeaveHistory = () => {
 
       const { data: prevRequestsData } = await prevRequestsQuery;
 
-      // Calculate previous year stats by leave type (normalized)
+      // Calculate previous period stats by leave type (normalized)
       const prevStats: Record<string, { days: number }> = {};
       (prevRequestsData || []).forEach((r: any) => {
         const normalizedType = normalizeLeaveType(r.leave_type);
@@ -319,7 +321,7 @@ const OrgLeaveHistory = () => {
         }
         prevStats[normalizedType].days += r.days_count;
       });
-      setPrevYearStats(prevStats);
+      setPrevPeriodStats(prevStats);
 
       // Combine and format transactions
       const requestTransactions: LeaveTransaction[] = (requestsData || []).map((r: any) => ({
@@ -974,8 +976,8 @@ const OrgLeaveHistory = () => {
 
         {/* Leave Type Cards */}
         {filteredLeaveTypeStats.map(stat => {
-          const prevYear = prevYearStats[stat.leave_type];
-          const prevDays = prevYear?.days || 0;
+          const prevPeriod = prevPeriodStats[stat.leave_type];
+          const prevDays = prevPeriod?.days || 0;
           const percentChange = prevDays > 0
             ? Math.round(((stat.total_days - prevDays) / prevDays) * 100)
             : stat.total_days > 0 ? 100 : 0;
@@ -998,12 +1000,12 @@ const OrgLeaveHistory = () => {
                   <span className="text-xs text-muted-foreground">days taken</span>
                 </div>
                 
-                {/* % Change from last year */}
+                {/* % Change from previous period */}
                 <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-600' : isNegative ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {isPositive && <TrendingUp className="h-3 w-3" />}
                   {isNegative && <TrendingDown className="h-3 w-3" />}
                   <span>
-                    {percentChange === 0 ? 'No change' : `${isPositive ? '+' : ''}${percentChange}% from last year`}
+                    {percentChange === 0 ? 'No change' : `${isPositive ? '+' : ''}${percentChange}% from ${getComparisonLabel(dateRangeFilter)}`}
                   </span>
                 </div>
 
