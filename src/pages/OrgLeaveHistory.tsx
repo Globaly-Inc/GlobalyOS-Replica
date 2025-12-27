@@ -562,11 +562,11 @@ const OrgLeaveHistory = () => {
     toast.success(`Exported ${selectedData.length} transactions`);
   };
 
-  // Calculate employee leave totals for Most/Least cards
+  // Calculate employee leave totals for Most/Least cards (using filtered data)
   const employeeLeaveTotals = useMemo(() => {
     const totals: Record<string, { employee: LeaveTransaction['employee']; totalDays: number }> = {};
     
-    transactions
+    filteredTransactions
       .filter(t => t.type === 'leave_taken' && t.status === 'approved')
       .forEach(t => {
         const empId = t.employee?.id;
@@ -578,7 +578,29 @@ const OrgLeaveHistory = () => {
       });
     
     return Object.values(totals);
-  }, [transactions]);
+  }, [filteredTransactions]);
+
+  // Calculate filtered leave type stats
+  const filteredLeaveTypeStats = useMemo(() => {
+    const typeStats: Record<string, { total_days: number; adjustments: number }> = {};
+    filteredTransactions.forEach(t => {
+      if (!typeStats[t.leave_type]) {
+        typeStats[t.leave_type] = { total_days: 0, adjustments: 0 };
+      }
+      if (t.type === 'leave_taken' && t.status === 'approved') {
+        typeStats[t.leave_type].total_days += Math.abs(t.days);
+      }
+      if (t.type === 'adjustment') {
+        typeStats[t.leave_type].adjustments += t.days;
+      }
+    });
+
+    return Object.entries(typeStats).map(([leave_type, stats]) => ({
+      leave_type,
+      total_days: stats.total_days,
+      balance: stats.adjustments - stats.total_days
+    }));
+  }, [filteredTransactions]);
 
   const mostLeaveTaken = useMemo(() => {
     if (employeeLeaveTotals.length === 0) return null;
@@ -689,10 +711,10 @@ const OrgLeaveHistory = () => {
     status: t.status || 'pending'
   });
 
-  const pendingCount = transactions.filter(r => r.status === "pending").length;
-  const approvedCount = transactions.filter(r => r.status === "approved").length;
-  const rejectedCount = transactions.filter(r => r.status === "rejected").length;
-  const adjustmentCount = transactions.filter(r => r.type === "adjustment").length;
+  const pendingCount = filteredTransactions.filter(r => r.status === "pending").length;
+  const approvedCount = filteredTransactions.filter(r => r.status === "approved").length;
+  const rejectedCount = filteredTransactions.filter(r => r.status === "rejected").length;
+  const adjustmentCount = filteredTransactions.filter(r => r.type === "adjustment").length;
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -941,7 +963,7 @@ const OrgLeaveHistory = () => {
               </div>
               <span className="text-xs font-medium text-muted-foreground">Leave Requests</span>
             </div>
-            <div className="text-2xl font-bold mb-2">{transactions.filter(t => t.type === 'leave_taken').length}</div>
+            <div className="text-2xl font-bold mb-2">{filteredTransactions.filter(t => t.type === 'leave_taken').length}</div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
               <span className="text-amber-600">● {pendingCount} Pending</span>
               <span className="text-green-600">✓ {approvedCount} Approved</span>
@@ -951,7 +973,7 @@ const OrgLeaveHistory = () => {
         </Card>
 
         {/* Leave Type Cards */}
-        {leaveTypeStats.map(stat => {
+        {filteredLeaveTypeStats.map(stat => {
           const prevYear = prevYearStats[stat.leave_type];
           const prevDays = prevYear?.days || 0;
           const percentChange = prevDays > 0
@@ -996,62 +1018,66 @@ const OrgLeaveHistory = () => {
           );
         })}
         
-        {/* Most Leave Taken Employee */}
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
-              <span className="text-xs text-muted-foreground">Most Leave</span>
-            </div>
-            {mostLeaveTaken ? (
-              <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={mostLeaveTaken.employee?.profiles?.avatar_url || undefined} />
-                  <AvatarFallback className="text-xs">
-                    {getInitials(mostLeaveTaken.employee?.profiles?.full_name || "")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{mostLeaveTaken.employee?.profiles?.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{mostLeaveTaken.totalDays} days</p>
-                </div>
+        {/* Most Leave Taken Employee - Hide when single employee selected */}
+        {selectedEmployees.length !== 1 && (
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                <span className="text-xs text-muted-foreground">Most Leave</span>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data</p>
-            )}
-          </CardContent>
-        </Card>
+              {mostLeaveTaken ? (
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={mostLeaveTaken.employee?.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {getInitials(mostLeaveTaken.employee?.profiles?.full_name || "")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{mostLeaveTaken.employee?.profiles?.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{mostLeaveTaken.totalDays} days</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No data</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Least Leave Taken Employee */}
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Award className="h-4 w-4 text-green-500" />
-              <span className="text-xs text-muted-foreground">Least Leave</span>
-            </div>
-            {leastLeaveTaken ? (
-              <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={leastLeaveTaken.employee?.profiles?.avatar_url || undefined} />
-                  <AvatarFallback className="text-xs">
-                    {getInitials(leastLeaveTaken.employee?.profiles?.full_name || "")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{leastLeaveTaken.employee?.profiles?.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{leastLeaveTaken.totalDays} days</p>
-                </div>
+        {/* Least Leave Taken Employee - Hide when single employee selected */}
+        {selectedEmployees.length !== 1 && (
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Award className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-muted-foreground">Least Leave</span>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data</p>
-            )}
-          </CardContent>
-        </Card>
+              {leastLeaveTaken ? (
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={leastLeaveTaken.employee?.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {getInitials(leastLeaveTaken.employee?.profiles?.full_name || "")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{leastLeaveTaken.employee?.profiles?.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{leastLeaveTaken.totalDays} days</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No data</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Leave Analytics Chart */}
       <LeaveAnalyticsChart 
-        transactions={transactions.map(t => ({
+        transactions={filteredTransactions.map(t => ({
           id: t.id,
           type: t.type,
           leave_type: t.leave_type,
