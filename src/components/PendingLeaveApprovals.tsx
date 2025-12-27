@@ -316,62 +316,6 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     } else {
       toast.success(`Leave request ${approved ? "approved" : "rejected"}`);
       
-      // Auto-deduct leave balance when approved
-      if (approved && leaveRequest && currentEmployee) {
-        try {
-          const currentYear = new Date().getFullYear();
-          
-          // Find the leave type by name
-          const { data: leaveTypeData } = await supabase
-            .from("leave_types")
-            .select("id")
-            .eq("organization_id", currentOrg?.id)
-            .eq("name", leaveRequest.leave_type)
-            .maybeSingle();
-
-          if (leaveTypeData) {
-            // Get current balance from new table
-            const { data: balanceData } = await supabase
-              .from("leave_type_balances")
-              .select("id, balance")
-              .eq("employee_id", leaveRequest.employee_id)
-              .eq("leave_type_id", leaveTypeData.id)
-              .eq("year", currentYear)
-              .maybeSingle();
-
-            if (balanceData) {
-              const currentBalance = balanceData.balance || 0;
-              const newBalance = Math.max(0, currentBalance - leaveRequest.days_count);
-
-              // Update the balance
-              await supabase
-                .from("leave_type_balances")
-                .update({ balance: newBalance })
-                .eq("id", balanceData.id);
-
-              // Log the deduction
-              await supabase
-                .from("leave_balance_logs")
-                .insert({
-                  employee_id: leaveRequest.employee_id,
-                  organization_id: currentOrg?.id,
-                  leave_type: leaveRequest.leave_type,
-                  change_amount: -leaveRequest.days_count,
-                  previous_balance: currentBalance,
-                  new_balance: newBalance,
-                  reason: `Auto-deducted for approved ${leaveRequest.leave_type} request`,
-                  created_by: currentEmployee.id,
-                });
-
-              console.log(`Deducted ${leaveRequest.days_count} from ${leaveRequest.leave_type}`);
-            }
-          }
-        } catch (deductError) {
-          console.error("Failed to deduct leave balance:", deductError);
-          // Don't show error - deduction is secondary to approval
-        }
-      }
-      
       // Send notification email to employee
       try {
         const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
