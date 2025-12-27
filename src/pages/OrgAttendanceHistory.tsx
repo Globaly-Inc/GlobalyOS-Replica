@@ -973,7 +973,7 @@ const OrgAttendanceHistory = () => {
         </div>
       </Card>;
   };
-  return <div className="space-y-4 md:space-y-6 pb-24 md:pb-6">
+  return <div className="space-y-4 md:space-y-6 pt-4 md:pt-6 pb-24 md:pb-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
