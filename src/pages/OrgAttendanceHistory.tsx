@@ -1048,7 +1048,7 @@ const OrgAttendanceHistory = () => {
 
         {/* Sticky Filter Bar - Light Purple Background */}
         <div className="px-4 md:px-0 sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
-          <div className="flex items-center gap-2 flex-wrap bg-slate-300 px-[5px] py-[5px] rounded-5g">
+          <div className="flex items-center gap-2 flex-wrap bg-slate-300 px-[5px] py-[5px] rounded-lg">
             {/* Employee Multi-Select Dropdown */}
             <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
               <PopoverTrigger asChild>
