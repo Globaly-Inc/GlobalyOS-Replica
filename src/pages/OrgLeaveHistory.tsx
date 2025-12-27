@@ -13,16 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,7 +31,6 @@ import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
-
 interface LeaveTransaction {
   id: string;
   type: 'leave_taken' | 'adjustment';
@@ -64,7 +54,6 @@ interface LeaveTransaction {
     };
   };
 }
-
 interface SelectedTransaction {
   type: 'leave_taken' | 'adjustment';
   id: string;
@@ -88,23 +77,33 @@ const formatBalance = (balance: number | undefined) => {
   }
   return <span className={balance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{balance}</span>;
 };
-
 const OrgLeaveHistory = () => {
-  const { currentOrg } = useOrganization();
-  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
-  const { navigateOrg, orgCode } = useOrgNavigation();
-  const { data: currentEmployee, isLoading: employeeLoading } = useCurrentEmployee();
-  
+  const {
+    currentOrg
+  } = useOrganization();
+  const {
+    isOwner,
+    isAdmin,
+    isHR,
+    loading: roleLoading
+  } = useUserRole();
+  const {
+    navigateOrg,
+    orgCode
+  } = useOrgNavigation();
+  const {
+    data: currentEmployee,
+    isLoading: employeeLoading
+  } = useCurrentEmployee();
+
   // Check if current user is a manager (has direct reports)
   const [isManager, setIsManager] = useState(false);
   const [directReportIds, setDirectReportIds] = useState<string[]>([]);
-  
   const canEditAll = isOwner || isAdmin || isHR;
-  
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSpinner, setShowSpinner] = useState(false);
-  
+
   // Delayed spinner to prevent flickering on fast loads
   useEffect(() => {
     if (loading) {
@@ -113,105 +112,123 @@ const OrgLeaveHistory = () => {
     }
     setShowSpinner(false);
   }, [loading]);
-  
+
   // Employee multi-select popover state
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [customDatePopoverOpen, setCustomDatePopoverOpen] = useState(false);
-  
   const {
-    statusFilter, setStatusFilter,
-    leaveTypeFilter, setLeaveTypeFilter,
-    transactionTypeFilter, setTransactionTypeFilter,
-    yearFilter, setYearFilter,
-    dateRangeFilter, setDateRangeFilter,
-    selectedEmployees, setSelectedEmployees,
-    customStartDate, customEndDate, setCustomDateRange,
-    dateRange,
+    statusFilter,
+    setStatusFilter,
+    leaveTypeFilter,
+    setLeaveTypeFilter,
+    transactionTypeFilter,
+    setTransactionTypeFilter,
+    yearFilter,
+    setYearFilter,
+    dateRangeFilter,
+    setDateRangeFilter,
+    selectedEmployees,
+    setSelectedEmployees,
+    customStartDate,
+    customEndDate,
+    setCustomDateRange,
+    dateRange
   } = useLeaveHistoryFilters();
-  
+
   // Fetch all employees for multi-select dropdown
-  const { data: employeesData = [] } = useEmployees({ status: 'active' });
-  const allEmployees = (employeesData as unknown) as Array<{
+  const {
+    data: employeesData = []
+  } = useEmployees({
+    status: 'active'
+  });
+  const allEmployees = employeesData as unknown as Array<{
     id: string;
-    profiles?: { full_name?: string; avatar_url?: string | null };
+    profiles?: {
+      full_name?: string;
+      avatar_url?: string | null;
+    };
   }>;
-  
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
-  
+
   // All active leave types for stats display
-  const [allLeaveTypes, setAllLeaveTypes] = useState<Array<{ id: string; name: string }>>([]);
-  
+  const [allLeaveTypes, setAllLeaveTypes] = useState<Array<{
+    id: string;
+    name: string;
+  }>>([]);
+
   // Stats for cards - comparing with previous period
-  const [prevPeriodStats, setPrevPeriodStats] = useState<Record<string, { days: number }>>({});
+  const [prevPeriodStats, setPrevPeriodStats] = useState<Record<string, {
+    days: number;
+  }>>({});
   const [leaveTypeStats, setLeaveTypeStats] = useState<Array<{
     leave_type: string;
     total_days: number;
     balance: number;
   }>>();
-  
   const [editAdjustment, setEditAdjustment] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
-  const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
+  const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{
+    open: boolean;
+    adjustment: LeaveTransaction | null;
+  }>({
+    open: false,
+    adjustment: null
+  });
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
-  
+
   // Bulk selection state
   const [selectedTransactions, setSelectedTransactions] = useState<SelectedTransaction[]>([]);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [bulkDeleteLeaveDialog, setBulkDeleteLeaveDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkDeletingLeave, setBulkDeletingLeave] = useState(false);
-  const [deleteLeaveDialog, setDeleteLeaveDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
+  const [deleteLeaveDialog, setDeleteLeaveDialog] = useState<{
+    open: boolean;
+    request: LeaveTransaction | null;
+  }>({
+    open: false,
+    request: null
+  });
   const [deletingLeave, setDeletingLeave] = useState(false);
   const [addLeaveOpen, setAddLeaveOpen] = useState(false);
-  
   const queryClient = useQueryClient();
 
   // Check if current user has direct reports (is a manager)
   useEffect(() => {
     const checkDirectReports = async () => {
       if (!currentEmployee?.id || !currentOrg?.id) return;
-      
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("manager_id", currentEmployee.id)
-        .eq("organization_id", currentOrg.id)
-        .eq("status", "active");
-      
+      const {
+        data,
+        error
+      } = await supabase.from("employees").select("id").eq("manager_id", currentEmployee.id).eq("organization_id", currentOrg.id).eq("status", "active");
       if (!error && data) {
         setIsManager(data.length > 0);
         setDirectReportIds(data.map(e => e.id));
       }
     };
-    
     checkDirectReports();
   }, [currentEmployee?.id, currentOrg?.id]);
 
   // Helper to check if user can edit a specific transaction
   const canEditTransaction = (t: LeaveTransaction) => {
     if (canEditAll) return true; // Owner/Admin/HR can edit all
-    
+
     // Manager can edit their own and direct reports' leave
     if (isManager) {
       if (t.employee?.id === currentEmployee?.id) return true;
       if (directReportIds.includes(t.employee?.id || '')) return true;
     }
-    
     return false; // Regular users cannot edit
   };
-
   useEffect(() => {
     if (!currentOrg?.id) return;
     if (roleLoading || employeeLoading) return;
     if (!currentEmployee?.id) return;
-
     loadData();
   }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, format(dateRange.startDate, 'yyyy-MM-dd'), format(dateRange.endDate, 'yyyy-MM-dd'), selectedEmployees]);
-
   const loadData = async () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
     setLoading(true);
-    
     try {
       const currentYear = parseInt(yearFilter);
       const startOfYear = `${yearFilter}-01-01`;
@@ -223,34 +240,38 @@ const OrgLeaveHistory = () => {
       const endOfPrevPeriod = format(prevPeriod.endDate, 'yyyy-MM-dd');
 
       // Fetch leave types from database for name normalization and stats display
-      const { data: leaveTypesData } = await supabase
-        .from("leave_types")
-        .select("id, name, is_active")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true);
-      
+      const {
+        data: leaveTypesData
+      } = await supabase.from("leave_types").select("id, name, is_active").eq("organization_id", currentOrg.id).eq("is_active", true);
+
       // Store all active leave types for stats cards
-      setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
-      
+      setAllLeaveTypes((leaveTypesData || []).map((lt: {
+        id: string;
+        name: string;
+      }) => ({
+        id: lt.id,
+        name: lt.name
+      })));
+
       // Build a lookup map to normalize leave type names to official casing
       const leaveTypeNameMap: Record<string, string> = {};
-      (leaveTypesData || []).forEach((lt: { name: string }) => {
+      (leaveTypesData || []).forEach((lt: {
+        name: string;
+      }) => {
         leaveTypeNameMap[lt.name.toLowerCase()] = lt.name;
       });
       const normalizeLeaveType = (name: string) => leaveTypeNameMap[name.toLowerCase()] || name;
 
       // Determine which employee IDs we can view
       let allowedEmployeeIds: string[] | null = null; // null = all employees (for admins)
-      
+
       if (!canEditAll) {
         // Manager or regular user - filter to self + direct reports (for managers)
         allowedEmployeeIds = [currentEmployee.id, ...directReportIds];
       }
 
       // Load leave requests for current year
-      let requestsQuery = supabase
-        .from("leave_requests")
-        .select(`
+      let requestsQuery = supabase.from("leave_requests").select(`
           id,
           leave_type,
           start_date,
@@ -266,25 +287,22 @@ const OrgLeaveHistory = () => {
             position,
             profiles!inner(full_name, avatar_url)
           )
-        `)
-        .eq("organization_id", currentOrg.id)
-        .gte("start_date", startOfYear)
-        .lte("start_date", endOfYear)
-        .order("start_date", { ascending: false });
+        `).eq("organization_id", currentOrg.id).gte("start_date", startOfYear).lte("start_date", endOfYear).order("start_date", {
+        ascending: false
+      });
 
       // Filter by allowed employee IDs if not admin/HR/owner
       if (allowedEmployeeIds) {
         requestsQuery = requestsQuery.in("employee_id", allowedEmployeeIds);
       }
-
-      const { data: requestsData, error: requestsError } = await requestsQuery;
-
+      const {
+        data: requestsData,
+        error: requestsError
+      } = await requestsQuery;
       if (requestsError) throw requestsError;
 
       // Load leave balance logs (adjustments) for current year
-      let logsQuery = supabase
-        .from("leave_balance_logs")
-        .select(`
+      let logsQuery = supabase.from("leave_balance_logs").select(`
           id,
           leave_type,
           change_amount,
@@ -299,42 +317,39 @@ const OrgLeaveHistory = () => {
             position,
             profiles!inner(full_name, avatar_url)
           )
-        `)
-        .eq("organization_id", currentOrg.id)
-        .gte("effective_date", startOfYear)
-        .lte("effective_date", endOfYear)
-        .order("effective_date", { ascending: false });
+        `).eq("organization_id", currentOrg.id).gte("effective_date", startOfYear).lte("effective_date", endOfYear).order("effective_date", {
+        ascending: false
+      });
 
       // Filter by allowed employee IDs if not admin/HR/owner
       if (allowedEmployeeIds) {
         logsQuery = logsQuery.in("employee_id", allowedEmployeeIds);
       }
-
-      const { data: logsData, error: logsError } = await logsQuery;
-
+      const {
+        data: logsData,
+        error: logsError
+      } = await logsQuery;
       if (logsError) throw logsError;
 
       // Load previous period data for comparison
-      let prevRequestsQuery = supabase
-        .from("leave_requests")
-        .select("leave_type, days_count, status")
-        .eq("organization_id", currentOrg.id)
-        .eq("status", "approved")
-        .gte("start_date", startOfPrevPeriod)
-        .lte("start_date", endOfPrevPeriod);
-
+      let prevRequestsQuery = supabase.from("leave_requests").select("leave_type, days_count, status").eq("organization_id", currentOrg.id).eq("status", "approved").gte("start_date", startOfPrevPeriod).lte("start_date", endOfPrevPeriod);
       if (allowedEmployeeIds) {
         prevRequestsQuery = prevRequestsQuery.in("employee_id", allowedEmployeeIds);
       }
-
-      const { data: prevRequestsData } = await prevRequestsQuery;
+      const {
+        data: prevRequestsData
+      } = await prevRequestsQuery;
 
       // Calculate previous period stats by leave type (normalized)
-      const prevStats: Record<string, { days: number }> = {};
+      const prevStats: Record<string, {
+        days: number;
+      }> = {};
       (prevRequestsData || []).forEach((r: any) => {
         const normalizedType = normalizeLeaveType(r.leave_type);
         if (!prevStats[normalizedType]) {
-          prevStats[normalizedType] = { days: 0 };
+          prevStats[normalizedType] = {
+            days: 0
+          };
         }
         prevStats[normalizedType].days += r.days_count;
       });
@@ -354,7 +369,6 @@ const OrgLeaveHistory = () => {
         half_day_type: r.half_day_type,
         employee: r.employee
       }));
-
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
@@ -366,15 +380,11 @@ const OrgLeaveHistory = () => {
         new_balance: l.new_balance,
         employee: l.employee
       }));
-
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
-
 
       // ====== Running balance calculation per employee per leave type ======
       // Step 1: Sort chronologically (oldest first)
-      const sortedChronologically = [...allTransactions].sort((a, b) => 
-        new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
-      );
+      const sortedChronologically = [...allTransactions].sort((a, b) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime());
 
       // Step 2: Process transactions chronologically, tracking per employee per leave type
       const runningBalance: Record<string, Record<string, number>> = {};
@@ -386,12 +396,15 @@ const OrgLeaveHistory = () => {
         if (t.type === 'adjustment' || t.status === 'approved') {
           runningBalance[empId][t.leave_type] = (runningBalance[empId][t.leave_type] || 0) + t.days;
         }
-        return { ...t, balance_after: runningBalance[empId][t.leave_type] || 0 };
+        return {
+          ...t,
+          balance_after: runningBalance[empId][t.leave_type] || 0
+        };
       });
 
       // Step 3: Reverse to show newest first
       setTransactions(transactionsWithBalance.reverse());
-      
+
       // Extract unique leave types
       const types = [...new Set(allTransactions.map(t => t.leave_type))];
       setLeaveTypes(types);
@@ -407,19 +420,16 @@ const OrgLeaveHistory = () => {
   useEffect(() => {
     setSelectedTransactions([]);
   }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, selectedEmployees, dateRangeFilter]);
-
-  const filteredTransactions = transactions.filter((t) => {
+  const filteredTransactions = transactions.filter(t => {
     // Employee filter - if no employees selected, show all; otherwise filter to selected
-    const matchesEmployee = selectedEmployees.length === 0 || 
-      selectedEmployees.includes(t.employee?.id || '');
-    const matchesStatus = statusFilter === "all" || t.status === statusFilter || (t.type === 'adjustment' && statusFilter === 'all');
+    const matchesEmployee = selectedEmployees.length === 0 || selectedEmployees.includes(t.employee?.id || '');
+    const matchesStatus = statusFilter === "all" || t.status === statusFilter || t.type === 'adjustment' && statusFilter === 'all';
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
-    
+
     // Date range filter
     const effectiveDate = new Date(t.effective_date);
     const matchesDateRange = effectiveDate >= dateRange.startDate && effectiveDate <= dateRange.endDate;
-    
     return matchesEmployee && matchesStatus && matchesType && matchesTransType && matchesDateRange;
   });
 
@@ -427,16 +437,18 @@ const OrgLeaveHistory = () => {
   const isTransactionSelected = (id: string, type: string) => {
     return selectedTransactions.some(s => s.id === id && s.type === type);
   };
-
   const toggleTransactionSelection = (t: LeaveTransaction) => {
-    const key = { id: t.id, type: t.type, status: t.status };
+    const key = {
+      id: t.id,
+      type: t.type,
+      status: t.status
+    };
     if (isTransactionSelected(t.id, t.type)) {
       setSelectedTransactions(prev => prev.filter(s => !(s.id === t.id && s.type === t.type)));
     } else {
       setSelectedTransactions(prev => [...prev, key]);
     }
   };
-
   const selectAllFiltered = () => {
     const allFiltered = filteredTransactions.map(t => ({
       id: t.id,
@@ -445,36 +457,28 @@ const OrgLeaveHistory = () => {
     }));
     setSelectedTransactions(allFiltered);
   };
-
   const deselectAll = () => {
     setSelectedTransactions([]);
   };
-
-  const allFilteredSelected = filteredTransactions.length > 0 && 
-    filteredTransactions.every(t => isTransactionSelected(t.id, t.type));
+  const allFilteredSelected = filteredTransactions.length > 0 && filteredTransactions.every(t => isTransactionSelected(t.id, t.type));
   const someFilteredSelected = selectedTransactions.length > 0 && !allFilteredSelected;
 
   // Bulk action handlers
   const handleBulkDeleteAdjustments = async () => {
-    const adjustmentIds = selectedTransactions
-      .filter(s => s.type === 'adjustment')
-      .map(s => s.id);
-    
+    const adjustmentIds = selectedTransactions.filter(s => s.type === 'adjustment').map(s => s.id);
     if (adjustmentIds.length === 0) return;
-    
     setBulkDeleting(true);
     try {
-      const { error } = await supabase
-        .from("leave_balance_logs")
-        .delete()
-        .in("id", adjustmentIds);
-
+      const {
+        error
+      } = await supabase.from("leave_balance_logs").delete().in("id", adjustmentIds);
       if (error) throw error;
-
       toast.success(`Deleted ${adjustmentIds.length} adjustment${adjustmentIds.length > 1 ? 's' : ''}`);
       setSelectedTransactions([]);
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-balance-logs"]
+      });
     } catch (error) {
       console.error("Error deleting adjustments:", error);
       toast.error("Failed to delete some adjustments");
@@ -483,27 +487,21 @@ const OrgLeaveHistory = () => {
       setBulkDeleteDialog(false);
     }
   };
-
   const handleBulkDeleteLeave = async () => {
-    const leaveIds = selectedTransactions
-      .filter(s => s.type === 'leave_taken')
-      .map(s => s.id);
-    
+    const leaveIds = selectedTransactions.filter(s => s.type === 'leave_taken').map(s => s.id);
     if (leaveIds.length === 0) return;
-    
     setBulkDeletingLeave(true);
     try {
-      const { error } = await supabase
-        .from("leave_requests")
-        .delete()
-        .in("id", leaveIds);
-
+      const {
+        error
+      } = await supabase.from("leave_requests").delete().in("id", leaveIds);
       if (error) throw error;
-
       toast.success(`Deleted ${leaveIds.length} leave record${leaveIds.length > 1 ? 's' : ''}`);
       setSelectedTransactions([]);
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-requests"]
+      });
     } catch (error) {
       console.error("Error deleting leave records:", error);
       toast.error("Failed to delete some leave records");
@@ -512,46 +510,36 @@ const OrgLeaveHistory = () => {
       setBulkDeleteLeaveDialog(false);
     }
   };
-
   const handleDeleteLeaveRequest = async () => {
     if (!deleteLeaveDialog.request) return;
     setDeletingLeave(true);
-
-    const { error } = await supabase
-      .from("leave_requests")
-      .delete()
-      .eq("id", deleteLeaveDialog.request.id);
-
+    const {
+      error
+    } = await supabase.from("leave_requests").delete().eq("id", deleteLeaveDialog.request.id);
     if (error) {
       toast.error("Failed to delete leave record");
     } else {
       toast.success("Leave record deleted");
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-requests"]
+      });
     }
-
     setDeletingLeave(false);
-    setDeleteLeaveDialog({ open: false, request: null });
+    setDeleteLeaveDialog({
+      open: false,
+      request: null
+    });
   };
-
   const handleExportSelected = () => {
     const selectedIds = new Set(selectedTransactions.map(s => `${s.type}-${s.id}`));
     const selectedData = filteredTransactions.filter(t => selectedIds.has(`${t.type}-${t.id}`));
-    
     const headers = ["Employee", "Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Reason"];
-    const rows = selectedData.map(t => [
-      t.employee?.profiles?.full_name || "",
-      t.effective_date,
-      t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-',
-      t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
-      t.leave_type,
-      t.days.toString(),
-      t.status || "-",
-      t.reason || ""
-    ]);
-    
+    const rows = selectedData.map(t => [t.employee?.profiles?.full_name || "", t.effective_date, t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-', t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment', t.leave_type, t.days.toString(), t.status || "-", t.reason || ""]);
     const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const blob = new Blob([csvContent], {
+      type: "text/csv"
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -563,19 +551,21 @@ const OrgLeaveHistory = () => {
 
   // Calculate employee leave totals for Most/Least cards (using filtered data)
   const employeeLeaveTotals = useMemo(() => {
-    const totals: Record<string, { employee: LeaveTransaction['employee']; totalDays: number }> = {};
-    
-    filteredTransactions
-      .filter(t => t.type === 'leave_taken' && t.status === 'approved')
-      .forEach(t => {
-        const empId = t.employee?.id;
-        if (!empId) return;
-        if (!totals[empId]) {
-          totals[empId] = { employee: t.employee, totalDays: 0 };
-        }
-        totals[empId].totalDays += Math.abs(t.days);
-      });
-    
+    const totals: Record<string, {
+      employee: LeaveTransaction['employee'];
+      totalDays: number;
+    }> = {};
+    filteredTransactions.filter(t => t.type === 'leave_taken' && t.status === 'approved').forEach(t => {
+      const empId = t.employee?.id;
+      if (!empId) return;
+      if (!totals[empId]) {
+        totals[empId] = {
+          employee: t.employee,
+          totalDays: 0
+        };
+      }
+      totals[empId].totalDays += Math.abs(t.days);
+    });
     return Object.values(totals);
   }, [filteredTransactions]);
 
@@ -583,9 +573,7 @@ const OrgLeaveHistory = () => {
   // Balance should not be affected by leave type, status, or date range filters
   const employeeOnlyTransactions = useMemo(() => {
     if (selectedEmployees.length === 0) return transactions;
-    return transactions.filter(t => 
-      selectedEmployees.includes(t.employee?.id || '')
-    );
+    return transactions.filter(t => selectedEmployees.includes(t.employee?.id || ''));
   }, [transactions, selectedEmployees]);
 
   // Calculate filtered leave type stats - includes ALL leave types, even with 0 days
@@ -593,25 +581,37 @@ const OrgLeaveHistory = () => {
   // Balance: only respects employee selection (to show actual current balance)
   const filteredLeaveTypeStats = useMemo(() => {
     // Initialize all leave types with 0 days and 0 balance
-    const typeStats: Record<string, { total_days: number; balance: number }> = {};
+    const typeStats: Record<string, {
+      total_days: number;
+      balance: number;
+    }> = {};
     allLeaveTypes.forEach(lt => {
-      typeStats[lt.name] = { total_days: 0, balance: 0 };
+      typeStats[lt.name] = {
+        total_days: 0,
+        balance: 0
+      };
     });
-    
+
     // Calculate DAYS TAKEN from filteredTransactions (respects all filters)
     filteredTransactions.forEach(t => {
       if (!typeStats[t.leave_type]) {
-        typeStats[t.leave_type] = { total_days: 0, balance: 0 };
+        typeStats[t.leave_type] = {
+          total_days: 0,
+          balance: 0
+        };
       }
       if (t.type === 'leave_taken' && t.status === 'approved') {
         typeStats[t.leave_type].total_days += Math.abs(t.days);
       }
     });
-    
+
     // Calculate BALANCE from employeeOnlyTransactions (only employee filter affects this)
     employeeOnlyTransactions.forEach(t => {
       if (!typeStats[t.leave_type]) {
-        typeStats[t.leave_type] = { total_days: 0, balance: 0 };
+        typeStats[t.leave_type] = {
+          total_days: 0,
+          balance: 0
+        };
       }
       if (t.type === 'leave_taken' && t.status === 'approved') {
         typeStats[t.leave_type].balance += t.days; // t.days is negative for leave_taken
@@ -619,26 +619,21 @@ const OrgLeaveHistory = () => {
         typeStats[t.leave_type].balance += t.days;
       }
     });
-
     return Object.entries(typeStats).map(([leave_type, stats]) => ({
       leave_type,
       total_days: stats.total_days,
-      balance: stats.balance,
+      balance: stats.balance
     }));
   }, [filteredTransactions, employeeOnlyTransactions, allLeaveTypes]);
-
   const mostLeaveTaken = useMemo(() => {
     if (employeeLeaveTotals.length === 0) return null;
     return employeeLeaveTotals.sort((a, b) => b.totalDays - a.totalDays)[0];
   }, [employeeLeaveTotals]);
-
   const leastLeaveTaken = useMemo(() => {
     const withLeave = employeeLeaveTotals.filter(e => e.totalDays > 0);
     if (withLeave.length === 0) return null;
     return withLeave.sort((a, b) => a.totalDays - b.totalDays)[0];
   }, [employeeLeaveTotals]);
-
-
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case "approved":
@@ -651,39 +646,26 @@ const OrgLeaveHistory = () => {
         return <span className="text-muted-foreground text-xs">-</span>;
     }
   };
-
   const getInitials = (name: string) => {
-    return name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?";
+    return name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   };
-
   const formatLeaveDates = (t: LeaveTransaction) => {
     if (t.type === 'adjustment') return "-";
     if (!t.start_date) return "-";
-    
     const start = formatDate(t.start_date);
     const end = t.end_date ? formatDate(t.end_date) : start;
-    
     if (t.start_date === t.end_date || !t.end_date) {
       return start;
     }
     return `${start} → ${end}`;
   };
-
   const handleExportCSV = () => {
     const headers = ["Employee", "Applied Date", "Leave Dates", "Type", "Leave Type", "Days", "Status", "Reason"];
-    const rows = filteredTransactions.map(t => [
-      t.employee?.profiles?.full_name || "",
-      t.effective_date,
-      t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-',
-      t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment',
-      t.leave_type,
-      t.days.toString(),
-      t.status || "-",
-      t.reason || ""
-    ]);
-    
+    const rows = filteredTransactions.map(t => [t.employee?.profiles?.full_name || "", t.effective_date, t.type === 'leave_taken' ? `${t.start_date || ''} - ${t.end_date || ''}` : '-', t.type === 'leave_taken' ? 'Leave Taken' : 'Adjustment', t.leave_type, t.days.toString(), t.status || "-", t.reason || ""]);
     const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const blob = new Blob([csvContent], {
+      type: "text/csv"
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -692,26 +674,26 @@ const OrgLeaveHistory = () => {
     URL.revokeObjectURL(url);
     toast.success("Export complete");
   };
-
   const handleDeleteAdjustment = async () => {
     if (!deleteAdjustmentDialog.adjustment) return;
     setDeletingAdjustment(true);
-
-    const { error } = await supabase
-      .from("leave_balance_logs")
-      .delete()
-      .eq("id", deleteAdjustmentDialog.adjustment.id);
-
+    const {
+      error
+    } = await supabase.from("leave_balance_logs").delete().eq("id", deleteAdjustmentDialog.adjustment.id);
     if (error) {
       toast.error("Failed to delete adjustment");
     } else {
       toast.success("Adjustment deleted");
       loadData();
-      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["leave-balance-logs"]
+      });
     }
-
     setDeletingAdjustment(false);
-    setDeleteAdjustmentDialog({ open: false, adjustment: null });
+    setDeleteAdjustmentDialog({
+      open: false,
+      adjustment: null
+    });
   };
   // Helper to map LeaveTransaction to EditLeaveAdjustmentDialog format
   const mapToAdjustmentEdit = (t: LeaveTransaction) => ({
@@ -735,33 +717,25 @@ const OrgLeaveHistory = () => {
     reason: t.reason || '',
     status: t.status || 'pending'
   });
-
   const pendingCount = filteredTransactions.filter(r => r.status === "pending").length;
   const approvedCount = filteredTransactions.filter(r => r.status === "approved").length;
   const rejectedCount = filteredTransactions.filter(r => r.status === "rejected").length;
   const adjustmentCount = filteredTransactions.filter(r => r.type === "adjustment").length;
-
-  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-
-  return (
-    <div className="space-y-6 pt-4 md:pt-6">
+  const years = Array.from({
+    length: 5
+  }, (_, i) => (new Date().getFullYear() - i).toString());
+  return <div className="space-y-6 pt-4 md:pt-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <History className="h-6 w-6" />
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">Leave<History className="h-6 w-6" />
             Leave History
           </h1>
           <p className="text-muted-foreground">
-            {canEditAll
-              ? "View all leave transactions across the organization"
-              : isManager
-              ? "Your leave history and direct reports"
-              : "Your leave history"}
+            {canEditAll ? "View all leave transactions across the organization" : isManager ? "Your leave history and direct reports" : "Your leave history"}
           </p>
         </div>
-        {canEditAll && (
-          <div className="flex items-center gap-2">
+        {canEditAll && <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
               Import
@@ -774,8 +748,7 @@ const OrgLeaveHistory = () => {
               <Plus className="h-4 w-4" />
               Add Leave
             </Button>
-          </div>
-        )}
+          </div>}
       </div>
 
       {/* Sticky Filter Bar - Light Purple Background */}
@@ -784,19 +757,10 @@ const OrgLeaveHistory = () => {
           {/* Employee Multi-Select Dropdown */}
           <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={employeePopoverOpen}
-                className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
-              >
+              <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]">
                 <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="truncate text-sm">
-                  {selectedEmployees.length === 0
-                    ? "All Employees"
-                    : selectedEmployees.length === 1
-                      ? allEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
-                      : `${selectedEmployees.length} selected`}
+                  {selectedEmployees.length === 0 ? "All Employees" : selectedEmployees.length === 1 ? allEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected" : `${selectedEmployees.length} selected`}
                 </span>
                 <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
               </Button>
@@ -809,42 +773,22 @@ const OrgLeaveHistory = () => {
                   <CommandGroup>
                     {/* Select All / Clear All */}
                     <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees(allEmployees.map(e => e.id))}
-                      >
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(allEmployees.map(e => e.id))}>
                         Select All
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees([])}
-                      >
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
                         Clear All
                       </Button>
                     </div>
-                    {allEmployees.map((employee) => (
-                      <CommandItem
-                        key={employee.id}
-                        value={employee.profiles?.full_name || employee.id}
-                        onSelect={() => {
-                          const isSelected = selectedEmployees.includes(employee.id);
-                          if (isSelected) {
-                            setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
-                          } else {
-                            setSelectedEmployees([...selectedEmployees, employee.id]);
-                          }
-                        }}
-                      >
-                        <div className={cn(
-                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                          selectedEmployees.includes(employee.id)
-                            ? "bg-primary text-primary-foreground"
-                            : "opacity-50 [&_svg]:invisible"
-                        )}>
+                    {allEmployees.map(employee => <CommandItem key={employee.id} value={employee.profiles?.full_name || employee.id} onSelect={() => {
+                    const isSelected = selectedEmployees.includes(employee.id);
+                    if (isSelected) {
+                      setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                    } else {
+                      setSelectedEmployees([...selectedEmployees, employee.id]);
+                    }
+                  }}>
+                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", selectedEmployees.includes(employee.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
                           <Check className="h-3 w-3" />
                         </div>
                         <Avatar className="h-6 w-6 mr-2">
@@ -854,8 +798,7 @@ const OrgLeaveHistory = () => {
                           </AvatarFallback>
                         </Avatar>
                         <span className="truncate">{employee.profiles?.full_name}</span>
-                      </CommandItem>
-                    ))}
+                      </CommandItem>)}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -894,33 +837,26 @@ const OrgLeaveHistory = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Leave Types</SelectItem>
-              {leaveTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
+              {leaveTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
             </SelectContent>
           </Select>
 
           {/* Date Range Filter */}
           <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
-            <Select 
-              value={dateRangeFilter} 
-              onValueChange={(value: DateRangeOption) => {
-                setDateRangeFilter(value);
-                if (value === "custom") {
-                  setCustomDatePopoverOpen(true);
-                }
-              }}
-            >
+            <Select value={dateRangeFilter} onValueChange={(value: DateRangeOption) => {
+            setDateRangeFilter(value);
+            if (value === "custom") {
+              setCustomDatePopoverOpen(true);
+            }
+          }}>
               <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
                 <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
                 <SelectValue placeholder="Date Range" />
               </SelectTrigger>
               <SelectContent>
-                {DATE_RANGE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+                {DATE_RANGE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>
                     {option.label}
-                  </SelectItem>
-                ))}
+                  </SelectItem>)}
               </SelectContent>
             </Select>
             <PopoverTrigger asChild>
@@ -932,21 +868,11 @@ const OrgLeaveHistory = () => {
                 <div className="flex gap-4">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">Start Date</div>
-                    <CalendarComponent
-                      mode="single"
-                      selected={customStartDate ? new Date(customStartDate) : undefined}
-                      onSelect={(date) => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)}
-                      className="rounded-md border pointer-events-auto"
-                    />
+                    <CalendarComponent mode="single" selected={customStartDate ? new Date(customStartDate) : undefined} onSelect={date => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)} className="rounded-md border pointer-events-auto" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">End Date</div>
-                    <CalendarComponent
-                      mode="single"
-                      selected={customEndDate ? new Date(customEndDate) : undefined}
-                      onSelect={(date) => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)}
-                      className="rounded-md border pointer-events-auto"
-                    />
+                    <CalendarComponent mode="single" selected={customEndDate ? new Date(customEndDate) : undefined} onSelect={date => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)} className="rounded-md border pointer-events-auto" />
                   </div>
                 </div>
                 <Button size="sm" onClick={() => setCustomDatePopoverOpen(false)}>
@@ -957,23 +883,16 @@ const OrgLeaveHistory = () => {
           </Popover>
 
           {/* Clear Filters */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSelectedEmployees([]);
-                setStatusFilter("all");
-                setLeaveTypeFilter("all");
-                setTransactionTypeFilter("all");
-                setDateRangeFilter("last7days");
-              }}
-              className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
-            >
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && <Button variant="ghost" size="sm" onClick={() => {
+          setSelectedEmployees([]);
+          setStatusFilter("all");
+          setLeaveTypeFilter("all");
+          setTransactionTypeFilter("all");
+          setDateRangeFilter("last7days");
+        }} className="h-9 gap-1.5 text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
               Clear
-            </Button>
-          )}
+            </Button>}
         </div>
       </div>
 
@@ -999,16 +918,12 @@ const OrgLeaveHistory = () => {
 
         {/* Leave Type Cards */}
         {filteredLeaveTypeStats.map(stat => {
-          const prevPeriod = prevPeriodStats[stat.leave_type];
-          const prevDays = prevPeriod?.days || 0;
-          const percentChange = prevDays > 0
-            ? Math.round(((stat.total_days - prevDays) / prevDays) * 100)
-            : stat.total_days > 0 ? 100 : 0;
-          const isPositive = percentChange > 0;
-          const isNegative = percentChange < 0;
-
-          return (
-            <Card key={stat.leave_type}>
+        const prevPeriod = prevPeriodStats[stat.leave_type];
+        const prevDays = prevPeriod?.days || 0;
+        const percentChange = prevDays > 0 ? Math.round((stat.total_days - prevDays) / prevDays * 100) : stat.total_days > 0 ? 100 : 0;
+        const isPositive = percentChange > 0;
+        const isNegative = percentChange < 0;
+        return <Card key={stat.leave_type}>
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className={`p-1.5 rounded-md ${stat.balance < 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
@@ -1039,20 +954,17 @@ const OrgLeaveHistory = () => {
                   </span>
                 </div>
               </CardContent>
-            </Card>
-          );
-        })}
+            </Card>;
+      })}
         
         {/* Most Leave Taken Employee - Hide when single employee selected */}
-        {selectedEmployees.length !== 1 && (
-          <Card>
+        {selectedEmployees.length !== 1 && <Card>
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
                 <span className="text-xs text-muted-foreground">Most Leave</span>
               </div>
-              {mostLeaveTaken ? (
-                <div className="flex items-center gap-2">
+              {mostLeaveTaken ? <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={mostLeaveTaken.employee?.profiles?.avatar_url || undefined} />
                     <AvatarFallback className="text-xs">
@@ -1063,24 +975,18 @@ const OrgLeaveHistory = () => {
                     <p className="text-sm font-medium truncate">{mostLeaveTaken.employee?.profiles?.full_name}</p>
                     <p className="text-xs text-muted-foreground">{mostLeaveTaken.totalDays} days</p>
                   </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No data</p>
-              )}
+                </div> : <p className="text-xs text-muted-foreground">No data</p>}
             </CardContent>
-          </Card>
-        )}
+          </Card>}
 
         {/* Least Leave Taken Employee - Hide when single employee selected */}
-        {selectedEmployees.length !== 1 && (
-          <Card>
+        {selectedEmployees.length !== 1 && <Card>
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <Award className="h-4 w-4 text-green-500" />
                 <span className="text-xs text-muted-foreground">Least Leave</span>
               </div>
-              {leastLeaveTaken ? (
-                <div className="flex items-center gap-2">
+              {leastLeaveTaken ? <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={leastLeaveTaken.employee?.profiles?.avatar_url || undefined} />
                     <AvatarFallback className="text-xs">
@@ -1091,81 +997,57 @@ const OrgLeaveHistory = () => {
                     <p className="text-sm font-medium truncate">{leastLeaveTaken.employee?.profiles?.full_name}</p>
                     <p className="text-xs text-muted-foreground">{leastLeaveTaken.totalDays} days</p>
                   </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No data</p>
-              )}
+                </div> : <p className="text-xs text-muted-foreground">No data</p>}
             </CardContent>
-          </Card>
-        )}
+          </Card>}
       </div>
 
       {/* Leave Analytics Chart */}
-      <LeaveAnalyticsChart 
-        transactions={filteredTransactions.map(t => ({
-          id: t.id,
-          type: t.type,
-          leave_type: t.leave_type,
-          effective_date: t.effective_date,
-          end_date: t.end_date,
-          days: t.days,
-          reason: t.reason || '',
-          status: t.status || '',
-          employee_id: t.employee.id,
-          employee_name: t.employee.profiles.full_name,
-          employee_avatar: t.employee.profiles.avatar_url || undefined,
-        }))}
-        yearFilter={yearFilter}
-        dateRangeFilter={dateRangeFilter}
-        dateRange={dateRange}
-      />
+      <LeaveAnalyticsChart transactions={filteredTransactions.map(t => ({
+      id: t.id,
+      type: t.type,
+      leave_type: t.leave_type,
+      effective_date: t.effective_date,
+      end_date: t.end_date,
+      days: t.days,
+      reason: t.reason || '',
+      status: t.status || '',
+      employee_id: t.employee.id,
+      employee_name: t.employee.profiles.full_name,
+      employee_avatar: t.employee.profiles.avatar_url || undefined
+    }))} yearFilter={yearFilter} dateRangeFilter={dateRangeFilter} dateRange={dateRange} />
 
       {/* Table */}
       <Card className="relative">
         <CardContent className="p-0">
           {/* Overlay spinner for refresh - keeps table visible */}
-          {loading && transactions.length > 0 && showSpinner && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg">
+          {loading && transactions.length > 0 && showSpinner && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </div>
-          )}
+            </div>}
           
           {/* Initial loading - only when no data yet */}
-          {loading && transactions.length === 0 && showSpinner ? (
-            <div className="flex items-center justify-center py-12">
+          {loading && transactions.length === 0 && showSpinner ? <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : !loading && filteredTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
+            </div> : !loading && filteredTransactions.length === 0 ? <div className="flex flex-col items-center justify-center py-12">
               <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">No leave transactions found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+            </div> : <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {canEditAll && (
-                      <TableHead className="w-[40px]">
-                        <Checkbox
-                          checked={allFilteredSelected}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              selectAllFiltered();
-                            } else {
-                              deselectAll();
-                            }
-                          }}
-                          aria-label="Select all"
-                          className={someFilteredSelected ? "data-[state=checked]:bg-primary" : ""}
-                          ref={(ref) => {
-                            if (ref) {
-                              (ref as HTMLButtonElement).dataset.state = someFilteredSelected ? "indeterminate" : (allFilteredSelected ? "checked" : "unchecked");
-                            }
-                          }}
-                        />
-                      </TableHead>
-                    )}
+                    {canEditAll && <TableHead className="w-[40px]">
+                        <Checkbox checked={allFilteredSelected} onCheckedChange={checked => {
+                    if (checked) {
+                      selectAllFiltered();
+                    } else {
+                      deselectAll();
+                    }
+                  }} aria-label="Select all" className={someFilteredSelected ? "data-[state=checked]:bg-primary" : ""} ref={ref => {
+                    if (ref) {
+                      (ref as HTMLButtonElement).dataset.state = someFilteredSelected ? "indeterminate" : allFilteredSelected ? "checked" : "unchecked";
+                    }
+                  }} />
+                      </TableHead>}
                     <TableHead className="w-[180px]">Employee</TableHead>
                     <TableHead className="w-[85px] whitespace-nowrap">Applied</TableHead>
                     <TableHead className="w-[155px]">Leave Dates</TableHead>
@@ -1179,25 +1061,12 @@ const OrgLeaveHistory = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransactions.map((t) => (
-                    <TableRow 
-                      key={`${t.type}-${t.id}`} 
-                      className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}
-                    >
-                      {canEditAll && (
-                        <TableCell>
-                          <Checkbox
-                            checked={isTransactionSelected(t.id, t.type)}
-                            onCheckedChange={() => toggleTransactionSelection(t)}
-                            aria-label={`Select ${t.employee?.profiles?.full_name}`}
-                          />
-                        </TableCell>
-                      )}
+                  {filteredTransactions.map(t => <TableRow key={`${t.type}-${t.id}`} className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}>
+                      {canEditAll && <TableCell>
+                          <Checkbox checked={isTransactionSelected(t.id, t.type)} onCheckedChange={() => toggleTransactionSelection(t)} aria-label={`Select ${t.employee?.profiles?.full_name}`} />
+                        </TableCell>}
                       <TableCell>
-                        <OrgLink 
-                          to={`/team/${t.employee?.id}`}
-                          className="flex items-center gap-2 hover:opacity-80"
-                        >
+                        <OrgLink to={`/team/${t.employee?.id}`} className="flex items-center gap-2 hover:opacity-80">
                           <Avatar className="h-8 w-8 flex-shrink-0">
                             <AvatarImage src={t.employee?.profiles?.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
@@ -1208,11 +1077,9 @@ const OrgLeaveHistory = () => {
                             <span className="font-medium text-sm truncate block max-w-[130px]">
                               {t.employee?.profiles?.full_name}
                             </span>
-                            {t.employee?.position && (
-                              <span className="text-xs text-muted-foreground truncate block max-w-[130px]">
+                            {t.employee?.position && <span className="text-xs text-muted-foreground truncate block max-w-[130px]">
                                 {t.employee.position}
-                              </span>
-                            )}
+                              </span>}
                           </div>
                         </OrgLink>
                       </TableCell>
@@ -1220,32 +1087,22 @@ const OrgLeaveHistory = () => {
                         {format(new Date(t.effective_date), "dd MMM")}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
-                        {t.type === 'leave_taken' && t.start_date ? (
-                          <div className="flex items-center gap-1">
+                        {t.type === 'leave_taken' && t.start_date ? <div className="flex items-center gap-1">
                             <CalendarDays className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                             <span>
                               {format(new Date(t.start_date), "dd MMM")}
-                              {t.end_date && t.start_date !== t.end_date && (
-                                <span className="text-muted-foreground"> → {format(new Date(t.end_date), "dd MMM")}</span>
-                              )}
+                              {t.end_date && t.start_date !== t.end_date && <span className="text-muted-foreground"> → {format(new Date(t.end_date), "dd MMM")}</span>}
                             </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                          </div> : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell>
-                        {t.type === 'leave_taken' ? (
-                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
+                        {t.type === 'leave_taken' ? <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
                             <TrendingDown className="h-3 w-3" />
                             Taken
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
+                          </Badge> : <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
                             <TrendingUp className="h-3 w-3" />
                             Adjust
-                          </Badge>
-                        )}
+                          </Badge>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
@@ -1276,99 +1133,76 @@ const OrgLeaveHistory = () => {
                             </Tooltip>
                             
                             {/* Edit - Only for canEdit users */}
-                            {canEditTransaction(t) && (
-                              <Tooltip>
+                            {canEditTransaction(t) && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => {
-                                      if (t.type === 'adjustment') {
-                                        setEditAdjustment(mapToAdjustmentEdit(t));
-                                      } else {
-                                        setEditRequest(mapToRequestEdit(t));
-                                      }
-                                    }}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                            if (t.type === 'adjustment') {
+                              setEditAdjustment(mapToAdjustmentEdit(t));
+                            } else {
+                              setEditRequest(mapToRequestEdit(t));
+                            }
+                          }}>
                                     <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Edit</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                             
                             {/* Delete - Only for adjustments and canEdit users */}
-                            {canEditTransaction(t) && t.type === 'adjustment' && (
-                              <Tooltip>
+                            {canEditTransaction(t) && t.type === 'adjustment' && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => setDeleteAdjustmentDialog({ open: true, adjustment: t })}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteAdjustmentDialog({
+                            open: true,
+                            adjustment: t
+                          })}>
                                     <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Delete</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                             
                             {/* Delete - For leave taken records */}
-                            {canEditTransaction(t) && t.type === 'leave_taken' && (
-                              <Tooltip>
+                            {canEditTransaction(t) && t.type === 'leave_taken' && <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7"
-                                    onClick={() => setDeleteLeaveDialog({ open: true, request: t })}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteLeaveDialog({
+                            open: true,
+                            request: t
+                          })}>
                                     <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Delete Leave</TooltipContent>
-                              </Tooltip>
-                            )}
+                              </Tooltip>}
                           </div>
                         </TooltipProvider>
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
               </Table>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
 
       {/* Delete Adjustment Confirmation Dialog */}
-      <AlertDialog 
-        open={deleteAdjustmentDialog.open} 
-        onOpenChange={(open) => !open && setDeleteAdjustmentDialog({ open: false, adjustment: null })}
-      >
+      <AlertDialog open={deleteAdjustmentDialog.open} onOpenChange={open => !open && setDeleteAdjustmentDialog({
+      open: false,
+      adjustment: null
+    })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Adjustment?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteAdjustmentDialog.adjustment && (
-                <>
+              {deleteAdjustmentDialog.adjustment && <>
                   Are you sure you want to delete this {deleteAdjustmentDialog.adjustment.leave_type} adjustment of{" "}
                   {deleteAdjustmentDialog.adjustment.days > 0 ? '+' : ''}{deleteAdjustmentDialog.adjustment.days} days
                   for {deleteAdjustmentDialog.adjustment.employee?.profiles?.full_name}?
                   This action cannot be undone and may affect leave balances.
-                </>
-              )}
+                </>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingAdjustment}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAdjustment}
-              disabled={deletingAdjustment}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteAdjustment} disabled={deletingAdjustment} className="bg-destructive hover:bg-destructive/90">
               {deletingAdjustment ? "Deleting..." : "Delete Adjustment"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1376,31 +1210,11 @@ const OrgLeaveHistory = () => {
       </AlertDialog>
 
       {/* Edit Dialogs */}
-      <EditLeaveAdjustmentDialog
-        adjustment={editAdjustment}
-        open={!!editAdjustment}
-        onOpenChange={(open) => !open && setEditAdjustment(null)}
-        onSuccess={loadData}
-      />
-      <EditLeaveRequestDialog
-        request={editRequest}
-        open={!!editRequest}
-        onOpenChange={(open) => !open && setEditRequest(null)}
-        onSuccess={loadData}
-      />
+      <EditLeaveAdjustmentDialog adjustment={editAdjustment} open={!!editAdjustment} onOpenChange={open => !open && setEditAdjustment(null)} onSuccess={loadData} />
+      <EditLeaveRequestDialog request={editRequest} open={!!editRequest} onOpenChange={open => !open && setEditRequest(null)} onSuccess={loadData} />
 
       {/* Bulk Actions Bar */}
-      {canEditAll && selectedTransactions.length > 0 && (
-        <LeaveBulkActionsBar
-          selectedItems={selectedTransactions}
-          totalItems={filteredTransactions.length}
-          onSelectAll={selectAllFiltered}
-          onDeselectAll={deselectAll}
-          onDeleteAdjustments={() => setBulkDeleteDialog(true)}
-          onDeleteLeave={() => setBulkDeleteLeaveDialog(true)}
-          onExportSelected={handleExportSelected}
-        />
-      )}
+      {canEditAll && selectedTransactions.length > 0 && <LeaveBulkActionsBar selectedItems={selectedTransactions} totalItems={filteredTransactions.length} onSelectAll={selectAllFiltered} onDeselectAll={deselectAll} onDeleteAdjustments={() => setBulkDeleteDialog(true)} onDeleteLeave={() => setBulkDeleteLeaveDialog(true)} onExportSelected={handleExportSelected} />}
 
       {/* Bulk Delete Adjustments Dialog */}
       <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
@@ -1414,11 +1228,7 @@ const OrgLeaveHistory = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleBulkDeleteAdjustments}
-              disabled={bulkDeleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleBulkDeleteAdjustments} disabled={bulkDeleting} className="bg-destructive hover:bg-destructive/90">
               {bulkDeleting ? "Deleting..." : "Delete Adjustments"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1437,11 +1247,7 @@ const OrgLeaveHistory = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkDeletingLeave}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleBulkDeleteLeave}
-              disabled={bulkDeletingLeave}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleBulkDeleteLeave} disabled={bulkDeletingLeave} className="bg-destructive hover:bg-destructive/90">
               {bulkDeletingLeave ? "Deleting..." : "Delete Leave Records"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1449,31 +1255,25 @@ const OrgLeaveHistory = () => {
       </AlertDialog>
 
       {/* Delete Single Leave Request Dialog */}
-      <AlertDialog 
-        open={deleteLeaveDialog.open} 
-        onOpenChange={(open) => !open && setDeleteLeaveDialog({ open: false, request: null })}
-      >
+      <AlertDialog open={deleteLeaveDialog.open} onOpenChange={open => !open && setDeleteLeaveDialog({
+      open: false,
+      request: null
+    })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Leave Record?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteLeaveDialog.request && (
-                <>
+              {deleteLeaveDialog.request && <>
                   Are you sure you want to delete this {deleteLeaveDialog.request.leave_type} leave of{" "}
                   {Math.abs(deleteLeaveDialog.request.days)} {Math.abs(deleteLeaveDialog.request.days) === 1 ? "day" : "days"} 
                   {" "}for {deleteLeaveDialog.request.employee?.profiles?.full_name}? 
                   This action cannot be undone and may affect leave balances.
-                </>
-              )}
+                </>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingLeave}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteLeaveRequest}
-              disabled={deletingLeave}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteLeaveRequest} disabled={deletingLeave} className="bg-destructive hover:bg-destructive/90">
               {deletingLeave ? "Deleting..." : "Delete Leave"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1481,13 +1281,7 @@ const OrgLeaveHistory = () => {
       </AlertDialog>
 
       {/* Add Leave Dialog */}
-      <AddLeaveForEmployeeDialog
-        open={addLeaveOpen}
-        onOpenChange={setAddLeaveOpen}
-        onSuccess={loadData}
-      />
-    </div>
-  );
+      <AddLeaveForEmployeeDialog open={addLeaveOpen} onOpenChange={setAddLeaveOpen} onSuccess={loadData} />
+    </div>;
 };
-
 export default OrgLeaveHistory;
