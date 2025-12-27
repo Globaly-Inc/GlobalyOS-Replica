@@ -1091,6 +1091,8 @@ const OrgLeaveHistory = () => {
           employee_avatar: t.employee.profiles.avatar_url || undefined,
         }))}
         yearFilter={yearFilter}
+        dateRangeFilter={dateRangeFilter}
+        dateRange={dateRange}
       />
 
       {/* Table */}
