@@ -96,9 +96,114 @@ async function updateJobProgress(
   }
 }
 
-// Constants for limiting scope to prevent AI response truncation
-const MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS = 25;
-const KPIS_PER_INDIVIDUAL_LARGE_TEAM = 1;
+// Helper function to chunk array into batches
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// Constants for batching
+const INDIVIDUAL_BATCH_SIZE = 10;
+
+// Parse AI response and handle truncation
+function parseAiResponse(content: string): GeneratedKpi[] {
+  let cleanedContent = content.trim();
+  if (cleanedContent.startsWith("```json")) {
+    cleanedContent = cleanedContent.slice(7);
+  } else if (cleanedContent.startsWith("```")) {
+    cleanedContent = cleanedContent.slice(3);
+  }
+  if (cleanedContent.endsWith("```")) {
+    cleanedContent = cleanedContent.slice(0, -3);
+  }
+  cleanedContent = cleanedContent.trim();
+
+  try {
+    const parsed = JSON.parse(cleanedContent);
+    return parsed.kpis || [];
+  } catch (parseError) {
+    console.error("Failed to parse AI response, attempting salvage...");
+    
+    // Check if response was truncated
+    const isTruncated = !cleanedContent.endsWith('}') && !cleanedContent.endsWith(']');
+    
+    if (isTruncated) {
+      const lastKpiEnd = cleanedContent.lastIndexOf('},');
+      const lastArrayEnd = cleanedContent.lastIndexOf('}]');
+      
+      if (lastKpiEnd > 0 || lastArrayEnd > 0) {
+        const salvagePoint = Math.max(lastKpiEnd, lastArrayEnd);
+        let salvaged = cleanedContent.substring(0, salvagePoint + 1);
+        
+        if (!salvaged.endsWith(']}')) {
+          if (salvaged.endsWith('},')) {
+            salvaged = salvaged.slice(0, -1) + ']}';
+          } else if (salvaged.endsWith('}')) {
+            salvaged += ']}';
+          }
+        }
+        
+        try {
+          const parsed = JSON.parse(salvaged);
+          console.log(`Salvaged ${parsed.kpis?.length || 0} KPIs from truncated response`);
+          return parsed.kpis || [];
+        } catch {
+          throw new Error("AI response was truncated and could not be recovered.");
+        }
+      }
+    }
+    throw new Error("Invalid response format from AI.");
+  }
+}
+
+// Call AI Gateway
+async function callAiGateway(systemPrompt: string, userPrompt: string, maxTokens: number = 8000): Promise<GeneratedKpi[]> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new Error("LOVABLE_API_KEY is not configured");
+  }
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("AI Gateway error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
+    }
+    if (response.status === 402) {
+      throw new Error("AI credits exhausted. Please add credits to continue.");
+    }
+    throw new Error(`AI service error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("No response from AI");
+  }
+
+  return parseAiResponse(content);
+}
 
 async function processKpiGeneration(jobId: string, config: JobConfig) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -107,7 +212,7 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
   
   try {
     // Update status to processing
-    await updateJobProgress(supabase, jobId, 10, "Preparing organization context...", "processing");
+    await updateJobProgress(supabase, jobId, 5, "Preparing organization context...", "processing");
     
     const { 
       documentContent, periodType, quarter, year, quarterlyBreakdown, 
@@ -125,9 +230,6 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
       industry: organizationContext.industry,
       employeesCount: organizationContext.employees?.length || 0,
     });
-
-    // Update progress
-    await updateJobProgress(supabase, jobId, 20, "Building AI prompt...");
 
     // Filter employees based on targets
     let filteredEmployees = organizationContext.employees || [];
@@ -148,24 +250,6 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
         .filter((ep: any) => targetProjects.includes(ep.project_id))
         .map((ep: any) => ep.employee_id);
       filteredEmployees = filteredEmployees.filter((e: any) => employeeIdsInProjects.includes(e.id));
-    }
-
-    // Limit employees for large teams to prevent AI response truncation
-    const originalEmployeeCount = filteredEmployees.length;
-    let isLargeTeam = false;
-    if (cascadeConfig.includeIndividuals && filteredEmployees.length > MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS) {
-      isLargeTeam = true;
-      console.log(`Large team detected (${filteredEmployees.length} employees), limiting to ${MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS}`);
-      
-      // Prioritize by projects and tenure
-      filteredEmployees = filteredEmployees
-        .map((e: any) => {
-          const projectCount = employeeProjects.filter((ep: any) => ep.employee_id === e.id).length;
-          const tenureScore = e.tenure === 'veteran' ? 2 : e.tenure === 'new' ? 1 : 0;
-          return { ...e, priorityScore: projectCount * 2 + tenureScore };
-        })
-        .sort((a: any, b: any) => b.priorityScore - a.priorityScore)
-        .slice(0, MAX_EMPLOYEES_FOR_INDIVIDUAL_KPIS);
     }
 
     // Filter departments based on filtered employees
@@ -208,20 +292,9 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
       });
     }
 
-    await updateJobProgress(supabase, jobId, 35, "AI is analyzing organization structure...");
+    await updateJobProgress(supabase, jobId, 10, "Preparing AI prompts...");
 
-    // Build prompt
-    const quarterlyBreakdownInstructions = quarterlyBreakdown && periodType === "annual" ? `
-QUARTERLY BREAKDOWN MODE:
-Since this is an annual plan with quarterly breakdown enabled, for EACH annual KPI you create, also generate 4 quarterly child KPIs (Q1, Q2, Q3, Q4).
-- The quarterly KPIs should have the same scopeType as their parent
-- Their targetValue should sum up to the parent's annual target (distribute intelligently)
-- Consider seasonality: Q1 might have lower targets (ramp-up), Q4 might be higher (year-end push)
-- Set "quarter" field to 1, 2, 3, or 4 for quarterly KPIs
-- Set "isQuarterlyChild" to true for quarterly KPIs
-- Link quarterly KPIs to their annual parent via "parentTempId"
-` : '';
-
+    // Build base system prompt components
     const industryGuidelines = getIndustryKpiGuidelines(organizationContext.industry || "General");
 
     let historicalSection = '';
@@ -245,8 +318,33 @@ Follow similar naming conventions and units where appropriate.
 `;
     }
 
-    const systemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
-Your task is to analyze organizational documents and generate a hierarchical KPI structure.
+    const quarterlyBreakdownInstructions = quarterlyBreakdown && periodType === "annual" ? `
+QUARTERLY BREAKDOWN MODE:
+Since this is an annual plan with quarterly breakdown enabled, for EACH annual KPI you create, also generate 4 quarterly child KPIs (Q1, Q2, Q3, Q4).
+- The quarterly KPIs should have the same scopeType as their parent
+- Their targetValue should sum up to the parent's annual target (distribute intelligently)
+- Consider seasonality: Q1 might have lower targets (ramp-up), Q4 might be higher (year-end push)
+- Set "quarter" field to 1, 2, 3, or 4 for quarterly KPIs
+- Set "isQuarterlyChild" to true for quarterly KPIs
+- Link quarterly KPIs to their annual parent via "parentTempId"
+` : '';
+
+    // ==========================================
+    // PHASE 1: Generate Group KPIs (Org, Dept, Project, Office)
+    // ==========================================
+    
+    let groupKpis: GeneratedKpi[] = [];
+    
+    const needsGroupKpis = cascadeConfig.includeOrganization || 
+                           cascadeConfig.includeDepartments || 
+                           cascadeConfig.includeProjects || 
+                           cascadeConfig.includeOffices;
+    
+    if (needsGroupKpis) {
+      await updateJobProgress(supabase, jobId, 15, "Generating organization & group KPIs...");
+      
+      const groupSystemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
+Your task is to generate hierarchical GROUP-LEVEL KPIs (organization, department, project, office - NOT individual KPIs).
 
 ORGANIZATION PROFILE:
 - Industry: ${organizationContext.industry || "General Business"}
@@ -259,286 +357,238 @@ Guidelines for KPI creation:
 1. Create SMART KPIs (Specific, Measurable, Achievable, Relevant, Time-bound)
 2. Organization KPIs should be high-level strategic goals
 3. Department/Office/Project KPIs should cascade from organization goals
-4. Individual KPIs should be specific, actionable tasks
-5. Use appropriate units (%, count, $, rating, etc.)
-6. Set realistic target values based on industry standards
-7. For project KPIs, use project description to create relevant outcomes
-8. Link individual KPIs to projects when the employee is assigned to that project
-9. For individual KPIs, use position responsibilities to create role-aligned KPIs
-10. For NEW employees (<6 months), focus on onboarding, learning
-11. For VETERAN employees (>3 years), include leadership, mentoring
+4. Use appropriate units (%, count, $, rating, etc.)
+5. Set realistic target values based on industry standards
 
-CRITICAL HIERARCHY RULES - YOU MUST FOLLOW THESE:
+CRITICAL HIERARCHY RULES:
 - Organization KPIs have NO parentTempId (they are the root)
 - Department KPIs MUST have parentTempId pointing to an organization KPI's tempId
-- Office KPIs MUST have parentTempId pointing to an organization KPI's tempId
+- Office KPIs MUST have parentTempId pointing to an organization KPI's tempId  
 - Project KPIs MUST have parentTempId pointing to an organization or department KPI's tempId
-- Individual KPIs MUST have parentTempId pointing to their department, project, or office KPI's tempId
-- EVERY non-organization KPI MUST have a valid parentTempId that references another KPI in the response
 ${quarterlyBreakdownInstructions}
-CRITICAL: You MUST respond with ONLY a valid JSON object, no markdown, no explanation. 
-The JSON must follow this exact structure:
-
+CRITICAL: Respond with ONLY valid JSON, no markdown, no explanation:
 {
   "kpis": [
-    {
-      "tempId": "org-1",
-      "scopeType": "organization",
-      "title": "KPI Title",
-      "description": "Description",
-      "targetValue": 100,
-      "unit": "%"
-    },
-    {
-      "tempId": "dept-eng-1",
-      "scopeType": "department",
-      "scopeValue": "Engineering",
-      "title": "KPI Title",
-      "description": "Description",
-      "targetValue": 50,
-      "unit": "count",
-      "parentTempId": "org-1"
-    },
-    {
-      "tempId": "proj-1",
-      "scopeType": "project",
-      "projectId": "uuid",
-      "projectName": "Project Name",
-      "title": "Revenue Target",
-      "description": "Description",
-      "targetValue": 500000,
-      "unit": "$",
-      "parentTempId": "dept-eng-1"
-    },
-    {
-      "tempId": "ind-john-1",
-      "scopeType": "individual",
-      "employeeId": "uuid",
-      "employeeName": "John Doe",
-      "title": "KPI Title",
-      "description": "Description",
-      "targetValue": 10,
-      "unit": "count",
-      "parentTempId": "proj-1"
-    }
+    { "tempId": "org-1", "scopeType": "organization", "title": "...", "description": "...", "targetValue": 100, "unit": "%" },
+    { "tempId": "dept-eng-1", "scopeType": "department", "scopeValue": "Engineering", "title": "...", "description": "...", "targetValue": 50, "unit": "count", "parentTempId": "org-1" }
   ]
 }`;
 
-    let userPrompt = `Generate KPIs for ${organizationContext.name} for ${periodLabel}.
+      let groupUserPrompt = `Generate GROUP-LEVEL KPIs for ${organizationContext.name} for ${periodLabel}.
 
 ${aiInstructions ? `IMPORTANT - User Instructions:
 ${aiInstructions}
 
 ` : ''}${documentContent ? `Reference Document Content:
 ---
-${documentContent.slice(0, 6000)}
+${documentContent.slice(0, 4000)}
 ---
 
 ` : ''}Organization Structure:
 - Departments: ${(activeDepartments as string[]).join(', ') || 'N/A'}
 - Offices: ${activeOffices.map((o: any) => o.name).join(', ') || 'N/A'}
 - Projects: ${activeProjects.map((p: any) => p.name).join(', ') || 'N/A'}
-- Team Members: ${filteredEmployees.length} employees
 
 Generate KPIs with this cascade:`;
 
-    if (cascadeConfig.includeOrganization) {
-      userPrompt += `\n- 2-3 Organization-level strategic KPIs for ${periodLabel}`;
-    }
-    if (cascadeConfig.includeDepartments && activeDepartments.length > 0) {
-      userPrompt += `\n- 2-3 KPIs per department: ${(activeDepartments as string[]).join(', ')}`;
-    }
-    if (cascadeConfig.includeProjects && activeProjects.length > 0) {
-      userPrompt += `\n- 2-3 KPIs per project:`;
-      activeProjects.forEach(p => {
-        const projectTeam = projectEmployeeMap[p.name] || [];
-        userPrompt += `\n  • ${p.name} (ID: ${p.id}) - Team: ${projectTeam.length} members`;
-        if (p.description) {
-          userPrompt += `\n    Focus: ${p.description.slice(0, 100)}`;
-        }
-      });
-    }
-    if (cascadeConfig.includeOffices && activeOffices.length > 0) {
-      userPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map((o: any) => o.name).join(', ')}`;
-    }
-    if (cascadeConfig.includeIndividuals && filteredEmployees.length > 0) {
-      const kpisPerEmployee = isLargeTeam ? KPIS_PER_INDIVIDUAL_LARGE_TEAM : 2;
-      userPrompt += `\n- ${kpisPerEmployee} Individual KPI${kpisPerEmployee > 1 ? 's' : ''} for each employee${isLargeTeam ? ` (showing top ${filteredEmployees.length} of ${originalEmployeeCount} employees)` : ''}:`;
-      filteredEmployees.forEach((e: any) => {
-        const empProjects = employeeProjects
-          .filter((ep: any) => ep.employee_id === e.id)
-          .map((ep: any) => activeProjects.find((p: any) => p.id === ep.project_id)?.name)
-          .filter(Boolean);
-        
-        const projectInfo = empProjects.length > 0 ? `, Projects: ${empProjects.join(', ')}` : '';
-        
-        const tenureNote = e.tenure === "new" 
-          ? " [NEW]"
-          : e.tenure === "veteran"
-          ? " [VETERAN]"
-          : "";
-        
-        userPrompt += `\n  • ${e.name} (${e.position}, ${e.department}${projectInfo})${tenureNote} - ID: ${e.id}`;
-        
-        const shouldIncludeDetails = !isLargeTeam || empProjects.length > 0;
-        if (shouldIncludeDetails && e.positionResponsibilities?.length > 0) {
-          const topResponsibilities = e.positionResponsibilities
-            .slice(0, 2)
-            .map((r: string) => r.slice(0, 60));
-          userPrompt += `\n    Role: ${topResponsibilities.join('; ')}`;
-        }
-      });
-    }
-
-    userPrompt += `\n\nCRITICAL: Every department/office/project KPI MUST have parentTempId referencing an organization KPI. Every individual KPI MUST have parentTempId referencing their department, project, or office KPI. Do NOT leave parentTempId empty or null for non-organization KPIs.
-${quarterlyBreakdown && periodType === "annual" ? 'REMEMBER: Generate quarterly breakdowns (Q1-Q4) for each annual KPI with parentTempId linking to the annual parent.' : ''}
-Respond with ONLY the JSON object, no additional text.`;
-
-    console.log("Prompt lengths:", { 
-      system: systemPrompt.length,
-      user: userPrompt.length,
-      total: systemPrompt.length + userPrompt.length 
-    });
-
-    await updateJobProgress(supabase, jobId, 50, "Generating hierarchical KPIs...");
-
-    // Call AI Gateway
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 16000, // Ensure complete response for large KPI sets
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      if (cascadeConfig.includeOrganization) {
+        groupUserPrompt += `\n- 2-3 Organization-level strategic KPIs for ${periodLabel}`;
       }
-      if (response.status === 402) {
-        throw new Error("AI credits exhausted. Please add credits to continue.");
+      if (cascadeConfig.includeDepartments && activeDepartments.length > 0) {
+        groupUserPrompt += `\n- 2-3 KPIs per department: ${(activeDepartments as string[]).join(', ')}`;
       }
-      throw new Error(`AI service error: ${response.status}`);
-    }
-
-    await updateJobProgress(supabase, jobId, 75, "Processing AI response...");
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No response from AI");
-    }
-
-    // Clean and parse the response
-    let cleanedContent = content.trim();
-    if (cleanedContent.startsWith("```json")) {
-      cleanedContent = cleanedContent.slice(7);
-    } else if (cleanedContent.startsWith("```")) {
-      cleanedContent = cleanedContent.slice(3);
-    }
-    if (cleanedContent.endsWith("```")) {
-      cleanedContent = cleanedContent.slice(0, -3);
-    }
-    cleanedContent = cleanedContent.trim();
-
-    await updateJobProgress(supabase, jobId, 85, "Validating KPI structure...");
-
-    let parsed: { kpis: GeneratedKpi[] };
-    try {
-      parsed = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", cleanedContent.substring(0, 500));
-      console.error("Response length:", cleanedContent.length);
-      
-      // Check if response was truncated
-      const isTruncated = !cleanedContent.endsWith('}') && !cleanedContent.endsWith(']');
-      
-      if (isTruncated) {
-        console.log("Attempting to salvage truncated response...");
-        
-        // Try to find the last complete KPI object and salvage partial data
-        const lastKpiEnd = cleanedContent.lastIndexOf('},');
-        const lastArrayEnd = cleanedContent.lastIndexOf('}]');
-        
-        if (lastKpiEnd > 0 || lastArrayEnd > 0) {
-          const salvagePoint = Math.max(lastKpiEnd, lastArrayEnd);
-          let salvaged = cleanedContent.substring(0, salvagePoint + 1);
-          
-          // Close the JSON structure properly
-          if (!salvaged.endsWith(']}')) {
-            if (salvaged.endsWith('},')) {
-              salvaged = salvaged.slice(0, -1) + ']}'; // Remove trailing comma, close array and object
-            } else if (salvaged.endsWith('}')) {
-              salvaged += ']}';
-            }
+      if (cascadeConfig.includeProjects && activeProjects.length > 0) {
+        groupUserPrompt += `\n- 2-3 KPIs per project:`;
+        activeProjects.forEach(p => {
+          const projectTeam = projectEmployeeMap[p.name] || [];
+          groupUserPrompt += `\n  • ${p.name} (ID: ${p.id}) - Team: ${projectTeam.length} members`;
+          if (p.description) {
+            groupUserPrompt += `\n    Focus: ${p.description.slice(0, 100)}`;
           }
-          
-          try {
-            parsed = JSON.parse(salvaged);
-            console.log(`Salvaged ${parsed.kpis?.length || 0} KPIs from truncated response`);
-          } catch (salvageError) {
-            console.error("Failed to salvage truncated response");
-            throw new Error("AI response was truncated. Try with fewer employees or disable quarterly breakdown.");
-          }
-        } else {
-          throw new Error("AI response was truncated and could not be recovered. Try reducing team size or disabling quarterly breakdown.");
-        }
-      } else {
-        throw new Error("Invalid response format from AI. Please try again.");
+        });
       }
+      if (cascadeConfig.includeOffices && activeOffices.length > 0) {
+        groupUserPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map((o: any) => o.name).join(', ')}`;
+      }
+
+      groupUserPrompt += `\n\nCRITICAL: Every department/office/project KPI MUST have parentTempId referencing an organization KPI.
+${quarterlyBreakdown && periodType === "annual" ? 'Generate quarterly breakdowns (Q1-Q4) for each annual KPI.' : ''}
+Respond with ONLY the JSON object.`;
+
+      console.log("Phase 1: Generating group KPIs...");
+      groupKpis = await callAiGateway(groupSystemPrompt, groupUserPrompt, 12000);
+      console.log(`Phase 1 complete: Generated ${groupKpis.length} group KPIs`);
     }
 
-    if (!parsed.kpis || !Array.isArray(parsed.kpis)) {
-      throw new Error("Invalid KPI structure in response");
-    }
+    // ==========================================
+    // PHASE 2: Generate Individual KPIs in Batches
+    // ==========================================
     
-    console.log(`Successfully parsed ${parsed.kpis.length} KPIs`);
+    let individualKpis: GeneratedKpi[] = [];
+    
+    if (cascadeConfig.includeIndividuals && filteredEmployees.length > 0) {
+      await updateJobProgress(supabase, jobId, 35, `Generating individual KPIs for ${filteredEmployees.length} employees...`);
+      
+      // Build lookup maps from group KPIs for parent referencing
+      const orgKpis = groupKpis.filter(k => k.scopeType === 'organization' && !k.isQuarterlyChild);
+      const deptKpis = groupKpis.filter(k => k.scopeType === 'department' && !k.isQuarterlyChild);
+      const projectKpis = groupKpis.filter(k => k.scopeType === 'project' && !k.isQuarterlyChild);
+      const officeKpis = groupKpis.filter(k => k.scopeType === 'office' && !k.isQuarterlyChild);
+      
+      const deptKpiMap = new Map<string, { tempId: string; title: string }>();
+      deptKpis.forEach(k => {
+        if (k.scopeValue) deptKpiMap.set(k.scopeValue.toLowerCase(), { tempId: k.tempId, title: k.title });
+      });
+      
+      const projectKpiMap = new Map<string, { tempId: string; title: string }>();
+      projectKpis.forEach(k => {
+        if (k.projectId) projectKpiMap.set(k.projectId, { tempId: k.tempId, title: k.title });
+        if (k.projectName) projectKpiMap.set(k.projectName.toLowerCase(), { tempId: k.tempId, title: k.title });
+      });
+      
+      const officeKpiMap = new Map<string, { tempId: string; title: string }>();
+      officeKpis.forEach(k => {
+        if (k.scopeId) officeKpiMap.set(k.scopeId, { tempId: k.tempId, title: k.title });
+        if (k.scopeValue) officeKpiMap.set(k.scopeValue.toLowerCase(), { tempId: k.tempId, title: k.title });
+      });
+      
+      const defaultParentTempId = orgKpis[0]?.tempId || 'org-default';
+      
+      // Build parent reference summary for AI
+      const parentKpiSummary = [
+        ...orgKpis.map(k => `Organization: "${k.title}" (tempId: ${k.tempId})`),
+        ...deptKpis.map(k => `Department ${k.scopeValue}: "${k.title}" (tempId: ${k.tempId})`),
+        ...projectKpis.map(k => `Project ${k.projectName}: "${k.title}" (tempId: ${k.tempId})`),
+        ...officeKpis.map(k => `Office ${k.scopeValue}: "${k.title}" (tempId: ${k.tempId})`),
+      ].slice(0, 30).join('\n');
+      
+      // Chunk employees into batches
+      const employeeBatches = chunkArray(filteredEmployees, INDIVIDUAL_BATCH_SIZE);
+      const totalBatches = employeeBatches.length;
+      
+      console.log(`Phase 2: Generating individual KPIs in ${totalBatches} batches of up to ${INDIVIDUAL_BATCH_SIZE} employees each`);
+      
+      for (let batchIndex = 0; batchIndex < employeeBatches.length; batchIndex++) {
+        const batch = employeeBatches[batchIndex];
+        const batchProgress = 35 + Math.round(((batchIndex + 1) / totalBatches) * 45);
+        
+        await updateJobProgress(supabase, jobId, batchProgress, 
+          `Generating individual KPIs (batch ${batchIndex + 1} of ${totalBatches})...`);
+        
+        const individualSystemPrompt = `You are an expert HR consultant. Generate INDIVIDUAL employee KPIs that link to existing group KPIs.
 
+ORGANIZATION: ${organizationContext.name}
+PERIOD: ${periodLabel}
+INDUSTRY: ${organizationContext.industry || "General Business"}
+
+EXISTING PARENT KPIs (use these tempIds for parentTempId):
+${parentKpiSummary}
+
+Guidelines:
+1. Generate 2-3 SMART individual KPIs per employee
+2. Each individual KPI MUST have parentTempId linking to a relevant department/project/office KPI
+3. If employee is in a project, prefer linking to that project's KPI
+4. Otherwise link to their department or office KPI
+5. For NEW employees (<6 months), focus on onboarding, learning
+6. For VETERAN employees (>3 years), include leadership, mentoring
+7. Use the employee's position to create role-aligned KPIs
+
+CRITICAL: Respond with ONLY valid JSON:
+{
+  "kpis": [
+    { "tempId": "ind-uuid-1", "scopeType": "individual", "employeeId": "uuid", "employeeName": "Name", "title": "...", "description": "...", "targetValue": 10, "unit": "count", "parentTempId": "dept-eng-1" }
+  ]
+}`;
+
+        let batchUserPrompt = `Generate individual KPIs for these ${batch.length} employees:
+
+`;
+        batch.forEach((e: any) => {
+          const empProjects = employeeProjects
+            .filter((ep: any) => ep.employee_id === e.id)
+            .map((ep: any) => activeProjects.find((p: any) => p.id === ep.project_id))
+            .filter(Boolean);
+          
+          const projectInfo = empProjects.length > 0 
+            ? `Projects: ${empProjects.map((p: any) => `${p.name} (ID: ${p.id})`).join(', ')}`
+            : 'No projects';
+          
+          // Find best parent KPI for hint
+          let suggestedParent = defaultParentTempId;
+          if (empProjects.length > 0) {
+            const projKpi = projectKpiMap.get(empProjects[0].id);
+            if (projKpi) suggestedParent = projKpi.tempId;
+          } else if (e.department && deptKpiMap.has(e.department.toLowerCase())) {
+            suggestedParent = deptKpiMap.get(e.department.toLowerCase())!.tempId;
+          } else if (e.officeId && officeKpiMap.has(e.officeId)) {
+            suggestedParent = officeKpiMap.get(e.officeId)!.tempId;
+          }
+          
+          const tenureNote = e.tenure === "new" 
+            ? " [NEW - focus on learning/onboarding]"
+            : e.tenure === "veteran"
+            ? " [VETERAN - include leadership/mentoring]"
+            : "";
+          
+          batchUserPrompt += `• ${e.name} (ID: ${e.id})
+  Position: ${e.position}, Department: ${e.department}
+  ${projectInfo}${tenureNote}
+  Suggested parentTempId: ${suggestedParent}
+`;
+          if (e.positionResponsibilities?.length > 0) {
+            batchUserPrompt += `  Key responsibilities: ${e.positionResponsibilities.slice(0, 3).join('; ')}\n`;
+          }
+          batchUserPrompt += '\n';
+        });
+
+        batchUserPrompt += `Generate 2-3 individual KPIs per employee. Each KPI MUST have a valid parentTempId from the parent KPIs listed above.
+Respond with ONLY the JSON object.`;
+
+        try {
+          const batchKpis = await callAiGateway(individualSystemPrompt, batchUserPrompt, 8000);
+          console.log(`Batch ${batchIndex + 1}/${totalBatches}: Generated ${batchKpis.length} individual KPIs`);
+          individualKpis.push(...batchKpis);
+        } catch (error) {
+          console.error(`Batch ${batchIndex + 1} failed:`, error);
+          // Continue with other batches even if one fails
+        }
+      }
+      
+      console.log(`Phase 2 complete: Generated ${individualKpis.length} individual KPIs for ${filteredEmployees.length} employees`);
+    }
+
+    await updateJobProgress(supabase, jobId, 85, "Validating and linking KPIs...");
+
+    // ==========================================
+    // PHASE 3: Combine and Validate All KPIs
+    // ==========================================
+    
+    let allKpis = [...groupKpis, ...individualKpis];
+    
     // Validate and add missing fields
-    let validatedKpis = parsed.kpis.map((kpi, index) => ({
+    let validatedKpis = allKpis.map((kpi, index) => ({
       ...kpi,
       tempId: kpi.tempId || `kpi-${Date.now()}-${index}`,
       targetValue: typeof kpi.targetValue === 'number' ? kpi.targetValue : parseFloat(kpi.targetValue) || 100,
     }));
 
-    // Post-process: Auto-assign parent KPIs if AI failed to set them
+    // Post-process: Fix parent relationships
     const orgKpis = validatedKpis.filter(k => k.scopeType === 'organization' && !k.isQuarterlyChild);
     const deptKpis = validatedKpis.filter(k => k.scopeType === 'department' && !k.isQuarterlyChild);
     const officeKpis = validatedKpis.filter(k => k.scopeType === 'office' && !k.isQuarterlyChild);
     const projectKpis = validatedKpis.filter(k => k.scopeType === 'project' && !k.isQuarterlyChild);
     
-    // Also get quarterly versions for individual KPI assignment
+    // Quarterly versions
     const deptKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'department' && k.isQuarterlyChild);
     const officeKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'office' && k.isQuarterlyChild);
     const projectKpisQuarterly = validatedKpis.filter(k => k.scopeType === 'project' && k.isQuarterlyChild);
     
-    // Create lookup maps for finding appropriate parents (case-insensitive for departments)
-    // Annual maps
+    // Create lookup maps
     const deptKpiMap = new Map<string, string>();
     deptKpis.forEach(k => {
-      if (k.scopeValue) {
-        deptKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
-      }
+      if (k.scopeValue) deptKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
     });
     
-    // Quarterly maps keyed by "scopeValue|quarter"
     const deptKpiQuarterlyMap = new Map<string, string>();
     deptKpisQuarterly.forEach(k => {
       if (k.scopeValue && k.quarter) {
@@ -546,7 +596,6 @@ Respond with ONLY the JSON object, no additional text.`;
       }
     });
     
-    // Office lookup by both name and ID
     const officeKpiMap = new Map<string, string>();
     officeKpis.forEach(k => {
       if (k.scopeValue) officeKpiMap.set(k.scopeValue.toLowerCase(), k.tempId);
@@ -561,7 +610,6 @@ Respond with ONLY the JSON object, no additional text.`;
       }
     });
     
-    // Project lookup by ID and name
     const projectKpiMap = new Map<string, string>();
     projectKpis.forEach(k => {
       if (k.projectId) projectKpiMap.set(k.projectId, k.tempId);
@@ -576,13 +624,11 @@ Respond with ONLY the JSON object, no additional text.`;
       }
     });
     
-    // Default org KPI tempId for fallback
     const defaultOrgKpiTempId = orgKpis[0]?.tempId;
     
     // First pass: Auto-assign quarterly children to their annual parents
     validatedKpis = validatedKpis.map(kpi => {
       if (kpi.isQuarterlyChild && !kpi.parentTempId) {
-        // Find the annual parent with same scope type and matching scope value/employee/project
         const annualParent = validatedKpis.find(k => 
           k.scopeType === kpi.scopeType &&
           !k.isQuarterlyChild &&
@@ -597,69 +643,52 @@ Respond with ONLY the JSON object, no additional text.`;
         );
         
         if (annualParent) {
-          console.log(`Auto-linked quarterly Q${kpi.quarter} "${kpi.title}" to annual: "${annualParent.title}"`);
           return { ...kpi, parentTempId: annualParent.tempId };
         }
       }
       return kpi;
     });
     
-    // Second pass: Auto-assign hierarchy parents for non-quarterly KPIs
+    // Second pass: Auto-assign hierarchy parents
     validatedKpis = validatedKpis.map(kpi => {
-      // Non-quarterly organization KPIs should not have parents
       if (kpi.scopeType === 'organization' && !kpi.isQuarterlyChild) {
         return { ...kpi, parentTempId: undefined };
       }
       
-      // If parentTempId is already set and valid, keep it
       if (kpi.parentTempId && validatedKpis.some(k => k.tempId === kpi.parentTempId)) {
         return kpi;
       }
       
-      // Skip quarterly children - they were handled in first pass
       if (kpi.isQuarterlyChild) {
         return kpi;
       }
       
-      // Auto-assign parent based on hierarchy
       let assignedParent: string | undefined;
       
-      if (kpi.scopeType === 'department' || kpi.scopeType === 'office') {
-        // Departments and offices link to first org KPI
-        assignedParent = defaultOrgKpiTempId;
-      } else if (kpi.scopeType === 'project') {
-        // Projects link to first org KPI
+      if (kpi.scopeType === 'department' || kpi.scopeType === 'office' || kpi.scopeType === 'project') {
         assignedParent = defaultOrgKpiTempId;
       } else if (kpi.scopeType === 'individual') {
-        // Individuals: try to find their department/project/office KPI
         const employee = filteredEmployees.find((e: any) => e.id === kpi.employeeId);
-        
-        // Determine if this individual KPI has a quarter (for quarterly breakdown)
         const kpiQuarter = kpi.quarter;
         
         if (employee) {
-          // Check for project KPI first (if employee has projects)
           const empProjects = employeeProjects
             .filter((ep: any) => ep.employee_id === kpi.employeeId)
             .map((ep: any) => ep.project_id);
           
           for (const projId of empProjects) {
-            // Try quarterly project KPI first if this individual has a quarter
             if (kpiQuarter && projectKpiQuarterlyMap.has(`${projId}|${kpiQuarter}`)) {
               assignedParent = projectKpiQuarterlyMap.get(`${projId}|${kpiQuarter}`);
               break;
             }
-            // Fall back to annual project KPI
             if (projectKpiMap.has(projId)) {
               assignedParent = projectKpiMap.get(projId);
               break;
             }
           }
           
-          // Fall back to department KPI (case-insensitive)
           if (!assignedParent && employee.department) {
             const deptKey = employee.department.toLowerCase();
-            // Try quarterly dept KPI first
             if (kpiQuarter && deptKpiQuarterlyMap.has(`${deptKey}|${kpiQuarter}`)) {
               assignedParent = deptKpiQuarterlyMap.get(`${deptKey}|${kpiQuarter}`);
             } else if (deptKpiMap.has(deptKey)) {
@@ -667,9 +696,7 @@ Respond with ONLY the JSON object, no additional text.`;
             }
           }
           
-          // Fall back to office KPI (by ID or name)
           if (!assignedParent && employee.officeId) {
-            // Try quarterly office KPI first
             if (kpiQuarter && officeKpiQuarterlyMap.has(`${employee.officeId}|${kpiQuarter}`)) {
               assignedParent = officeKpiQuarterlyMap.get(`${employee.officeId}|${kpiQuarter}`);
             } else if (officeKpiMap.has(employee.officeId)) {
@@ -678,7 +705,6 @@ Respond with ONLY the JSON object, no additional text.`;
           }
         }
         
-        // Ultimate fallback to org KPI
         if (!assignedParent) {
           assignedParent = defaultOrgKpiTempId;
         }
@@ -691,9 +717,69 @@ Respond with ONLY the JSON object, no additional text.`;
       return { ...kpi, parentTempId: kpi.parentTempId || assignedParent };
     });
 
+    // ==========================================
+    // PHASE 4: Check for Missing Employees and Generate Additional KPIs
+    // ==========================================
+    
+    if (cascadeConfig.includeIndividuals) {
+      const employeesWithKpis = new Set(
+        validatedKpis
+          .filter(k => k.scopeType === 'individual')
+          .map(k => k.employeeId)
+      );
+      
+      const missingEmployees = filteredEmployees.filter((e: any) => !employeesWithKpis.has(e.id));
+      
+      if (missingEmployees.length > 0) {
+        console.log(`Found ${missingEmployees.length} employees still missing KPIs, generating additional batch...`);
+        await updateJobProgress(supabase, jobId, 90, `Generating KPIs for ${missingEmployees.length} remaining employees...`);
+        
+        // Build parent summary again
+        const parentKpiSummary = [
+          ...orgKpis.map(k => `Organization: "${k.title}" (tempId: ${k.tempId})`),
+          ...deptKpis.map(k => `Department ${k.scopeValue}: "${k.title}" (tempId: ${k.tempId})`),
+          ...projectKpis.map(k => `Project ${k.projectName}: "${k.title}" (tempId: ${k.tempId})`),
+          ...officeKpis.map(k => `Office ${k.scopeValue}: "${k.title}" (tempId: ${k.tempId})`),
+        ].slice(0, 20).join('\n');
+        
+        const fallbackSystemPrompt = `Generate INDIVIDUAL employee KPIs for ${organizationContext.name}.
+
+EXISTING PARENT KPIs:
+${parentKpiSummary}
+
+Generate 2 KPIs per employee with parentTempId linking to appropriate parent.
+Respond with ONLY valid JSON: { "kpis": [...] }`;
+
+        let fallbackUserPrompt = `Generate KPIs for these employees:\n\n`;
+        missingEmployees.forEach((e: any) => {
+          const deptParent = deptKpiMap.get(e.department?.toLowerCase());
+          fallbackUserPrompt += `• ${e.name} (ID: ${e.id}, ${e.position}, ${e.department}) - use parentTempId: ${deptParent || defaultOrgKpiTempId}\n`;
+        });
+        
+        try {
+          const additionalKpis = await callAiGateway(fallbackSystemPrompt, fallbackUserPrompt, 6000);
+          console.log(`Generated ${additionalKpis.length} additional KPIs for missing employees`);
+          
+          // Add to validated KPIs
+          additionalKpis.forEach((kpi, index) => {
+            validatedKpis.push({
+              ...kpi,
+              tempId: kpi.tempId || `kpi-fallback-${Date.now()}-${index}`,
+              targetValue: typeof kpi.targetValue === 'number' ? kpi.targetValue : parseFloat(kpi.targetValue) || 100,
+              parentTempId: kpi.parentTempId || defaultOrgKpiTempId,
+            });
+          });
+        } catch (error) {
+          console.error("Failed to generate fallback KPIs:", error);
+        }
+      }
+    }
+
     const kpisWithParents = validatedKpis.filter(k => k.parentTempId).length;
     const kpisWithoutParents = validatedKpis.filter(k => !k.parentTempId && k.scopeType !== 'organization').length;
-    console.log(`Generated ${validatedKpis.length} KPIs (${kpisWithParents} with parents, ${kpisWithoutParents} missing parents) for job ${jobId}`);
+    const individualKpisCount = validatedKpis.filter(k => k.scopeType === 'individual').length;
+    
+    console.log(`Generated ${validatedKpis.length} total KPIs (${individualKpisCount} individual, ${kpisWithParents} with parents, ${kpisWithoutParents} missing parents) for job ${jobId}`);
 
     // Save results and mark as completed
     await supabase
