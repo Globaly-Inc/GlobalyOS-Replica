@@ -571,6 +571,53 @@ Respond with ONLY the JSON object.`;
       tempId: kpi.tempId || `kpi-${Date.now()}-${index}`,
       targetValue: typeof kpi.targetValue === 'number' ? kpi.targetValue : parseFloat(kpi.targetValue) || 100,
     }));
+    
+    // ==========================================
+    // POST-PROCESS: Resolve Project IDs from Titles/Names
+    // ==========================================
+    // AI sometimes generates project KPIs without proper projectId - resolve from project name in title
+    validatedKpis = validatedKpis.map(kpi => {
+      if (kpi.scopeType === 'project' && !kpi.projectId) {
+        // Try to extract project from scopeValue, projectName, or title
+        const searchTerms = [
+          kpi.scopeValue?.toLowerCase(),
+          kpi.projectName?.toLowerCase(),
+          kpi.title?.toLowerCase(),
+        ].filter(Boolean);
+        
+        for (const term of searchTerms) {
+          const matchedProject = activeProjects.find(p => 
+            term?.includes(p.name.toLowerCase()) ||
+            p.name.toLowerCase().includes(term || '')
+          );
+          
+          if (matchedProject) {
+            console.log(`Resolved project ID for "${kpi.title}": ${matchedProject.name} (${matchedProject.id})`);
+            return {
+              ...kpi,
+              projectId: matchedProject.id,
+              projectName: matchedProject.name,
+              scopeId: matchedProject.id,
+              scopeValue: matchedProject.name,
+            };
+          }
+        }
+        
+        // If still no match and we have projects, assign to first relevant project
+        if (activeProjects.length > 0) {
+          console.warn(`Could not resolve project for KPI "${kpi.title}", assigning to first available project`);
+          const fallbackProject = activeProjects[0];
+          return {
+            ...kpi,
+            projectId: fallbackProject.id,
+            projectName: fallbackProject.name,
+            scopeId: fallbackProject.id,
+            scopeValue: fallbackProject.name,
+          };
+        }
+      }
+      return kpi;
+    });
 
     // Post-process: Fix parent relationships
     const orgKpis = validatedKpis.filter(k => k.scopeType === 'organization' && !k.isQuarterlyChild);
