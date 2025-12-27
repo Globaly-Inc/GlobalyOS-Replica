@@ -95,7 +95,7 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
       navigateOrg(item.href);
     } else if (item.action === 'leave') {
       if (employeeId) {
-        navigateOrg(`/team/${employeeId}/leave-history`);
+        navigateOrg(`/leave-history?employee=${employeeId}&dateRange=thisYear`);
       } else {
         navigateOrg('/leave');
       }

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -1326,18 +1326,6 @@ const OrgLeaveHistory = () => {
                       <TableCell>
                         <TooltipProvider>
                           <div className="flex items-center gap-1">
-                            {/* View - Always visible - Links to individual leave history */}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <OrgLink to={`/team/${t.employee?.id}/leave-history`}>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                  </Button>
-                                </OrgLink>
-                              </TooltipTrigger>
-                              <TooltipContent>View Leave History</TooltipContent>
-                            </Tooltip>
-                            
                             {/* Edit - Only for canEdit users */}
                             {canEditTransaction(t) && (
                               <Tooltip>
