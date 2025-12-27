@@ -153,7 +153,7 @@ const Settings = () => {
   const isOwner = orgRole === "owner";
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Settings"
         subtitle="Manage your organization settings and preferences"
@@ -299,7 +299,7 @@ const Settings = () => {
           <BillingSettings />
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 };
 

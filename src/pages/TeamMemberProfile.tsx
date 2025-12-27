@@ -606,7 +606,7 @@ const TeamMemberProfile = () => {
   // Format full address
   const fullAddress = [employee.street, employee.city, employee.state, employee.postcode, employee.country].filter(Boolean).join(", ");
   return <>
-      <div className="space-y-4 sm:space-y-8 overflow-hidden">
+      <div className="space-y-4 md:space-y-6">
         <div className="flex items-center justify-between pt-[10px]">
           <OrgLink to="/team">
             <Button variant="ghost" size="sm">
