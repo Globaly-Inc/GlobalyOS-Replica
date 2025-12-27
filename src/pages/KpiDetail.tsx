@@ -457,6 +457,18 @@ const KpiDetail = () => {
                 </div>
               )}
             </Card>
+
+            {/* Linked KPIs Section (for org/group KPIs) */}
+            {(kpi.scope_type === 'organization' || kpi.scope_type === 'department' || 
+              kpi.scope_type === 'office' || kpi.scope_type === 'project') && (
+              <LinkedKpisSection
+                kpi={{
+                  ...kpi,
+                  children: hierarchy?.children || [],
+                }}
+                canEdit={canEdit()}
+              />
+            )}
           </div>
 
           {/* Right Column - Sidebar */}
@@ -471,17 +483,6 @@ const KpiDetail = () => {
               />
             )}
 
-            {/* Linked KPIs Section (for org/group KPIs) */}
-            {(kpi.scope_type === 'organization' || kpi.scope_type === 'department' || 
-              kpi.scope_type === 'office' || kpi.scope_type === 'project') && (
-              <LinkedKpisSection
-                kpi={{
-                  ...kpi,
-                  children: hierarchy?.children || [],
-                }}
-                canEdit={canEdit()}
-              />
-            )}
 
             {/* Quick Stats */}
             <Card className="p-6">
