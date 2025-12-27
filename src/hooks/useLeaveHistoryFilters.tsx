@@ -1,5 +1,5 @@
 import { usePersistedFilters } from "./usePersistedFilters";
-import { startOfDay, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { startOfDay, subDays, startOfMonth, endOfMonth, subMonths, differenceInDays } from "date-fns";
 
 export type DateRangeOption = 
   | "today" 
@@ -65,6 +65,49 @@ export const getDateRangeFromFilter = (
       };
     default:
       return { startDate: subDays(today, 6), endDate: now };
+  }
+};
+
+/**
+ * Calculate the previous equivalent period based on the current date range.
+ * For example, if current period is Dec 21-27, previous period is Dec 14-20.
+ */
+export const getPreviousPeriodRange = (
+  dateRange: { startDate: Date; endDate: Date }
+): { startDate: Date; endDate: Date } => {
+  const { startDate, endDate } = dateRange;
+  const daysDiff = differenceInDays(endDate, startDate) + 1;
+  
+  // Previous period ends the day before current period starts
+  const prevEndDate = subDays(startDate, 1);
+  const prevStartDate = subDays(prevEndDate, daysDiff - 1);
+  
+  return { startDate: prevStartDate, endDate: prevEndDate };
+};
+
+/**
+ * Get a user-friendly label for the comparison period based on the date filter.
+ */
+export const getComparisonLabel = (dateRangeFilter: DateRangeOption): string => {
+  switch (dateRangeFilter) {
+    case "today":
+      return "yesterday";
+    case "last7days":
+      return "previous 7 days";
+    case "last14days":
+      return "previous 14 days";
+    case "last30days":
+      return "previous 30 days";
+    case "thisMonth":
+      return "last month";
+    case "lastMonth":
+      return "2 months ago";
+    case "thisYear":
+      return "last year";
+    case "custom":
+      return "previous period";
+    default:
+      return "previous period";
   }
 };
 
