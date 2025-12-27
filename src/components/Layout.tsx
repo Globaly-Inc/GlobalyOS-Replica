@@ -32,6 +32,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
+import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
 
 interface UserProfile {
   fullName: string;
@@ -754,6 +755,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Onboarding Checklist - only show floating version on non-home pages */}
       {!isHomePage && <OnboardingChecklist userRole={role} />}
+
+      {/* KPI Generation Progress Indicator */}
+      <KpiGenerationProgress organizationId={currentOrg?.id} />
     </div>
   );
 };

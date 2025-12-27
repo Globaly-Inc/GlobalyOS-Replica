@@ -21,6 +21,7 @@ import type { BulkKpiWizardState, GeneratedKpi } from "@/pages/BulkKpiCreate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { addDays, nextMonday, setHours, setMinutes, setSeconds } from "date-fns";
+import { updateKpiGenerationState, resetKpiGenerationState } from "@/components/kpi/KpiGenerationProgress";
 
 interface Props {
   state: BulkKpiWizardState;
@@ -210,6 +211,18 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
     setCreatedMappings([]);
     setErrors([]);
 
+    // Initialize global progress state for the floating indicator
+    updateKpiGenerationState({
+      isGenerating: true,
+      progress: 0,
+      totalKpis: selectedKpis.length,
+      createdKpis: 0,
+      failedKpis: 0,
+      currentItem: "",
+      completed: false,
+      errors: [],
+    });
+
     const mappings: CreatedKpiMapping[] = [];
     const errorList: string[] = [];
     
@@ -229,8 +242,17 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
 
     for (let i = 0; i < sortedKpis.length; i++) {
       const kpi = sortedKpis[i];
+      const progressValue = ((i + 1) / sortedKpis.length) * 100;
       setCurrentItem(kpi.title);
-      setProgress(((i + 1) / sortedKpis.length) * 100);
+      setProgress(progressValue);
+
+      // Update global state for floating indicator
+      updateKpiGenerationState({
+        progress: progressValue,
+        currentItem: kpi.title,
+        createdKpis: mappings.length,
+        failedKpis: errorList.length,
+      });
 
       try {
         // Find real parent ID if there's a parent temp ID
@@ -248,6 +270,9 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
           kpiQuarter = state.quarter;
         } else if (kpi.quarter) {
           kpiQuarter = kpi.quarter;
+        } else {
+          // For annual KPIs without a specific quarter, default to Q1
+          kpiQuarter = 1;
         }
 
         // Build KPI data based on scope type
@@ -272,6 +297,8 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
           kpiData.scope_department = kpi.scopeValue;
         } else if (kpi.scopeType === "office") {
           kpiData.scope_office_id = kpi.scopeId;
+        } else if (kpi.scopeType === "project") {
+          kpiData.scope_project_id = kpi.scopeId || kpi.projectId;
         } else if (kpi.scopeType === "individual") {
           kpiData.employee_id = kpi.employeeId;
         }
@@ -352,6 +379,17 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
     setIsCreating(false);
     setCompleted(true);
     
+    // Update global state for floating indicator - mark as completed
+    updateKpiGenerationState({
+      isGenerating: false,
+      progress: 100,
+      createdKpis: mappings.length,
+      failedKpis: errorList.length,
+      completed: true,
+      errors: errorList,
+      currentItem: "",
+    });
+
     // Update state with results
     updateState({
       creationResults: {
