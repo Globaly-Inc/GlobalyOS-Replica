@@ -159,9 +159,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="kpi/generation-history" element={<OrgProtectedRoute><KpiGenerationHistory /></OrgProtectedRoute>} />
                   <Route path="kpi/:kpiId" element={<OrgProtectedRoute><KpiDetail /></OrgProtectedRoute>} />
                   <Route path="leave" element={<OrgProtectedRoute><Leave /></OrgProtectedRoute>} />
-                  <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} className="pt-[20px]" />
+                  <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} />
                   <Route path="leave/import" element={<OrgProtectedRoute><BulkLeaveImport /></OrgProtectedRoute>} />
-                  <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} className="pt-[20px]" />
+                  <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} />
                   
                   {/* Settings & Notifications */}
                   <Route path="settings" element={<OrgProtectedRoute><Settings /></OrgProtectedRoute>} />
