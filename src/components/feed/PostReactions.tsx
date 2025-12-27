@@ -125,8 +125,13 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
             >
               <span className="text-base">{emoji}</span>
               
-              {/* Stacked avatars */}
-              <div className="flex -space-x-1.5">
+              {/* Mobile: Show +N count only */}
+              <span className="md:hidden text-xs font-medium">
+                +{users.length}
+              </span>
+              
+              {/* Desktop: Stacked avatars */}
+              <div className="hidden md:flex -space-x-1.5">
                 {users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
                   <Avatar
                     key={user.id}
@@ -144,9 +149,9 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
                 ))}
               </div>
               
-              {/* Overflow indicator */}
+              {/* Desktop: Overflow indicator */}
               {users.length > MAX_VISIBLE_AVATARS && (
-                <span className="text-xs text-muted-foreground font-medium ml-0.5">
+                <span className="hidden md:inline text-xs text-muted-foreground font-medium ml-0.5">
                   +{users.length - MAX_VISIBLE_AVATARS}
                 </span>
               )}
