@@ -161,7 +161,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="leave" element={<OrgProtectedRoute><Leave /></OrgProtectedRoute>} />
                   <Route path="leave-history" element={<OrgProtectedRoute><OrgLeaveHistory /></OrgProtectedRoute>} />
                   <Route path="leave/import" element={<OrgProtectedRoute><BulkLeaveImport /></OrgProtectedRoute>} />
-                  <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} />
+                  <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} className="pt-[20px]" />
                   
                   {/* Settings & Notifications */}
                   <Route path="settings" element={<OrgProtectedRoute><Settings /></OrgProtectedRoute>} />
