@@ -35,6 +35,7 @@ import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDia
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
+import { useLeaveHistoryFilters } from "@/hooks/useLeaveHistoryFilters";
 
 interface LeaveTransaction {
   id: string;
@@ -99,10 +100,14 @@ const OrgLeaveHistory = () => {
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
-  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
-  const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
+  
+  const {
+    statusFilter, setStatusFilter,
+    leaveTypeFilter, setLeaveTypeFilter,
+    transactionTypeFilter, setTransactionTypeFilter,
+    yearFilter, setYearFilter,
+  } = useLeaveHistoryFilters();
+  
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   
   // Stats for cards

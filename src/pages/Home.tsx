@@ -12,6 +12,7 @@ import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { AdminSetup } from "@/components/AdminSetup";
+import { useHomeFilters } from "@/hooks/useHomeFilters";
 
 import { useUserRole } from "@/hooks/useUserRole";
 import { OnboardingChecklist } from "@/components/onboarding";
@@ -79,7 +80,10 @@ interface UpcomingCalendarEvent {
 
 const Home = () => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const [feedFilter, setFeedFilter] = useState<string>("all");
+  const {
+    feedFilter, setFeedFilter,
+    dateFilter, setDateFilter,
+  } = useHomeFilters();
   const [hasEmployeeProfile, setHasEmployeeProfile] = useState(false);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
@@ -89,7 +93,6 @@ const Home = () => {
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingEvent[]>([]);
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<UpcomingCalendarEvent[]>([]);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<{
     temperature: number;
