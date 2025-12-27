@@ -294,6 +294,7 @@ const OrgLeaveHistory = () => {
           effective_date,
           created_at,
           employee_id,
+          action,
           employee:employees!leave_balance_logs_employee_id_fkey(
             id,
             position,
@@ -355,7 +356,12 @@ const OrgLeaveHistory = () => {
         employee: r.employee
       }));
 
-      const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
+      // Filter out auto-generated leave_deduct/leave_refund/leave_modify logs (handled by leave_requests)
+      const manualLogs = (logsData || []).filter((l: any) => 
+        !l.action || !['leave_deduct', 'leave_refund', 'leave_modify'].includes(l.action)
+      );
+
+      const adjustmentTransactions: LeaveTransaction[] = manualLogs.map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
         leave_type: normalizeLeaveType(l.leave_type),
