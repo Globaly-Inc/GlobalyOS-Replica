@@ -303,6 +303,7 @@ const OrgLeaveHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg.id)
+        .eq("action", "manual_adjustment") // Filter at DB level to avoid 1000 row limit
         .gte("effective_date", startOfYear)
         .lte("effective_date", endOfYear)
         .order("effective_date", { ascending: false });
@@ -357,12 +358,8 @@ const OrgLeaveHistory = () => {
         employee: r.employee
       }));
 
-      // Filter out auto-generated leave_deduct/leave_refund/leave_modify logs (handled by leave_requests)
-      const manualLogs = (logsData || []).filter((l: any) => 
-        !l.action || !['leave_deduct', 'leave_refund', 'leave_modify'].includes(l.action)
-      );
-
-      const adjustmentTransactions: LeaveTransaction[] = manualLogs.map((l: any) => ({
+      // logsData now only contains manual_adjustment entries (filtered at DB level)
+      const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
         leave_type: normalizeLeaveType(l.leave_type),
