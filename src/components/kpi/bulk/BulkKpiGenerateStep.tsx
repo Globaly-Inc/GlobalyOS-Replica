@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
+import { updateKpiGenerationState } from "@/components/kpi/KpiGenerationProgress";
 import type { BulkKpiWizardState, GeneratedKpi } from "@/pages/BulkKpiCreate";
 import { toast } from "sonner";
 
@@ -315,6 +316,9 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         console.log("Job started:", data.jobId);
         setJobId(data.jobId);
         setProgress({ value: 5, message: "Job created, waiting for updates..." });
+        
+        // Store job ID in global state for the floating progress indicator
+        updateKpiGenerationState({ jobId: data.jobId });
       } else {
         throw new Error("No job ID returned");
       }

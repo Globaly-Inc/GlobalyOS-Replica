@@ -27,6 +27,7 @@ interface GenerationState {
   currentItem: string;
   completed: boolean;
   errors: string[];
+  jobId?: string; // Track the current job ID for navigation
 }
 
 // Simple event emitter for generation state
@@ -40,6 +41,7 @@ let globalState: GenerationState = {
   currentItem: "",
   completed: false,
   errors: [],
+  jobId: undefined,
 };
 
 export const updateKpiGenerationState = (updates: Partial<GenerationState>) => {
@@ -57,6 +59,7 @@ export const resetKpiGenerationState = () => {
     currentItem: "",
     completed: false,
     errors: [],
+    jobId: undefined,
   };
   listeners.forEach(listener => listener(globalState));
 };
@@ -91,7 +94,12 @@ export const KpiGenerationProgress = ({ organizationId }: KpiGenerationProgressP
   if (state.completed && dismissed) return null;
 
   const handleViewDetails = () => {
-    navigate(buildOrgPath("/kpi/bulk-create"));
+    // Navigate to job history page with the current job ID if available
+    if (state.jobId) {
+      navigate(buildOrgPath(`/kpi/generation-history?jobId=${state.jobId}`));
+    } else {
+      navigate(buildOrgPath("/kpi/generation-history"));
+    }
   };
 
   const handleDismiss = () => {
