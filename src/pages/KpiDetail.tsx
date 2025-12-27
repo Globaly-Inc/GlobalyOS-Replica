@@ -174,7 +174,7 @@ const KpiDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+      <div className="space-y-6 py-4 md:py-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -192,7 +192,7 @@ const KpiDetail = () => {
 
   if (!kpi) {
     return (
-      <div className="container px-4 md:px-8 py-6 text-center">
+      <div className="py-4 md:py-6 text-center">
         <p className="text-muted-foreground">KPI not found</p>
         <Button variant="link" onClick={() => navigateOrg('/kpi-dashboard')}>
           Back to Dashboard
@@ -221,7 +221,7 @@ const KpiDetail = () => {
   };
 
   return (
-    <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="space-y-6 py-4 md:py-6">
         {/* Back Navigation */}
         <OrgLink to="/kpi-dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4 mr-1" />
