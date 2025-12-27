@@ -140,8 +140,6 @@ const OrgLeaveHistory = () => {
   
   // All active leave types for stats display
   const [allLeaveTypes, setAllLeaveTypes] = useState<Array<{ id: string; name: string }>>([]);
-  // Actual balances from leave_type_balances table
-  const [actualBalancesByType, setActualBalancesByType] = useState<Record<string, number>>({});
   
   // Stats for cards - comparing with previous period
   const [prevPeriodStats, setPrevPeriodStats] = useState<Record<string, { days: number }>>({});
@@ -371,55 +369,6 @@ const OrgLeaveHistory = () => {
 
       const allTransactions = [...requestTransactions, ...adjustmentTransactions];
 
-      // Fetch actual balances from leave_type_balances table
-      let balancesQuery = supabase
-        .from("leave_type_balances")
-        .select(`
-          leave_type_id,
-          balance,
-          leave_type:leave_types!inner(name)
-        `)
-        .eq("organization_id", currentOrg.id)
-        .eq("year", currentYear);
-
-      if (allowedEmployeeIds) {
-        balancesQuery = balancesQuery.in("employee_id", allowedEmployeeIds);
-      }
-      
-      // Apply employee filter if specific employees are selected
-      if (selectedEmployees.length > 0) {
-        balancesQuery = balancesQuery.in("employee_id", selectedEmployees);
-      }
-
-      const { data: balancesData } = await balancesQuery;
-
-      // Aggregate balances by leave type name
-      const balancesByType: Record<string, number> = {};
-      (balancesData || []).forEach((b: any) => {
-        const typeName = b.leave_type?.name;
-        if (typeName) {
-          balancesByType[typeName] = (balancesByType[typeName] || 0) + (b.balance || 0);
-        }
-      });
-      setActualBalancesByType(balancesByType);
-
-      // Calculate leave type stats (days taken only) - balance comes from actual table
-      const typeStats: Record<string, { total_days: number }> = {};
-      allTransactions.forEach(t => {
-        if (!typeStats[t.leave_type]) {
-          typeStats[t.leave_type] = { total_days: 0 };
-        }
-        if (t.type === 'leave_taken' && t.status === 'approved') {
-          typeStats[t.leave_type].total_days += Math.abs(t.days);
-        }
-      });
-
-      const leaveTypeStatsArray = Object.entries(typeStats).map(([leave_type, stats]) => ({
-        leave_type,
-        total_days: stats.total_days,
-        balance: balancesByType[leave_type] || 0
-      }));
-      setLeaveTypeStats(leaveTypeStatsArray);
 
       // ====== Running balance calculation per employee per leave type ======
       // Step 1: Sort chronologically (oldest first)
@@ -631,30 +580,36 @@ const OrgLeaveHistory = () => {
   }, [filteredTransactions]);
 
   // Calculate filtered leave type stats - includes ALL leave types, even with 0 days
+  // Balance is calculated from transactions: adjustments (positive) minus approved leave taken (negative)
   const filteredLeaveTypeStats = useMemo(() => {
-    // Initialize all leave types with 0 days taken
-    const typeStats: Record<string, { total_days: number }> = {};
+    // Initialize all leave types with 0 days and 0 balance
+    const typeStats: Record<string, { total_days: number; balance: number }> = {};
     allLeaveTypes.forEach(lt => {
-      typeStats[lt.name] = { total_days: 0 };
+      typeStats[lt.name] = { total_days: 0, balance: 0 };
     });
     
-    // Merge in actual transaction data from filtered transactions
+    // Process filtered transactions to calculate days taken and balance
     filteredTransactions.forEach(t => {
       if (!typeStats[t.leave_type]) {
-        typeStats[t.leave_type] = { total_days: 0 };
+        typeStats[t.leave_type] = { total_days: 0, balance: 0 };
       }
+      
       if (t.type === 'leave_taken' && t.status === 'approved') {
+        // Leave taken - count days and subtract from balance (t.days is already negative)
         typeStats[t.leave_type].total_days += Math.abs(t.days);
+        typeStats[t.leave_type].balance += t.days; // t.days is negative for leave_taken
+      } else if (t.type === 'adjustment') {
+        // Adjustments (including Opening Balance) - add to balance
+        typeStats[t.leave_type].balance += t.days;
       }
     });
 
-    // Use actual balances from leave_type_balances table
     return Object.entries(typeStats).map(([leave_type, stats]) => ({
       leave_type,
       total_days: stats.total_days,
-      balance: actualBalancesByType[leave_type] || 0
+      balance: stats.balance,
     }));
-  }, [filteredTransactions, allLeaveTypes, actualBalancesByType]);
+  }, [filteredTransactions, allLeaveTypes]);
 
   const mostLeaveTaken = useMemo(() => {
     if (employeeLeaveTotals.length === 0) return null;
