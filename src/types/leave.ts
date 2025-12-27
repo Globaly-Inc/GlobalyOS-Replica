@@ -13,6 +13,8 @@ export interface LeaveType {
   applies_to_all_offices: boolean;
   is_active: boolean;
   is_system: boolean;
+  max_negative_days: number;
+  applies_to_gender: 'all' | 'male' | 'female';
   created_at: string;
   updated_at: string;
 }

@@ -378,6 +378,7 @@ const TeamMemberProfile = () => {
         emergency_contact_relationship,
         bank_details,
         position_effective_date,
+        gender,
         profiles!inner(
           full_name,
           email,
@@ -1009,6 +1010,58 @@ const TeamMemberProfile = () => {
                 
                 {/* Date of Birth - only for those with full access */}
                 {canViewAllDetails && <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Date of Birth" value={employee.date_of_birth} onSave={value => updateEmployeeField("date_of_birth", value)} canEdit={canEditPersonalDetails} showAge />}
+                
+                {/* Gender - only for those with full access */}
+                {canViewAllDetails && (
+                  <div className="group flex items-start gap-3">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        {canEditPersonalDetails && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" align="start">
+                              <div className="space-y-1">
+                                {[
+                                  { value: 'male', label: 'Male' },
+                                  { value: 'female', label: 'Female' },
+                                  { value: 'other', label: 'Other' },
+                                  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                                ].map((option) => (
+                                  <Button
+                                    key={option.value}
+                                    variant={employee.gender === option.value ? "secondary" : "ghost"}
+                                    className="w-full justify-start text-sm h-8"
+                                    onClick={() => updateEmployeeField("gender", option.value)}
+                                  >
+                                    {option.label}
+                                  </Button>
+                                ))}
+                                {employee.gender && (
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start text-sm h-8 text-muted-foreground"
+                                    onClick={() => updateEmployeeField("gender", "")}
+                                  >
+                                    Clear
+                                  </Button>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-foreground capitalize">
+                        {employee.gender === 'prefer_not_to_say' ? 'Prefer not to say' : employee.gender || <span className="text-muted-foreground italic font-normal">Not specified</span>}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Join Date - visible to all, editable only by Admin/HR */}
                 <EditableDateField icon={<Calendar className="h-5 w-5" />} label="Join Date" value={employee.join_date} onSave={value => updateEmployeeField("join_date", value)} canEdit={canEditJoinDateAndOffice} allowFutureDates />

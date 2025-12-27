@@ -43,6 +43,8 @@ interface LeaveType {
   name: string;
   min_days_advance: number;
   category: string;
+  max_negative_days: number;
+  applies_to_gender: 'all' | 'male' | 'female';
 }
 
 const formSchema = z.object({
@@ -98,13 +100,13 @@ export const AddLeaveRequestDialog = ({
     }
   }, [selectedHalfDayType, selectedStartDate, form]);
 
-  // Fetch employee's office_id
+  // Fetch employee's office_id and gender
   const { data: employeeData } = useQuery({
-    queryKey: ["employee-office", employeeId],
+    queryKey: ["employee-office-gender", employeeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("office_id")
+        .select("office_id, gender")
         .eq("id", employeeId)
         .single();
       if (error) throw error;
@@ -113,16 +115,16 @@ export const AddLeaveRequestDialog = ({
     enabled: !!employeeId,
   });
 
-  // Fetch leave types based on employee's office
+  // Fetch leave types based on employee's office and gender
   const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id],
+    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id, employeeData?.gender],
     queryFn: async () => {
       if (!currentOrg) return [];
       
       // Get all active leave types for the organization
       const { data: types, error } = await supabase
         .from("leave_types")
-        .select("id, name, min_days_advance, category, applies_to_all_offices")
+        .select("id, name, min_days_advance, category, applies_to_all_offices, max_negative_days, applies_to_gender")
         .eq("organization_id", currentOrg.id)
         .eq("is_active", true)
         .order("name");
@@ -130,16 +132,29 @@ export const AddLeaveRequestDialog = ({
       if (error) throw error;
       if (!types) return [];
 
-      // Filter by office
+      // Filter by office and gender
       const filteredTypes: LeaveType[] = [];
+      const employeeGender = employeeData?.gender;
       
       for (const type of types) {
+        // Check gender restriction
+        const genderRestriction = type.applies_to_gender || 'all';
+        if (genderRestriction !== 'all') {
+          // If there's a gender restriction, check if employee's gender matches
+          if (!employeeGender || employeeGender !== genderRestriction) {
+            continue; // Skip this leave type
+          }
+        }
+        
+        // Check office restriction
         if (type.applies_to_all_offices) {
           filteredTypes.push({
             id: type.id,
             name: type.name,
             min_days_advance: type.min_days_advance,
             category: type.category,
+            max_negative_days: type.max_negative_days || 0,
+            applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
           });
         } else if (employeeData?.office_id) {
           // Check if this leave type applies to the employee's office
@@ -156,6 +171,8 @@ export const AddLeaveRequestDialog = ({
               name: type.name,
               min_days_advance: type.min_days_advance,
               category: type.category,
+              max_negative_days: type.max_negative_days || 0,
+              applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
             });
           }
         }
@@ -201,6 +218,40 @@ export const AddLeaveRequestDialog = ({
       
       if (daysUntilStart < selectedLeaveType.min_days_advance) {
         throw new Error(`This leave type requires at least ${selectedLeaveType.min_days_advance} days advance notice`);
+      }
+
+      // Check leave balance against max_negative_days limit
+      const currentYear = new Date().getFullYear();
+      
+      // Get leave type ID to check balance
+      const { data: leaveTypeData } = await supabase
+        .from("leave_types")
+        .select("id")
+        .eq("organization_id", currentOrg?.id)
+        .eq("name", selectedLeaveType.name)
+        .maybeSingle();
+
+      if (leaveTypeData) {
+        // Get current balance
+        const { data: balanceData } = await supabase
+          .from("leave_type_balances")
+          .select("balance")
+          .eq("employee_id", employeeId)
+          .eq("leave_type_id", leaveTypeData.id)
+          .eq("year", currentYear)
+          .maybeSingle();
+
+        const currentBalance = balanceData?.balance || 0;
+        const projectedBalance = currentBalance - daysCount;
+        const maxNegative = selectedLeaveType.max_negative_days || 0;
+
+        if (projectedBalance < -maxNegative) {
+          if (maxNegative === 0) {
+            throw new Error(`Insufficient ${selectedLeaveType.name} balance. You have ${currentBalance} days remaining.`);
+          } else {
+            throw new Error(`Insufficient ${selectedLeaveType.name} balance. You have ${currentBalance} days remaining with a maximum negative balance of ${maxNegative} days allowed.`);
+          }
+        }
       }
 
       // Check for overlapping requests

@@ -49,6 +49,8 @@ interface LeaveType {
   is_active: boolean;
   is_system: boolean;
   office_ids?: string[];
+  max_negative_days: number;
+  applies_to_gender: 'all' | 'male' | 'female';
 }
 
 interface Office {
@@ -73,6 +75,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [formMinDaysAdvance, setFormMinDaysAdvance] = useState("0");
   const [formAppliesToAll, setFormAppliesToAll] = useState(true);
   const [formSelectedOffices, setFormSelectedOffices] = useState<string[]>([]);
+  const [formMaxNegativeDays, setFormMaxNegativeDays] = useState("0");
+  const [formAppliesToGender, setFormAppliesToGender] = useState<'all' | 'male' | 'female'>('all');
   
   const { currentOrg } = useOrganization();
   const { isAdmin } = useUserRole();
@@ -126,13 +130,20 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
           return {
             ...type,
             office_ids: officeData?.map((o) => o.office_id) || [],
+            applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+            max_negative_days: type.max_negative_days || 0,
           };
         }
-        return { ...type, office_ids: [] };
+        return { 
+          ...type, 
+          office_ids: [],
+          applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+          max_negative_days: type.max_negative_days || 0,
+        };
       })
     );
 
-    setLeaveTypes(typesWithOffices);
+    setLeaveTypes(typesWithOffices as LeaveType[]);
     setLoading(false);
   };
 
@@ -144,6 +155,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMinDaysAdvance("0");
     setFormAppliesToAll(true);
     setFormSelectedOffices([]);
+    setFormMaxNegativeDays("0");
+    setFormAppliesToGender('all');
     setEditingType(null);
   };
 
@@ -156,6 +169,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMinDaysAdvance(String(leaveType.min_days_advance));
     setFormAppliesToAll(leaveType.applies_to_all_offices);
     setFormSelectedOffices(leaveType.office_ids || []);
+    setFormMaxNegativeDays(String(leaveType.max_negative_days || 0));
+    setFormAppliesToGender(leaveType.applies_to_gender || 'all');
     setDialogOpen(true);
   };
 
@@ -181,6 +196,8 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
         default_days: parseFloat(formDefaultDays) || 0,
         min_days_advance: parseInt(formMinDaysAdvance) || 0,
         applies_to_all_offices: formAppliesToAll,
+        max_negative_days: parseFloat(formMaxNegativeDays) || 0,
+        applies_to_gender: formAppliesToGender,
       };
 
       let leaveTypeId: string;
@@ -334,7 +351,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               onChange={(e) => setFormName(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="category">Category *</Label>
               <Select value={formCategory} onValueChange={setFormCategory}>
@@ -348,7 +365,25 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="defaultDays">Default Days</Label>
+              <Label htmlFor="appliesToGender">Applies to Gender</Label>
+              <Select value={formAppliesToGender} onValueChange={(v) => setFormAppliesToGender(v as 'all' | 'male' | 'female')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  <SelectItem value="male">Male Only</SelectItem>
+                  <SelectItem value="female">Female Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="defaultDays" className="flex items-center gap-1">
+                Annual Leave Days
+                <span className="text-xs text-muted-foreground">(Auto-credited Jan 1)</span>
+              </Label>
               <Input
                 id="defaultDays"
                 type="number"
@@ -356,6 +391,20 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 step="0.5"
                 value={formDefaultDays}
                 onChange={(e) => setFormDefaultDays(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="maxNegativeDays" className="flex items-center gap-1">
+                Max Negative Days
+              </Label>
+              <Input
+                id="maxNegativeDays"
+                type="number"
+                min="0"
+                step="0.5"
+                value={formMaxNegativeDays}
+                onChange={(e) => setFormMaxNegativeDays(e.target.value)}
+                title="Maximum negative balance allowed. Set to 0 to prevent leave when balance is exhausted."
               />
             </div>
             <div className="grid gap-2">
@@ -465,8 +514,9 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Default Days</TableHead>
-              <TableHead>Min. Advance</TableHead>
+              <TableHead>Annual Days</TableHead>
+              <TableHead>Max Negative</TableHead>
+              <TableHead>Gender</TableHead>
               <TableHead>Applies To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
@@ -493,7 +543,16 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                   </Badge>
                 </TableCell>
                 <TableCell>{leaveType.default_days}</TableCell>
-                <TableCell>{leaveType.min_days_advance} days</TableCell>
+                <TableCell>{leaveType.max_negative_days || 0}</TableCell>
+                <TableCell>
+                  {leaveType.applies_to_gender === 'all' ? (
+                    <span className="text-muted-foreground text-sm">All</span>
+                  ) : (
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {leaveType.applies_to_gender}
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell>
                   {leaveType.applies_to_all_offices ? (
                     <Badge variant="outline" className="gap-1">

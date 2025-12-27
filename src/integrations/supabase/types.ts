@@ -1979,6 +1979,7 @@ export type Database = {
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
           employment_type: string | null
+          gender: string | null
           id: string
           id_number: string | null
           join_date: string
@@ -2017,6 +2018,7 @@ export type Database = {
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
           employment_type?: string | null
+          gender?: string | null
           id?: string
           id_number?: string | null
           join_date: string
@@ -2055,6 +2057,7 @@ export type Database = {
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
           employment_type?: string | null
+          gender?: string | null
           id?: string
           id_number?: string | null
           join_date?: string
@@ -3439,6 +3442,7 @@ export type Database = {
       leave_types: {
         Row: {
           applies_to_all_offices: boolean
+          applies_to_gender: string | null
           category: string
           created_at: string
           default_days: number | null
@@ -3446,6 +3450,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_system: boolean
+          max_negative_days: number | null
           min_days_advance: number
           name: string
           organization_id: string
@@ -3453,6 +3458,7 @@ export type Database = {
         }
         Insert: {
           applies_to_all_offices?: boolean
+          applies_to_gender?: string | null
           category?: string
           created_at?: string
           default_days?: number | null
@@ -3460,6 +3466,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
+          max_negative_days?: number | null
           min_days_advance?: number
           name: string
           organization_id: string
@@ -3467,6 +3474,7 @@ export type Database = {
         }
         Update: {
           applies_to_all_offices?: boolean
+          applies_to_gender?: string | null
           category?: string
           created_at?: string
           default_days?: number | null
@@ -3474,6 +3482,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
+          max_negative_days?: number | null
           min_days_advance?: number
           name?: string
           organization_id?: string

@@ -22,6 +22,7 @@ export interface Employee {
   phone: string | null;
   personal_email: string | null;
   date_of_birth: string | null;
+  gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
   
   // Address
   street: string | null;
