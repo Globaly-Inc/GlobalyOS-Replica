@@ -125,7 +125,7 @@ export const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
 export const useLeaveHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
     usePersistedFilters<LeaveHistoryFilters>({
-      pageKey: "leave_history",
+      pageKey: "leave_history_v2", // Version bump to reset persisted filters to new defaults
       defaultFilters: DEFAULT_FILTERS,
       dynamicDefaults: () => ({
         yearFilter: new Date().getFullYear().toString(),

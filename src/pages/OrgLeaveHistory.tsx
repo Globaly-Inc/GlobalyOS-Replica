@@ -127,6 +127,7 @@ const OrgLeaveHistory = () => {
     selectedEmployees, setSelectedEmployees,
     customStartDate, customEndDate, setCustomDateRange,
     dateRange,
+    clearFilters,
   } = useLeaveHistoryFilters();
   
   // Fetch all employees for multi-select dropdown
@@ -422,8 +423,9 @@ const OrgLeaveHistory = () => {
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
     
-    // Date range filter
-    const effectiveDate = new Date(t.effective_date);
+    // Date range filter - parse date string as local date to avoid timezone issues
+    const [year, month, day] = t.effective_date.split('-').map(Number);
+    const effectiveDate = new Date(year, month - 1, day);
     const matchesDateRange = effectiveDate >= dateRange.startDate && effectiveDate <= dateRange.endDate;
     
     return matchesEmployee && matchesStatus && matchesType && matchesTransType && matchesDateRange;
@@ -963,17 +965,11 @@ const OrgLeaveHistory = () => {
           </Popover>
 
           {/* Clear Filters */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && (
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "thisYear") && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setSelectedEmployees([]);
-                setStatusFilter("all");
-                setLeaveTypeFilter("all");
-                setTransactionTypeFilter("all");
-                setDateRangeFilter("last7days");
-              }}
+              onClick={clearFilters}
               className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
