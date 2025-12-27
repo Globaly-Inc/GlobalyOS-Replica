@@ -1233,11 +1233,11 @@ const OrgLeaveHistory = () => {
                     <TableHead className="w-[85px] whitespace-nowrap">Applied</TableHead>
                     <TableHead className="w-[155px]">Leave Dates</TableHead>
                     <TableHead className="w-[70px]">Type</TableHead>
-                    <TableHead className="w-[95px]">Leave Type</TableHead>
+                    <TableHead className="w-[120px] whitespace-nowrap">Leave Type</TableHead>
                     <TableHead className="text-center w-[50px]">Days</TableHead>
                     <TableHead className="w-[85px]">Status</TableHead>
                     <TableHead className="text-center w-[60px]">Balance</TableHead>
-                    <TableHead className="flex-1 min-w-[120px]">Reason</TableHead>
+                    <TableHead className="w-[100px]">Reason</TableHead>
                     <TableHead className="w-[85px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1311,7 +1311,7 @@ const OrgLeaveHistory = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">{t.leave_type}</Badge>
+                        <Badge variant="outline" className="text-xs whitespace-nowrap">{t.leave_type}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         {formatDays(t.days)}
@@ -1320,8 +1320,8 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-center">
                         {formatBalance(t.balance_after)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground" title={t.reason || ""}>
-                        <span className="line-clamp-1">{t.reason || "-"}</span>
+                      <TableCell className="text-sm text-muted-foreground max-w-[100px]" title={t.reason || ""}>
+                        <span className="truncate block">{t.reason || "-"}</span>
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
