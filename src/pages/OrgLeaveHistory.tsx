@@ -807,7 +807,7 @@ const OrgLeaveHistory = () => {
             <History className="h-6 w-6" />
             Leave History
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground hidden md:block">
             {canEditAll
               ? "View all leave transactions across the organization"
               : isManager
