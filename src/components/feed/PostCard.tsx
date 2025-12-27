@@ -263,8 +263,8 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
 
         {/* Mentions */}
         {post.post_mentions && post.post_mentions.length > 0 && (
-          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-            <span>with</span>
+          <div className="mt-2 text-sm text-muted-foreground">
+            <span>with </span>
             {post.post_mentions.map((mention, idx) => (
               <span key={mention.id}>
                 <OrgLink 
