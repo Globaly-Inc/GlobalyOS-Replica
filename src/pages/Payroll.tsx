@@ -22,20 +22,18 @@ const Payroll = () => {
   // Show loading skeleton while role is being determined
   if (roleLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="space-y-4 md:space-y-6">
         <PageHeader title="Payroll Management" />
-        <div className="container mx-auto px-4 py-6 space-y-6">
-          <Skeleton className="h-12 w-full" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <Skeleton className="h-6 w-24 mb-2" />
-                  <Skeleton className="h-10 w-16" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <Skeleton className="h-12 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-6 w-24 mb-2" />
+                <Skeleton className="h-10 w-16" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
@@ -47,11 +45,10 @@ const Payroll = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="space-y-4 md:space-y-6">
       <PageHeader title="Payroll Management" />
 
-      <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="flex flex-wrap w-full gap-1 h-auto p-1.5 bg-muted/50">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 py-2 px-3 flex-1 min-w-[80px]">
               <DollarSign className="h-4 w-4 shrink-0" />
@@ -103,7 +100,6 @@ const Payroll = () => {
             <LegalEntitiesTab />
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   );
 };

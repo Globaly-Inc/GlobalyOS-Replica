@@ -672,7 +672,7 @@ const PerformanceReviewsPage = () => {
   };
 
   return (
-    <div className="container mx-auto py-4 md:py-6 px-4 max-w-6xl">
+    <div className="space-y-4 md:space-y-6">
       <Button
         variant="ghost"
         size="sm"

@@ -81,7 +81,7 @@ const NotificationPreferences = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-6 max-w-2xl">
+      <div className="space-y-4 md:space-y-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-48" />
           <div className="h-32 bg-muted rounded" />
@@ -91,7 +91,7 @@ const NotificationPreferences = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-2xl">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigateOrg("/notifications")}>
           <ArrowLeft className="h-5 w-5" />

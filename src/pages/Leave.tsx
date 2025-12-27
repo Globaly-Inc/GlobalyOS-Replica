@@ -222,7 +222,7 @@ const Leave = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 pb-24 max-w-lg">
+    <div className="space-y-4 md:space-y-6 pb-24 md:pb-6">
       <div className="flex items-center justify-between mb-6">
         <PageHeader title="Leave" />
         <Button onClick={() => setRequestDialogOpen(true)} size="sm" className="gap-1.5">

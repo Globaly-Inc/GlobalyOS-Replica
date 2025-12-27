@@ -709,6 +709,23 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Sub Navigation for Team section */}
       <SubNav />
 
+      {/* 
+        PAGE CONTENT WRAPPER GUIDELINES:
+        ================================
+        The Layout component provides: container, px-4, md:px-8
+        
+        Page components should:
+          ✅ Use <PageBody> from @/components/ui/page-body
+          ✅ Or use className="space-y-4 md:space-y-6"
+          ✅ Add mobileBottomPadding prop for pages with fixed mobile elements
+        
+        Page components should NOT:
+          ❌ Add container, mx-auto, or max-w-* classes
+          ❌ Add px-*, horizontal padding classes
+          ❌ Wrap in min-h-screen unless truly full-height (Chat, Wiki)
+        
+        See: src/components/ui/page-body.tsx
+      */}
       <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>{children}</main>
 
       {/* Mobile Bottom Navigation */}

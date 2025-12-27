@@ -23,7 +23,7 @@ export default function MyPayslips() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-6 md:px-8 space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <PageHeader title="My Payslips" />
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
@@ -42,7 +42,7 @@ export default function MyPayslips() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 md:px-8 space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <PageHeader title="My Payslips" />
 
       {payslips?.length === 0 ? (

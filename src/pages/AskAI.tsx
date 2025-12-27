@@ -233,121 +233,119 @@ const AskAI = () => {
   const recentQuestions = conversationHistory.slice(-3).reverse();
 
   return (
-    <div className="min-h-screen pb-40 md:pb-24">
-      <div className="px-4 py-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-ai" />
-          <PageHeader title="Ask AI" />
-        </div>
+    <div className="space-y-4 md:space-y-6 pb-40 md:pb-24">
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="h-5 w-5 text-ai" />
+        <PageHeader title="Ask AI" />
+      </div>
 
-        {/* Info Card */}
-        <Card className="mb-4">
-          <CardContent className="py-3 px-4">
-            <p className="text-xs text-muted-foreground">
-              Get answers based on your organization data — Wiki, Team directory, and Chat.
-            </p>
-          </CardContent>
-        </Card>
+      {/* Info Card */}
+      <Card className="mb-4">
+        <CardContent className="py-3 px-4">
+          <p className="text-xs text-muted-foreground">
+            Get answers based on your organization data — Wiki, Team directory, and Chat.
+          </p>
+        </CardContent>
+      </Card>
 
-        {/* Messages Area */}
-        <div className="space-y-4">
-          {messages.length === 0 ? (
-            <div className="space-y-4">
-              {/* Empty State */}
-              <div className="text-center py-6">
-                <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MessageCircle className="h-8 w-8 text-primary/50" />
-                </div>
-                <p className="text-sm text-muted-foreground">Ask anything about your organization</p>
+      {/* Messages Area */}
+      <div className="space-y-4">
+        {messages.length === 0 ? (
+          <div className="space-y-4">
+            {/* Empty State */}
+            <div className="text-center py-6">
+              <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <MessageCircle className="h-8 w-8 text-primary/50" />
               </div>
+              <p className="text-sm text-muted-foreground">Ask anything about your organization</p>
+            </div>
 
-              {/* Suggestions */}
-              {smartSuggestions.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Lightbulb className="h-3.5 w-3.5" />
-                    <span className="font-medium">Suggested questions</span>
-                  </div>
-                  <div className="space-y-2">
-                    {smartSuggestions.map((q, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSuggestionClick(q)}
-                        className="block w-full text-left text-sm px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
+            {/* Suggestions */}
+            {smartSuggestions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  <span className="font-medium">Suggested questions</span>
                 </div>
-              )}
-
-              {/* Recent Questions */}
-              {recentQuestions.length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <History className="h-3.5 w-3.5" />
-                    <span className="font-medium">Recent questions</span>
-                  </div>
-                  {recentQuestions.map((record, i) => (
+                <div className="space-y-2">
+                  {smartSuggestions.map((q, i) => (
                     <button
                       key={i}
-                      onClick={() => handleSuggestionClick(record.question)}
-                      className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors truncate"
+                      onClick={() => handleSuggestionClick(q)}
+                      className="block w-full text-left text-sm px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                     >
-                      {record.question}
+                      {q}
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-2xl px-4 py-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                </div>
-              )}
+              </div>
+            )}
 
-              {/* Follow-up suggestions */}
-              {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && (
-                <div className="pt-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {smartSuggestions.slice(0, 3).map((q, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSuggestionClick(q)}
-                        className="text-xs px-3 py-1.5 rounded-full bg-ai/10 text-ai hover:bg-ai/20 transition-colors"
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
+            {/* Recent Questions */}
+            {recentQuestions.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <History className="h-3.5 w-3.5" />
+                  <span className="font-medium">Recent questions</span>
                 </div>
-              )}
-            </div>
-          )}
-          <div ref={scrollRef} />
-        </div>
+                {recentQuestions.map((record, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(record.question)}
+                    className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors truncate"
+                  >
+                    {record.question}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-2xl px-4 py-2.5">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              </div>
+            )}
+
+            {/* Follow-up suggestions */}
+            {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && (
+              <div className="pt-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {smartSuggestions.slice(0, 3).map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestionClick(q)}
+                      className="text-xs px-3 py-1.5 rounded-full bg-ai/10 text-ai hover:bg-ai/20 transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <div ref={scrollRef} />
       </div>
 
       {/* Fixed Input Area */}

@@ -233,8 +233,7 @@ const Notifications = () => {
   const leaveCount = notifications.filter((n) => n.type === "leave_request" || n.type === "leave_decision").length;
 
   return (
-    <>
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl">
+    <div className="space-y-4 md:space-y-6 pb-24 md:pb-6">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <PageHeader title="Notifications" />
           <div className="flex items-center gap-2">
@@ -437,8 +436,7 @@ const Notifications = () => {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-    </>
+    </div>
   );
 };
 
