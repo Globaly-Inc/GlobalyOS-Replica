@@ -13,7 +13,7 @@ interface AttendanceHistoryFilters {
 }
 
 const DEFAULT_FILTERS: AttendanceHistoryFilters = {
-  dateRangeFilter: "today",
+  dateRangeFilter: "last7days",
   statusFilter: "all",
   departmentFilter: "all",
   workStatusFilter: "all",
@@ -25,7 +25,7 @@ const DEFAULT_FILTERS: AttendanceHistoryFilters = {
 export const useAttendanceHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
     usePersistedFilters<AttendanceHistoryFilters>({
-      pageKey: "attendance_history",
+      pageKey: "attendance_history_v2",
       defaultFilters: DEFAULT_FILTERS,
     });
 
