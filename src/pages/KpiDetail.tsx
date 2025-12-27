@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,34 +174,30 @@ const KpiDetail = () => {
 
   if (isLoading) {
     return (
-      <Layout>
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-48" />
-              <Skeleton className="h-64" />
-            </div>
-            <div className="space-y-6">
-              <Skeleton className="h-32" />
-              <Skeleton className="h-48" />
-            </div>
+      <div className="container px-4 md:px-8 py-6 space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-48" />
+            <Skeleton className="h-64" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-48" />
           </div>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   if (!kpi) {
     return (
-      <Layout>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">KPI not found</p>
-          <Button variant="link" onClick={() => navigateOrg('/kpi-dashboard')}>
-            Back to Dashboard
-          </Button>
-        </div>
-      </Layout>
+      <div className="container px-4 md:px-8 py-6 text-center">
+        <p className="text-muted-foreground">KPI not found</p>
+        <Button variant="link" onClick={() => navigateOrg('/kpi-dashboard')}>
+          Back to Dashboard
+        </Button>
+      </div>
     );
   }
 
@@ -226,8 +221,7 @@ const KpiDetail = () => {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="container px-4 md:px-8 py-6 space-y-6">
         {/* Back Navigation */}
         <OrgLink to="/kpi-dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -641,7 +635,7 @@ const KpiDetail = () => {
         milestone={celebrationMilestone} 
         onClose={() => setCelebrationMilestone(null)} 
       />
-    </Layout>
+    </div>
   );
 };
 
