@@ -62,17 +62,22 @@ const OrgAttendanceHistory = () => {
   } = useOrgNavigation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  
   const {
-    dateRangeFilter, setDateRangeFilter,
-    statusFilter, setStatusFilter,
-    departmentFilter, setDepartmentFilter,
-    workStatusFilter, setWorkStatusFilter,
-    officeFilter, setOfficeFilter,
-    projectFilter, setProjectFilter,
-    selectedEmployees, setSelectedEmployees,
+    dateRangeFilter,
+    setDateRangeFilter,
+    statusFilter,
+    setStatusFilter,
+    departmentFilter,
+    setDepartmentFilter,
+    workStatusFilter,
+    setWorkStatusFilter,
+    officeFilter,
+    setOfficeFilter,
+    projectFilter,
+    setProjectFilter,
+    selectedEmployees,
+    setSelectedEmployees
   } = useAttendanceHistoryFilters();
-  
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -329,22 +334,21 @@ const OrgAttendanceHistory = () => {
   }, [dateRange]);
 
   // Fetch previous period attendance for comparison
-  const { data: previousRecords } = useQuery({
+  const {
+    data: previousRecords
+  } = useQuery({
     queryKey: ["org-attendance-previous", currentOrg?.id, format(previousPeriod.start, "yyyy-MM-dd"), format(previousPeriod.end, "yyyy-MM-dd")],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("attendance_records")
-        .select(`
+      const {
+        data,
+        error
+      } = await supabase.from("attendance_records").select(`
           *,
           employee:employees!attendance_records_employee_id_fkey(
             id,
             employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time)
           )
-        `)
-        .eq("organization_id", currentOrg!.id)
-        .gte("date", format(previousPeriod.start, "yyyy-MM-dd"))
-        .lte("date", format(previousPeriod.end, "yyyy-MM-dd"));
-
+        `).eq("organization_id", currentOrg!.id).gte("date", format(previousPeriod.start, "yyyy-MM-dd")).lte("date", format(previousPeriod.end, "yyyy-MM-dd"));
       if (error) throw error;
       return data;
     },
@@ -352,15 +356,15 @@ const OrgAttendanceHistory = () => {
   });
 
   // Fetch active employees for missing calculation
-  const { data: activeEmployees } = useQuery({
+  const {
+    data: activeEmployees
+  } = useQuery({
     queryKey: ["active-employees-count", currentOrg?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("organization_id", currentOrg!.id)
-        .eq("status", "active");
-
+      const {
+        data,
+        error
+      } = await supabase.from("employees").select("id").eq("organization_id", currentOrg!.id).eq("status", "active");
       if (error) throw error;
       return data || [];
     },
@@ -368,17 +372,15 @@ const OrgAttendanceHistory = () => {
   });
 
   // Fetch approved leave for the selected period
-  const { data: leaveRecords } = useQuery({
+  const {
+    data: leaveRecords
+  } = useQuery({
     queryKey: ["leave-for-period", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd")],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leave_requests")
-        .select("employee_id, start_date, end_date")
-        .eq("organization_id", currentOrg!.id)
-        .eq("status", "approved")
-        .lte("start_date", format(dateRange.end, "yyyy-MM-dd"))
-        .gte("end_date", format(dateRange.start, "yyyy-MM-dd"));
-
+      const {
+        data,
+        error
+      } = await supabase.from("leave_requests").select("employee_id, start_date, end_date").eq("organization_id", currentOrg!.id).eq("status", "approved").lte("start_date", format(dateRange.end, "yyyy-MM-dd")).gte("end_date", format(dateRange.start, "yyyy-MM-dd"));
       if (error) throw error;
       return data || [];
     },
@@ -386,29 +388,30 @@ const OrgAttendanceHistory = () => {
   });
 
   // Fetch projects for filter
-  const { data: projects = [] } = useQuery({
+  const {
+    data: projects = []
+  } = useQuery({
     queryKey: ["projects", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
-      const { data } = await supabase
-        .from("projects")
-        .select("id, name")
-        .eq("organization_id", currentOrg.id)
-        .order("name");
+      const {
+        data
+      } = await supabase.from("projects").select("id, name").eq("organization_id", currentOrg.id).order("name");
       return data || [];
     },
     enabled: !!currentOrg?.id
   });
 
   // Fetch employee-project mappings
-  const { data: employeeProjects = [] } = useQuery({
+  const {
+    data: employeeProjects = []
+  } = useQuery({
     queryKey: ["employee-projects", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
-      const { data } = await supabase
-        .from("employee_projects")
-        .select("employee_id, project_id")
-        .eq("organization_id", currentOrg.id);
+      const {
+        data
+      } = await supabase.from("employee_projects").select("employee_id, project_id").eq("organization_id", currentOrg.id);
       return data || [];
     },
     enabled: !!currentOrg?.id
@@ -445,7 +448,12 @@ const OrgAttendanceHistory = () => {
   // Get unique employees for multi-select dropdown
   const employeesList = useMemo(() => {
     if (!records) return [];
-    const employeeMap = new Map<string, { id: string; name: string; avatarUrl: string | null; position: string }>();
+    const employeeMap = new Map<string, {
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      position: string;
+    }>();
     records.forEach(r => {
       const employee = r.employee as any;
       if (employee?.id && employee?.profiles?.full_name) {
@@ -464,10 +472,7 @@ const OrgAttendanceHistory = () => {
   const filteredEmployeesList = useMemo(() => {
     if (!employeeSearchQuery) return employeesList;
     const query = employeeSearchQuery.toLowerCase();
-    return employeesList.filter(e => 
-      e.name.toLowerCase().includes(query) || 
-      e.position.toLowerCase().includes(query)
-    );
+    return employeesList.filter(e => e.name.toLowerCase().includes(query) || e.position.toLowerCase().includes(query));
   }, [employeesList, employeeSearchQuery]);
 
   // Get employee display label for trigger
@@ -487,7 +492,7 @@ const OrgAttendanceHistory = () => {
       const employee = record.employee as any;
       const schedule = getSchedule(employee?.employee_schedules);
       const workLocation = schedule?.work_location || 'office';
-      
+
       // Employee multi-select filter (empty = all employees)
       const matchesEmployee = selectedEmployees.length === 0 || selectedEmployees.includes(record.employee_id);
       const matchesDepartment = departmentFilter === "all" || employee?.department === departmentFilter;
@@ -513,12 +518,9 @@ const OrgAttendanceHistory = () => {
       // Projects filter
       let matchesProject = true;
       if (projectFilter !== "all") {
-        const employeeProjectIds = employeeProjects
-          .filter(ep => ep.employee_id === record.employee_id)
-          .map(ep => ep.project_id);
+        const employeeProjectIds = employeeProjects.filter(ep => ep.employee_id === record.employee_id).map(ep => ep.project_id);
         matchesProject = employeeProjectIds.includes(projectFilter);
       }
-
       return matchesEmployee && matchesDepartment && matchesWorkStatus && matchesOffice && matchesProject;
     });
   }, [records, selectedEmployees, departmentFilter, workStatusFilter, officeFilter, projectFilter, employeeProjects]);
@@ -583,12 +585,10 @@ const OrgAttendanceHistory = () => {
     if (!record.check_in_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_start_time) return 0;
-    
     const checkInTime = new Date(record.check_in_time);
     const [startH, startM] = schedule.work_start_time.split(':').map(Number);
     const expectedStart = new Date(checkInTime);
     expectedStart.setHours(startH, startM + (schedule.late_threshold_minutes || 0), 0, 0);
-    
     const diff = (checkInTime.getTime() - expectedStart.getTime()) / (1000 * 60);
     return Math.max(0, diff);
   };
@@ -598,12 +598,10 @@ const OrgAttendanceHistory = () => {
     if (!record.check_out_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_end_time) return 0;
-    
     const checkOutTime = new Date(record.check_out_time);
     const [endH, endM] = schedule.work_end_time.split(':').map(Number);
     const expectedEnd = new Date(checkOutTime);
     expectedEnd.setHours(endH, endM, 0, 0);
-    
     const diff = (expectedEnd.getTime() - checkOutTime.getTime()) / (1000 * 60);
     return Math.max(0, diff);
   };
@@ -620,7 +618,7 @@ const OrgAttendanceHistory = () => {
   // Helper: Calculate percentage change
   const calcChange = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
+    return Math.round((current - previous) / previous * 100);
   };
 
   // Get employees on leave for the date range
@@ -632,15 +630,12 @@ const OrgAttendanceHistory = () => {
   // Calculate enhanced stats with 8 metrics
   const stats = useMemo(() => {
     if (!filteredRecords) return null;
-    
     const total = filteredRecords.length;
-    
+
     // Calculate missing employees (active - checked in - on leave)
     const checkedInEmployeeIds = new Set(filteredRecords.map(r => r.employee_id));
-    const missingCount = (activeEmployees || []).filter(e => 
-      !checkedInEmployeeIds.has(e.id) && !employeesOnLeave.has(e.id)
-    ).length;
-    
+    const missingCount = (activeEmployees || []).filter(e => !checkedInEmployeeIds.has(e.id) && !employeesOnLeave.has(e.id)).length;
+
     // Late arrivals with duration
     const lateRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
@@ -650,7 +645,7 @@ const OrgAttendanceHistory = () => {
       const employee = r.employee as any;
       return sum + getLateMinutes(r, employee?.employee_schedules);
     }, 0);
-    
+
     // Early checkouts with duration
     const earlyRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
@@ -660,13 +655,13 @@ const OrgAttendanceHistory = () => {
       const employee = r.employee as any;
       return sum + getEarlyMinutes(r, employee?.employee_schedules);
     }, 0);
-    
+
     // On Time (not late)
     const onTimeCount = filteredRecords.filter(r => {
       const employee = r.employee as any;
       return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
     }).length;
-    
+
     // Below Time / Over Time
     const belowTimeRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
@@ -678,7 +673,6 @@ const OrgAttendanceHistory = () => {
       const expectedHours = getExpectedNetHours(employee?.employee_schedules);
       return sum + Math.max(0, (expectedHours - netHours) * 60);
     }, 0);
-    
     const overTimeRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
       return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'overTime';
@@ -689,10 +683,10 @@ const OrgAttendanceHistory = () => {
       const expectedHours = getExpectedNetHours(employee?.employee_schedules);
       return sum + Math.max(0, (netHours - expectedHours) * 60);
     }, 0);
-    
+
     // WFH count
     const wfhCount = filteredRecords.filter(r => r.status === 'remote').length;
-    
+
     // Net Hours
     const totalNetHours = filteredRecords.reduce((sum, r) => {
       const employee = r.employee as any;
@@ -704,70 +698,62 @@ const OrgAttendanceHistory = () => {
       const employee = r.employee as any;
       return isLateArrival(r, employee?.employee_schedules);
     }).length;
-    
     const prevEarly = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
       return isEarlyDeparture(r, employee?.employee_schedules);
     }).length;
-    
     const prevOnTime = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
       return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
     }).length;
-    
     const prevBelowTime = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
       return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'belowTime';
     }).length;
-    
     const prevOverTime = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
       return getTimeVariance(r.work_hours, employee?.employee_schedules).status === 'overTime';
     }).length;
-    
     const prevWfh = (previousRecords || []).filter(r => r.status === 'remote').length;
-    
     const prevNetHours = (previousRecords || []).reduce((sum, r) => {
       const employee = r.employee as any;
       return sum + getNetHours(r.work_hours, employee?.employee_schedules);
     }, 0);
-
     return {
       total,
       missing: missingCount,
       onLeave: employeesOnLeave.size,
-      
-      late: { 
-        count: lateRecords.length, 
-        duration: totalLateDuration, 
-        change: calcChange(lateRecords.length, prevLate) 
+      late: {
+        count: lateRecords.length,
+        duration: totalLateDuration,
+        change: calcChange(lateRecords.length, prevLate)
       },
-      early: { 
-        count: earlyRecords.length, 
-        duration: totalEarlyDuration, 
-        change: calcChange(earlyRecords.length, prevEarly) 
+      early: {
+        count: earlyRecords.length,
+        duration: totalEarlyDuration,
+        change: calcChange(earlyRecords.length, prevEarly)
       },
-      onTime: { 
-        count: onTimeCount, 
-        change: calcChange(onTimeCount, prevOnTime) 
+      onTime: {
+        count: onTimeCount,
+        change: calcChange(onTimeCount, prevOnTime)
       },
-      belowTime: { 
-        count: belowTimeRecords.length, 
-        duration: belowTimeDuration, 
-        change: calcChange(belowTimeRecords.length, prevBelowTime) 
+      belowTime: {
+        count: belowTimeRecords.length,
+        duration: belowTimeDuration,
+        change: calcChange(belowTimeRecords.length, prevBelowTime)
       },
-      overTime: { 
-        count: overTimeRecords.length, 
-        duration: overTimeDuration, 
-        change: calcChange(overTimeRecords.length, prevOverTime) 
+      overTime: {
+        count: overTimeRecords.length,
+        duration: overTimeDuration,
+        change: calcChange(overTimeRecords.length, prevOverTime)
       },
-      wfh: { 
-        count: wfhCount, 
-        change: calcChange(wfhCount, prevWfh) 
+      wfh: {
+        count: wfhCount,
+        change: calcChange(wfhCount, prevWfh)
       },
-      netHours: { 
-        total: totalNetHours, 
-        change: calcChange(Math.round(totalNetHours), Math.round(prevNetHours)) 
+      netHours: {
+        total: totalNetHours,
+        change: calcChange(Math.round(totalNetHours), Math.round(prevNetHours))
       }
     };
   }, [filteredRecords, previousRecords, activeEmployees, employeesOnLeave]);
@@ -1025,17 +1011,10 @@ const OrgAttendanceHistory = () => {
             <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
-            {(isOwner || isAdmin || isHR) && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setSettingsOpen(true)}
-                className="gap-2"
-              >
+            {(isOwner || isAdmin || isHR) && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} className="gap-2">
                 <Settings className="h-4 w-4" />
                 Settings
-              </Button>
-            )}
+              </Button>}
             <AttendanceQRButton />
             <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4 text-ai" />
@@ -1069,16 +1048,11 @@ const OrgAttendanceHistory = () => {
 
         {/* Sticky Filter Bar - Light Purple Background */}
         <div className="px-4 md:px-0 sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap bg-slate-300 px-[5px] py-[5px] rounded-5g">
             {/* Employee Multi-Select Dropdown */}
             <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={employeePopoverOpen}
-                  className="w-[180px] h-10 justify-between bg-background"
-                >
+                <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="w-[180px] h-10 justify-between bg-background">
                   <div className="flex items-center gap-2 truncate">
                     <Users className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">{employeeFilterLabel}</span>
@@ -1088,50 +1062,24 @@ const OrgAttendanceHistory = () => {
               </PopoverTrigger>
               <PopoverContent className="w-[280px] p-0" align="start">
                 <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search employees..." 
-                    value={employeeSearchQuery}
-                    onValueChange={setEmployeeSearchQuery}
-                  />
+                  <CommandInput placeholder="Search employees..." value={employeeSearchQuery} onValueChange={setEmployeeSearchQuery} />
                   <CommandList>
                     <CommandEmpty>No employees found.</CommandEmpty>
                     <CommandGroup>
                       {/* Select All / Clear All */}
                       <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}
-                        >
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
                           Select All
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setSelectedEmployees([])}
-                        >
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
                           Clear All
                         </Button>
                       </div>
-                      {filteredEmployeesList.map(employee => (
-                        <CommandItem
-                          key={employee.id}
-                          value={employee.id}
-                          onSelect={() => {
-                            setSelectedEmployees(
-                              selectedEmployees.includes(employee.id)
-                                ? selectedEmployees.filter(id => id !== employee.id)
-                                : [...selectedEmployees, employee.id]
-                            );
-                          }}
-                        >
+                      {filteredEmployeesList.map(employee => <CommandItem key={employee.id} value={employee.id} onSelect={() => {
+                    setSelectedEmployees(selectedEmployees.includes(employee.id) ? selectedEmployees.filter(id => id !== employee.id) : [...selectedEmployees, employee.id]);
+                  }}>
                           <div className="flex items-center gap-2 flex-1">
-                            <Checkbox
-                              checked={selectedEmployees.includes(employee.id)}
-                              className="pointer-events-none"
-                            />
+                            <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
                             <Avatar className="h-6 w-6">
                               <AvatarImage src={employee.avatarUrl || undefined} />
                               <AvatarFallback className="text-xs">
@@ -1140,13 +1088,10 @@ const OrgAttendanceHistory = () => {
                             </Avatar>
                             <div className="flex flex-col">
                               <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
-                              {employee.position && (
-                                <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>
-                              )}
+                              {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
                             </div>
                           </div>
-                        </CommandItem>
-                      ))}
+                        </CommandItem>)}
                     </CommandGroup>
                   </CommandList>
                 </Command>
@@ -1195,9 +1140,7 @@ const OrgAttendanceHistory = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Offices</SelectItem>
-                {offices.map(office => (
-                  <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
-                ))}
+                {offices.map(office => <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -1213,8 +1156,7 @@ const OrgAttendanceHistory = () => {
             </Select>
 
             {/* Projects Selector */}
-            {projects.length > 0 && (
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
+            {projects.length > 0 && <Select value={projectFilter} onValueChange={setProjectFilter}>
                 <SelectTrigger className="w-[150px] h-10 bg-background">
                   <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue placeholder="Project" />
@@ -1223,8 +1165,7 @@ const OrgAttendanceHistory = () => {
                   <SelectItem value="all">All Projects</SelectItem>
                   {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                 </SelectContent>
-              </Select>
-            )}
+              </Select>}
 
             {/* Date Range Selector - Now Last */}
             <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
@@ -1251,12 +1192,12 @@ const OrgAttendanceHistory = () => {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar mode="range" selected={{
-                from: customDateRange.from,
-                to: customDateRange.to
-              }} onSelect={range => setCustomDateRange({
-                from: range?.from,
-                to: range?.to
-              })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
+              from: customDateRange.from,
+              to: customDateRange.to
+            }} onSelect={range => setCustomDateRange({
+              from: range?.from,
+              to: range?.to
+            })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
                 </PopoverContent>
               </Popover>}
 
@@ -1292,19 +1233,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30">
                     <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                   </div>
-                  {stats.late.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
-                      stats.late.change < 0 ? "text-green-600" : "text-red-600")}>
+                  {stats.late.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", stats.late.change < 0 ? "text-green-600" : "text-red-600")}>
                       {stats.late.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
                       {Math.abs(stats.late.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.late.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">Late Arrivals</div>
-                {stats.late.duration > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-amber-600/70 mt-0.5">{formatMinutes(stats.late.duration)} total</div>
-                )}
+                {stats.late.duration > 0 && <div className="text-[9px] md:text-[10px] text-amber-600/70 mt-0.5">{formatMinutes(stats.late.duration)} total</div>}
               </Card>
 
               {/* Early Checkouts */}
@@ -1313,19 +1249,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-red-100 dark:bg-red-900/30">
                     <LogOut className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                   </div>
-                  {stats.early.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
-                      stats.early.change < 0 ? "text-green-600" : "text-red-600")}>
+                  {stats.early.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", stats.early.change < 0 ? "text-green-600" : "text-red-600")}>
                       {stats.early.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
                       {Math.abs(stats.early.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-red-600 dark:text-red-400">{stats.early.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">Early Checkouts</div>
-                {stats.early.duration > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-red-600/70 mt-0.5">{formatMinutes(stats.early.duration)} total</div>
-                )}
+                {stats.early.duration > 0 && <div className="text-[9px] md:text-[10px] text-red-600/70 mt-0.5">{formatMinutes(stats.early.duration)} total</div>}
               </Card>
 
               {/* On Time */}
@@ -1334,19 +1265,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
                   </div>
-                  {stats.onTime.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
-                      stats.onTime.change > 0 ? "text-green-600" : "text-red-600")}>
+                  {stats.onTime.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", stats.onTime.change > 0 ? "text-green-600" : "text-red-600")}>
                       {stats.onTime.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {Math.abs(stats.onTime.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-green-600 dark:text-green-400">{stats.onTime.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">On Time</div>
-                {stats.total > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-green-600/70 mt-0.5">{Math.round((stats.onTime.count / stats.total) * 100)}% of check-ins</div>
-                )}
+                {stats.total > 0 && <div className="text-[9px] md:text-[10px] text-green-600/70 mt-0.5">{Math.round(stats.onTime.count / stats.total * 100)}% of check-ins</div>}
               </Card>
 
               {/* Below Time */}
@@ -1355,19 +1281,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                     <Timer className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
                   </div>
-                  {stats.belowTime.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
-                      stats.belowTime.change < 0 ? "text-green-600" : "text-red-600")}>
+                  {stats.belowTime.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", stats.belowTime.change < 0 ? "text-green-600" : "text-red-600")}>
                       {stats.belowTime.change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
                       {Math.abs(stats.belowTime.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.belowTime.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">Below Time</div>
-                {stats.belowTime.duration > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-orange-600/70 mt-0.5">{formatMinutes(stats.belowTime.duration)} deficit</div>
-                )}
+                {stats.belowTime.duration > 0 && <div className="text-[9px] md:text-[10px] text-orange-600/70 mt-0.5">{formatMinutes(stats.belowTime.duration)} deficit</div>}
               </Card>
 
               {/* Over Time */}
@@ -1376,18 +1297,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                     <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  {stats.overTime.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
+                  {stats.overTime.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
                       {stats.overTime.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {Math.abs(stats.overTime.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.overTime.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">Over Time</div>
-                {stats.overTime.duration > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-blue-600/70 mt-0.5">{formatMinutes(stats.overTime.duration)} extra</div>
-                )}
+                {stats.overTime.duration > 0 && <div className="text-[9px] md:text-[10px] text-blue-600/70 mt-0.5">{formatMinutes(stats.overTime.duration)} extra</div>}
               </Card>
 
               {/* Net Hours */}
@@ -1396,19 +1313,14 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
                     <Timer className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  {stats.netHours.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", 
-                      stats.netHours.change > 0 ? "text-green-600" : "text-red-600")}>
+                  {stats.netHours.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium", stats.netHours.change > 0 ? "text-green-600" : "text-red-600")}>
                       {stats.netHours.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {Math.abs(stats.netHours.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatHoursMinutes(stats.netHours.total)}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">Net Hours</div>
-                {stats.total > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-indigo-600/70 mt-0.5">avg {formatHoursMinutes(stats.netHours.total / stats.total)}/person</div>
-                )}
+                {stats.total > 0 && <div className="text-[9px] md:text-[10px] text-indigo-600/70 mt-0.5">avg {formatHoursMinutes(stats.netHours.total / stats.total)}/person</div>}
               </Card>
 
               {/* WFH */}
@@ -1417,37 +1329,22 @@ const OrgAttendanceHistory = () => {
                   <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                     <Home className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                   </div>
-                  {stats.wfh.change !== 0 && (
-                    <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
+                  {stats.wfh.change !== 0 && <div className={cn("flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground")}>
                       {stats.wfh.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {Math.abs(stats.wfh.change)}%
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 <div className="text-xl md:text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.wfh.count}</div>
                 <div className="text-[10px] md:text-xs text-muted-foreground">WFH</div>
-                {stats.total > 0 && (
-                  <div className="text-[9px] md:text-[10px] text-purple-600/70 mt-0.5">{Math.round((stats.wfh.count / stats.total) * 100)}% of check-ins</div>
-                )}
+                {stats.total > 0 && <div className="text-[9px] md:text-[10px] text-purple-600/70 mt-0.5">{Math.round(stats.wfh.count / stats.total * 100)}% of check-ins</div>}
               </Card>
             </div>
           </div>}
 
         {/* Attendance Analytics Chart */}
-        {records && records.length > 0 && dateRangeFilter !== 'today' && (
-          <div className="px-4 md:px-0">
-            <AttendanceAnalyticsChart
-              records={records}
-              dateRange={dateRange}
-              dateRangeLabel={dateRangeLabel}
-              getSchedule={getSchedule}
-              isLateArrival={isLateArrival}
-              isEarlyDeparture={isEarlyDeparture}
-              getNetHours={getNetHours}
-              getTimeVariance={getTimeVariance}
-            />
-          </div>
-        )}
+        {records && records.length > 0 && dateRangeFilter !== 'today' && <div className="px-4 md:px-0">
+            <AttendanceAnalyticsChart records={records} dateRange={dateRange} dateRangeLabel={dateRangeLabel} getSchedule={getSchedule} isLateArrival={isLateArrival} isEarlyDeparture={isEarlyDeparture} getNetHours={getNetHours} getTimeVariance={getTimeVariance} />
+          </div>}
 
 
         {/* Records - Mobile Cards or Desktop Table */}
@@ -1458,8 +1355,8 @@ const OrgAttendanceHistory = () => {
               <Clock className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">No attendance records found</p>
             </Card> : isMobile ?
-        // Mobile Card View
-        <div className="space-y-3">
+      // Mobile Card View
+      <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{filteredRecords.length} records</span>
                 {(isOwner || isAdmin) && <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="h-8 text-xs">
@@ -1468,8 +1365,8 @@ const OrgAttendanceHistory = () => {
               </div>
               {filteredRecords.map(record => <MobileRecordCard key={record.id} record={record} />)}
             </div> :
-        // Desktop Table View
-        <Card className="overflow-hidden">
+      // Desktop Table View
+      <Card className="overflow-hidden">
               <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
                 <h2 className="font-semibold text-sm">Attendance Records</h2>
                 <span className="text-xs text-muted-foreground">{filteredRecords.length} records</span>
@@ -1494,9 +1391,9 @@ const OrgAttendanceHistory = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredRecords.map(record => {
-                  const employee = record.employee as any;
-                  const isSelected = selectedRecords.has(record.id);
-                  return <TableRow key={record.id} className={cn("hover:bg-muted/50 transition-colors", isSelected && "bg-primary/5")}>
+                const employee = record.employee as any;
+                const isSelected = selectedRecords.has(record.id);
+                return <TableRow key={record.id} className={cn("hover:bg-muted/50 transition-colors", isSelected && "bg-primary/5")}>
                           {(isOwner || isAdmin) && <TableCell>
                               <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectRecord(record.id)} aria-label={`Select ${employee?.profiles?.full_name}`} />
                             </TableCell>}
@@ -1562,26 +1459,26 @@ const OrgAttendanceHistory = () => {
                                 <span className="text-sm font-medium">{formatHoursMinutes(getNetHours(record.work_hours, employee?.employee_schedules))}</span>
                                 {record.work_hours && <div className="hidden lg:block w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                                     <div className={cn("h-full rounded-full", getNetHours(record.work_hours, employee?.employee_schedules) >= getExpectedNetHours(employee?.employee_schedules) ? "bg-green-500" : getNetHours(record.work_hours, employee?.employee_schedules) >= getExpectedNetHours(employee?.employee_schedules) * 0.9 ? "bg-yellow-500" : "bg-red-500")} style={{
-                              width: `${Math.min(100, getNetHours(record.work_hours, employee?.employee_schedules) / getExpectedNetHours(employee?.employee_schedules) * 100)}%`
-                            }} />
+                            width: `${Math.min(100, getNetHours(record.work_hours, employee?.employee_schedules) / getExpectedNetHours(employee?.employee_schedules) * 100)}%`
+                          }} />
                                   </div>}
                               </div>
                               {record.work_hours && (() => {
-                          const variance = getTimeVariance(record.work_hours, employee?.employee_schedules);
-                          if (variance.status === 'onTime') {
-                            return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        const variance = getTimeVariance(record.work_hours, employee?.employee_schedules);
+                        if (variance.status === 'onTime') {
+                          return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                       On Time
                                     </Badge>;
-                          } else if (variance.status === 'overTime') {
-                            return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        } else if (variance.status === 'overTime') {
+                          return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                       Over Time {variance.diff}
                                     </Badge>;
-                          } else {
-                            return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        } else {
+                          return <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                                       Below Time {variance.diff}
                                     </Badge>;
-                          }
-                        })()}
+                        }
+                      })()}
                             </div>
                           </TableCell>
                           
@@ -1603,16 +1500,16 @@ const OrgAttendanceHistory = () => {
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditRecord({
-                                  id: record.id,
-                                  employee_id: record.employee_id,
-                                  date: record.date,
-                                  check_in_time: record.check_in_time,
-                                  check_out_time: record.check_out_time,
-                                  status: record.status,
-                                  notes: record.notes,
-                                  work_hours: record.work_hours,
-                                  check_in_office_id: record.check_in_office_id
-                                })}>
+                                id: record.id,
+                                employee_id: record.employee_id,
+                                date: record.date,
+                                check_in_time: record.check_in_time,
+                                check_out_time: record.check_out_time,
+                                status: record.status,
+                                notes: record.notes,
+                                work_hours: record.work_hours,
+                                check_in_office_id: record.check_in_office_id
+                              })}>
                                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                         </Button>
                                       </TooltipTrigger>
@@ -1622,9 +1519,9 @@ const OrgAttendanceHistory = () => {
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteDialog({
-                                  open: true,
-                                  record
-                                })}>
+                                open: true,
+                                record
+                              })}>
                                           <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                                         </Button>
                                       </TooltipTrigger>
@@ -1635,7 +1532,7 @@ const OrgAttendanceHistory = () => {
                             </TooltipProvider>
                           </TableCell>
                         </TableRow>;
-                })}
+              })}
                   </TableBody>
                 </Table>
               </div>
@@ -1689,33 +1586,19 @@ const OrgAttendanceHistory = () => {
       </AlertDialog>
 
       {/* Bulk Edit Attendance Dialog */}
-      <BulkEditAttendanceDialog
-        open={bulkEditOpen}
-        onOpenChange={setBulkEditOpen}
-        selectedRecordIds={Array.from(selectedRecords)}
-        onSuccess={() => setSelectedRecords(new Set())}
-      />
+      <BulkEditAttendanceDialog open={bulkEditOpen} onOpenChange={setBulkEditOpen} selectedRecordIds={Array.from(selectedRecords)} onSuccess={() => setSelectedRecords(new Set())} />
 
       {/* Floating Bulk Actions Bar */}
       {selectedRecords.size > 0 && (isOwner || isAdmin) && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} onEdit={() => setBulkEditOpen(true)} canDelete={isOwner || isAdmin} canEdit={isOwner || isAdmin} />}
 
       {/* Add Attendance Dialog */}
-      <AddAttendanceDialog
-        open={addAttendanceOpen}
-        onOpenChange={setAddAttendanceOpen}
-      />
+      <AddAttendanceDialog open={addAttendanceOpen} onOpenChange={setAddAttendanceOpen} />
 
       {/* Auto Report Schedule Dialog */}
-      <AttendanceReportScheduleDialog
-        open={reportScheduleOpen}
-        onOpenChange={setReportScheduleOpen}
-      />
+      <AttendanceReportScheduleDialog open={reportScheduleOpen} onOpenChange={setReportScheduleOpen} />
 
       {/* Attendance Settings Dialog */}
-      <AttendanceSettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
+      <AttendanceSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>;
 };
 export default OrgAttendanceHistory;
