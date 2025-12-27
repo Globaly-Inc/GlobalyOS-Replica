@@ -341,8 +341,9 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             Configure the leave type settings and office applicability
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
+        <div className="grid gap-5 py-4">
+          {/* Name - Full width */}
+          <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input
               id="name"
@@ -351,8 +352,10 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               onChange={(e) => setFormName(e.target.value)}
             />
           </div>
+          
+          {/* Category and Gender - 2 columns */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
               <Select value={formCategory} onValueChange={setFormCategory}>
                 <SelectTrigger>
@@ -364,7 +367,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="appliesToGender">Applies to Gender</Label>
               <Select value={formAppliesToGender} onValueChange={(v) => setFormAppliesToGender(v as 'all' | 'male' | 'female')}>
                 <SelectTrigger>
@@ -378,12 +381,14 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               </Select>
             </div>
           </div>
+          
+          {/* Numeric fields - 3 columns with aligned labels */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="defaultDays" className="flex items-center gap-1">
-                Annual Leave Days
-                <span className="text-xs text-muted-foreground">(Auto-credited Jan 1)</span>
-              </Label>
+            <div className="space-y-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="defaultDays">Annual Leave Days</Label>
+                <p className="text-xs text-muted-foreground">(Auto-credited Jan 1)</p>
+              </div>
               <Input
                 id="defaultDays"
                 type="number"
@@ -393,10 +398,11 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 onChange={(e) => setFormDefaultDays(e.target.value)}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="maxNegativeDays" className="flex items-center gap-1">
-                Max Negative Days
-              </Label>
+            <div className="space-y-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="maxNegativeDays">Max Negative Days</Label>
+                <p className="text-xs text-muted-foreground">(0 = no negative)</p>
+              </div>
               <Input
                 id="maxNegativeDays"
                 type="number"
@@ -404,11 +410,13 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 step="0.5"
                 value={formMaxNegativeDays}
                 onChange={(e) => setFormMaxNegativeDays(e.target.value)}
-                title="Maximum negative balance allowed. Set to 0 to prevent leave when balance is exhausted."
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="minDaysAdvance">Min. Days Advance</Label>
+            <div className="space-y-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="minDaysAdvance">Min. Days Advance</Label>
+                <p className="text-xs text-muted-foreground">(0 = any time)</p>
+              </div>
               <Input
                 id="minDaysAdvance"
                 type="number"
