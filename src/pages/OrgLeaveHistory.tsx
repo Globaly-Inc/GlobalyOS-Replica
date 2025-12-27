@@ -103,6 +103,16 @@ const OrgLeaveHistory = () => {
   
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSpinner, setShowSpinner] = useState(false);
+  
+  // Delayed spinner to prevent flickering on fast loads
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setShowSpinner(true), 150);
+      return () => clearTimeout(timer);
+    }
+    setShowSpinner(false);
+  }, [loading]);
   
   // Employee multi-select popover state
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
@@ -193,7 +203,7 @@ const OrgLeaveHistory = () => {
     if (!currentEmployee?.id) return;
 
     loadData();
-  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, dateRange.startDate.getTime(), dateRange.endDate.getTime()]);
+  }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, format(dateRange.startDate, 'yyyy-MM-dd'), format(dateRange.endDate, 'yyyy-MM-dd')]);
 
   const loadData = async () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
@@ -1098,13 +1108,21 @@ const OrgLeaveHistory = () => {
       />
 
       {/* Table */}
-      <Card>
+      <Card className="relative">
         <CardContent className="p-0">
-          {loading ? (
+          {/* Overlay spinner for refresh - keeps table visible */}
+          {loading && transactions.length > 0 && showSpinner && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          {/* Initial loading - only when no data yet */}
+          {loading && transactions.length === 0 && showSpinner ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : filteredTransactions.length === 0 ? (
+          ) : !loading && filteredTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">No leave transactions found</p>
