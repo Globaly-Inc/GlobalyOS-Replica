@@ -806,8 +806,20 @@ const OrgLeaveHistory = () => {
       {/* Sticky Filter Bar - Light Purple Background */}
       <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
-          {/* Employee Multi-Select Dropdown - Only show for Owner/Admin/HR/Manager */}
-          {(canEditAll || isManager) && (
+          {/* Employee Multi-Select Dropdown - Read-only for regular users, interactive for Owner/Admin/HR/Manager */}
+          {isRegularUser ? (
+            // Read-only version for regular users - shows their name, not interactive
+            <Button
+              variant="outline"
+              className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
+              disabled
+            >
+              <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate text-sm">
+                {currentEmployee?.profiles?.full_name || "My Leave"}
+              </span>
+            </Button>
+          ) : (
             <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -983,8 +995,8 @@ const OrgLeaveHistory = () => {
             </PopoverContent>
           </Popover>
 
-          {/* Clear Filters */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && (
+          {/* Clear Filters - Use correct default based on user type */}
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== (isRegularUser ? "thisYear" : "last7days")) && (
             <Button
               variant="ghost"
               size="sm"
