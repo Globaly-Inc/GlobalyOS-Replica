@@ -226,9 +226,9 @@ const AttendanceHistory = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Filters - Light Purple Background */}
+      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Filters:</span>
@@ -305,7 +305,7 @@ const AttendanceHistory = () => {
             </Button>
           )}
         </div>
-      </Card>
+      </div>
 
       {/* Monthly Stats */}
       {stats && (
