@@ -208,7 +208,7 @@ const AttendanceHistory = () => {
   });
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 pt-4 md:pt-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigateOrg(`/team/${id}`)}>
