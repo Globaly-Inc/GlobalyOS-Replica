@@ -5,11 +5,14 @@ import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays, Plus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, Eye, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +38,8 @@ import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDia
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
-import { useLeaveHistoryFilters } from "@/hooks/useLeaveHistoryFilters";
+import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption } from "@/hooks/useLeaveHistoryFilters";
+import { useEmployees } from "@/services/useEmployees";
 
 interface LeaveTransaction {
   id: string;
@@ -99,14 +103,28 @@ const OrgLeaveHistory = () => {
   
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Employee multi-select popover state
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  const [customDatePopoverOpen, setCustomDatePopoverOpen] = useState(false);
   
   const {
     statusFilter, setStatusFilter,
     leaveTypeFilter, setLeaveTypeFilter,
     transactionTypeFilter, setTransactionTypeFilter,
     yearFilter, setYearFilter,
+    dateRangeFilter, setDateRangeFilter,
+    selectedEmployees, setSelectedEmployees,
+    customStartDate, customEndDate, setCustomDateRange,
+    dateRange,
   } = useLeaveHistoryFilters();
+  
+  // Fetch all employees for multi-select dropdown
+  const { data: employeesData = [] } = useEmployees({ status: 'active' });
+  const allEmployees = (employeesData as unknown) as Array<{
+    id: string;
+    profiles?: { full_name?: string; avatar_url?: string | null };
+  }>;
   
   const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   
@@ -389,16 +407,21 @@ const OrgLeaveHistory = () => {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedTransactions([]);
-  }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, searchQuery]);
+  }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, selectedEmployees, dateRangeFilter]);
 
   const filteredTransactions = transactions.filter((t) => {
-    const matchesSearch = t.employee?.profiles?.full_name
-      ?.toLowerCase()
-      .includes(searchQuery.toLowerCase());
+    // Employee filter - if no employees selected, show all; otherwise filter to selected
+    const matchesEmployee = selectedEmployees.length === 0 || 
+      selectedEmployees.includes(t.employee?.id || '');
     const matchesStatus = statusFilter === "all" || t.status === statusFilter || (t.type === 'adjustment' && statusFilter === 'all');
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
-    return matchesSearch && matchesStatus && matchesType && matchesTransType;
+    
+    // Date range filter
+    const effectiveDate = new Date(t.effective_date);
+    const matchesDateRange = effectiveDate >= dateRange.startDate && effectiveDate <= dateRange.endDate;
+    
+    return matchesEmployee && matchesStatus && matchesType && matchesTransType && matchesDateRange;
   });
 
   // Selection handlers
@@ -708,57 +731,203 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by employee name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+      {/* Sticky Filter Bar - Light Purple Background */}
+      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+        <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+          {/* Employee Multi-Select Dropdown */}
+          <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={employeePopoverOpen}
+                className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+              >
+                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-sm">
+                  {selectedEmployees.length === 0
+                    ? "All Employees"
+                    : selectedEmployees.length === 1
+                      ? allEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
+                      : `${selectedEmployees.length} selected`}
+                </span>
+                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search employees..." />
+                <CommandList>
+                  <CommandEmpty>No employees found.</CommandEmpty>
+                  <CommandGroup>
+                    {/* Select All / Clear All */}
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setSelectedEmployees(allEmployees.map(e => e.id))}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setSelectedEmployees([])}
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                    {allEmployees.map((employee) => (
+                      <CommandItem
+                        key={employee.id}
+                        value={employee.profiles?.full_name || employee.id}
+                        onSelect={() => {
+                          const isSelected = selectedEmployees.includes(employee.id);
+                          if (isSelected) {
+                            setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                          } else {
+                            setSelectedEmployees([...selectedEmployees, employee.id]);
+                          }
+                        }}
+                      >
+                        <div className={cn(
+                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                          selectedEmployees.includes(employee.id)
+                            ? "bg-primary text-primary-foreground"
+                            : "opacity-50 [&_svg]:invisible"
+                        )}>
+                          <Check className="h-3 w-3" />
+                        </div>
+                        <Avatar className="h-6 w-6 mr-2">
+                          <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{employee.profiles?.full_name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Transaction Type Filter */}
+          <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+            <SelectTrigger className="h-9 w-auto min-w-[120px] bg-background">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="leave_taken">Leave Taken</SelectItem>
+              <SelectItem value="adjustment">Adjustments</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-auto min-w-[110px] bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Leave Type Filter */}
+          <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+            <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+              <SelectValue placeholder="Leave Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leave Types</SelectItem>
+              {leaveTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range Filter */}
+          <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
+            <Select 
+              value={dateRangeFilter} 
+              onValueChange={(value: DateRangeOption) => {
+                setDateRangeFilter(value);
+                if (value === "custom") {
+                  setCustomDatePopoverOpen(true);
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_RANGE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <PopoverTrigger asChild>
+              <span />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="space-y-4">
+                <div className="text-sm font-medium">Select Date Range</div>
+                <div className="flex gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Start Date</div>
+                    <CalendarComponent
+                      mode="single"
+                      selected={customStartDate ? new Date(customStartDate) : undefined}
+                      onSelect={(date) => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)}
+                      className="rounded-md border pointer-events-auto"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">End Date</div>
+                    <CalendarComponent
+                      mode="single"
+                      selected={customEndDate ? new Date(customEndDate) : undefined}
+                      onSelect={(date) => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)}
+                      className="rounded-md border pointer-events-auto"
+                    />
+                  </div>
+                </div>
+                <Button size="sm" onClick={() => setCustomDatePopoverOpen(false)}>
+                  Apply
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear Filters */}
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedEmployees([]);
+                setStatusFilter("all");
+                setLeaveTypeFilter("all");
+                setTransactionTypeFilter("all");
+                setDateRangeFilter("last7days");
+              }}
+              className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
         </div>
-        <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-full sm:w-28">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="leave_taken">Leave Taken</SelectItem>
-            <SelectItem value="adjustment">Adjustments</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Leave Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Leave Types</SelectItem>
-            {leaveTypes.map((type) => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Summary Stats */}

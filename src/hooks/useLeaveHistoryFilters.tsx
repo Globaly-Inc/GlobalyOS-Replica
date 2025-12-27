@@ -1,10 +1,25 @@
 import { usePersistedFilters } from "./usePersistedFilters";
+import { startOfDay, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+
+export type DateRangeOption = 
+  | "today" 
+  | "last7days" 
+  | "last14days" 
+  | "last30days" 
+  | "thisMonth" 
+  | "lastMonth" 
+  | "thisYear" 
+  | "custom";
 
 interface LeaveHistoryFilters {
   statusFilter: string;
   leaveTypeFilter: string;
   transactionTypeFilter: string;
   yearFilter: string;
+  dateRangeFilter: DateRangeOption;
+  selectedEmployees: string[];
+  customStartDate: string | null;
+  customEndDate: string | null;
 }
 
 const DEFAULT_FILTERS: LeaveHistoryFilters = {
@@ -12,7 +27,57 @@ const DEFAULT_FILTERS: LeaveHistoryFilters = {
   leaveTypeFilter: "all",
   transactionTypeFilter: "all",
   yearFilter: new Date().getFullYear().toString(),
+  dateRangeFilter: "last7days",
+  selectedEmployees: [],
+  customStartDate: null,
+  customEndDate: null,
 };
+
+export const getDateRangeFromFilter = (
+  dateRangeFilter: DateRangeOption,
+  customStartDate: string | null,
+  customEndDate: string | null
+): { startDate: Date; endDate: Date } => {
+  const today = startOfDay(new Date());
+  const now = new Date();
+
+  switch (dateRangeFilter) {
+    case "today":
+      return { startDate: today, endDate: now };
+    case "last7days":
+      return { startDate: subDays(today, 6), endDate: now };
+    case "last14days":
+      return { startDate: subDays(today, 13), endDate: now };
+    case "last30days":
+      return { startDate: subDays(today, 29), endDate: now };
+    case "thisMonth":
+      return { startDate: startOfMonth(today), endDate: now };
+    case "lastMonth": {
+      const lastMonth = subMonths(today, 1);
+      return { startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth) };
+    }
+    case "thisYear":
+      return { startDate: new Date(today.getFullYear(), 0, 1), endDate: now };
+    case "custom":
+      return {
+        startDate: customStartDate ? new Date(customStartDate) : subDays(today, 6),
+        endDate: customEndDate ? new Date(customEndDate) : now,
+      };
+    default:
+      return { startDate: subDays(today, 6), endDate: now };
+  }
+};
+
+export const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "last7days", label: "Last 7 days" },
+  { value: "last14days", label: "Last 14 days" },
+  { value: "last30days", label: "Last 30 days" },
+  { value: "thisMonth", label: "This Month" },
+  { value: "lastMonth", label: "Last Month" },
+  { value: "thisYear", label: "This Year" },
+  { value: "custom", label: "Custom" },
+];
 
 export const useLeaveHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
@@ -24,17 +89,34 @@ export const useLeaveHistoryFilters = () => {
       }),
     });
 
+  const dateRange = getDateRangeFromFilter(
+    filters.dateRangeFilter,
+    filters.customStartDate,
+    filters.customEndDate
+  );
+
   return {
     // Filter values
     statusFilter: filters.statusFilter,
     leaveTypeFilter: filters.leaveTypeFilter,
     transactionTypeFilter: filters.transactionTypeFilter,
     yearFilter: filters.yearFilter,
+    dateRangeFilter: filters.dateRangeFilter,
+    selectedEmployees: filters.selectedEmployees,
+    customStartDate: filters.customStartDate,
+    customEndDate: filters.customEndDate,
+    // Computed
+    dateRange,
     // Setters
     setStatusFilter: (value: string) => setFilter("statusFilter", value),
     setLeaveTypeFilter: (value: string) => setFilter("leaveTypeFilter", value),
     setTransactionTypeFilter: (value: string) => setFilter("transactionTypeFilter", value),
     setYearFilter: (value: string) => setFilter("yearFilter", value),
+    setDateRangeFilter: (value: DateRangeOption) => setFilter("dateRangeFilter", value),
+    setSelectedEmployees: (value: string[]) => setFilter("selectedEmployees", value),
+    setCustomDateRange: (startDate: string | null, endDate: string | null) => {
+      setFilters({ customStartDate: startDate, customEndDate: endDate });
+    },
     clearFilters,
     isLoaded,
   };
