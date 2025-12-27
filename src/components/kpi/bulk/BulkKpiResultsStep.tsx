@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,7 @@ interface CreatedKpiMapping {
 
 export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();
+  const { data: currentEmployee, isLoading: isEmployeeLoading } = useCurrentEmployee();
   const queryClient = useQueryClient();
   
   const [isCreating, setIsCreating] = useState(false);
@@ -44,14 +44,27 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
   const [errors, setErrors] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
 
+  // Guard ref to prevent double execution
+  const hasStartedRef = useRef(false);
+
   const selectedKpis = state.generatedKpis.filter(k => k.selected);
 
-  // Auto-start creation when step loads
+  // Check if data is ready
+  const isDataReady = !!currentOrg?.id && !!currentEmployee?.id;
+
+  // Auto-start creation when step loads and data is ready
   useEffect(() => {
-    if (!isCreating && !completed && selectedKpis.length > 0) {
+    if (
+      isDataReady && 
+      !isCreating && 
+      !completed && 
+      selectedKpis.length > 0 && 
+      !hasStartedRef.current
+    ) {
+      hasStartedRef.current = true;
       createKpis();
     }
-  }, []);
+  }, [isDataReady, isCreating, completed, selectedKpis.length]);
 
   // Calculate next biweekly reminder (next Monday at 9 AM, at least 2 weeks out)
   const calculateNextBiweeklyReminder = (): string => {
@@ -390,6 +403,16 @@ export const BulkKpiResultsStep = ({ state, updateState }: Props) => {
 
   const successCount = state.creationResults.success || createdMappings.length;
   const failedCount = state.creationResults.failed || errors.length;
+
+  // Show loading state while waiting for data
+  if (!isDataReady && !completed) {
+    return (
+      <div className="py-12 text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+        <p className="text-muted-foreground">Loading organization data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
