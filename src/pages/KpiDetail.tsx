@@ -628,14 +628,13 @@ const KpiDetail = () => {
             )}
           </div>
         </div>
-      </div>
 
-      {/* Celebration Modal */}
-      <KpiCelebration 
-        milestone={celebrationMilestone} 
-        onClose={() => setCelebrationMilestone(null)} 
-      />
-    </div>
+        {/* Celebration Modal */}
+        <KpiCelebration 
+          milestone={celebrationMilestone} 
+          onClose={() => setCelebrationMilestone(null)} 
+        />
+      </div>
   );
 };
 
