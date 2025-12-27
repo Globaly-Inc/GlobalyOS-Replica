@@ -242,6 +242,20 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
     return Array.from(types);
   }, [trendData]);
 
+  // Normalize trendData to ensure all leave types have 0 values for every period
+  const normalizedTrendData = useMemo(() => {
+    return trendData.map(period => {
+      const normalizedLeaveTypes: Record<string, number> = {};
+      allLeaveTypes.forEach(type => {
+        normalizedLeaveTypes[type] = period.leaveTypes[type] || 0;
+      });
+      return {
+        ...period,
+        leaveTypes: normalizedLeaveTypes,
+      };
+    });
+  }, [trendData, allLeaveTypes]);
+
   // Summary statistics
   const summaryStats = useMemo(() => {
     const totalRequests = trendData.reduce((sum, p) => sum + p.total, 0);
@@ -386,9 +400,9 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
           {/* Overview Tab - Leave Types Line Chart */}
           <TabsContent value="overview" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
+              <LineChart data={normalizedTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={trendData.length > 14 ? -45 : 0} textAnchor={trendData.length > 14 ? 'end' : 'middle'} height={trendData.length > 14 ? 60 : 30} />
+                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
                 <YAxis className="text-xs" allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
@@ -402,6 +416,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                     strokeWidth={2}
                     dot={{ fill: getLeaveTypeColor(type, index), r: 4 }}
                     activeDot={{ r: 6 }}
+                    connectNulls={true}
                   />
                 ))}
               </LineChart>
@@ -411,9 +426,9 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
           {/* Status Distribution Tab - Line Chart */}
           <TabsContent value="status" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
+              <LineChart data={normalizedTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={trendData.length > 14 ? -45 : 0} textAnchor={trendData.length > 14 ? 'end' : 'middle'} height={trendData.length > 14 ? 60 : 30} />
+                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
                 <YAxis className="text-xs" allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
@@ -424,6 +439,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                   stroke="hsl(142, 76%, 36%)"
                   strokeWidth={2}
                   dot={{ fill: "hsl(142, 76%, 36%)" }}
+                  connectNulls={true}
                 />
                 <Line
                   type="monotone"
@@ -432,6 +448,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                   stroke="hsl(45, 93%, 47%)"
                   strokeWidth={2}
                   dot={{ fill: "hsl(45, 93%, 47%)" }}
+                  connectNulls={true}
                 />
                 <Line
                   type="monotone"
@@ -440,6 +457,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                   stroke="hsl(0, 84%, 60%)"
                   strokeWidth={2}
                   dot={{ fill: "hsl(0, 84%, 60%)" }}
+                  connectNulls={true}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -448,9 +466,9 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
           {/* Leave Types Tab - Stacked Bar */}
           <TabsContent value="types" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trendData}>
+              <BarChart data={normalizedTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={trendData.length > 14 ? -45 : 0} textAnchor={trendData.length > 14 ? 'end' : 'middle'} height={trendData.length > 14 ? 60 : 30} />
+                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
                 <YAxis className="text-xs" allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
@@ -470,9 +488,9 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
           {/* Days Taken Tab - Composed Chart */}
           <TabsContent value="days" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData}>
+              <ComposedChart data={normalizedTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={trendData.length > 14 ? -45 : 0} textAnchor={trendData.length > 14 ? 'end' : 'middle'} height={trendData.length > 14 ? 60 : 30} />
+                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
                 <YAxis yAxisId="left" className="text-xs" allowDecimals={false} />
                 <YAxis yAxisId="right" orientation="right" className="text-xs" allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
@@ -492,6 +510,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                   stroke="hsl(262, 83%, 58%)"
                   strokeWidth={2}
                   dot={{ fill: "hsl(262, 83%, 58%)" }}
+                  connectNulls={true}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -500,9 +519,9 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
           {/* Approval Rate Tab - Area Chart */}
           <TabsContent value="rate" className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData}>
+              <AreaChart data={normalizedTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={trendData.length > 14 ? -45 : 0} textAnchor={trendData.length > 14 ? 'end' : 'middle'} height={trendData.length > 14 ? 60 : 30} />
+                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
                 <YAxis className="text-xs" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                 <Tooltip 
                   content={<CustomTooltip />}
@@ -515,6 +534,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
                   stroke="hsl(142, 76%, 36%)"
                   fill="hsl(142, 76%, 36%)"
                   fillOpacity={0.3}
+                  connectNulls={true}
                 />
               </AreaChart>
             </ResponsiveContainer>
