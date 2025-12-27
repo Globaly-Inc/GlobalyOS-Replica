@@ -189,17 +189,28 @@ const OrgLeaveHistory = () => {
   }, [currentEmployee?.id, currentOrg?.id]);
 
   // Helper to check if user can edit a specific transaction
-  const canEditTransaction = (t: LeaveTransaction) => {
-    if (canEditAll) return true; // Owner/Admin/HR can edit all
-    
-    // Manager can edit their own and direct reports' leave
-    if (isManager) {
-      if (t.employee?.id === currentEmployee?.id) return true;
-      if (directReportIds.includes(t.employee?.id || '')) return true;
+  // Only Owner/Admin/HR can edit leave records
+  const canEditTransaction = (_t: LeaveTransaction) => {
+    return canEditAll;
+  };
+  
+  // Filter employees visible in dropdown based on role
+  const visibleEmployees = useMemo(() => {
+    if (canEditAll) {
+      // Owner/Admin/HR can see all employees
+      return allEmployees;
     }
     
-    return false; // Regular users cannot edit
-  };
+    if (isManager && currentEmployee?.id) {
+      // Managers see themselves + direct reports
+      return allEmployees.filter(e => 
+        e.id === currentEmployee.id || directReportIds.includes(e.id)
+      );
+    }
+    
+    // Regular users only see themselves
+    return allEmployees.filter(e => e.id === currentEmployee?.id);
+  }, [allEmployees, canEditAll, isManager, currentEmployee?.id, directReportIds]);
 
   useEffect(() => {
     if (!currentOrg?.id) return;
@@ -786,86 +797,88 @@ const OrgLeaveHistory = () => {
       {/* Sticky Filter Bar - Light Purple Background */}
       <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
-          {/* Employee Multi-Select Dropdown */}
-          <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={employeePopoverOpen}
-                className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
-              >
-                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate text-sm">
-                  {selectedEmployees.length === 0
-                    ? "All Employees"
-                    : selectedEmployees.length === 1
-                      ? allEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
-                      : `${selectedEmployees.length} selected`}
-                </span>
-                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search employees..." />
-                <CommandList>
-                  <CommandEmpty>No employees found.</CommandEmpty>
-                  <CommandGroup>
-                    {/* Select All / Clear All */}
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees(allEmployees.map(e => e.id))}
-                      >
-                        Select All
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees([])}
-                      >
-                        Clear All
-                      </Button>
-                    </div>
-                    {allEmployees.map((employee) => (
-                      <CommandItem
-                        key={employee.id}
-                        value={employee.profiles?.full_name || employee.id}
-                        onSelect={() => {
-                          const isSelected = selectedEmployees.includes(employee.id);
-                          if (isSelected) {
-                            setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
-                          } else {
-                            setSelectedEmployees([...selectedEmployees, employee.id]);
-                          }
-                        }}
-                      >
-                        <div className={cn(
-                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                          selectedEmployees.includes(employee.id)
-                            ? "bg-primary text-primary-foreground"
-                            : "opacity-50 [&_svg]:invisible"
-                        )}>
-                          <Check className="h-3 w-3" />
-                        </div>
-                        <Avatar className="h-6 w-6 mr-2">
-                          <AvatarImage src={employee.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{employee.profiles?.full_name}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {/* Employee Multi-Select Dropdown - Only show for Owner/Admin/HR/Manager */}
+          {(canEditAll || isManager) && (
+            <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={employeePopoverOpen}
+                  className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                >
+                  <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm">
+                    {selectedEmployees.length === 0
+                      ? "All Employees"
+                      : selectedEmployees.length === 1
+                        ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
+                        : `${selectedEmployees.length} selected`}
+                  </span>
+                  <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search employees..." />
+                  <CommandList>
+                    <CommandEmpty>No employees found.</CommandEmpty>
+                    <CommandGroup>
+                      {/* Select All / Clear All */}
+                      <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setSelectedEmployees([])}
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                      {visibleEmployees.map((employee) => (
+                        <CommandItem
+                          key={employee.id}
+                          value={employee.profiles?.full_name || employee.id}
+                          onSelect={() => {
+                            const isSelected = selectedEmployees.includes(employee.id);
+                            if (isSelected) {
+                              setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                            } else {
+                              setSelectedEmployees([...selectedEmployees, employee.id]);
+                            }
+                          }}
+                        >
+                          <div className={cn(
+                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                            selectedEmployees.includes(employee.id)
+                              ? "bg-primary text-primary-foreground"
+                              : "opacity-50 [&_svg]:invisible"
+                          )}>
+                            <Check className="h-3 w-3" />
+                          </div>
+                          <Avatar className="h-6 w-6 mr-2">
+                            <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{employee.profiles?.full_name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
 
           {/* Transaction Type Filter */}
           <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
