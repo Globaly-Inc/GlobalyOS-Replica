@@ -118,62 +118,81 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
 
         return (
           <div key={group.emoji} className="flex items-center">
+            {/* Emoji button - toggles reaction */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => handleToggle(group.emoji)}
               className={cn(
-                "h-6 px-1.5 py-0 text-xs gap-1 rounded-full",
+                "h-6 px-1.5 py-0 text-xs rounded-l-full rounded-r-none border-r-0",
                 group.hasReacted 
                   ? "bg-primary/10 hover:bg-primary/20 border border-primary/30" 
                   : "bg-muted hover:bg-muted/80"
               )}
             >
               <span className="text-sm">{group.emoji}</span>
-              <div className="flex -space-x-1.5">
-                {visibleUsers.map((user, idx) => (
-                  <Avatar 
-                    key={user.id + idx} 
-                    className="h-4 w-4 border border-background"
-                  >
-                    <AvatarImage src={user.avatar || undefined} />
-                    <AvatarFallback className="text-[8px] bg-muted-foreground/20">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              {overflowCount > 0 && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <span 
-                      className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+            </Button>
+            
+            {/* Count/Avatars button - opens user list popup */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-6 px-1.5 py-0 text-xs gap-1 rounded-l-none rounded-r-full border-l-0",
+                    group.hasReacted 
+                      ? "bg-primary/10 hover:bg-primary/20 border border-primary/30" 
+                      : "bg-muted hover:bg-muted/80"
+                  )}
+                >
+                  {/* Mobile: Show +N count only */}
+                  <span className="md:hidden text-[10px] font-medium">
+                    +{group.users.length}
+                  </span>
+                  
+                  {/* Desktop: Stacked avatars */}
+                  <div className="hidden md:flex -space-x-1.5">
+                    {visibleUsers.map((user, idx) => (
+                      <Avatar 
+                        key={user.id + idx} 
+                        className="h-4 w-4 border border-background"
+                      >
+                        <AvatarImage src={user.avatar || undefined} />
+                        <AvatarFallback className="text-[8px] bg-muted-foreground/20">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop: Overflow indicator */}
+                  {overflowCount > 0 && (
+                    <span className="hidden md:inline text-[10px] text-muted-foreground font-medium">
                       +{overflowCount}
                     </span>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-2" align="start">
-                    <p className="text-xs font-medium mb-2">Reacted with {group.emoji}</p>
-                    <ScrollArea className="max-h-32">
-                      <div className="space-y-1.5">
-                        {group.users.map((user, idx) => (
-                          <div key={user.id + idx} className="flex items-center gap-2">
-                            <Avatar className="h-5 w-5">
-                              <AvatarImage src={user.avatar || undefined} />
-                              <AvatarFallback className="text-[8px]">
-                                {getInitials(user.name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs truncate">{user.name}</span>
-                          </div>
-                        ))}
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-2" align="start">
+                <p className="text-xs font-medium mb-2">Reacted with {group.emoji}</p>
+                <ScrollArea className="max-h-32">
+                  <div className="space-y-1.5">
+                    {group.users.map((user, idx) => (
+                      <div key={user.id + idx} className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={user.avatar || undefined} />
+                          <AvatarFallback className="text-[8px]">
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs truncate">{user.name}</span>
                       </div>
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
           </div>
         );
       })}
