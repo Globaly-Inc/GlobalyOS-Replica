@@ -1162,7 +1162,7 @@ const TeamMemberProfile = () => {
                     Leave Balances
                   </h2>
                   <div className="flex items-center gap-1 sm:gap-2">
-                    <OrgLink to={`/team/${id}/leave-history`}>
+                    <OrgLink to={`/leave-history?employee=${id}&dateRange=thisYear`}>
                       <Button size="sm" variant="ghost">
                         <History className="h-4 w-4 sm:mr-1" />
                         <span className="hidden sm:inline">Leave History</span>
