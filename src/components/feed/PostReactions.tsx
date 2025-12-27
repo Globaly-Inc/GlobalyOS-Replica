@@ -106,83 +106,95 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
     <div className="flex items-center gap-1 flex-wrap">
       {/* Existing reactions with avatars */}
       {groupedReactions.map(({ emoji, users, hasCurrentUser }) => (
-        <Popover key={emoji}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-8 px-2 gap-1 rounded-full transition-all",
-                hasCurrentUser 
-                  ? "bg-primary/10 hover:bg-primary/20 ring-1 ring-primary/30" 
-                  : "hover:bg-muted"
-              )}
-              onClick={(e) => {
-                e.preventDefault();
-                handleToggle(emoji);
-              }}
-              disabled={toggleReaction.isPending}
-            >
-              <span className="text-base">{emoji}</span>
-              
-              {/* Mobile: Show +N count only */}
-              <span className="md:hidden text-xs font-medium">
-                +{users.length}
-              </span>
-              
-              {/* Desktop: Stacked avatars */}
-              <div className="hidden md:flex -space-x-1.5">
-                {users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
-                  <Avatar
-                    key={user.id}
-                    className={cn(
-                      "h-5 w-5 border-2 border-background",
-                      hasCurrentUser && user.id === currentEmployee?.id && "ring-1 ring-primary"
-                    )}
-                    style={{ zIndex: MAX_VISIBLE_AVATARS - index }}
-                  >
-                    <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                    <AvatarFallback className="text-[8px] bg-muted">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              
-              {/* Desktop: Overflow indicator */}
-              {users.length > MAX_VISIBLE_AVATARS && (
-                <span className="hidden md:inline text-xs text-muted-foreground font-medium ml-0.5">
-                  +{users.length - MAX_VISIBLE_AVATARS}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
+        <div key={emoji} className="flex items-center">
+          {/* Emoji button - toggles reaction */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-8 px-2 rounded-l-full rounded-r-none transition-all border-r-0",
+              hasCurrentUser 
+                ? "bg-primary/10 hover:bg-primary/20 ring-1 ring-primary/30" 
+                : "hover:bg-muted"
+            )}
+            onClick={() => handleToggle(emoji)}
+            disabled={toggleReaction.isPending}
+          >
+            <span className="text-base">{emoji}</span>
+          </Button>
           
-          {/* Full user list popover */}
-          <PopoverContent className="w-48 p-2" align="start">
-            <div className="text-sm font-medium mb-2 flex items-center gap-1.5">
-              <span className="text-lg">{emoji}</span>
-              <span className="text-muted-foreground">{users.length} reaction{users.length !== 1 ? 's' : ''}</span>
-            </div>
-            <ScrollArea className="max-h-48">
-              <div className="space-y-1">
-                {users.map(user => (
-                  <div key={user.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted">
-                    <Avatar className="h-6 w-6">
+          {/* Count/Avatars button - opens user list popup */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 px-2 rounded-l-none rounded-r-full transition-all border-l-0 gap-1",
+                  hasCurrentUser 
+                    ? "bg-primary/10 hover:bg-primary/20 ring-1 ring-primary/30" 
+                    : "hover:bg-muted"
+                )}
+              >
+                {/* Mobile: Show +N count only */}
+                <span className="md:hidden text-xs font-medium">
+                  +{users.length}
+                </span>
+                
+                {/* Desktop: Stacked avatars */}
+                <div className="hidden md:flex -space-x-1.5">
+                  {users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
+                    <Avatar
+                      key={user.id}
+                      className={cn(
+                        "h-5 w-5 border-2 border-background",
+                        hasCurrentUser && user.id === currentEmployee?.id && "ring-1 ring-primary"
+                      )}
+                      style={{ zIndex: MAX_VISIBLE_AVATARS - index }}
+                    >
                       <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                      <AvatarFallback className="text-[10px] bg-muted">
+                      <AvatarFallback className="text-[8px] bg-muted">
                         {getInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm truncate">
-                      {user.id === currentEmployee?.id ? 'You' : user.name}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                
+                {/* Desktop: Overflow indicator */}
+                {users.length > MAX_VISIBLE_AVATARS && (
+                  <span className="hidden md:inline text-xs text-muted-foreground font-medium ml-0.5">
+                    +{users.length - MAX_VISIBLE_AVATARS}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            
+            {/* Full user list popover */}
+            <PopoverContent className="w-48 p-2" align="start">
+              <div className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                <span className="text-lg">{emoji}</span>
+                <span className="text-muted-foreground">{users.length} reaction{users.length !== 1 ? 's' : ''}</span>
               </div>
-            </ScrollArea>
-          </PopoverContent>
-        </Popover>
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {users.map(user => (
+                    <div key={user.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                        <AvatarFallback className="text-[10px] bg-muted">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm truncate">
+                        {user.id === currentEmployee?.id ? 'You' : user.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        </div>
       ))}
 
       {/* Add reaction button */}
