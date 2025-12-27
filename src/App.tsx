@@ -47,7 +47,6 @@ const Auth = lazy(() => import('./pages/Auth'));
 const Signup = lazy(() => import('./pages/Signup'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Join = lazy(() => import('./pages/Join'));
-const LeaveHistory = lazy(() => import('./pages/LeaveHistory'));
 const Leave = lazy(() => import('./pages/Leave'));
 const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
 const OrgLeaveHistory = lazy(() => import('./pages/OrgLeaveHistory'));
@@ -146,7 +145,6 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="team/offices" element={<OrgProtectedRoute><ManageOffices /></OrgProtectedRoute>} />
                   <Route path="team/bulk-import" element={<OrgProtectedRoute><BulkImport /></OrgProtectedRoute>} />
                   <Route path="team/:id" element={<OrgProtectedRoute><TeamMemberProfile /></OrgProtectedRoute>} />
-                  <Route path="team/:id/leave-history" element={<OrgProtectedRoute><LeaveHistory /></OrgProtectedRoute>} />
                   <Route path="team/:id/attendance" element={<OrgProtectedRoute><AttendanceHistory /></OrgProtectedRoute>} />
                   <Route path="team/:id/reviews" element={<OrgProtectedRoute><PerformanceReviews /></OrgProtectedRoute>} />
                   
