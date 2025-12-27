@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -128,7 +128,37 @@ const OrgLeaveHistory = () => {
     customStartDate, customEndDate, setCustomDateRange,
     dateRange,
     clearFilters,
+    isLoaded,
   } = useLeaveHistoryFilters();
+  
+  // Handle URL query parameters for deep linking
+  const [searchParams, setSearchParams] = useSearchParams();
+  const employeeParam = searchParams.get('employee');
+  const dateRangeParam = searchParams.get('dateRange') as DateRangeOption | null;
+  
+  // Apply URL parameters as initial filters (only once when loaded)
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    let shouldClearParams = false;
+    
+    // If employee parameter is provided, set it as selected
+    if (employeeParam && !selectedEmployees.includes(employeeParam)) {
+      setSelectedEmployees([employeeParam]);
+      shouldClearParams = true;
+    }
+    
+    // If dateRange parameter is provided and valid, set it
+    if (dateRangeParam && ['today', 'last7days', 'last14days', 'last30days', 'thisMonth', 'lastMonth', 'thisYear'].includes(dateRangeParam)) {
+      setDateRangeFilter(dateRangeParam);
+      shouldClearParams = true;
+    }
+    
+    // Clear URL params after applying to avoid re-applying on refresh
+    if (shouldClearParams) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [isLoaded, employeeParam, dateRangeParam, setSelectedEmployees, setDateRangeFilter, setSearchParams]);
   
   // Fetch all employees for multi-select dropdown
   const { data: employeesData = [] } = useEmployees({ status: 'active' });
