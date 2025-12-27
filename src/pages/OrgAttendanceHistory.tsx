@@ -973,10 +973,9 @@ const OrgAttendanceHistory = () => {
         </div>
       </Card>;
   };
-  return <div className="min-h-screen bg-background pb-24 md:pb-6">
-      <div className="space-y-4 md:space-y-6">
+  return <div className="space-y-4 md:space-y-6 pb-24 md:pb-6">
         {/* Header */}
-        <div className="px-4 pt-4 md:px-0 md:pt-0 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5 md:h-6 md:w-6" />
@@ -1527,7 +1526,6 @@ const OrgAttendanceHistory = () => {
               </div>
             </Card>}
         </div>
-      </div>
 
       {/* Edit Attendance Dialog */}
       <EditAttendanceDialog open={!!editRecord} onOpenChange={open => !open && setEditRecord(null)} record={editRecord} employeeId={editRecord?.employee_id || ""} organizationId={currentOrg?.id || ""} />

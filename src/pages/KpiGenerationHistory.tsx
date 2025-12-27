@@ -129,7 +129,7 @@ const KpiGenerationHistory = () => {
   };
 
   return (
-    <div className="container mx-auto py-4 md:py-6 px-4 max-w-7xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3 pt-4 pb-2">
         <Button
           variant="ghost"
