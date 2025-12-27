@@ -815,8 +815,8 @@ const OrgLeaveHistory = () => {
               : "Your leave history"}
           </p>
         </div>
-        {canEditAll && (
-          <div className="flex items-center gap-2">
+      {canEditAll && (
+          <div className="hidden md:flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
               Import
@@ -833,128 +833,142 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
+      {/* Mobile Request Leave Button */}
+      <div className="md:hidden">
+        <Button onClick={() => navigateOrg('/leave')} className="w-full gap-2">
+          <Plus className="h-4 w-4" />
+          Request Leave
+        </Button>
+      </div>
+
       {/* Sticky Filter Bar - Light Purple Background */}
       <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
-          {/* Employee Multi-Select Dropdown - Read-only for regular users, interactive for Owner/Admin/HR/Manager */}
-          {isRegularUser ? (
-            // Read-only version for regular users - shows their name, not interactive
-            <Button
-              variant="outline"
-              className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
-              disabled
-            >
-              <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate text-sm">
-                {currentEmployee?.profiles?.full_name || "My Leave"}
-              </span>
-            </Button>
-          ) : (
-            <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={employeePopoverOpen}
-                  className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
-                >
-                  <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-sm">
-                    {selectedEmployees.length === 0
-                      ? "All Employees"
-                      : selectedEmployees.length === 1
-                        ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
-                        : `${selectedEmployees.length} selected`}
-                  </span>
-                  <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search employees..." />
-                  <CommandList>
-                    <CommandEmpty>No employees found.</CommandEmpty>
-                    <CommandGroup>
-                      {/* Select All / Clear All */}
-                      <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
-                        >
-                          Select All
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setSelectedEmployees([])}
-                        >
-                          Clear All
-                        </Button>
-                      </div>
-                      {visibleEmployees.map((employee) => (
-                        <CommandItem
-                          key={employee.id}
-                          value={employee.profiles?.full_name || employee.id}
-                          onSelect={() => {
-                            const isSelected = selectedEmployees.includes(employee.id);
-                            if (isSelected) {
-                              setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
-                            } else {
-                              setSelectedEmployees([...selectedEmployees, employee.id]);
-                            }
-                          }}
-                        >
-                          <div className={cn(
-                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                            selectedEmployees.includes(employee.id)
-                              ? "bg-primary text-primary-foreground"
-                              : "opacity-50 [&_svg]:invisible"
-                          )}>
-                            <Check className="h-3 w-3" />
-                          </div>
-                          <Avatar className="h-6 w-6 mr-2">
-                            <AvatarImage src={employee.profiles?.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate">{employee.profiles?.full_name}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )}
+          {/* Employee Multi-Select Dropdown - Read-only for regular users, interactive for Owner/Admin/HR/Manager - Hidden on mobile */}
+          <div className="hidden md:block">
+            {isRegularUser ? (
+              // Read-only version for regular users - shows their name, not interactive
+              <Button
+                variant="outline"
+                className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
+                disabled
+              >
+                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-sm">
+                  {currentEmployee?.profiles?.full_name || "My Leave"}
+                </span>
+              </Button>
+            ) : (
+              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={employeePopoverOpen}
+                    className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                  >
+                    <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
+                      {selectedEmployees.length === 0
+                        ? "All Employees"
+                        : selectedEmployees.length === 1
+                          ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
+                          : `${selectedEmployees.length} selected`}
+                    </span>
+                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search employees..." />
+                    <CommandList>
+                      <CommandEmpty>No employees found.</CommandEmpty>
+                      <CommandGroup>
+                        {/* Select All / Clear All */}
+                        <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
+                          >
+                            Select All
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setSelectedEmployees([])}
+                          >
+                            Clear All
+                          </Button>
+                        </div>
+                        {visibleEmployees.map((employee) => (
+                          <CommandItem
+                            key={employee.id}
+                            value={employee.profiles?.full_name || employee.id}
+                            onSelect={() => {
+                              const isSelected = selectedEmployees.includes(employee.id);
+                              if (isSelected) {
+                                setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                              } else {
+                                setSelectedEmployees([...selectedEmployees, employee.id]);
+                              }
+                            }}
+                          >
+                            <div className={cn(
+                              "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                              selectedEmployees.includes(employee.id)
+                                ? "bg-primary text-primary-foreground"
+                                : "opacity-50 [&_svg]:invisible"
+                            )}>
+                              <Check className="h-3 w-3" />
+                            </div>
+                            <Avatar className="h-6 w-6 mr-2">
+                              <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{employee.profiles?.full_name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
 
-          {/* Transaction Type Filter */}
-          <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-            <SelectTrigger className="h-9 w-auto min-w-[120px] bg-background">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="leave_taken">Leave Taken</SelectItem>
-              <SelectItem value="adjustment">Adjustments</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Transaction Type Filter - Hidden on mobile */}
+          <div className="hidden md:block">
+            <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+              <SelectTrigger className="h-9 w-auto min-w-[120px] bg-background">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="leave_taken">Leave Taken</SelectItem>
+                <SelectItem value="adjustment">Adjustments</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          {/* Status Filter */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-9 w-auto min-w-[110px] bg-background">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Status Filter - Hidden on mobile */}
+          <div className="hidden md:block">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 w-auto min-w-[110px] bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Leave Type Filter */}
           <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
@@ -1025,13 +1039,13 @@ const OrgLeaveHistory = () => {
             </PopoverContent>
           </Popover>
 
-          {/* Clear Filters - Use correct default based on user type */}
+          {/* Clear Filters - Use correct default based on user type - Hidden on mobile */}
           {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== (isRegularUser ? "thisYear" : "last7days")) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+              className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
               Clear
@@ -1106,9 +1120,9 @@ const OrgLeaveHistory = () => {
           );
         })}
         
-        {/* Most Leave Taken Employee - Hide for regular users and when single employee selected */}
+        {/* Most Leave Taken Employee - Hide for regular users and when single employee selected - Hidden on mobile */}
         {(canEditAll || isManager) && selectedEmployees.length !== 1 && (
-          <Card>
+          <Card className="hidden md:block">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -1134,9 +1148,9 @@ const OrgLeaveHistory = () => {
           </Card>
         )}
 
-        {/* Least Leave Taken Employee - Hide for regular users and when single employee selected */}
+        {/* Least Leave Taken Employee - Hide for regular users and when single employee selected - Hidden on mobile */}
         {(canEditAll || isManager) && selectedEmployees.length !== 1 && (
-          <Card>
+          <Card className="hidden md:block">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <Award className="h-4 w-4 text-green-500" />
@@ -1163,8 +1177,9 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
-      {/* Leave Analytics Chart */}
-      <LeaveAnalyticsChart 
+      {/* Leave Analytics Chart - Hidden on mobile */}
+      <div className="hidden md:block">
+        <LeaveAnalyticsChart
         transactions={filteredTransactions.map(t => ({
           id: t.id,
           type: t.type,
@@ -1180,8 +1195,9 @@ const OrgLeaveHistory = () => {
         }))}
         yearFilter={yearFilter}
         dateRangeFilter={dateRangeFilter}
-        dateRange={dateRange}
-      />
+          dateRange={dateRange}
+        />
+      </div>
 
       {/* Table */}
       <Card className="relative">
@@ -1209,7 +1225,7 @@ const OrgLeaveHistory = () => {
                 <TableHeader>
                   <TableRow>
                     {canEditAll && (
-                      <TableHead className="w-[40px]">
+                      <TableHead className="w-[40px] hidden md:table-cell">
                         <Checkbox
                           checked={allFilteredSelected}
                           onCheckedChange={(checked) => {
@@ -1229,16 +1245,16 @@ const OrgLeaveHistory = () => {
                         />
                       </TableHead>
                     )}
-                    <TableHead className="w-[180px]">Employee</TableHead>
+                    <TableHead className="w-[180px] hidden md:table-cell">Employee</TableHead>
                     <TableHead className="w-[85px] whitespace-nowrap">Applied</TableHead>
                     <TableHead className="w-[155px]">Leave Dates</TableHead>
-                    <TableHead className="w-[70px]">Type</TableHead>
+                    <TableHead className="w-[70px] hidden md:table-cell">Type</TableHead>
                     <TableHead className="w-[120px] whitespace-nowrap">Leave Type</TableHead>
                     <TableHead className="text-center w-[50px]">Days</TableHead>
-                    <TableHead className="w-[85px]">Status</TableHead>
+                    <TableHead className="w-[85px] hidden md:table-cell">Status</TableHead>
                     <TableHead className="text-center w-[60px]">Balance</TableHead>
-                    <TableHead className="w-[100px]">Reason</TableHead>
-                    <TableHead className="w-[85px]">Actions</TableHead>
+                    <TableHead className="w-[100px] hidden md:table-cell">Reason</TableHead>
+                    <TableHead className="w-[85px] hidden md:table-cell">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1248,7 +1264,7 @@ const OrgLeaveHistory = () => {
                       className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}
                     >
                       {canEditAll && (
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <Checkbox
                             checked={isTransactionSelected(t.id, t.type)}
                             onCheckedChange={() => toggleTransactionSelection(t)}
@@ -1256,7 +1272,7 @@ const OrgLeaveHistory = () => {
                           />
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <OrgLink 
                           to={`/team/${t.employee?.id}`}
                           className="flex items-center gap-2 hover:opacity-80"
@@ -1297,7 +1313,7 @@ const OrgLeaveHistory = () => {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {t.type === 'leave_taken' ? (
                           <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200 text-xs gap-1">
                             <TrendingDown className="h-3 w-3" />
@@ -1316,14 +1332,14 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-center">
                         {formatDays(t.days)}
                       </TableCell>
-                      <TableCell>{getStatusBadge(t.status)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{getStatusBadge(t.status)}</TableCell>
                       <TableCell className="text-center">
                         {formatBalance(t.balance_after)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[100px]" title={t.reason || ""}>
+                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[100px]" title={t.reason || ""}>
                         <span className="truncate block">{t.reason || "-"}</span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <TooltipProvider>
                           <div className="flex items-center gap-1">
                             {/* Edit - Only for canEdit users */}
