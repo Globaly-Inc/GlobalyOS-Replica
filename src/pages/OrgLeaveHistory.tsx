@@ -1344,14 +1344,18 @@ const OrgLeaveHistory = () => {
                       <TableCell className="text-sm whitespace-nowrap hidden md:table-cell">
                         {format(new Date(t.effective_date), "dd MMM")}
                       </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
+                      <TableCell className="text-sm">
                         {t.type === 'leave_taken' && t.start_date ? (
                           <div className="flex items-center gap-1">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <span>
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 hidden md:block" />
+                            <span className="whitespace-normal">
                               {format(new Date(t.start_date), "dd MMM")}
                               {t.end_date && t.start_date !== t.end_date && (
-                                <span className="text-muted-foreground"> → {format(new Date(t.end_date), "dd MMM")}</span>
+                                <>
+                                  <span className="hidden md:inline text-muted-foreground"> → </span>
+                                  <span className="md:hidden text-muted-foreground block text-xs">to </span>
+                                  <span className="md:inline">{format(new Date(t.end_date), "dd MMM")}</span>
+                                </>
                               )}
                             </span>
                           </div>
