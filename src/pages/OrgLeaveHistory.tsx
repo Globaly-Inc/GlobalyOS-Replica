@@ -579,8 +579,18 @@ const OrgLeaveHistory = () => {
     return Object.values(totals);
   }, [filteredTransactions]);
 
+  // Transactions filtered ONLY by employee selection - for balance calculation
+  // Balance should not be affected by leave type, status, or date range filters
+  const employeeOnlyTransactions = useMemo(() => {
+    if (selectedEmployees.length === 0) return transactions;
+    return transactions.filter(t => 
+      selectedEmployees.includes(t.employee?.id || '')
+    );
+  }, [transactions, selectedEmployees]);
+
   // Calculate filtered leave type stats - includes ALL leave types, even with 0 days
-  // Balance is calculated from transactions: adjustments (positive) minus approved leave taken (negative)
+  // Days taken: respects all filters (for analytics)
+  // Balance: only respects employee selection (to show actual current balance)
   const filteredLeaveTypeStats = useMemo(() => {
     // Initialize all leave types with 0 days and 0 balance
     const typeStats: Record<string, { total_days: number; balance: number }> = {};
@@ -588,18 +598,24 @@ const OrgLeaveHistory = () => {
       typeStats[lt.name] = { total_days: 0, balance: 0 };
     });
     
-    // Process filtered transactions to calculate days taken and balance
+    // Calculate DAYS TAKEN from filteredTransactions (respects all filters)
     filteredTransactions.forEach(t => {
       if (!typeStats[t.leave_type]) {
         typeStats[t.leave_type] = { total_days: 0, balance: 0 };
       }
-      
       if (t.type === 'leave_taken' && t.status === 'approved') {
-        // Leave taken - count days and subtract from balance (t.days is already negative)
         typeStats[t.leave_type].total_days += Math.abs(t.days);
+      }
+    });
+    
+    // Calculate BALANCE from employeeOnlyTransactions (only employee filter affects this)
+    employeeOnlyTransactions.forEach(t => {
+      if (!typeStats[t.leave_type]) {
+        typeStats[t.leave_type] = { total_days: 0, balance: 0 };
+      }
+      if (t.type === 'leave_taken' && t.status === 'approved') {
         typeStats[t.leave_type].balance += t.days; // t.days is negative for leave_taken
       } else if (t.type === 'adjustment') {
-        // Adjustments (including Opening Balance) - add to balance
         typeStats[t.leave_type].balance += t.days;
       }
     });
@@ -609,7 +625,7 @@ const OrgLeaveHistory = () => {
       total_days: stats.total_days,
       balance: stats.balance,
     }));
-  }, [filteredTransactions, allLeaveTypes]);
+  }, [filteredTransactions, employeeOnlyTransactions, allLeaveTypes]);
 
   const mostLeaveTaken = useMemo(() => {
     if (employeeLeaveTotals.length === 0) return null;
