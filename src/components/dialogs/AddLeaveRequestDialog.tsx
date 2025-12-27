@@ -45,6 +45,9 @@ interface LeaveType {
   category: string;
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
+  currentBalance: number;
+  availableBalance: number;
+  isExhausted: boolean;
 }
 
 const formSchema = z.object({
@@ -115,11 +118,13 @@ export const AddLeaveRequestDialog = ({
     enabled: !!employeeId,
   });
 
-  // Fetch leave types based on employee's office and gender
+  // Fetch leave types based on employee's office and gender, including balances
   const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id, employeeData?.gender],
+    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id, employeeData?.gender, employeeId],
     queryFn: async () => {
       if (!currentOrg) return [];
+      
+      const currentYear = new Date().getFullYear();
       
       // Get all active leave types for the organization
       const { data: types, error } = await supabase
@@ -131,6 +136,15 @@ export const AddLeaveRequestDialog = ({
 
       if (error) throw error;
       if (!types) return [];
+
+      // Fetch all balances for this employee for the current year
+      const { data: balances } = await supabase
+        .from("leave_type_balances")
+        .select("leave_type_id, balance")
+        .eq("employee_id", employeeId)
+        .eq("year", currentYear);
+
+      const balanceMap = new Map(balances?.map(b => [b.leave_type_id, b.balance]) || []);
 
       // Filter by office and gender
       const filteredTypes: LeaveType[] = [];
@@ -146,6 +160,11 @@ export const AddLeaveRequestDialog = ({
           }
         }
         
+        const currentBalance = balanceMap.get(type.id) || 0;
+        const maxNegative = type.max_negative_days || 0;
+        const availableBalance = currentBalance + maxNegative;
+        const isExhausted = availableBalance <= 0;
+        
         // Check office restriction
         if (type.applies_to_all_offices) {
           filteredTypes.push({
@@ -153,8 +172,11 @@ export const AddLeaveRequestDialog = ({
             name: type.name,
             min_days_advance: type.min_days_advance,
             category: type.category,
-            max_negative_days: type.max_negative_days || 0,
+            max_negative_days: maxNegative,
             applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+            currentBalance,
+            availableBalance,
+            isExhausted,
           });
         } else if (employeeData?.office_id) {
           // Check if this leave type applies to the employee's office
@@ -171,8 +193,11 @@ export const AddLeaveRequestDialog = ({
               name: type.name,
               min_days_advance: type.min_days_advance,
               category: type.category,
-              max_negative_days: type.max_negative_days || 0,
+              max_negative_days: maxNegative,
               applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+              currentBalance,
+              availableBalance,
+              isExhausted,
             });
           }
         }
@@ -180,7 +205,7 @@ export const AddLeaveRequestDialog = ({
 
       return filteredTypes;
     },
-    enabled: !!currentOrg && employeeData !== undefined,
+    enabled: !!currentOrg && employeeData !== undefined && !!employeeId,
   });
 
   // Fetch existing leave requests for the employee to check overlaps
@@ -400,12 +425,30 @@ export const AddLeaveRequestDialog = ({
                         <SelectItem value="none" disabled>No leave types available</SelectItem>
                       ) : (
                         leaveTypes.map((lt) => (
-                          <SelectItem key={lt.id} value={lt.id}>
-                            {lt.name} ({lt.category})
-                            {lt.min_days_advance > 0 && (
-                              <span className="text-muted-foreground ml-1">
-                                - {lt.min_days_advance}d advance
+                          <SelectItem 
+                            key={lt.id} 
+                            value={lt.id}
+                            disabled={lt.isExhausted}
+                            className={cn(lt.isExhausted && "opacity-50")}
+                          >
+                            <div className="flex items-center justify-between w-full gap-3">
+                              <span className="flex items-center gap-1">
+                                {lt.name}
+                                <span className="text-muted-foreground">({lt.category})</span>
                               </span>
+                              <span className={cn(
+                                "text-xs font-medium",
+                                lt.currentBalance <= 0 ? "text-destructive" : "text-green-600"
+                              )}>
+                                {lt.currentBalance} {lt.currentBalance === 1 ? 'day' : 'days'}
+                              </span>
+                            </div>
+                            {(lt.min_days_advance > 0 || lt.isExhausted) && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {lt.isExhausted && <span className="text-destructive">Balance exhausted</span>}
+                                {lt.isExhausted && lt.min_days_advance > 0 && " • "}
+                                {lt.min_days_advance > 0 && `${lt.min_days_advance}d advance required`}
+                              </div>
                             )}
                           </SelectItem>
                         ))
