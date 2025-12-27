@@ -33,6 +33,7 @@ import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulk
 import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
 import { AttendanceQRButton } from "@/components/AttendanceQRButton";
 import { AttendanceSettingsDialog } from "@/components/dialogs/AttendanceSettingsDialog";
+import { useAttendanceHistoryFilters } from "@/hooks/useAttendanceHistoryFilters";
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -60,7 +61,16 @@ const OrgAttendanceHistory = () => {
   } = useOrgNavigation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeOption>('today');
+  
+  const {
+    dateRangeFilter, setDateRangeFilter,
+    statusFilter, setStatusFilter,
+    departmentFilter, setDepartmentFilter,
+    workStatusFilter, setWorkStatusFilter,
+    officeFilter, setOfficeFilter,
+    projectFilter, setProjectFilter,
+  } = useAttendanceHistoryFilters();
+  
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -68,11 +78,6 @@ const OrgAttendanceHistory = () => {
     from: undefined,
     to: undefined
   });
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [workStatusFilter, setWorkStatusFilter] = useState<string>("all");
-  const [officeFilter, setOfficeFilter] = useState<string>("all");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);

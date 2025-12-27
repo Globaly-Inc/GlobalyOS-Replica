@@ -80,6 +80,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCalendarFilters } from "@/hooks/useCalendarFilters";
 
 type ViewMode = "month" | "week" | "day";
 type DateRangeFilter = "7days" | "14days" | "30days" | "thisMonth" | "all";
@@ -104,11 +105,13 @@ interface CalendarItem {
 const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [activeFilters, setActiveFilters] = useState<Set<CalendarItem["type"]>>(new Set());
+  const {
+    viewMode, setViewMode,
+    dateRangeFilter, setDateRangeFilter,
+    activeFilters, setActiveFilters,
+  } = useCalendarFilters();
   const [showAllMobileEvents, setShowAllMobileEvents] = useState(false);
   const [eventSearch, setEventSearch] = useState("");
-  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("7days");
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
@@ -584,15 +587,13 @@ const CalendarPage = () => {
 
   // Toggle filter
   const toggleFilter = (type: CalendarItem["type"]) => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      return next;
-    });
+    const next = new Set(activeFilters);
+    if (next.has(type)) {
+      next.delete(type);
+    } else {
+      next.add(type);
+    }
+    setActiveFilters(next as Set<CalendarItem["type"]>);
   };
 
   const handlePrevMonth = () => {

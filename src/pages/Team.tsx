@@ -12,6 +12,7 @@ import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useTeamFilters } from "@/hooks/useTeamFilters";
 
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphanedUsersDialog";
@@ -85,10 +86,13 @@ interface TreeNode extends Employee {
 const Team = () => {
   // Team directory page component
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
-  const [onlineFilter, setOnlineFilter] = useState<OnlineFilter>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const {
+    statusFilter, setStatusFilter,
+    onlineFilter, setOnlineFilter,
+    projectFilter, setProjectFilter,
+    viewMode, setViewMode,
+    clearFilters: clearAllFilters,
+  } = useTeamFilters();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
@@ -269,11 +273,7 @@ const Team = () => {
     return count;
   }, [statusFilter, onlineFilter, projectFilter]);
 
-  const clearAllFilters = () => {
-    setStatusFilter('active');
-    setOnlineFilter('all');
-    setProjectFilter('all');
-  };
+  // clearAllFilters is now provided by useTeamFilters
 
   const filteredEmployees = employees
     .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)

@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { usePersistedFilters } from "./usePersistedFilters";
 
 const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 const getCurrentYear = () => new Date().getFullYear();
@@ -22,118 +21,16 @@ const DEFAULT_FILTERS: KpiDashboardFilters = {
   officeFilter: "all",
 };
 
-const STORAGE_KEY_PREFIX = "kpi_dashboard_filters_";
-
 export const useKpiDashboardFilters = () => {
-  const { currentOrg } = useOrganization();
-  const [filters, setFilters] = useState<KpiDashboardFilters>(DEFAULT_FILTERS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  const storageKey = currentOrg?.id ? `${STORAGE_KEY_PREFIX}${currentOrg.id}` : null;
-
-  // Load filters from localStorage on mount or when org changes
-  useEffect(() => {
-    if (!storageKey) return;
-
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Partial<KpiDashboardFilters>;
-        setFilters({
-          viewMode: parsed.viewMode || DEFAULT_FILTERS.viewMode,
-          quarter: parsed.quarter ?? getCurrentQuarter(),
-          year: parsed.year ?? getCurrentYear(),
-          departmentFilter: parsed.departmentFilter || DEFAULT_FILTERS.departmentFilter,
-          projectFilter: parsed.projectFilter || DEFAULT_FILTERS.projectFilter,
-          officeFilter: parsed.officeFilter || DEFAULT_FILTERS.officeFilter,
-        });
-      } else {
-        // No saved filters, use defaults with current quarter/year
-        setFilters({
-          ...DEFAULT_FILTERS,
-          quarter: getCurrentQuarter(),
-          year: getCurrentYear(),
-        });
-      }
-    } catch (e) {
-      console.error("Failed to load KPI dashboard filters:", e);
-      setFilters({
-        ...DEFAULT_FILTERS,
+  const { filters, setFilter, clearFilters, isLoaded } =
+    usePersistedFilters<KpiDashboardFilters>({
+      pageKey: "kpi_dashboard",
+      defaultFilters: DEFAULT_FILTERS,
+      dynamicDefaults: () => ({
         quarter: getCurrentQuarter(),
         year: getCurrentYear(),
-      });
-    }
-    setIsLoaded(true);
-  }, [storageKey]);
-
-  // Save filters to localStorage whenever they change
-  const saveToStorage = useCallback((newFilters: KpiDashboardFilters) => {
-    if (!storageKey) return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(newFilters));
-    } catch (e) {
-      console.error("Failed to save KPI dashboard filters:", e);
-    }
-  }, [storageKey]);
-
-  // Individual setters that auto-save
-  const setViewMode = useCallback((viewMode: "quarterly" | "annual") => {
-    setFilters(prev => {
-      const newFilters = { ...prev, viewMode };
-      saveToStorage(newFilters);
-      return newFilters;
+      }),
     });
-  }, [saveToStorage]);
-
-  const setQuarter = useCallback((quarter: number) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, quarter };
-      saveToStorage(newFilters);
-      return newFilters;
-    });
-  }, [saveToStorage]);
-
-  const setYear = useCallback((year: number) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, year };
-      saveToStorage(newFilters);
-      return newFilters;
-    });
-  }, [saveToStorage]);
-
-  const setDepartmentFilter = useCallback((departmentFilter: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, departmentFilter };
-      saveToStorage(newFilters);
-      return newFilters;
-    });
-  }, [saveToStorage]);
-
-  const setProjectFilter = useCallback((projectFilter: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, projectFilter };
-      saveToStorage(newFilters);
-      return newFilters;
-    });
-  }, [saveToStorage]);
-
-  const setOfficeFilter = useCallback((officeFilter: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, officeFilter };
-      saveToStorage(newFilters);
-      return newFilters;
-    });
-  }, [saveToStorage]);
-
-  const clearFilters = useCallback(() => {
-    const defaultWithCurrentPeriod = {
-      ...DEFAULT_FILTERS,
-      quarter: getCurrentQuarter(),
-      year: getCurrentYear(),
-    };
-    setFilters(defaultWithCurrentPeriod);
-    saveToStorage(defaultWithCurrentPeriod);
-  }, [saveToStorage]);
 
   return {
     // Filter values
@@ -144,14 +41,13 @@ export const useKpiDashboardFilters = () => {
     projectFilter: filters.projectFilter,
     officeFilter: filters.officeFilter,
     // Setters
-    setViewMode,
-    setQuarter,
-    setYear,
-    setDepartmentFilter,
-    setProjectFilter,
-    setOfficeFilter,
+    setViewMode: (value: "quarterly" | "annual") => setFilter("viewMode", value),
+    setQuarter: (value: number) => setFilter("quarter", value),
+    setYear: (value: number) => setFilter("year", value),
+    setDepartmentFilter: (value: string) => setFilter("departmentFilter", value),
+    setProjectFilter: (value: string) => setFilter("projectFilter", value),
+    setOfficeFilter: (value: string) => setFilter("officeFilter", value),
     clearFilters,
-    // Loading state
     isLoaded,
   };
 };
