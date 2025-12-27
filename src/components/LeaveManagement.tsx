@@ -12,7 +12,7 @@ interface HourBalance {
   undertime_minutes: number;
 }
 
-interface CalculatedBalance {
+interface LeaveBalance {
   leave_type_name: string;
   category: string;
   balance: number;
@@ -32,61 +32,30 @@ const getLeaveTypeIcon = (leaveType: string) => {
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
-  const yearStart = `${currentYear}-01-01`;
-  const yearEnd = `${currentYear}-12-31`;
 
-  // Fetch leave types for category lookup
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types-for-management", employeeId],
-    queryFn: async () => {
-      const { data: employee } = await supabase
-        .from("employees")
-        .select("organization_id")
-        .eq("id", employeeId)
-        .maybeSingle();
-      
-      if (!employee) return [];
-      
-      const { data } = await supabase
-        .from("leave_types")
-        .select("name, category")
-        .eq("organization_id", employee.organization_id)
-        .eq("is_active", true);
-      
-      return data || [];
-    },
-  });
-
-  // Fetch adjustments from leave_balance_logs (correct column: change_amount, leave_type is string)
-  const { data: adjustments = [] } = useQuery({
-    queryKey: ["leave-adjustments", employeeId, currentYear],
+  // Fetch leave balances directly from leave_type_balances (the authoritative source)
+  const { data: balances = [] } = useQuery({
+    queryKey: ["leave-type-balances-profile", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leave_balance_logs")
-        .select("change_amount, leave_type")
+        .from("leave_type_balances")
+        .select(`
+          balance,
+          leave_type:leave_types!inner(
+            name,
+            category
+          )
+        `)
         .eq("employee_id", employeeId)
-        .gte("created_at", yearStart)
-        .lte("created_at", `${yearEnd}T23:59:59`);
+        .eq("year", currentYear);
 
       if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch approved leave requests (correct column: days_count, leave_type is string)
-  const { data: leaveRequests = [] } = useQuery({
-    queryKey: ["leave-requests-taken", employeeId, currentYear],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leave_requests")
-        .select("days_count, leave_type")
-        .eq("employee_id", employeeId)
-        .eq("status", "approved")
-        .gte("start_date", yearStart)
-        .lte("start_date", yearEnd);
-
-      if (error) throw error;
-      return data || [];
+      
+      return (data || []).map((item: any) => ({
+        leave_type_name: item.leave_type.name,
+        category: item.leave_type.category,
+        balance: item.balance,
+      })) as LeaveBalance[];
     },
   });
 
@@ -105,57 +74,12 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
-  // Helper to get category from leave type name
-  const getCategory = (leaveTypeName: string): string => {
-    const lt = leaveTypes.find(t => t.name === leaveTypeName);
-    return lt?.category || 'paid';
-  };
-
-  // Calculate balances: Sum(Adjustments) - Sum(Approved Leave Taken)
-  const calculatedBalances: CalculatedBalance[] = (() => {
-    const balanceMap = new Map<string, CalculatedBalance>();
-
-    // Add adjustments
-    adjustments.forEach((adj: any) => {
-      const leaveTypeName = adj.leave_type;
-      if (!balanceMap.has(leaveTypeName)) {
-        balanceMap.set(leaveTypeName, {
-          leave_type_name: leaveTypeName,
-          category: getCategory(leaveTypeName),
-          balance: 0,
-        });
-      }
-      const current = balanceMap.get(leaveTypeName)!;
-      current.balance += adj.change_amount;
-    });
-
-    // Subtract approved leave taken
-    leaveRequests.forEach((req: any) => {
-      const leaveTypeName = req.leave_type;
-      if (!balanceMap.has(leaveTypeName)) {
-        balanceMap.set(leaveTypeName, {
-          leave_type_name: leaveTypeName,
-          category: getCategory(leaveTypeName),
-          balance: 0,
-        });
-      }
-      const current = balanceMap.get(leaveTypeName)!;
-      current.balance -= req.days_count;
-    });
-
-    return Array.from(balanceMap.values());
-  })();
-
   // Sort: paid first, then alphabetically
-  const sortedBalances = calculatedBalances.sort((a, b) => {
+  const sortedBalances = [...balances].sort((a, b) => {
     if (a.category === 'paid' && b.category !== 'paid') return -1;
     if (a.category !== 'paid' && b.category === 'paid') return 1;
     return a.leave_type_name.localeCompare(b.leave_type_name);
   });
-
-  // Calculate totals for Taken and Adjusted cards
-  const totalTaken = leaveRequests.reduce((sum, req: any) => sum + (req.days_count || 0), 0);
-  const totalAdjustments = adjustments.reduce((sum, adj: any) => sum + (adj.change_amount || 0), 0);
 
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
