@@ -21,19 +21,18 @@ const BlogPost = lazy(() => import('./pages/BlogPost'));
 
 // Component to handle SW updates and show version
 const ServiceWorkerUpdater = () => {
-  const { showPrompt, isUpdating, handleUpdate } = useServiceWorkerUpdate();
-  
-  return (
-    <>
-      {showPrompt && (
-        <UpdatePrompt onUpdate={handleUpdate} isUpdating={isUpdating} />
-      )}
+  const {
+    showPrompt,
+    isUpdating,
+    handleUpdate
+  } = useServiceWorkerUpdate();
+  return <>
+      {showPrompt && <UpdatePrompt onUpdate={handleUpdate} isUpdating={isUpdating} />}
       {/* Version badge in bottom-left corner */}
       <div className="fixed bottom-2 left-2 z-40">
         <AppVersionBadge />
       </div>
-    </>
-  );
+    </>;
 };
 
 // Lazy load pages for code splitting
@@ -83,7 +82,6 @@ const SupportModule = lazy(() => import('./pages/SupportModule'));
 const SupportArticle = lazy(() => import('./pages/SupportArticle'));
 const SupportAPI = lazy(() => import('./pages/SupportAPI'));
 const SupportGetHelp = lazy(() => import('./pages/SupportGetHelp'));
-
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
@@ -95,20 +93,14 @@ const SuperAdminBlogEditor = lazy(() => import('./pages/super-admin/SuperAdminBl
 const SuperAdminCustomerSuccess = lazy(() => import('./pages/super-admin/SuperAdminCustomerSuccess'));
 const SuperAdminDocumentation = lazy(() => import('./pages/super-admin/SuperAdminDocumentation'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
-
 const queryClient = new QueryClient();
-
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
+const PageLoader = () => <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-);
+  </div>;
 
 // Redirect component for root path - redirects to org-scoped home
 const RootRedirect = lazy(() => import('./components/RootRedirect'));
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <ServiceWorkerUpdater />
       <Toaster />
@@ -162,7 +154,7 @@ const App = () => (
                   <Route path="org-chart" element={<OrgProtectedRoute><OrgChart /></OrgProtectedRoute>} />
                   <Route path="growth" element={<OrgProtectedRoute><Growth /></OrgProtectedRoute>} />
                   <Route path="calendar" element={<OrgProtectedRoute><CalendarPage /></OrgProtectedRoute>} />
-                  <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} />
+                  <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} className="pt-[20px]" />
                   <Route path="kpi/bulk-create" element={<OrgProtectedRoute><BulkKpiCreate /></OrgProtectedRoute>} />
                   <Route path="kpi/generation-history" element={<OrgProtectedRoute><KpiGenerationHistory /></OrgProtectedRoute>} />
                   <Route path="kpi/:kpiId" element={<OrgProtectedRoute><KpiDetail /></OrgProtectedRoute>} />
@@ -189,66 +181,42 @@ const App = () => (
                 
                 {/* Super Admin Portal - separate from org context */}
                 <Route path="/super-admin" element={<Navigate to="/super-admin/analytics" replace />} />
-                <Route path="/super-admin/analytics" element={
-                  <SuperAdminProtectedRoute>
+                <Route path="/super-admin/analytics" element={<SuperAdminProtectedRoute>
                     <SuperAdminAnalytics />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/organisations" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/organisations" element={<SuperAdminProtectedRoute>
                     <SuperAdminOrganisations />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/users" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/users" element={<SuperAdminProtectedRoute>
                     <SuperAdminUsers />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/payments" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/payments" element={<SuperAdminProtectedRoute>
                     <SuperAdminPayments />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/blog" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/blog" element={<SuperAdminProtectedRoute>
                     <SuperAdminBlog />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/blog/new" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/blog/new" element={<SuperAdminProtectedRoute>
                     <SuperAdminBlogEditor />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/blog/:postId/edit" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/blog/:postId/edit" element={<SuperAdminProtectedRoute>
                     <SuperAdminBlogEditor />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/testing" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/testing" element={<SuperAdminProtectedRoute>
                     <SuperAdminTesting />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/customer-success" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/customer-success" element={<SuperAdminProtectedRoute>
                     <SuperAdminCustomerSuccess />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/documentation" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/documentation" element={<SuperAdminProtectedRoute>
                     <SuperAdminDocumentation />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/plans/new" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/plans/new" element={<SuperAdminProtectedRoute>
                     <SuperAdminPlanEditor />
-                  </SuperAdminProtectedRoute>
-                } />
-                <Route path="/super-admin/plans/:planId/edit" element={
-                  <SuperAdminProtectedRoute>
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/plans/:planId/edit" element={<SuperAdminProtectedRoute>
                     <SuperAdminPlanEditor />
-                  </SuperAdminProtectedRoute>
-                } />
+                  </SuperAdminProtectedRoute>} />
                 
                 {/* Legacy routes redirect - for backward compatibility */}
                 <Route path="/team/*" element={<Navigate to="/" replace />} />
@@ -266,7 +234,5 @@ const App = () => (
         </TimezoneProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
-
+  </QueryClientProvider>;
 export default App;
