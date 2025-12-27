@@ -719,6 +719,159 @@ const TeamKPIDashboard = () => {
           </Card>
         ) : (
           <>
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
+              {/* Left: Filters */}
+              <div className="flex items-center gap-2 flex-wrap flex-1">
+                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+                  <Filter className="h-4 w-4" />
+                  <span>Filter by:</span>
+                </div>
+                
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                    <Building className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept} ({departmentCounts[dept] || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                    <FolderKanban className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name} ({projectCounts[project.id] || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Offices</SelectItem>
+                    {offices.map((office) => (
+                      <SelectItem key={office.id} value={office.id}>
+                        {office.name} ({officeCounts[office.id] || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-muted-foreground hover:text-foreground px-2"
+                  >
+                    <X className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Clear</span>
+                  </Button>
+                )}
+
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="text-xs">
+                    {filteredTeamMembers.length}/{teamMembers.length}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Right: Period Navigation */}
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={goToPreviousPeriod}
+                  aria-label="Previous period"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <Select
+                  value={viewMode === "quarterly" ? `${quarter}-${year}` : year.toString()}
+                  onValueChange={(v) => {
+                    if (viewMode === "quarterly") {
+                      const [q, y] = v.split("-");
+                      setQuarter(parseInt(q));
+                      setYear(parseInt(y));
+                    } else {
+                      setYear(parseInt(v));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[100px] sm:w-[110px]">
+                    <SelectValue>{getPeriodLabel()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {viewMode === "quarterly" ? (
+                      <>
+                        {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].flatMap((y) =>
+                          [1, 2, 3, 4].map((q) => (
+                            <SelectItem key={`${q}-${y}`} value={`${q}-${y}`}>
+                              Q{q} {y}
+                            </SelectItem>
+                          ))
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {[getCurrentYear() - 2, getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
+                          <SelectItem key={y} value={y.toString()}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={goToNextPeriod}
+                  aria-label="Next period"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+
+                <ToggleGroup
+                  type="single"
+                  value={viewMode}
+                  onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
+                  className="border rounded-lg"
+                >
+                  <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5 h-8">
+                    <Calendar className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs">Quarterly</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5 h-8">
+                    <CalendarDays className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs">Annual</span>
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
+
             {/* Summary Stats */}
             <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-4 sm:mb-6">
               <Card>
@@ -876,159 +1029,6 @@ const TeamKPIDashboard = () => {
                 </Card>
               </div>
             )}
-
-            {/* Filter Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
-              {/* Left: Filters */}
-              <div className="flex items-center gap-2 flex-wrap flex-1">
-                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                  <Filter className="h-4 w-4" />
-                  <span>Filter by:</span>
-                </div>
-                
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
-                    <Building className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept} ({departmentCounts[dept] || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
-                    <FolderKanban className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder="Project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name} ({projectCounts[project.id] || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
-                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder="Office" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Offices</SelectItem>
-                    {offices.map((office) => (
-                      <SelectItem key={office.id} value={office.id}>
-                        {office.name} ({officeCounts[office.id] || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="text-muted-foreground hover:text-foreground px-2"
-                  >
-                    <X className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Clear</span>
-                  </Button>
-                )}
-
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="text-xs">
-                    {filteredTeamMembers.length}/{teamMembers.length}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Right: Period Navigation */}
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={goToPreviousPeriod}
-                  aria-label="Previous period"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <Select
-                  value={viewMode === "quarterly" ? `${quarter}-${year}` : year.toString()}
-                  onValueChange={(v) => {
-                    if (viewMode === "quarterly") {
-                      const [q, y] = v.split("-");
-                      setQuarter(parseInt(q));
-                      setYear(parseInt(y));
-                    } else {
-                      setYear(parseInt(v));
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-[100px] sm:w-[110px]">
-                    <SelectValue>{getPeriodLabel()}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {viewMode === "quarterly" ? (
-                      <>
-                        {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].flatMap((y) =>
-                          [1, 2, 3, 4].map((q) => (
-                            <SelectItem key={`${q}-${y}`} value={`${q}-${y}`}>
-                              Q{q} {y}
-                            </SelectItem>
-                          ))
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {[getCurrentYear() - 2, getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
-                          <SelectItem key={y} value={y.toString()}>
-                            {y}
-                          </SelectItem>
-                        ))}
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={goToNextPeriod}
-                  aria-label="Next period"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-
-                <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
-
-                <ToggleGroup
-                  type="single"
-                  value={viewMode}
-                  onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
-                  className="border rounded-lg"
-                >
-                  <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5 h-8">
-                    <Calendar className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Quarterly</span>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5 h-8">
-                    <CalendarDays className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Annual</span>
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
 
             {/* Organisation KPIs Section */}
             {(isAdmin || isHR) && organizationKpis.length > 0 && (
