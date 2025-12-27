@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
 import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
@@ -90,6 +90,7 @@ const Home = () => {
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<UpcomingEvent[]>([]);
   const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<UpcomingCalendarEvent[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<{
     temperature: number;
     condition: string;
@@ -101,6 +102,14 @@ const Home = () => {
 
   const { role, isHR, isAdmin, isOwner } = useUserRole();
   const { currentOrg } = useOrganization();
+
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (currentOrg?.id) {
@@ -421,7 +430,7 @@ const Home = () => {
                     {greeting}{currentUserName ? `, ${currentUserName}` : ""}
                   </h1>
                   <p className="text-sm text-white/80 mt-1">
-                    {format(new Date(), "EEEE, MMMM d, yyyy")}
+                    {format(currentTime, "EEEE, MMMM d, yyyy")} • {format(currentTime, "h:mm a")}
                   </p>
                 </div>
                 
