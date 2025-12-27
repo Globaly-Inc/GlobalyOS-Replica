@@ -1353,8 +1353,9 @@ const OrgLeaveHistory = () => {
                               {t.end_date && t.start_date !== t.end_date && (
                                 <>
                                   <span className="hidden md:inline text-muted-foreground"> → </span>
-                                  <span className="md:hidden text-muted-foreground block text-xs">to </span>
-                                  <span className="md:inline">{format(new Date(t.end_date), "dd MMM")}</span>
+                                  <span className="md:hidden text-muted-foreground"> -</span>
+                                  <span className="md:hidden block">{format(new Date(t.end_date), "dd MMM")}</span>
+                                  <span className="hidden md:inline">{format(new Date(t.end_date), "dd MMM")}</span>
                                 </>
                               )}
                             </span>
