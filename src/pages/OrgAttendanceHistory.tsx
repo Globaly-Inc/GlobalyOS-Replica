@@ -17,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings, Check } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -69,6 +70,7 @@ const OrgAttendanceHistory = () => {
     workStatusFilter, setWorkStatusFilter,
     officeFilter, setOfficeFilter,
     projectFilter, setProjectFilter,
+    selectedEmployees, setSelectedEmployees,
   } = useAttendanceHistoryFilters();
   
   const [customDateRange, setCustomDateRange] = useState<{
@@ -78,7 +80,8 @@ const OrgAttendanceHistory = () => {
     from: undefined,
     to: undefined
   });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -439,16 +442,54 @@ const OrgAttendanceHistory = () => {
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, [records]);
 
+  // Get unique employees for multi-select dropdown
+  const employeesList = useMemo(() => {
+    if (!records) return [];
+    const employeeMap = new Map<string, { id: string; name: string; avatarUrl: string | null; position: string }>();
+    records.forEach(r => {
+      const employee = r.employee as any;
+      if (employee?.id && employee?.profiles?.full_name) {
+        employeeMap.set(employee.id, {
+          id: employee.id,
+          name: employee.profiles.full_name,
+          avatarUrl: employee.profiles.avatar_url,
+          position: employee.position || ''
+        });
+      }
+    });
+    return Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records]);
+
+  // Filter employees list by search
+  const filteredEmployeesList = useMemo(() => {
+    if (!employeeSearchQuery) return employeesList;
+    const query = employeeSearchQuery.toLowerCase();
+    return employeesList.filter(e => 
+      e.name.toLowerCase().includes(query) || 
+      e.position.toLowerCase().includes(query)
+    );
+  }, [employeesList, employeeSearchQuery]);
+
+  // Get employee display label for trigger
+  const employeeFilterLabel = useMemo(() => {
+    if (selectedEmployees.length === 0) return "All Employees";
+    if (selectedEmployees.length === 1) {
+      const emp = employeesList.find(e => e.id === selectedEmployees[0]);
+      return emp?.name || "1 Employee";
+    }
+    return `${selectedEmployees.length} Employees`;
+  }, [selectedEmployees, employeesList]);
+
   // Filter records
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     return records.filter(record => {
       const employee = record.employee as any;
-      const employeeName = employee?.profiles?.full_name?.toLowerCase() || "";
       const schedule = getSchedule(employee?.employee_schedules);
       const workLocation = schedule?.work_location || 'office';
       
-      const matchesSearch = employeeName.includes(searchQuery.toLowerCase());
+      // Employee multi-select filter (empty = all employees)
+      const matchesEmployee = selectedEmployees.length === 0 || selectedEmployees.includes(record.employee_id);
       const matchesDepartment = departmentFilter === "all" || employee?.department === departmentFilter;
 
       // Work Status filter (matches Work Schedule card + WFH)
@@ -478,9 +519,9 @@ const OrgAttendanceHistory = () => {
         matchesProject = employeeProjectIds.includes(projectFilter);
       }
 
-      return matchesSearch && matchesDepartment && matchesWorkStatus && matchesOffice && matchesProject;
+      return matchesEmployee && matchesDepartment && matchesWorkStatus && matchesOffice && matchesProject;
     });
-  }, [records, searchQuery, departmentFilter, workStatusFilter, officeFilter, projectFilter, employeeProjects]);
+  }, [records, selectedEmployees, departmentFilter, workStatusFilter, officeFilter, projectFilter, employeeProjects]);
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       present: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -1026,129 +1067,203 @@ const OrgAttendanceHistory = () => {
           </div>
         </div>
 
-        {/* Sticky Filter Bar */}
-        <div className="px-4 md:px-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 -mt-2 pt-2">
-          <div className="flex items-center gap-2">
-            {/* Search - expanded on left */}
-            <div className="relative flex-1 min-w-[140px] max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search employee..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 h-10" />
-            </div>
+        {/* Sticky Filter Bar - Light Purple Background */}
+        <div className="px-4 md:px-0 sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Employee Multi-Select Dropdown */}
+            <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={employeePopoverOpen}
+                  className="w-[180px] h-10 justify-between bg-background"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Users className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{employeeFilterLabel}</span>
+                  </div>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search employees..." 
+                    value={employeeSearchQuery}
+                    onValueChange={setEmployeeSearchQuery}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No employees found.</CommandEmpty>
+                    <CommandGroup>
+                      {/* Select All / Clear All */}
+                      <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setSelectedEmployees([])}
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                      {filteredEmployeesList.map(employee => (
+                        <CommandItem
+                          key={employee.id}
+                          value={employee.id}
+                          onSelect={() => {
+                            setSelectedEmployees(
+                              selectedEmployees.includes(employee.id)
+                                ? selectedEmployees.filter(id => id !== employee.id)
+                                : [...selectedEmployees, employee.id]
+                            );
+                          }}
+                        >
+                          <div className="flex items-center gap-2 flex-1">
+                            <Checkbox
+                              checked={selectedEmployees.includes(employee.id)}
+                              className="pointer-events-none"
+                            />
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={employee.avatarUrl || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
+                              {employee.position && (
+                                <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>
+                              )}
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-            {/* Filters on right */}
-            <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto scrollbar-hide">
-              {/* Date Range Selector */}
-              <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
-                <SelectTrigger className="w-[145px] h-10">
-                  <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <SelectValue>{dateRangeLabel}</SelectValue>
+            {/* Status Selector (Work Schedule type + WFH) */}
+            <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
+              <SelectTrigger className="w-[140px] h-10 bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="office">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                    Office
+                  </div>
+                </SelectItem>
+                <SelectItem value="remote">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-purple-600" />
+                    Remote
+                  </div>
+                </SelectItem>
+                <SelectItem value="hybrid">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                    Hybrid
+                  </div>
+                </SelectItem>
+                <SelectItem value="wfh">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-green-600" />
+                    WFH
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Office Selector */}
+            <Select value={officeFilter} onValueChange={setOfficeFilter}>
+              <SelectTrigger className="w-[140px] h-10 bg-background">
+                <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                <SelectValue placeholder="Office" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Offices</SelectItem>
+                {offices.map(office => (
+                  <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Department Selector */}
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-[160px] h-10 bg-background">
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            {/* Projects Selector */}
+            {projects.length > 0 && (
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="w-[150px] h-10 bg-background">
+                  <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <SelectValue placeholder="Project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {dateRangeOptions.map(option => <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>)}
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            )}
 
-              {/* Custom Date Range Picker */}
-              {dateRangeFilter === 'custom' && <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-10 px-3 gap-1.5">
-                      <CalendarIcon className="h-4 w-4" />
-                      <span className="text-sm">
-                        {customDateRange.from && customDateRange.to ? `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}` : "Select dates"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar mode="range" selected={{
-                  from: customDateRange.from,
-                  to: customDateRange.to
-                }} onSelect={range => setCustomDateRange({
-                  from: range?.from,
-                  to: range?.to
-                })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
-                  </PopoverContent>
-                </Popover>}
+            {/* Date Range Selector - Now Last */}
+            <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
+              <SelectTrigger className="w-[145px] h-10 bg-background">
+                <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                <SelectValue>{dateRangeLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {dateRangeOptions.map(option => <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
 
-              {/* Status Selector (Work Schedule type + WFH) */}
-              <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
-                <SelectTrigger className="w-[140px] h-10">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="office">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-primary" />
-                      Office
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="remote">
-                    <div className="flex items-center gap-1.5">
-                      <Home className="h-3.5 w-3.5 text-purple-600" />
-                      Remote
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="hybrid">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-blue-600" />
-                      Hybrid
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="wfh">
-                    <div className="flex items-center gap-1.5">
-                      <Home className="h-3.5 w-3.5 text-green-600" />
-                      WFH
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Custom Date Range Picker */}
+            {dateRangeFilter === 'custom' && <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 px-3 gap-1.5 bg-background">
+                    <CalendarIcon className="h-4 w-4" />
+                    <span className="text-sm">
+                      {customDateRange.from && customDateRange.to ? `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}` : "Select dates"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar mode="range" selected={{
+                from: customDateRange.from,
+                to: customDateRange.to
+              }} onSelect={range => setCustomDateRange({
+                from: range?.from,
+                to: range?.to
+              })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
+                </PopoverContent>
+              </Popover>}
 
-              {/* Office Selector */}
-              <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                <SelectTrigger className="w-[140px] h-10">
-                  <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <SelectValue placeholder="Office" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Offices</SelectItem>
-                  {offices.map(office => (
-                    <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Department Selector */}
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[160px] h-10">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                </SelectContent>
-              </Select>
-
-              {/* Projects Selector */}
-              {projects.length > 0 && (
-                <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[150px] h-10">
-                    <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <SelectValue placeholder="Project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {/* Mobile Export */}
-              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10">
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Mobile Export */}
+            <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 bg-background">
+              <Download className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 

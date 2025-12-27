@@ -9,6 +9,7 @@ interface AttendanceHistoryFilters {
   workStatusFilter: string;
   officeFilter: string;
   projectFilter: string;
+  selectedEmployees: string[];
 }
 
 const DEFAULT_FILTERS: AttendanceHistoryFilters = {
@@ -18,6 +19,7 @@ const DEFAULT_FILTERS: AttendanceHistoryFilters = {
   workStatusFilter: "all",
   officeFilter: "all",
   projectFilter: "all",
+  selectedEmployees: [],
 };
 
 export const useAttendanceHistoryFilters = () => {
@@ -35,6 +37,7 @@ export const useAttendanceHistoryFilters = () => {
     workStatusFilter: filters.workStatusFilter,
     officeFilter: filters.officeFilter,
     projectFilter: filters.projectFilter,
+    selectedEmployees: filters.selectedEmployees,
     // Setters
     setDateRangeFilter: (value: DateRangeOption) => setFilter("dateRangeFilter", value),
     setStatusFilter: (value: string) => setFilter("statusFilter", value),
@@ -42,6 +45,7 @@ export const useAttendanceHistoryFilters = () => {
     setWorkStatusFilter: (value: string) => setFilter("workStatusFilter", value),
     setOfficeFilter: (value: string) => setFilter("officeFilter", value),
     setProjectFilter: (value: string) => setFilter("projectFilter", value),
+    setSelectedEmployees: (value: string[]) => setFilter("selectedEmployees", value),
     clearFilters,
     isLoaded,
   };
