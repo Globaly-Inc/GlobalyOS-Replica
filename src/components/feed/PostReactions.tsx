@@ -170,22 +170,22 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
             </PopoverTrigger>
             
             {/* Full user list popover */}
-            <PopoverContent className="w-48 p-2" align="start">
-              <div className="text-sm font-medium mb-2 flex items-center gap-1.5">
+            <PopoverContent className="w-56 p-3" align="start">
+              <div className="text-sm font-medium mb-2 flex items-center gap-2 pb-2 border-b border-border">
                 <span className="text-lg">{emoji}</span>
                 <span className="text-muted-foreground">{users.length} reaction{users.length !== 1 ? 's' : ''}</span>
               </div>
-              <ScrollArea className="h-auto max-h-48">
-                <div className="space-y-1 pr-3">
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-0.5 pr-3">
                   {users.map(user => (
-                    <div key={user.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted">
-                      <Avatar className="h-6 w-6">
+                    <div key={user.id} className="flex items-center gap-2.5 py-1.5 px-1.5 rounded-md hover:bg-muted/80 transition-colors">
+                      <Avatar className="h-7 w-7">
                         <AvatarImage src={user.avatar || undefined} alt={user.name} />
                         <AvatarFallback className="text-[10px] bg-muted">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm truncate">
+                      <span className="text-sm truncate flex-1">
                         {user.id === currentEmployee?.id ? 'You' : user.name}
                       </span>
                     </div>
