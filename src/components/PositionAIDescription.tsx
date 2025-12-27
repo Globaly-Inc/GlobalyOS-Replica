@@ -134,16 +134,16 @@ export const PositionAIDescription = ({
         <div className="bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
         <CollapsibleTrigger asChild>
             <button className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium text-foreground">Role Description</span>
-                  {!isOpen && description && (
-                    <p className="text-xs text-muted-foreground line-clamp-5 mt-0.5">
-                      {getPersonalizedSummary()}
-                    </p>
-                  )}
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
                 </div>
+                {!isOpen && description && (
+                  <p className="text-xs text-muted-foreground line-clamp-5 mt-0.5">
+                    {getPersonalizedSummary()}
+                  </p>
+                )}
               </div>
               {isOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
