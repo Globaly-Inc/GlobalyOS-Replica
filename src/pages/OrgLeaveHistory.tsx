@@ -418,7 +418,7 @@ const OrgLeaveHistory = () => {
     // Employee filter - if no employees selected, show all; otherwise filter to selected
     const matchesEmployee = selectedEmployees.length === 0 || 
       selectedEmployees.includes(t.employee?.id || '');
-    const matchesStatus = statusFilter === "all" || t.status === statusFilter || (t.type === 'adjustment' && statusFilter === 'all');
+    const matchesStatus = statusFilter === "all" || t.status === statusFilter || t.type === 'adjustment';
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
     const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
     
