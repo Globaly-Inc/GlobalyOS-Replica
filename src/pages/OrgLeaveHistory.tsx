@@ -212,6 +212,15 @@ const OrgLeaveHistory = () => {
     return allEmployees.filter(e => e.id === currentEmployee?.id);
   }, [allEmployees, canEditAll, isManager, currentEmployee?.id, directReportIds]);
 
+  // For regular users, set default date filter to "This Year"
+  const isRegularUser = !canEditAll && !isManager;
+  
+  useEffect(() => {
+    if (isRegularUser && dateRangeFilter === "last7days") {
+      setDateRangeFilter("thisYear");
+    }
+  }, [isRegularUser]);
+
   useEffect(() => {
     if (!currentOrg?.id) return;
     if (roleLoading || employeeLoading) return;
@@ -1055,8 +1064,8 @@ const OrgLeaveHistory = () => {
           );
         })}
         
-        {/* Most Leave Taken Employee - Hide when single employee selected */}
-        {selectedEmployees.length !== 1 && (
+        {/* Most Leave Taken Employee - Hide for regular users and when single employee selected */}
+        {(canEditAll || isManager) && selectedEmployees.length !== 1 && (
           <Card>
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
@@ -1083,8 +1092,8 @@ const OrgLeaveHistory = () => {
           </Card>
         )}
 
-        {/* Least Leave Taken Employee - Hide when single employee selected */}
-        {selectedEmployees.length !== 1 && (
+        {/* Least Leave Taken Employee - Hide for regular users and when single employee selected */}
+        {(canEditAll || isManager) && selectedEmployees.length !== 1 && (
           <Card>
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
