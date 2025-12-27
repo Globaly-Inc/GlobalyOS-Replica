@@ -154,7 +154,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="org-chart" element={<OrgProtectedRoute><OrgChart /></OrgProtectedRoute>} />
                   <Route path="growth" element={<OrgProtectedRoute><Growth /></OrgProtectedRoute>} />
                   <Route path="calendar" element={<OrgProtectedRoute><CalendarPage /></OrgProtectedRoute>} />
-                  <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} className="pt-[20px]" />
+                  <Route path="kpi-dashboard" element={<OrgProtectedRoute><TeamKPIDashboard /></OrgProtectedRoute>} />
                   <Route path="kpi/bulk-create" element={<OrgProtectedRoute><BulkKpiCreate /></OrgProtectedRoute>} />
                   <Route path="kpi/generation-history" element={<OrgProtectedRoute><KpiGenerationHistory /></OrgProtectedRoute>} />
                   <Route path="kpi/:kpiId" element={<OrgProtectedRoute><KpiDetail /></OrgProtectedRoute>} />

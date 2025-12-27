@@ -936,7 +936,7 @@ const BulkLeaveImport = () => {
   const hasErrors = validationErrors.size > 0;
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6">
       <PageHeader
         title="Import Leave History"
         subtitle="Import leave balances and historical leave records"
