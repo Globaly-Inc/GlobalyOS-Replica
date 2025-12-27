@@ -962,7 +962,7 @@ const OrgLeaveHistory = () => {
           </Popover>
 
           {/* Clear Filters */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "thisYear") && (
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last7days") && (
             <Button
               variant="ghost"
               size="sm"
