@@ -70,6 +70,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
+import { useKpiDashboardFilters } from "@/hooks/useKpiDashboardFilters";
 import { cn } from "@/lib/utils";
 import { KPITemplatesDialog } from "@/components/dialogs/KPITemplatesDialog";
 import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
@@ -111,12 +112,15 @@ const TeamKPIDashboard = () => {
   const navigate = useNavigate();
   const { buildOrgPath } = useOrgNavigation();
   
-  const [viewMode, setViewMode] = useState<"quarterly" | "annual">("quarterly");
-  const [quarter, setQuarter] = useState(getCurrentQuarter());
-  const [year, setYear] = useState(getCurrentYear());
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [officeFilter, setOfficeFilter] = useState<string>("all");
+  const {
+    viewMode, setViewMode,
+    quarter, setQuarter,
+    year, setYear,
+    departmentFilter, setDepartmentFilter,
+    projectFilter, setProjectFilter,
+    officeFilter, setOfficeFilter,
+    clearFilters,
+  } = useKpiDashboardFilters();
   
   // Edit/Delete state
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
@@ -616,11 +620,6 @@ const TeamKPIDashboard = () => {
   const isLoading = loadingTeam || loadingKPIs || roleLoading || loadingCurrentEmployee;
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all";
 
-  const clearFilters = () => {
-    setDepartmentFilter("all");
-    setProjectFilter("all");
-    setOfficeFilter("all");
-  };
 
   // Period navigation helpers
   const goToPreviousPeriod = () => {
