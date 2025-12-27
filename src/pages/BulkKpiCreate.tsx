@@ -227,7 +227,7 @@ const BulkKpiCreate = () => {
             </Button>
           ) : (
             <Button onClick={handleFinish}>
-              Go to Dashboard
+              Go to KPI Dashboard
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           )}

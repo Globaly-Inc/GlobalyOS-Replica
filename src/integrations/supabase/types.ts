@@ -2699,7 +2699,7 @@ export type Database = {
           milestones: Json | null
           organization_id: string
           parent_kpi_id: string | null
-          quarter: number
+          quarter: number | null
           scope_department: string | null
           scope_office_id: string | null
           scope_project_id: string | null
@@ -2722,7 +2722,7 @@ export type Database = {
           milestones?: Json | null
           organization_id: string
           parent_kpi_id?: string | null
-          quarter: number
+          quarter?: number | null
           scope_department?: string | null
           scope_office_id?: string | null
           scope_project_id?: string | null
@@ -2745,7 +2745,7 @@ export type Database = {
           milestones?: Json | null
           organization_id?: string
           parent_kpi_id?: string | null
-          quarter?: number
+          quarter?: number | null
           scope_department?: string | null
           scope_office_id?: string | null
           scope_project_id?: string | null
