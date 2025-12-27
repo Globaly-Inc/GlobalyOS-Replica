@@ -174,19 +174,22 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="start">
-                <p className="text-xs font-medium mb-2">Reacted with {group.emoji}</p>
-                <ScrollArea className="h-auto max-h-32">
-                  <div className="space-y-1.5 pr-3">
+              <PopoverContent className="w-52 p-3" align="start">
+                <div className="text-xs font-medium mb-2 flex items-center gap-2 pb-2 border-b border-border">
+                  <span className="text-base">{group.emoji}</span>
+                  <span className="text-muted-foreground">{group.users.length} reaction{group.users.length !== 1 ? 's' : ''}</span>
+                </div>
+                <ScrollArea className="h-[160px]">
+                  <div className="space-y-0.5 pr-3">
                     {group.users.map((user, idx) => (
-                      <div key={user.id + idx} className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
+                      <div key={user.id + idx} className="flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-muted/80 transition-colors">
+                        <Avatar className="h-6 w-6">
                           <AvatarImage src={user.avatar || undefined} />
-                          <AvatarFallback className="text-[8px]">
+                          <AvatarFallback className="text-[9px] bg-muted">
                             {getInitials(user.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs truncate">{user.name}</span>
+                        <span className="text-xs truncate flex-1">{user.name}</span>
                       </div>
                     ))}
                   </div>
