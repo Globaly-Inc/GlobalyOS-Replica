@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useDirectReports } from "@/services/useEmployees";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,29 @@ const OrgAttendanceHistory = () => {
   } = useOrgNavigation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  
+  // Get current employee and their direct reports for role-based access
+  const { data: currentEmployee, isLoading: currentEmployeeLoading } = useCurrentEmployee();
+  const { data: directReports = [] } = useDirectReports(currentEmployee?.id);
+  
+  // Determine access level
+  const canViewAll = isOwner || isAdmin || isHR;
+  const isManager = directReports.length > 0;
+  const canEdit = isOwner || isAdmin || isHR;
+  
+  // Build allowed employee IDs based on role
+  const allowedEmployeeIds = useMemo(() => {
+    if (canViewAll) return null; // null = all employees
+    
+    const ids: string[] = [];
+    if (currentEmployee?.id) {
+      ids.push(currentEmployee.id);
+    }
+    if (isManager) {
+      directReports.forEach(dr => ids.push(dr.id));
+    }
+    return ids.length > 0 ? ids : null;
+  }, [canViewAll, isManager, currentEmployee?.id, directReports]);
   const {
     dateRangeFilter,
     setDateRangeFilter,
@@ -279,12 +303,12 @@ const OrgAttendanceHistory = () => {
     return schedule?.work_location;
   };
 
-  // Fetch all attendance records for the organization with office data and employee schedule
+  // Fetch attendance records filtered by role-based access
   const {
     data: records,
     isLoading
   } = useQuery({
-    queryKey: ["org-attendance", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd"), statusFilter, departmentFilter],
+    queryKey: ["org-attendance", currentOrg?.id, format(dateRange.start, "yyyy-MM-dd"), format(dateRange.end, "yyyy-MM-dd"), statusFilter, departmentFilter, allowedEmployeeIds],
     queryFn: async () => {
       let query = supabase.from("attendance_records").select(`
           *,
@@ -311,6 +335,12 @@ const OrgAttendanceHistory = () => {
         `).eq("organization_id", currentOrg!.id).gte("date", format(dateRange.start, "yyyy-MM-dd")).lte("date", format(dateRange.end, "yyyy-MM-dd")).order("date", {
         ascending: false
       });
+      
+      // Filter by allowed employee IDs for non-admin users
+      if (allowedEmployeeIds && allowedEmployeeIds.length > 0) {
+        query = query.in("employee_id", allowedEmployeeIds);
+      }
+      
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
@@ -321,7 +351,7 @@ const OrgAttendanceHistory = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!currentOrg?.id && !roleLoading && (isOwner || isAdmin || isHR)
+    enabled: !!currentOrg?.id && !roleLoading && !currentEmployeeLoading && (canViewAll || !!currentEmployee?.id)
   });
 
   // Calculate previous period based on current filter
@@ -337,22 +367,29 @@ const OrgAttendanceHistory = () => {
   const {
     data: previousRecords
   } = useQuery({
-    queryKey: ["org-attendance-previous", currentOrg?.id, format(previousPeriod.start, "yyyy-MM-dd"), format(previousPeriod.end, "yyyy-MM-dd")],
+    queryKey: ["org-attendance-previous", currentOrg?.id, format(previousPeriod.start, "yyyy-MM-dd"), format(previousPeriod.end, "yyyy-MM-dd"), allowedEmployeeIds],
     queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from("attendance_records").select(`
+      let query = supabase.from("attendance_records").select(`
           *,
           employee:employees!attendance_records_employee_id_fkey(
             id,
             employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time)
           )
         `).eq("organization_id", currentOrg!.id).gte("date", format(previousPeriod.start, "yyyy-MM-dd")).lte("date", format(previousPeriod.end, "yyyy-MM-dd"));
+      
+      // Filter by allowed employee IDs for non-admin users
+      if (allowedEmployeeIds && allowedEmployeeIds.length > 0) {
+        query = query.in("employee_id", allowedEmployeeIds);
+      }
+      
+      const {
+        data,
+        error
+      } = await query;
       if (error) throw error;
       return data;
     },
-    enabled: !!currentOrg?.id && !roleLoading && (isOwner || isAdmin || isHR)
+    enabled: !!currentOrg?.id && !roleLoading && !currentEmployeeLoading && (canViewAll || !!currentEmployee?.id)
   });
 
   // Fetch active employees for missing calculation
@@ -417,10 +454,12 @@ const OrgAttendanceHistory = () => {
     enabled: !!currentOrg?.id
   });
 
-  // Only owner, admin, and HR can access org-wide attendance history
-  if (!roleLoading && !isOwner && !isAdmin && !isHR) {
-    return <Navigate to={`/org/${orgCode}`} replace />;
-  }
+  // Page header text based on role
+  const getPageDescription = () => {
+    if (canViewAll) return "View attendance records across the organization";
+    if (isManager) return "View attendance records for you and your team";
+    return "View your attendance records";
+  };
 
   // Get unique departments for filter
   const departments = useMemo(() => {
@@ -888,7 +927,7 @@ const OrgAttendanceHistory = () => {
     const isSelected = selectedRecords.has(record.id);
     return <Card className={cn("p-4 transition-all active:scale-[0.98]", isSelected && "bg-primary/5 border-primary/30")}>
         <div className="flex items-start gap-3">
-          {(isOwner || isAdmin) && <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectRecord(record.id)} className="mt-1" />}
+          {canEdit && <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectRecord(record.id)} className="mt-1" />}
           <div className="flex-1 min-w-0">
             {/* Header: Employee + Location */}
             <div className="flex items-start justify-between gap-2 mb-2">
@@ -972,8 +1011,8 @@ const OrgAttendanceHistory = () => {
               {getStatusBadge(record.status)}
             </div>
             
-            {/* Actions Row - only for Owner/Admin */}
-            {(isOwner || isAdmin) && <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+            {/* Actions Row - only for users who can edit */}
+            {canEdit && <div className="flex items-center gap-2 mt-3 pt-3 border-t">
                 <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => setEditRecord({
               id: record.id,
               employee_id: record.employee_id,
@@ -1008,18 +1047,18 @@ const OrgAttendanceHistory = () => {
               <Users className="h-5 w-5 md:h-6 md:w-6" />
               Attendance
             </h1>
-            <p className="text-sm text-muted-foreground">View attendance records across the organization</p>
+            <p className="text-sm text-muted-foreground">{getPageDescription()}</p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
-            {(isOwner || isAdmin || isHR) && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} className="gap-2">
+            {canEdit && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} className="gap-2">
                 <Settings className="h-4 w-4" />
                 Settings
               </Button>}
             <AttendanceQRButton />
-            <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
+            {canEdit && <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4 text-ai" />
               <span className="text-ai">AI Email Reports</span>
-            </Button>
+            </Button>}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -1039,10 +1078,10 @@ const OrgAttendanceHistory = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
+            {canEdit && <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
               <UserPlus className="h-4 w-4" />
               Add Attendance
-            </Button>
+            </Button>}
           </div>
         </div>
 
@@ -1066,15 +1105,15 @@ const OrgAttendanceHistory = () => {
                   <CommandList>
                     <CommandEmpty>No employees found.</CommandEmpty>
                     <CommandGroup>
-                      {/* Select All / Clear All */}
-                      <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                      {/* Select All / Clear All - only for admin users with multiple options */}
+                      {canViewAll && employeesList.length > 1 && <div className="flex items-center justify-between px-2 py-1.5 border-b">
                         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
                           Select All
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
                           Clear All
                         </Button>
-                      </div>
+                      </div>}
                       {filteredEmployeesList.map(employee => <CommandItem key={employee.id} value={employee.id} onSelect={() => {
                     setSelectedEmployees(selectedEmployees.includes(employee.id) ? selectedEmployees.filter(id => id !== employee.id) : [...selectedEmployees, employee.id]);
                   }}>
@@ -1359,7 +1398,7 @@ const OrgAttendanceHistory = () => {
       <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{filteredRecords.length} records</span>
-                {(isOwner || isAdmin) && <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="h-8 text-xs">
+                {canEdit && <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="h-8 text-xs">
                     {allSelected ? "Deselect All" : "Select All"}
                   </Button>}
               </div>
@@ -1376,7 +1415,7 @@ const OrgAttendanceHistory = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/20">
-                      {(isOwner || isAdmin) && <TableHead className="w-[40px]">
+                      {canEdit && <TableHead className="w-[40px]">
                           <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="Select all" className={someSelected ? "data-[state=checked]:bg-primary/50" : ""} />
                         </TableHead>}
                       <TableHead className="min-w-[180px]">Employee</TableHead>
@@ -1394,7 +1433,7 @@ const OrgAttendanceHistory = () => {
                 const employee = record.employee as any;
                 const isSelected = selectedRecords.has(record.id);
                 return <TableRow key={record.id} className={cn("hover:bg-muted/50 transition-colors", isSelected && "bg-primary/5")}>
-                          {(isOwner || isAdmin) && <TableCell>
+                          {canEdit && <TableCell>
                               <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectRecord(record.id)} aria-label={`Select ${employee?.profiles?.full_name}`} />
                             </TableCell>}
                           <TableCell>
@@ -1496,7 +1535,7 @@ const OrgAttendanceHistory = () => {
                                   <TooltipContent>View Attendance History</TooltipContent>
                                 </Tooltip>
                                 
-                                {(isOwner || isAdmin) && <>
+                                {canEdit && <>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditRecord({
@@ -1589,7 +1628,7 @@ const OrgAttendanceHistory = () => {
       <BulkEditAttendanceDialog open={bulkEditOpen} onOpenChange={setBulkEditOpen} selectedRecordIds={Array.from(selectedRecords)} onSuccess={() => setSelectedRecords(new Set())} />
 
       {/* Floating Bulk Actions Bar */}
-      {selectedRecords.size > 0 && (isOwner || isAdmin) && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} onEdit={() => setBulkEditOpen(true)} canDelete={isOwner || isAdmin} canEdit={isOwner || isAdmin} />}
+      {selectedRecords.size > 0 && canEdit && <AttendanceBulkActionsBar selectedCount={selectedRecords.size} totalItems={filteredRecords.length} onSelectAll={() => setSelectedRecords(new Set(filteredRecords.map(r => r.id)))} onDeselectAll={() => setSelectedRecords(new Set())} onDelete={() => setBulkDeleteDialog(true)} onExport={exportCSV} onEdit={() => setBulkEditOpen(true)} canDelete={canEdit} canEdit={canEdit} />}
 
       {/* Add Attendance Dialog */}
       <AddAttendanceDialog open={addAttendanceOpen} onOpenChange={setAddAttendanceOpen} />
