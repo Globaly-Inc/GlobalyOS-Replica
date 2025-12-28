@@ -242,14 +242,8 @@ const OrgLeaveHistory = () => {
     return allEmployees.filter(e => e.id === currentEmployee?.id);
   }, [allEmployees, canEditAll, isManager, currentEmployee?.id, directReportIds]);
 
-  // For regular users, set default date filter to "This Year"
+  // For checking if filters are modified from default
   const isRegularUser = !canEditAll && !isManager;
-  
-  useEffect(() => {
-    if (isRegularUser && dateRangeFilter === "last7days") {
-      setDateRangeFilter("thisYear");
-    }
-  }, [isRegularUser]);
 
   useEffect(() => {
     if (!currentOrg?.id) return;
@@ -1082,8 +1076,8 @@ const OrgLeaveHistory = () => {
             </PopoverContent>
           </Popover>
 
-          {/* Clear Filters - Use correct default based on user type - Hidden on mobile */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== (isRegularUser ? "thisYear" : "last7days")) && (
+          {/* Clear Filters - Hidden on mobile */}
+          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last30days") && (
             <Button
               variant="ghost"
               size="sm"

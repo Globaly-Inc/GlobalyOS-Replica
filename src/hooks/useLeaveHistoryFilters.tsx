@@ -27,7 +27,7 @@ const DEFAULT_FILTERS: LeaveHistoryFilters = {
   leaveTypeFilter: "all",
   transactionTypeFilter: "all",
   yearFilter: new Date().getFullYear().toString(),
-  dateRangeFilter: "last7days",
+  dateRangeFilter: "last30days",
   selectedEmployees: [],
   customStartDate: null,
   customEndDate: null,
@@ -125,7 +125,7 @@ export const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
 export const useLeaveHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
     usePersistedFilters<LeaveHistoryFilters>({
-      pageKey: "leave_history_v3", // Version bump to reset persisted filters to new defaults
+      pageKey: "leave_history_v4", // Version bump to reset persisted filters to new defaults
       defaultFilters: DEFAULT_FILTERS,
       dynamicDefaults: () => ({
         yearFilter: new Date().getFullYear().toString(),
