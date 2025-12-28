@@ -16,7 +16,7 @@ const teamSubNavItems: SubNavItem[] = [
   { name: 'KPIs', href: '/kpi-dashboard', icon: Target },
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
   { name: 'Leave', href: '/leave-history', icon: CalendarDays },
-  { name: 'Attendance', href: '/attendance-history', icon: Clock, adminOnly: true },
+  { name: 'Attendance', href: '/attendance-history', icon: Clock },
   { name: 'Payroll', href: '/payroll', icon: DollarSign, adminOnly: true },
 ];
 
