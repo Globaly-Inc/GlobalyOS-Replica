@@ -1,14 +1,8 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AreaChart,
-  Area,
   LineChart,
   Line,
-  BarChart,
-  Bar,
-  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -388,158 +382,30 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
       </CardHeader>
       
       <CardContent>
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">Leave Types</TabsTrigger>
-            <TabsTrigger value="status" className="text-xs sm:text-sm">Status</TabsTrigger>
-            <TabsTrigger value="types" className="text-xs sm:text-sm">Types</TabsTrigger>
-            <TabsTrigger value="days" className="text-xs sm:text-sm">Days</TabsTrigger>
-            <TabsTrigger value="rate" className="text-xs sm:text-sm">Rate</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab - Leave Types Line Chart */}
-          <TabsContent value="overview" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={normalizedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
-                <YAxis className="text-xs" allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                {allLeaveTypes.map((type, index) => (
-                  <Line
-                    key={type}
-                    type="monotone"
-                    dataKey={`leaveTypes.${type}`}
-                    name={type}
-                    stroke={getLeaveTypeColor(type, index)}
-                    strokeWidth={2}
-                    dot={{ fill: getLeaveTypeColor(type, index), r: 4 }}
-                    activeDot={{ r: 6 }}
-                    connectNulls={true}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </TabsContent>
-
-          {/* Status Distribution Tab - Line Chart */}
-          <TabsContent value="status" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={normalizedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
-                <YAxis className="text-xs" allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
+        <div className="h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={normalizedTrendData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
+              <YAxis className="text-xs" allowDecimals={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              {allLeaveTypes.map((type, index) => (
                 <Line
+                  key={type}
                   type="monotone"
-                  dataKey="approved"
-                  name="Approved"
-                  stroke="hsl(142, 76%, 36%)"
+                  dataKey={`leaveTypes.${type}`}
+                  name={type}
+                  stroke={getLeaveTypeColor(type, index)}
                   strokeWidth={2}
-                  dot={{ fill: "hsl(142, 76%, 36%)" }}
+                  dot={{ fill: getLeaveTypeColor(type, index), r: 4 }}
+                  activeDot={{ r: 6 }}
                   connectNulls={true}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="pending"
-                  name="Pending"
-                  stroke="hsl(45, 93%, 47%)"
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(45, 93%, 47%)" }}
-                  connectNulls={true}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rejected"
-                  name="Rejected"
-                  stroke="hsl(0, 84%, 60%)"
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(0, 84%, 60%)" }}
-                  connectNulls={true}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </TabsContent>
-
-          {/* Leave Types Tab - Stacked Bar */}
-          <TabsContent value="types" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={normalizedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
-                <YAxis className="text-xs" allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                {allLeaveTypes.map((type, index) => (
-                  <Bar
-                    key={type}
-                    dataKey={`leaveTypes.${type}`}
-                    name={type}
-                    stackId="types"
-                    fill={getLeaveTypeColor(type, index)}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </TabsContent>
-
-          {/* Days Taken Tab - Composed Chart */}
-          <TabsContent value="days" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={normalizedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
-                <YAxis yAxisId="left" className="text-xs" allowDecimals={false} />
-                <YAxis yAxisId="right" orientation="right" className="text-xs" allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar
-                  yAxisId="left"
-                  dataKey="daysTaken"
-                  name="Days Taken"
-                  fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="cumulativeDays"
-                  name="Cumulative"
-                  stroke="hsl(262, 83%, 58%)"
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(262, 83%, 58%)" }}
-                  connectNulls={true}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </TabsContent>
-
-          {/* Approval Rate Tab - Area Chart */}
-          <TabsContent value="rate" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={normalizedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" className="text-xs" angle={normalizedTrendData.length > 14 ? -45 : 0} textAnchor={normalizedTrendData.length > 14 ? 'end' : 'middle'} height={normalizedTrendData.length > 14 ? 60 : 30} />
-                <YAxis className="text-xs" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                <Tooltip 
-                  content={<CustomTooltip />}
-                  formatter={(value: number) => [`${value}%`, 'Approval Rate']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="approvalRate"
-                  name="Approval Rate"
-                  stroke="hsl(142, 76%, 36%)"
-                  fill="hsl(142, 76%, 36%)"
-                  fillOpacity={0.3}
-                  connectNulls={true}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </TabsContent>
-        </Tabs>
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );
