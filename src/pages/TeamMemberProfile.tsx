@@ -107,6 +107,7 @@ const TeamMemberProfile = () => {
   const [performanceReviews, setPerformanceReviews] = useState<any[]>([]);
   const [positionId, setPositionId] = useState<string | null>(null);
   const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
+  const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
 
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
