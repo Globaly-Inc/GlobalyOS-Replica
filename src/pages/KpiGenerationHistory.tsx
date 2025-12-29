@@ -38,7 +38,17 @@ interface KpiGenerationJob {
   started_at: string | null;
   completed_at: string | null;
   error_message: string | null;
+  last_heartbeat: string | null;
 }
+
+// Check if a job is stuck (processing for >5 minutes without heartbeat)
+const isJobStuck = (job: KpiGenerationJob) => {
+  if (job.status !== 'processing') return false;
+  const heartbeat = job.last_heartbeat || job.started_at;
+  if (!heartbeat) return false;
+  const ageMinutes = (Date.now() - new Date(heartbeat).getTime()) / 60000;
+  return ageMinutes > 5;
+};
 
 const KpiGenerationHistory = () => {
   const navigate = useNavigate();
@@ -49,6 +59,8 @@ const KpiGenerationHistory = () => {
     searchParams.get("jobId")
   );
 
+  const [isCancelling, setIsCancelling] = useState<string | null>(null);
+
   // Fetch all generation jobs for this org
   const { data: jobs, isLoading, refetch } = useQuery({
     queryKey: ["kpi-generation-jobs", currentOrg?.id],
@@ -57,7 +69,7 @@ const KpiGenerationHistory = () => {
       
       const { data, error } = await supabase
         .from("kpi_generation_jobs")
-        .select("*")
+        .select("*, last_heartbeat")
         .eq("organization_id", currentOrg.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -69,9 +81,58 @@ const KpiGenerationHistory = () => {
     refetchInterval: 5000, // Refresh every 5 seconds to show progress
   });
 
+  // Count stuck jobs
+  const stuckJobs = jobs?.filter(isJobStuck) || [];
+
+  // Cancel a single job
+  const handleCancelJob = async (jobId: string) => {
+    setIsCancelling(jobId);
+    try {
+      const { error } = await supabase
+        .from("kpi_generation_jobs")
+        .update({
+          status: 'failed',
+          error_message: 'Cancelled by user',
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", jobId);
+      
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      console.error("Failed to cancel job:", err);
+    } finally {
+      setIsCancelling(null);
+    }
+  };
+
+  // Cancel all stuck jobs
+  const handleCancelAllStuck = async () => {
+    if (stuckJobs.length === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from("kpi_generation_jobs")
+        .update({
+          status: 'failed',
+          error_message: 'Cancelled: exceeded timeout',
+          completed_at: new Date().toISOString()
+        })
+        .in("id", stuckJobs.map(j => j.id));
+      
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      console.error("Failed to cancel stuck jobs:", err);
+    }
+  };
+
   const selectedJob = jobs?.find(j => j.id === selectedJobId);
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, job?: KpiGenerationJob) => {
+    if (job && isJobStuck(job)) {
+      return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+    }
     switch (status) {
       case "completed":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -84,7 +145,10 @@ const KpiGenerationHistory = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, job?: KpiGenerationJob) => {
+    if (job && isJobStuck(job)) {
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">Stuck</Badge>;
+    }
     switch (status) {
       case "completed":
         return <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30">Completed</Badge>;
@@ -155,6 +219,24 @@ const KpiGenerationHistory = () => {
             <CardDescription>
               Past AI-powered KPI generation runs
             </CardDescription>
+            {stuckJobs.length > 0 && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">{stuckJobs.length} stuck job{stuckJobs.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleCancelAllStuck}
+                    className="border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs"
+                  >
+                    Cancel All
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-[500px]">
@@ -189,10 +271,15 @@ const KpiGenerationHistory = () => {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(job.status)}
+                          {getStatusIcon(job.status, job)}
                           <span className="font-medium text-sm">
                             {getJobSummary(job)}
                           </span>
+                          {isJobStuck(job) && (
+                            <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 border-amber-500/30">
+                              Stuck
+                            </Badge>
+                          )}
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       </div>
@@ -234,18 +321,60 @@ const KpiGenerationHistory = () => {
                 {/* Status Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {getStatusBadge(selectedJob.status)}
+                    {getStatusBadge(selectedJob.status, selectedJob)}
                     <span className="text-sm text-muted-foreground">
                       {formatJobDate(selectedJob.created_at)}
                     </span>
                   </div>
-                  {selectedJob.status === "completed" && selectedJob.generated_kpis?.length > 0 && (
-                    <Button onClick={() => handleUseKpis(selectedJob)}>
-                      Use These KPIs
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Cancel button for processing/stuck jobs */}
+                    {(selectedJob.status === "processing" || selectedJob.status === "pending") && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleCancelJob(selectedJob.id)}
+                        disabled={isCancelling === selectedJob.id}
+                      >
+                        {isCancelling === selectedJob.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <XCircle className="h-4 w-4 mr-2" />
+                        )}
+                        Cancel
+                      </Button>
+                    )}
+                    {/* Retry button for failed jobs */}
+                    {selectedJob.status === "failed" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(buildOrgPath("/kpi/bulk-create"))}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry
+                      </Button>
+                    )}
+                    {selectedJob.status === "completed" && selectedJob.generated_kpis?.length > 0 && (
+                      <Button onClick={() => handleUseKpis(selectedJob)}>
+                        Use These KPIs
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Stuck job warning */}
+                {isJobStuck(selectedJob) && (
+                  <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-700 dark:text-amber-300">Job appears stuck</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This job has been processing for over 5 minutes without updates. Consider cancelling and retrying.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Progress for processing jobs */}
                 {selectedJob.status === "processing" && (

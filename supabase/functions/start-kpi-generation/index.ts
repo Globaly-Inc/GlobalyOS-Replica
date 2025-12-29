@@ -7,6 +7,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Track current job ID for graceful shutdown
+let currentProcessingJobId: string | null = null;
+
+// Graceful shutdown handler - mark interrupted jobs as failed
+addEventListener('beforeunload', async () => {
+  if (currentProcessingJobId) {
+    console.log('Edge function shutting down, marking job as interrupted:', currentProcessingJobId);
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      await supabase
+        .from('kpi_generation_jobs')
+        .update({
+          status: 'failed',
+          error_message: 'Processing interrupted - please retry',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', currentProcessingJobId)
+        .eq('status', 'processing'); // Only update if still processing
+    } catch (err) {
+      console.error('Failed to mark job as interrupted:', err);
+    }
+  }
+});
+
 interface CascadeConfig {
   includeOrganization: boolean;
   includeDepartments: boolean;
@@ -228,6 +255,9 @@ async function processKpiGeneration(jobId: string, config: JobConfig) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
+  // Track current job for graceful shutdown
+  currentProcessingJobId = jobId;
   
   try {
     // Update status to processing
@@ -870,9 +900,15 @@ Respond with ONLY valid JSON: { "kpis": [...] }`;
       .eq('id', jobId);
 
     console.log(`Job ${jobId} completed successfully`);
+    
+    // Clear current job tracking
+    currentProcessingJobId = null;
 
   } catch (error: any) {
     console.error(`Job ${jobId} failed:`, error);
+    
+    // Clear current job tracking
+    currentProcessingJobId = null;
     
     await supabase
       .from('kpi_generation_jobs')

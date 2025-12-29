@@ -46,6 +46,15 @@ const isJobStale = (job: any) => {
   return ageMinutes > 3;
 };
 
+// Check if a job is very stale (>10 minutes - should be auto-cancelled)
+const isJobVeryStale = (job: any) => {
+  if (!job || job.status !== 'processing') return false;
+  const heartbeat = job.last_heartbeat || job.started_at;
+  if (!heartbeat) return false;
+  const ageMinutes = (Date.now() - new Date(heartbeat).getTime()) / 60000;
+  return ageMinutes > 10;
+};
+
 export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
   const { currentOrg } = useOrganization();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -73,21 +82,45 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
     staleTime: 0,
   });
 
-  // Auto-subscribe to existing job if found
+  // Auto-cleanup very stale jobs on mount and subscribe to existing job if found
   useEffect(() => {
-    if (existingJob && !jobId && !existingJobChecked) {
-      console.log("Found existing job:", existingJob.id, existingJob.status);
-      setJobId(existingJob.id);
-      setIsGenerating(true);
-      setProgress({
-        value: existingJob.progress || 0,
-        message: existingJob.progress_message || "Resuming previous generation..."
-      });
-      setExistingJobChecked(true);
-    } else if (!existingJob && !existingJobChecked) {
-      setExistingJobChecked(true);
-    }
-  }, [existingJob, jobId, existingJobChecked]);
+    const autoCleanupStaleJobs = async () => {
+      if (existingJob && isJobVeryStale(existingJob)) {
+        console.log("Auto-cancelling very stale job:", existingJob.id);
+        try {
+          await supabase
+            .from("kpi_generation_jobs")
+            .update({
+              status: 'failed',
+              error_message: 'Auto-cancelled: exceeded 10 minute timeout',
+              completed_at: new Date().toISOString()
+            })
+            .eq("id", existingJob.id);
+          toast.info("Previous generation timed out and was cancelled");
+          setExistingJobChecked(true);
+          refetchExistingJob();
+          return;
+        } catch (err) {
+          console.error("Failed to auto-cancel stale job:", err);
+        }
+      }
+      
+      if (existingJob && !jobId && !existingJobChecked) {
+        console.log("Found existing job:", existingJob.id, existingJob.status);
+        setJobId(existingJob.id);
+        setIsGenerating(true);
+        setProgress({
+          value: existingJob.progress || 0,
+          message: existingJob.progress_message || "Resuming previous generation..."
+        });
+        setExistingJobChecked(true);
+      } else if (!existingJob && !existingJobChecked) {
+        setExistingJobChecked(true);
+      }
+    };
+    
+    autoCleanupStaleJobs();
+  }, [existingJob, jobId, existingJobChecked, refetchExistingJob]);
 
   // Cancel a stuck job
   const cancelJob = async (jobIdToCancel: string) => {
