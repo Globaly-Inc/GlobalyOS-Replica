@@ -30,10 +30,13 @@ import {
   ArrowLeft,
   Trash2,
   Sparkles,
-  Paperclip
+  Paperclip,
+  Pencil,
+  Link2
 } from 'lucide-react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { useKpiDetail, useAddKpiUpdate, useSaveKpiUpdateSettings, useDeleteKpiUpdate } from '@/services/useKpiUpdates';
+import { useDeleteKpi, useKpiHierarchy, useLinkKpi, useAvailableParentKpis } from '@/services/useKpi';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { OrgLink } from '@/components/OrgLink';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
@@ -51,8 +54,20 @@ import {
   KpiActivityLogs,
   KpiOwnersDisplay
 } from '@/components/kpi';
-import { useKpiHierarchy } from '@/services/useKpi';
+import { LinkedKpiSelector } from '@/components/kpi/LinkedKpiSelector';
 import { useKpiOwners, KpiOwner } from '@/services/useKpiOwners';
+import { EditKPIDialog } from '@/components/dialogs/EditKPIDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusColors: Record<KpiStatus, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -83,6 +98,16 @@ const KpiDetail = () => {
   const addUpdate = useAddKpiUpdate();
   const saveSettings = useSaveKpiUpdateSettings();
   const deleteUpdate = useDeleteKpiUpdate();
+  const deleteKpi = useDeleteKpi();
+  const linkKpiMutation = useLinkKpi();
+  
+  // Available parent KPIs for linking
+  const { data: availableParentKpis = [] } = useAvailableParentKpis(
+    kpi?.scope_type,
+    kpi?.quarter || Math.ceil((new Date().getMonth() + 1) / 3),
+    kpi?.year || new Date().getFullYear(),
+    kpiId
+  );
 
   // Form state
   const [showUpdateForm, setShowUpdateForm] = useState(false);
@@ -90,6 +115,11 @@ const KpiDetail = () => {
   const [notes, setNotes] = useState('');
   const [newStatus, setNewStatus] = useState<KpiStatus | ''>('');
   const [attachments, setAttachments] = useState<KpiAttachment[]>([]);
+  
+  // Edit/Delete dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showLinkParent, setShowLinkParent] = useState(false);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   
   // Celebration state
   const [celebrationMilestone, setCelebrationMilestone] = useState<{ percent: number; label: string } | null>(null);
@@ -129,7 +159,31 @@ const KpiDetail = () => {
     );
   }, [kpi?.update_settings, reminderEnabled, frequency, dayOfWeek, dayOfMonth, reminderTime]);
 
-  // Check if user can edit this KPI
+  // Check if user can edit this KPI (Owner, Admin, Manager for subordinates, Self)
+  const canEditKpi = () => {
+    if (!kpi || !currentEmployee) return false;
+    if (isOwner || isAdmin) return true;
+    
+    // Own individual KPI
+    if (kpi.employee_id === currentEmployee.id) return true;
+    
+    // Manager can edit subordinates' KPIs - check if KPI owner reports to current user
+    if (kpi.employee_id && (kpi.employee as any)?.manager_id === currentEmployee.id) return true;
+    
+    // Group KPI membership
+    if (kpi.scope_type === 'department' && kpi.scope_department === currentEmployee.department) return true;
+    if (kpi.scope_type === 'office' && kpi.scope_office_id === currentEmployee.office_id) return true;
+    
+    return false;
+  };
+
+  // Check if user can delete this KPI (Owner, Admin only)
+  const canDeleteKpi = () => {
+    if (!kpi || !currentEmployee) return false;
+    return isOwner || isAdmin;
+  };
+
+  // Check if user can add updates (existing logic)
   const canEdit = () => {
     if (!kpi || !currentEmployee) return false;
     if (isAdmin || isHR || isOwner) return true;
@@ -151,8 +205,6 @@ const KpiDetail = () => {
     
     // Manager can edit for subordinates
     if (kpi.employee_id) {
-      // Would need to check if kpi.employee is a subordinate of currentEmployee
-      // For now, allow managers to edit if they can edit the KPI
       return canEdit();
     }
     
@@ -195,6 +247,24 @@ const KpiDetail = () => {
       reminderTime,
       isEnabled: reminderEnabled,
     });
+  };
+
+  const handleDeleteKpi = async () => {
+    if (!kpi) return;
+    await deleteKpi.mutateAsync({ kpiId: kpi.id, kpiTitle: kpi.title });
+    navigateOrg('/kpi-dashboard');
+  };
+
+  const handleLinkToParent = async () => {
+    if (!kpi || !selectedParentId) return;
+    const parentKpi = availableParentKpis.find((p: any) => p.id === selectedParentId);
+    await linkKpiMutation.mutateAsync({
+      kpiId: kpi.id,
+      parentKpiId: selectedParentId,
+      parentTitle: parentKpi?.title,
+    });
+    setShowLinkParent(false);
+    setSelectedParentId(null);
   };
 
   const handleDeleteUpdate = async (updateId: string) => {
@@ -289,12 +359,44 @@ const KpiDetail = () => {
             )}
           </div>
           
-          {canEdit() && (
-            <Button onClick={() => setShowUpdateForm(!showUpdateForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Update
-            </Button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {canEditKpi() && (
+              <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            )}
+            {canDeleteKpi() && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete KPI</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{kpi.title}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteKpi} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {canEdit() && (
+              <Button onClick={() => setShowUpdateForm(!showUpdateForm)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Update
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -499,13 +601,53 @@ const KpiDetail = () => {
             </Card>
 
             {/* Parent KPI Section - Moved below Update History */}
-            {hierarchy?.parent && (
+            {hierarchy?.parent ? (
               <ParentKpiSection
                 parent={hierarchy.parent}
                 childKpiId={kpi.id}
                 contributionWeight={kpi.child_contribution_weight || 1}
-                canEdit={canEdit()}
+                canEdit={canEditKpi()}
               />
+            ) : (
+              /* Link to Parent - Show when no parent and not organization scope */
+              kpi.scope_type !== 'organization' && canEditKpi() && availableParentKpis.length > 0 && (
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Link to Parent KPI</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowLinkParent(!showLinkParent)}
+                    >
+                      {showLinkParent ? 'Cancel' : 'Link'}
+                    </Button>
+                  </div>
+                  {showLinkParent && (
+                    <div className="mt-4 space-y-3">
+                      <LinkedKpiSelector
+                        scopeType={kpi.scope_type}
+                        quarter={kpi.quarter}
+                        year={kpi.year}
+                        selectedParentId={selectedParentId}
+                        onSelect={setSelectedParentId}
+                        excludeKpiId={kpi.id}
+                      />
+                      {selectedParentId && (
+                        <Button 
+                          onClick={handleLinkToParent} 
+                          disabled={linkKpiMutation.isPending}
+                          className="w-full"
+                        >
+                          {linkKpiMutation.isPending ? 'Linking...' : 'Confirm Link'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )
             )}
 
             {/* Linked KPIs Section (for org/group KPIs) */}
@@ -671,6 +813,13 @@ const KpiDetail = () => {
         <KpiCelebration 
           milestone={celebrationMilestone} 
           onClose={() => setCelebrationMilestone(null)} 
+        />
+
+        {/* Edit KPI Dialog */}
+        <EditKPIDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          kpi={kpi}
         />
       </div>
   );
