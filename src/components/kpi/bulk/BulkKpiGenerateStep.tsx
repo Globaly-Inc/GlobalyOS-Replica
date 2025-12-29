@@ -142,6 +142,14 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         .select("id, name, description")
         .eq("organization_id", currentOrg.id);
 
+      // Fetch project documents (parsed content for AI context)
+      // Note: parsed_content column added via migration - cast to any until types sync
+      const { data: projectDocuments } = await supabase
+        .from("project_documents")
+        .select("project_id, file_name, parsed_content")
+        .eq("organization_id", currentOrg.id)
+        .not("parsed_content", "is", null) as { data: { project_id: string; file_name: string; parsed_content: string | null }[] | null };
+
       // Fetch employee-project assignments
       const { data: employeeProjects } = await supabase
         .from("employee_projects")
@@ -179,12 +187,22 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
         companySize: orgMetadata?.company_size || "Unknown",
         departments: departments as string[],
         offices: offices || [],
-        // Truncate project descriptions to reduce payload size
-        projects: (projects || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          description: (p.description || "").slice(0, 150),
-        })),
+        // Truncate project descriptions and include document content
+        projects: (projects || []).map(p => {
+          // Get parsed document content for this project (limited to 500 chars per doc)
+          const projectDocs = (projectDocuments || [])
+            .filter(d => d.project_id === p.id && d.parsed_content)
+            .map(d => `[${d.file_name}]: ${(d.parsed_content || "").slice(0, 500)}`)
+            .slice(0, 2) // Max 2 documents per project
+            .join("\n");
+          
+          return {
+            id: p.id,
+            name: p.name,
+            description: (p.description || "").slice(0, 200),
+            documentContent: projectDocs.slice(0, 1200), // Limit total doc content
+          };
+        }),
         employeeProjects: employeeProjects || [],
         employees: (employees || []).map(e => {
           const positionDetails = positions?.find(p => p.name === e.position);

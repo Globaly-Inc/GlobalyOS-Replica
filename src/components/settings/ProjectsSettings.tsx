@@ -391,6 +391,40 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
         .eq("organization_id", organizationId)
         .single();
 
+      // Parse document content for AI context
+      let parsedContent: string | null = null;
+      try {
+        const isTextFile = file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md') || file.name.endsWith('.txt');
+        
+        if (isTextFile) {
+          // Read text files directly
+          parsedContent = await file.text();
+        } else {
+          // Use edge function for binary documents (PDF, DOCX)
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          
+          const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-document-content', {
+            body: { 
+              fileContent: base64, 
+              fileName: file.name,
+              mimeType: file.type 
+            }
+          });
+          
+          if (!parseError && parseData?.text) {
+            parsedContent = parseData.text;
+          }
+        }
+      } catch (parseErr) {
+        console.warn("Could not parse document content:", parseErr);
+        // Non-fatal: document still uploaded, just won't have AI context
+      }
+
       const { error: docError } = await supabase
         .from("project_documents")
         .insert({
@@ -401,11 +435,15 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
           file_size: file.size,
           file_type: file.type,
           uploaded_by: employeeData?.id || null,
+          parsed_content: parsedContent?.slice(0, 50000), // Limit stored content to 50k chars
         });
 
       if (docError) throw docError;
 
-      toast({ title: "Document uploaded" });
+      toast({ 
+        title: "Document uploaded",
+        description: parsedContent ? "Content indexed for AI assistance" : undefined
+      });
       loadDocuments(editingProject.id);
     } catch (error: any) {
       toast({
