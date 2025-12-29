@@ -1,52 +1,19 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus, Calendar, Briefcase } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useOrganization } from "@/hooks/useOrganization";
+import { PositionDialog, PositionEntry } from "@/components/dialogs/PositionDialog";
 import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
-interface TimelineEntry {
-  id: string;
-  position: string;
-  department: string;
-  salary: number | null;
-  manager_id: string | null;
-  effective_date: string;
-  end_date: string | null;
-  change_type: string;
-  notes: string | null;
-  employment_type?: string | null;
-  manager?: {
-    profiles: {
-      full_name: string;
-    };
-  };
-}
-
 interface PositionTimelineProps {
-  entries: TimelineEntry[];
-  currentPosition: string;
-  currentDepartment: string;
-  currentSalary?: number | null;
-  currentCurrency?: string;
-  currentEffectiveDate?: string | null;
-  currentEmploymentType?: string;
+  entries: PositionEntry[];
   employeeId?: string;
   canEdit?: boolean;
   showSalary?: boolean;
+  currency?: string;
   onRefresh?: () => void;
 }
-
-// Remove hardcoded EMPLOYMENT_TYPES - now using useEmploymentTypes hook
 
 const changeTypeConfig: Record<string, { label: string; color: string; icon: any }> = {
   promotion: { label: "Promotion", color: "bg-green-500", icon: TrendingUp },
@@ -56,128 +23,41 @@ const changeTypeConfig: Record<string, { label: string; color: string; icon: any
   initial: { label: "Joined", color: "bg-gray-500", icon: UserCheck },
 };
 
-const currencies = [
-  { code: "USD", symbol: "$", name: "US Dollar" },
-  { code: "EUR", symbol: "€", name: "Euro" },
-  { code: "GBP", symbol: "£", name: "British Pound" },
-  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
-  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
-  { code: "INR", symbol: "₹", name: "Indian Rupee" },
-  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
-  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
-  { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
-  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
-];
-
-const paymentFrequencies = [
-  { value: "weekly", label: "Weekly", multiplier: 52 },
-  { value: "monthly", label: "Monthly", multiplier: 12 },
-  { value: "annual", label: "Annual", multiplier: 1 },
-];
-
 export const PositionTimeline = ({ 
   entries, 
-  currentPosition, 
-  currentDepartment,
-  currentSalary,
-  currentCurrency = "USD",
-  currentEffectiveDate,
-  currentEmploymentType = "employee",
   employeeId,
   canEdit = false,
   showSalary = true,
+  currency = "USD",
   onRefresh
 }: PositionTimelineProps) => {
-  const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [currentEditOpen, setCurrentEditOpen] = useState(false);
-  const [currentEditLoading, setCurrentEditLoading] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PositionEntry | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isAddMode, setIsAddMode] = useState(false);
   const [revealedSalaries, setRevealedSalaries] = useState<Set<string>>(new Set());
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [positions, setPositions] = useState<string[]>([]);
-  const [showNewDepartment, setShowNewDepartment] = useState(false);
-  const [showNewPosition, setShowNewPosition] = useState(false);
-  const [newDepartment, setNewDepartment] = useState("");
-  const [newPosition, setNewPosition] = useState("");
-  const { currentOrg } = useOrganization();
   const { data: employmentTypes = [] } = useEmploymentTypes();
-  const [currentEditData, setCurrentEditData] = useState({
-    position: currentPosition,
-    department: currentDepartment,
-    salary: currentSalary?.toString() || "",
-    currency: currentCurrency,
-    paymentFrequency: "annual" as string,
-    effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
-    employmentType: currentEmploymentType,
-    notes: "",
-  });
 
-  // Load departments and positions when dialog opens
-  useEffect(() => {
-    if (currentEditOpen && currentOrg) {
-      loadDepartmentsAndPositions();
-    }
-  }, [currentEditOpen, currentOrg]);
-
-  const loadDepartmentsAndPositions = async () => {
-    if (!currentOrg) return;
-    const { data } = await supabase
-      .from("employees")
-      .select("department, position")
-      .eq("organization_id", currentOrg.id);
-    
-    if (data) {
-      const uniqueDepts = [...new Set(data.map(e => e.department).filter(Boolean))].sort();
-      const uniquePositions = [...new Set(data.map(e => e.position).filter(Boolean))].sort();
-      setDepartments(uniqueDepts);
-      setPositions(uniquePositions);
-    }
-  };
-
-  const handleDepartmentChange = (value: string) => {
-    if (value === "__new__") {
-      setShowNewDepartment(true);
-    } else {
-      setCurrentEditData({ ...currentEditData, department: value });
-    }
-  };
-
-  const handlePositionChange = (value: string) => {
-    if (value === "__new__") {
-      setShowNewPosition(true);
-    } else {
-      setCurrentEditData({ ...currentEditData, position: value });
-    }
-  };
-
-  const addNewDepartment = () => {
-    if (newDepartment.trim()) {
-      setDepartments(prev => [...new Set([...prev, newDepartment.trim()])].sort());
-      setCurrentEditData({ ...currentEditData, department: newDepartment.trim() });
-      setNewDepartment("");
-      setShowNewDepartment(false);
-    }
-  };
-
-  const addNewPosition = () => {
-    if (newPosition.trim()) {
-      setPositions(prev => [...new Set([...prev, newPosition.trim()])].sort());
-      setCurrentEditData({ ...currentEditData, position: newPosition.trim() });
-      setNewPosition("");
-      setShowNewPosition(false);
-    }
-  };
+  const salaryTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Sort entries by effective_date descending (most recent first)
-  const sortedEntries = [...entries].sort((a, b) => 
-    new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
-  );
+  // Current position (is_current=true or end_date=null) always at top
+  const sortedEntries = [...entries].sort((a, b) => {
+    // Current position always first
+    const aIsCurrent = a.is_current || a.end_date === null;
+    const bIsCurrent = b.is_current || b.end_date === null;
+    
+    if (aIsCurrent && !bIsCurrent) return -1;
+    if (!aIsCurrent && bIsCurrent) return 1;
+    
+    // Then sort by effective_date descending
+    return new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime();
+  });
 
-  const formatSalary = (salary: number | null, currency: string = "USD", showMonthly: boolean = true) => {
+  const formatSalary = (salary: number | null, currencyCode: string = "USD", showMonthly: boolean = true) => {
     if (!salary) return null;
     const annual = new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
+      currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(salary);
@@ -185,7 +65,7 @@ export const PositionTimeline = ({
     if (showMonthly) {
       const monthly = new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: currency,
+        currency: currencyCode,
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }).format(Math.round(salary / 12));
@@ -194,14 +74,11 @@ export const PositionTimeline = ({
     return `${annual}/year`;
   };
 
-  const salaryTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
-
   const toggleSalaryVisibility = (id: string) => {
     setRevealedSalaries(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
-        // Clear timer if hiding manually
         const timer = salaryTimers.current.get(id);
         if (timer) {
           clearTimeout(timer);
@@ -231,97 +108,44 @@ export const PositionTimeline = ({
     };
   }, []);
 
-  const annualPay = useMemo(() => {
-    const amount = parseFloat(currentEditData.salary) || 0;
-    const frequency = paymentFrequencies.find(f => f.value === currentEditData.paymentFrequency);
-    return amount * (frequency?.multiplier || 1);
-  }, [currentEditData.salary, currentEditData.paymentFrequency]);
-
-  const handleEdit = (entry: TimelineEntry) => {
+  const handleEdit = (entry: PositionEntry) => {
     setEditingEntry(entry);
-    setEditDialogOpen(true);
+    setIsAddMode(false);
+    setDialogOpen(true);
   };
 
-  const handleEditSuccess = () => {
+  const handleAdd = () => {
+    setEditingEntry(null);
+    setIsAddMode(true);
+    setDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
     onRefresh?.();
   };
 
-  const handleCurrentEditOpen = () => {
-    setCurrentEditData({
-      position: currentPosition,
-      department: currentDepartment,
-      salary: currentSalary?.toString() || "",
-      currency: currentCurrency,
-      paymentFrequency: "annual",
-      effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
-      employmentType: currentEmploymentType,
-      notes: "",
-    });
-    setCurrentEditOpen(true);
-  };
-
-  const handleCurrentEditSave = async () => {
-    if (!employeeId) return;
-    setCurrentEditLoading(true);
-
-    try {
-      // Calculate annual salary for storage
-      const amount = parseFloat(currentEditData.salary) || 0;
-      const frequency = paymentFrequencies.find(f => f.value === currentEditData.paymentFrequency);
-      const annualSalary = amount * (frequency?.multiplier || 1);
-
-      // Check if position or department changed to create history entry
-      const positionChanged = currentEditData.position !== currentPosition;
-      const departmentChanged = currentEditData.department !== currentDepartment;
-      const salaryChanged = annualSalary !== currentSalary;
-
-      // Update employee record
-      const { error } = await supabase
-        .from("employees")
-        .update({
-          position: currentEditData.position,
-          department: currentEditData.department,
-          employment_type: currentEditData.employmentType,
-          remuneration: annualSalary || null,
-          remuneration_currency: currentEditData.currency,
-          position_effective_date: currentEditData.effectiveDate,
-        })
-        .eq("id", employeeId);
-
-      if (error) throw error;
-
-      // If significant change, optionally create position history entry
-      if ((positionChanged || departmentChanged || salaryChanged) && currentEditData.notes) {
-        let changeType = 'lateral_move';
-        if (salaryChanged && !positionChanged && !departmentChanged) {
-          changeType = 'salary_increase';
-        } else if (positionChanged) {
-          changeType = 'promotion';
-        }
-
-        await supabase
-          .from("position_history")
-          .insert({
-            employee_id: employeeId,
-            position: currentEditData.position,
-            department: currentEditData.department,
-            salary: annualSalary || null,
-            effective_date: currentEditData.effectiveDate,
-            change_type: changeType,
-            notes: currentEditData.notes,
-          });
-      }
-
-      toast.success("Current position updated successfully");
-      setCurrentEditOpen(false);
-      onRefresh?.();
-    } catch (error: any) {
-      console.error("Error updating current position:", error);
-      toast.error(error.message || "Failed to update current position");
-    } finally {
-      setCurrentEditLoading(false);
-    }
-  };
+  if (entries.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <p className="text-sm text-muted-foreground mb-3">No position history recorded.</p>
+        {canEdit && employeeId && (
+          <Button size="sm" variant="outline" onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Position
+          </Button>
+        )}
+        
+        <PositionDialog
+          employeeId={employeeId || ""}
+          entry={null}
+          existingPositions={entries}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSuccess={handleDialogSuccess}
+        />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -329,98 +153,60 @@ export const PositionTimeline = ({
         {/* Timeline line */}
         <div className="absolute left-[13px] top-0 bottom-0 w-0.5 bg-border" />
 
-        {/* Current Position */}
-        <div className="relative pl-12 pb-5 group">
-          {/* Timeline dot - highlighted for current */}
-          <div className="absolute left-1.5 top-1 w-4 h-4 rounded-full bg-primary border-2 border-background ring-2 ring-primary/30" />
-          
-          <div className="space-y-1.5">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="default" className="text-xs px-2 py-0.5">
-                    Current
-                  </Badge>
-                  {currentEffectiveDate && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Since {formatDate(currentEffectiveDate)}
-                    </span>
-                  )}
-                </div>
-                <h4 className="font-medium text-sm">{currentPosition}</h4>
-                <p className="text-sm text-muted-foreground">{currentDepartment}</p>
-                
-                {showSalary && currentSalary && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm font-medium text-primary">
-                      {revealedSalaries.has("current") ? formatSalary(currentSalary, currentCurrency) : "••••••••"}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => toggleSalaryVisibility("current")}
-                    >
-                      {revealedSalaries.has("current") ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                )}
-              </div>
-              
-              {canEdit && employeeId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={handleCurrentEditOpen}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Position History */}
         {sortedEntries.map((entry, index) => {
+          const isCurrent = entry.is_current || entry.end_date === null;
           const config = changeTypeConfig[entry.change_type] || changeTypeConfig.initial;
           const Icon = config.icon;
 
           return (
             <div key={entry.id} className="relative pl-12 pb-5 last:pb-0 group">
-              {/* Timeline dot */}
-              <div className={`absolute left-1.5 top-1 w-4 h-4 rounded-full ${config.color} border-2 border-background`} />
+              {/* Timeline dot - highlighted for current */}
+              <div 
+                className={`absolute left-1.5 top-1 w-4 h-4 rounded-full border-2 border-background ${
+                  isCurrent 
+                    ? "bg-primary ring-2 ring-primary/30" 
+                    : config.color
+                }`} 
+              />
 
               <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-xs px-2 py-0.5">
-                        <Icon className="h-3 w-3 mr-1" />
-                        {config.label}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {isCurrent ? (
+                        <Badge variant="default" className="text-xs px-2 py-0.5">
+                          Current
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs px-2 py-0.5">
+                          <Icon className="h-3 w-3 mr-1" />
+                          {config.label}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
                         {formatDate(entry.effective_date)}
-                        {entry.end_date && (
+                        {entry.end_date ? (
                           <> - {formatDate(entry.end_date)}</>
-                        )}
+                        ) : isCurrent ? (
+                          <> - Present</>
+                        ) : null}
                       </span>
                     </div>
                     <h4 className="font-medium text-sm">{entry.position}</h4>
                     <p className="text-sm text-muted-foreground">{entry.department}</p>
-                    
+
                     {entry.employment_type && (
                       <Badge variant="secondary" className="text-xs mt-1 gap-1">
                         <Briefcase className="h-3 w-3" />
                         {employmentTypes.find(t => t.name === entry.employment_type)?.label || entry.employment_type}
                       </Badge>
                     )}
-                    
+
                     {showSalary && entry.salary && (
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm font-medium text-primary">
-                          {revealedSalaries.has(entry.id) ? formatSalary(entry.salary, currentCurrency) : "••••••••"}
+                          {revealedSalaries.has(entry.id) ? formatSalary(entry.salary, currency) : "••••••••"}
                         </p>
                         <Button
                           variant="ghost"
@@ -432,11 +218,12 @@ export const PositionTimeline = ({
                         </Button>
                       </div>
                     )}
-                    
-                    {entry.manager && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Manager: {entry.manager.profiles.full_name}
-                      </p>
+
+                    {!isCurrent && (
+                      <Badge variant="outline" className="text-xs mt-1 gap-1">
+                        <Icon className="h-3 w-3" />
+                        {config.label}
+                      </Badge>
                     )}
 
                     {entry.notes && (
@@ -463,205 +250,16 @@ export const PositionTimeline = ({
         })}
       </div>
 
-      <EditPositionHistoryDialog
-        entry={editingEntry}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        onSuccess={handleEditSuccess}
-      />
-
-      {/* Edit Current Position Dialog */}
-      <Dialog open={currentEditOpen} onOpenChange={(open) => {
-        setCurrentEditOpen(open);
-        if (!open) {
-          setShowNewDepartment(false);
-          setShowNewPosition(false);
-          setNewDepartment("");
-          setNewPosition("");
-        }
-      }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Current Position</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="current-position">Position *</Label>
-                {showNewPosition ? (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newPosition}
-                      onChange={(e) => setNewPosition(e.target.value)}
-                      placeholder="Enter new position"
-                      autoFocus
-                    />
-                    <Button type="button" size="sm" onClick={addNewPosition}>Add</Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewPosition(false)}>Cancel</Button>
-                  </div>
-                ) : (
-                  <Select value={currentEditData.position} onValueChange={handlePositionChange}>
-                    <SelectTrigger id="current-position">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new position</span>
-                      </SelectItem>
-                      {positions.map((pos) => (
-                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="current-department">Department *</Label>
-                {showNewDepartment ? (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newDepartment}
-                      onChange={(e) => setNewDepartment(e.target.value)}
-                      placeholder="Enter new department"
-                      autoFocus
-                    />
-                    <Button type="button" size="sm" onClick={addNewDepartment}>Add</Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewDepartment(false)}>Cancel</Button>
-                  </div>
-                ) : (
-                  <Select value={currentEditData.department} onValueChange={handleDepartmentChange}>
-                    <SelectTrigger id="current-department">
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new department</span>
-                      </SelectItem>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="current-employment-type">Employment Type</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {employmentTypes.map((type) => (
-                  <Button
-                    key={type.id}
-                    type="button"
-                    size="sm"
-                    variant={currentEditData.employmentType === type.name ? "default" : "outline"}
-                    onClick={() => setCurrentEditData({ ...currentEditData, employmentType: type.name })}
-                  >
-                    {type.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            
-            {showSalary && (
-              <div className="space-y-3">
-                <Label>Remuneration</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label htmlFor="current-currency" className="text-xs text-muted-foreground">Currency</Label>
-                    <Select
-                      value={currentEditData.currency}
-                      onValueChange={(value) => setCurrentEditData({ ...currentEditData, currency: value })}
-                    >
-                      <SelectTrigger id="current-currency">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        {currencies.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
-                            {currency.symbol} {currency.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="current-salary" className="text-xs text-muted-foreground">Amount</Label>
-                    <Input
-                      id="current-salary"
-                      type="number"
-                      value={currentEditData.salary}
-                      onChange={(e) => setCurrentEditData({ ...currentEditData, salary: e.target.value })}
-                      placeholder="e.g., 85000"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="current-frequency" className="text-xs text-muted-foreground">Frequency</Label>
-                    <Select
-                      value={currentEditData.paymentFrequency}
-                      onValueChange={(value) => setCurrentEditData({ ...currentEditData, paymentFrequency: value })}
-                    >
-                      <SelectTrigger id="current-frequency">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        {paymentFrequencies.map((freq) => (
-                          <SelectItem key={freq.value} value={freq.value}>
-                            {freq.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                {/* Annual Pay Calculation */}
-                {currentEditData.salary && (
-                  <div className="p-3 bg-muted/50 rounded-lg border">
-                    <p className="text-xs text-muted-foreground">Annual Pay</p>
-                    <p className="text-lg font-semibold text-primary">
-                      {formatSalary(annualPay, currentEditData.currency)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="current-effective-date">Effective Date</Label>
-              <Input
-                id="current-effective-date"
-                type="date"
-                value={currentEditData.effectiveDate}
-                onChange={(e) => setCurrentEditData({ ...currentEditData, effectiveDate: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Date when this position became effective</p>
-            </div>
-
-            <div>
-              <Label htmlFor="current-notes">Notes (optional)</Label>
-              <Textarea
-                id="current-notes"
-                value={currentEditData.notes}
-                onChange={(e) => setCurrentEditData({ ...currentEditData, notes: e.target.value })}
-                placeholder="Add context about this position change..."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground mt-1">If notes are provided and position/salary changes, a history entry will be created</p>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setCurrentEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCurrentEditSave} disabled={currentEditLoading}>
-                {currentEditLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {canEdit && employeeId && (
+        <PositionDialog
+          employeeId={employeeId}
+          entry={isAddMode ? null : editingEntry}
+          existingPositions={entries}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
     </>
   );
 };
