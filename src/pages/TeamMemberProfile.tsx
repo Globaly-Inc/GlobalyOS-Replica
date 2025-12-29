@@ -11,7 +11,7 @@ import WinCard from "@/components/WinCard";
 import { FeedReactions } from "@/components/FeedReactions";
 import { Update } from "@/types/employee";
 import { PositionTimeline } from "@/components/PositionTimeline";
-import { AddPositionHistoryDialog } from "@/components/dialogs/AddPositionHistoryDialog";
+// PositionDialog is now used internally by PositionTimeline
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
@@ -338,6 +338,8 @@ const TeamMemberProfile = () => {
         end_date,
         change_type,
         notes,
+        employment_type,
+        is_current,
         manager:employees!position_history_manager_id_fkey(
           profiles!inner(full_name)
         )
@@ -875,18 +877,19 @@ const TeamMemberProfile = () => {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    {canEditPositionTimeline && <AddPositionHistoryDialog employeeId={id!} onSuccess={() => {
-                  loadPositionHistory();
-                  loadEmployee();
-                }} />}
-                  </div>
                 </div>
                 <div className="p-4">
-                  <PositionTimeline entries={positionHistory} currentPosition={employee.position} currentDepartment={employee.department} currentSalary={canViewSalary ? employee.remuneration : undefined} currentCurrency={employee.remuneration_currency || "USD"} currentEffectiveDate={employee.position_effective_date} currentEmploymentType={employee.employment_type || "employee"} employeeId={id} canEdit={canEditPositionTimeline} showSalary={canViewSalary} onRefresh={() => {
-                loadPositionHistory();
-                loadEmployee();
-              }} />
+                  <PositionTimeline 
+                    entries={positionHistory} 
+                    employeeId={id} 
+                    canEdit={canEditPositionTimeline} 
+                    showSalary={canViewSalary} 
+                    currency={employee.remuneration_currency || "USD"}
+                    onRefresh={() => {
+                      loadPositionHistory();
+                      loadEmployee();
+                    }} 
+                  />
                 </div>
               </Card>}
 

@@ -4899,6 +4899,7 @@ export type Database = {
           employment_type: string | null
           end_date: string | null
           id: string
+          is_current: boolean | null
           manager_id: string | null
           notes: string | null
           organization_id: string | null
@@ -4915,6 +4916,7 @@ export type Database = {
           employment_type?: string | null
           end_date?: string | null
           id?: string
+          is_current?: boolean | null
           manager_id?: string | null
           notes?: string | null
           organization_id?: string | null
@@ -4931,6 +4933,7 @@ export type Database = {
           employment_type?: string | null
           end_date?: string | null
           id?: string
+          is_current?: boolean | null
           manager_id?: string | null
           notes?: string | null
           organization_id?: string | null
