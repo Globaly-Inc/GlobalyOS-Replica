@@ -60,6 +60,7 @@ interface EmployeeProject {
     name: string;
     icon: string;
     color: string;
+    logo_url: string | null;
   };
 }
 const DynamicIcon = ({
@@ -286,7 +287,7 @@ const TeamMemberProfile = () => {
       data
     } = await supabase.from("employee_projects").select(`
         id,
-        project:projects(id, name, icon, color)
+        project:projects(id, name, icon, color, logo_url)
       `).eq("employee_id", id);
     if (data) {
       setEmployeeProjects(data.filter(ep => ep.project) as EmployeeProject[]);
@@ -672,9 +673,17 @@ const TeamMemberProfile = () => {
                     </span>}
                   <span className="text-muted-foreground">·</span>
                   {employeeProjects.length > 0 ? employeeProjects.map(ep => <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
-                        <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{
-                    color: ep.project.color
-                  }} />
+                        {ep.project.logo_url ? (
+                          <img 
+                            src={ep.project.logo_url} 
+                            alt={ep.project.name}
+                            className="h-3 w-3 rounded-sm object-cover"
+                          />
+                        ) : (
+                          <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{
+                            color: ep.project.color
+                          }} />
+                        )}
                         {ep.project.name}
                       </Badge>) : <span className="text-xs text-muted-foreground italic">No projects</span>}
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
