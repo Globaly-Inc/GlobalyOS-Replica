@@ -707,6 +707,50 @@ export type Database = {
         }
         Relationships: []
       }
+      broken_link_reports: {
+        Row: {
+          created_at: string
+          email_sent: boolean
+          id: string
+          organization_id: string | null
+          path: string
+          referrer: string | null
+          reported_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          organization_id?: string | null
+          path: string
+          referrer?: string | null
+          reported_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          organization_id?: string | null
+          path?: string
+          referrer?: string | null
+          reported_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broken_link_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_event_offices: {
         Row: {
           calendar_event_id: string

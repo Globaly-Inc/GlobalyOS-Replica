@@ -186,7 +186,12 @@ const Notifications = () => {
     } else if (notification.reference_type === "leave_request") {
       navigateOrg("/leave-history");
     } else if (notification.reference_type === "kpi") {
-      navigateOrg("/kpi");
+      // Navigate to specific KPI if reference_id exists
+      if (notification.reference_id) {
+        navigateOrg(`/kpi/${notification.reference_id}`);
+      } else {
+        navigateOrg("/kpi");
+      }
     }
   };
 
