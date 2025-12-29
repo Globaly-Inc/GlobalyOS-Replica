@@ -91,6 +91,7 @@ import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
 import { AddKPIDialog } from "@/components/dialogs/AddKPIDialog";
 import { useGroupKpis, useOrganizationKpis } from "@/services/useKpi";
 import { OrganisationKpiCard } from "@/components/kpi";
+import { KpiBulkActionsBar, SelectedKpi } from "@/components/kpi/KpiBulkActionsBar";
 import {
   ChartContainer,
   ChartTooltip,
@@ -139,6 +140,10 @@ const TeamKPIDashboard = () => {
   // Employee filter popover state
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  
+  // Bulk selection state
+  const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   
   // Edit/Delete state
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
@@ -346,6 +351,30 @@ const TeamKPIDashboard = () => {
     },
   });
 
+  // Bulk delete KPI mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (kpiIds: string[]) => {
+      const { error } = await supabase
+        .from("kpis")
+        .delete()
+        .in("id", kpiIds);
+      if (error) throw error;
+    },
+    onSuccess: (_, kpiIds) => {
+      queryClient.invalidateQueries({ queryKey: ["team-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["group-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-kpis"] });
+      toast.success(`Deleted ${kpiIds.length} KPIs successfully`);
+      setSelectedKpis(new Set());
+      setBulkDeleteDialogOpen(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to delete selected KPIs");
+      console.error(error);
+    },
+  });
+
   // Fetch historical KPIs for trend analysis (last 4 quarters)
   const { data: historicalKPIs = [] } = useQuery({
     queryKey: ["team-kpis-historical", teamMembers.map(t => t.id), year],
@@ -465,6 +494,124 @@ const TeamKPIDashboard = () => {
     const filteredMemberIds = filteredTeamMembers.map(m => m.id);
     return teamKPIs.filter(kpi => filteredMemberIds.includes(kpi.employee_id));
   }, [teamKPIs, filteredTeamMembers]);
+
+  // Toggle single KPI selection
+  const toggleSelectKpi = (kpiId: string) => {
+    const newSelected = new Set(selectedKpis);
+    if (newSelected.has(kpiId)) {
+      newSelected.delete(kpiId);
+    } else {
+      newSelected.add(kpiId);
+    }
+    setSelectedKpis(newSelected);
+  };
+
+  // Get all selectable KPIs based on permissions
+  const getAllSelectableKpis = useMemo((): SelectedKpi[] => {
+    const selectableKpis: SelectedKpi[] = [];
+    
+    // Add organization KPIs (only admin can edit)
+    if (isAdmin) {
+      organizationKpis.forEach(kpi => {
+        selectableKpis.push({
+          id: kpi.id,
+          scopeType: 'organization',
+          canEdit: true,
+        });
+      });
+    }
+    
+    // Add group KPIs (only admin can edit)
+    if (isAdmin) {
+      groupKpis.forEach(kpi => {
+        selectableKpis.push({
+          id: kpi.id,
+          scopeType: kpi.scope_type,
+          canEdit: true,
+        });
+      });
+    }
+    
+    // Add individual KPIs that user can edit
+    filteredTeamKPIs.forEach(kpi => {
+      if (canEditKpi(kpi as unknown as Kpi)) {
+        selectableKpis.push({
+          id: kpi.id,
+          scopeType: 'individual',
+          canEdit: true,
+        });
+      }
+    });
+    
+    return selectableKpis;
+  }, [isAdmin, organizationKpis, groupKpis, filteredTeamKPIs, currentEmployee?.id, teamMembers]);
+
+  // Select all visible KPIs (that user can edit)
+  const selectAllKpis = () => {
+    const allSelectableIds = new Set(getAllSelectableKpis.map(k => k.id));
+    setSelectedKpis(allSelectableIds);
+  };
+
+  // Clear all selections
+  const deselectAllKpis = () => {
+    setSelectedKpis(new Set());
+  };
+
+  // Get selected KPI details for the bulk actions bar
+  const getSelectedKpiDetails = useMemo((): SelectedKpi[] => {
+    return getAllSelectableKpis.filter(k => selectedKpis.has(k.id));
+  }, [getAllSelectableKpis, selectedKpis]);
+
+  // Check if user can delete any selected KPIs
+  const hasEditableKpisSelected = useMemo(() => {
+    return getSelectedKpiDetails.some(k => k.canEdit);
+  }, [getSelectedKpiDetails]);
+
+  // Export selected KPIs to CSV
+  const exportSelectedKpis = () => {
+    // Gather all KPIs
+    const allKpis = [
+      ...organizationKpis.map(k => ({ ...k, scope_type: 'organization' })),
+      ...groupKpis,
+      ...filteredTeamKPIs.map(k => ({ ...k, scope_type: 'individual' })),
+    ];
+    const selectedKpiData = allKpis.filter(kpi => selectedKpis.has(kpi.id));
+    
+    if (selectedKpiData.length === 0) {
+      toast.error("No KPIs selected for export");
+      return;
+    }
+    
+    const headers = ["Title", "Description", "Type", "Status", "Quarter", "Year", "Current Value", "Target Value", "Unit", "Progress %"];
+    const rows = selectedKpiData.map(kpi => {
+      const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+      return [
+        `"${(kpi.title || '').replace(/"/g, '""')}"`,
+        `"${(kpi.description || '').replace(/"/g, '""')}"`,
+        kpi.scope_type || 'individual',
+        kpi.status,
+        `Q${kpi.quarter}`,
+        kpi.year,
+        kpi.current_value || 0,
+        kpi.target_value || 0,
+        kpi.unit || '',
+        progress
+      ];
+    });
+    
+    const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `kpis-export-${year}-${quarter === 0 ? 'annual' : `Q${quarter}`}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Exported ${selectedKpiData.length} KPIs`);
+  };
 
   // Process historical data for trend charts
   const trendData = useMemo(() => {
@@ -1080,13 +1227,26 @@ const TeamKPIDashboard = () => {
                 <CardContent className="px-3 sm:px-6">
                   <div className="space-y-3">
                     {organizationKpis.map((kpi) => (
-                      <OrganisationKpiCard 
-                        key={kpi.id} 
-                        kpi={kpi} 
-                        canEdit={isAdmin}
-                        onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
-                        onDelete={() => setDeletingKpiId(kpi.id)}
-                      />
+                      <div key={kpi.id} className={cn(
+                        "flex items-start gap-3",
+                        selectedKpis.has(kpi.id) && "ring-2 ring-primary/30 rounded-lg"
+                      )}>
+                        {isAdmin && (
+                          <Checkbox
+                            checked={selectedKpis.has(kpi.id)}
+                            onCheckedChange={() => toggleSelectKpi(kpi.id)}
+                            className="mt-4 shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <OrganisationKpiCard 
+                            kpi={kpi} 
+                            canEdit={isAdmin}
+                            onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
+                            onDelete={() => setDeletingKpiId(kpi.id)}
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
@@ -1128,14 +1288,24 @@ const TeamKPIDashboard = () => {
                       const ScopeIcon = scope.icon;
                       
                       return (
-                        <OrgLink
-                          key={kpi.id}
-                          to={`/kpi/${kpi.id}`}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
-                        >
-                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                            <div className={cn("p-2 rounded-lg shrink-0", scope.color)}>
-                              <ScopeIcon className="h-4 w-4" />
+                        <div key={kpi.id} className="flex items-center gap-2">
+                          {isAdmin && (
+                            <Checkbox
+                              checked={selectedKpis.has(kpi.id)}
+                              onCheckedChange={() => toggleSelectKpi(kpi.id)}
+                              className="shrink-0"
+                            />
+                          )}
+                          <OrgLink
+                            to={`/kpi/${kpi.id}`}
+                            className={cn(
+                              "flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group",
+                              selectedKpis.has(kpi.id) && "bg-primary/5 border-primary/30"
+                            )}
+                          >
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                              <div className={cn("p-2 rounded-lg shrink-0", scope.color)}>
+                                <ScopeIcon className="h-4 w-4" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
@@ -1208,6 +1378,7 @@ const TeamKPIDashboard = () => {
                             <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
                           </div>
                         </OrgLink>
+                        </div>
                       );
                     })}
                   </div>
@@ -1247,18 +1418,30 @@ const TeamKPIDashboard = () => {
                         ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
                         : 0;
                       
+                      const canEdit = canEditKpi(kpi as unknown as Kpi);
+                      
                       return (
-                        <OrgLink
-                          key={kpi.id}
-                          to={`/kpi/${kpi.id}`}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
-                        >
-                          {/* Mobile: Top row with avatar, name, status */}
-                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                            <Avatar className="h-8 w-8 shrink-0">
-                              <AvatarImage src={(member?.profiles as any)?.avatar_url} />
-                              <AvatarFallback className="text-xs">
-                                {(member?.profiles as any)?.full_name?.charAt(0) || "?"}
+                        <div key={kpi.id} className="flex items-center gap-2">
+                          {canEdit && (
+                            <Checkbox
+                              checked={selectedKpis.has(kpi.id)}
+                              onCheckedChange={() => toggleSelectKpi(kpi.id)}
+                              className="shrink-0"
+                            />
+                          )}
+                          <OrgLink
+                            to={`/kpi/${kpi.id}`}
+                            className={cn(
+                              "flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group",
+                              selectedKpis.has(kpi.id) && "bg-primary/5 border-primary/30"
+                            )}
+                          >
+                            {/* Mobile: Top row with avatar, name, status */}
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarImage src={(member?.profiles as any)?.avatar_url} />
+                                <AvatarFallback className="text-xs">
+                                  {(member?.profiles as any)?.full_name?.charAt(0) || "?"}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
@@ -1359,6 +1542,7 @@ const TeamKPIDashboard = () => {
                           </DropdownMenu>
                           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
                         </OrgLink>
+                        </div>
                       );
                     })}
                   </div>
@@ -1730,6 +1914,40 @@ const TeamKPIDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected KPIs</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedKpis.size} KPIs? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkDeleteMutation.mutate(Array.from(selectedKpis))}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedKpis.size} KPIs`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Bulk Actions Bar */}
+      {selectedKpis.size > 0 && (
+        <KpiBulkActionsBar
+          selectedItems={getSelectedKpiDetails}
+          totalItems={getAllSelectableKpis.length}
+          onSelectAll={selectAllKpis}
+          onDeselectAll={deselectAllKpis}
+          onDeleteSelected={() => setBulkDeleteDialogOpen(true)}
+          onExportSelected={exportSelectedKpis}
+          canDelete={hasEditableKpisSelected}
+        />
+      )}
     </>
   );
 };
