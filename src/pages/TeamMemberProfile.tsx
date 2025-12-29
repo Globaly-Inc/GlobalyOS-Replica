@@ -40,6 +40,7 @@ import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
+import { ManageLeaveTypesDialog } from "@/components/dialogs/ManageLeaveTypesDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1193,6 +1194,7 @@ const TeamMemberProfile = () => {
                         <span className="hidden sm:inline">Leave History</span>
                       </Button>
                     </OrgLink>
+                    {canManageLeave && <ManageLeaveTypesDialog employeeId={id!} />}
                     {canManageLeave && <AddLeaveBalanceDialog employeeId={id!} />}
                   </div>
                 </div>
