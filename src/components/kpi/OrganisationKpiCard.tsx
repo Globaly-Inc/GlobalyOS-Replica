@@ -70,7 +70,7 @@ export function OrganisationKpiCard({
   const childCount = kpi.child_count || children.length;
 
   return (
-    <Card className="border-l-4 border-l-indigo-500 hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
@@ -83,6 +83,16 @@ export function OrganisationKpiCard({
             </OrgLink>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-medium text-muted-foreground">
+              {kpi.target_value ? (
+                <>
+                  {kpi.current_value || 0} / {kpi.target_value} {kpi.unit || ""}
+                  <span className="ml-1">({displayProgress}%)</span>
+                </>
+              ) : (
+                `${displayProgress}%`
+              )}
+            </span>
             <Badge className={cn("text-xs", statusColors[kpi.status] || statusColors.on_track)}>
               {statusLabels[kpi.status] || "On Track"}
             </Badge>
@@ -129,35 +139,6 @@ export function OrganisationKpiCard({
           </p>
         )}
       </CardHeader>
-      <CardContent className="pt-2">
-        <div className="space-y-3">
-          {/* Progress */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                {kpi.auto_rollup && childCount > 0 && (
-                  <TrendingUp className="h-3 w-3" />
-                )}
-                Progress
-                {kpi.auto_rollup && childCount > 0 && (
-                  <span className="text-xs">(auto)</span>
-                )}
-              </span>
-              <span className="font-medium">
-                {kpi.target_value ? (
-                  <>
-                    {kpi.current_value || 0} / {kpi.target_value} {kpi.unit || ""}
-                    <span className="text-muted-foreground ml-1">({displayProgress}%)</span>
-                  </>
-                ) : (
-                  `${displayProgress}%`
-                )}
-              </span>
-            </div>
-            <Progress value={displayProgress} className="h-2" />
-          </div>
-        </div>
-      </CardContent>
     </Card>
   );
 }
