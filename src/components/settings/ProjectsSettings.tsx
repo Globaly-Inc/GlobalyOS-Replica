@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +37,10 @@ import {
   FileText,
   X,
   Sparkles,
-  User
+  User,
+  Search,
+  Camera,
+  ImageIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +60,7 @@ interface Project {
   description: string | null;
   project_lead_id: string | null;
   secondary_lead_id: string | null;
+  logo_url: string | null;
 }
 
 interface ProjectDocument {
@@ -66,10 +72,31 @@ interface ProjectDocument {
   created_at: string;
 }
 
+// Extended icon options - 50+ icons organized by category
 const iconOptions = [
-  "folder", "briefcase", "rocket", "zap", "star", "heart", "target", "flag",
-  "layers", "box", "database", "cloud", "globe", "shield", "lock", "key",
-  "users", "building", "home", "truck", "plane", "ship", "car", "bike"
+  // General
+  "folder", "briefcase", "rocket", "target", "zap", "star", "heart", "flag",
+  "award", "trophy", "bookmark", "tag", "hash", "at-sign",
+  // Tech
+  "globe", "layers", "box", "package", "database", "cloud", "code", "terminal",
+  "cpu", "smartphone", "monitor", "server", "wifi", "hard-drive", "git-branch",
+  // Media
+  "camera", "music", "video", "image", "file-text", "file", "book", "newspaper",
+  "mic", "headphones", "tv", "radio",
+  // People & Places
+  "users", "building", "building-2", "home", "map", "compass", "map-pin", "navigation",
+  // Time & Alerts
+  "calendar", "clock", "bell", "alarm-clock", "timer", "hourglass",
+  // Business
+  "trending-up", "bar-chart", "pie-chart", "dollar-sign", "credit-card", "shopping-cart",
+  "shopping-bag", "receipt", "wallet", "banknote",
+  // Security
+  "shield", "lock", "key", "eye", "fingerprint",
+  // Transport
+  "truck", "plane", "ship", "car", "bike",
+  // Nature & Other
+  "sun", "moon", "leaf", "tree", "mountain", "umbrella", "coffee", "lightbulb",
+  "puzzle", "gamepad-2", "palette", "pen-tool", "scissors", "wrench", "settings"
 ];
 
 const colorOptions = [
@@ -100,6 +127,14 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
   const [description, setDescription] = useState("");
   const [projectLeadId, setProjectLeadId] = useState<string | null>(null);
   const [secondaryLeadId, setSecondaryLeadId] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  
+  // Icon picker state
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [iconSearch, setIconSearch] = useState("");
+  const [logoMode, setLogoMode] = useState<"icon" | "custom">("icon");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   // Documents state
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -109,6 +144,11 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
   // Employees for lead selection
   const { data: employeesData } = useEmployees({ status: 'active' });
   const employees = (employeesData || []) as any[];
+
+  // Filter icons based on search
+  const filteredIcons = iconOptions.filter(i => 
+    i.toLowerCase().includes(iconSearch.toLowerCase())
+  );
 
   useEffect(() => {
     if (organizationId) {
@@ -122,7 +162,7 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
     try {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, name, icon, color, description, project_lead_id, secondary_lead_id")
+        .select("id, name, icon, color, description, project_lead_id, secondary_lead_id, logo_url")
         .eq("organization_id", organizationId)
         .order("name");
 
@@ -159,6 +199,8 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
     setDescription("");
     setProjectLeadId(null);
     setSecondaryLeadId(null);
+    setLogoUrl(null);
+    setLogoMode("icon");
     setDocuments([]);
     setDialogOpen(true);
   };
@@ -171,8 +213,74 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
     setDescription(project.description || "");
     setProjectLeadId(project.project_lead_id);
     setSecondaryLeadId(project.secondary_lead_id);
+    setLogoUrl(project.logo_url);
+    setLogoMode(project.logo_url ? "custom" : "icon");
     await loadDocuments(project.id);
     setDialogOpen(true);
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !organizationId) return;
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload PNG, JPG, SVG, or WebP images.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-logo.${fileExt}`;
+      const filePath = `${organizationId}/${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("project-logos")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("project-logos")
+        .getPublicUrl(filePath);
+
+      setLogoUrl(urlData.publicUrl);
+      toast({ title: "Logo uploaded" });
+    } catch (error: any) {
+      toast({
+        title: "Error uploading logo",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoUrl(null);
+    setLogoMode("icon");
   };
 
   const handleSave = async () => {
@@ -186,6 +294,7 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
         description: description.trim() || null,
         project_lead_id: projectLeadId,
         secondary_lead_id: secondaryLeadId,
+        logo_url: logoMode === "custom" ? logoUrl : null,
       };
 
       if (editingProject) {
@@ -246,7 +355,6 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
     const file = event.target.files?.[0];
     if (!file || !editingProject || !organizationId) return;
 
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown'];
     if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md')) {
       toast({
@@ -257,7 +365,6 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -269,25 +376,21 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
 
     setUploadingDoc(true);
     try {
-      const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${file.name}`;
       const filePath = `${organizationId}/${editingProject.id}/${fileName}`;
 
-      // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from("project-documents")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // Get current employee ID
       const { data: employeeData } = await supabase
         .from("employees")
         .select("id")
         .eq("organization_id", organizationId)
         .single();
 
-      // Save document metadata
       const { error: docError } = await supabase
         .from("project_documents")
         .insert({
@@ -320,12 +423,10 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
 
   const handleDeleteDocument = async (doc: ProjectDocument) => {
     try {
-      // Delete from storage
       await supabase.storage
         .from("project-documents")
         .remove([doc.file_path]);
 
-      // Delete metadata
       const { error } = await supabase
         .from("project_documents")
         .delete()
@@ -413,16 +514,25 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
                   className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div 
-                      className="h-10 w-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${project.color}20` }}
-                    >
-                      <DynamicIcon 
-                        name={project.icon} 
-                        className="h-5 w-5" 
-                        style={{ color: project.color }} 
-                      />
-                    </div>
+                    {project.logo_url ? (
+                      <Avatar className="h-10 w-10 rounded-lg">
+                        <AvatarImage src={project.logo_url} className="object-cover" />
+                        <AvatarFallback className="rounded-lg" style={{ backgroundColor: `${project.color}20` }}>
+                          <DynamicIcon name={project.icon} className="h-5 w-5" style={{ color: project.color }} />
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <div 
+                        className="h-10 w-10 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${project.color}20` }}
+                      >
+                        <DynamicIcon 
+                          name={project.icon} 
+                          className="h-5 w-5" 
+                          style={{ color: project.color }} 
+                        />
+                      </div>
+                    )}
                     <div>
                       <p className="font-medium">{project.name}</p>
                       {project.description && (
@@ -490,46 +600,173 @@ export const ProjectsSettings = ({ organizationId }: ProjectsSettingsProps) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Icon</Label>
-                  <Select value={icon} onValueChange={setIcon}>
-                    <SelectTrigger>
-                      <SelectValue>
-                        <div className="flex items-center gap-2">
-                          <DynamicIcon name={icon} className="h-4 w-4" />
-                          <span className="capitalize">{icon}</span>
-                        </div>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {iconOptions.map((i) => (
-                        <SelectItem key={i} value={i}>
-                          <div className="flex items-center gap-2">
-                            <DynamicIcon name={i} className="h-4 w-4" />
-                            <span className="capitalize">{i}</span>
+              {/* Icon / Logo Selection */}
+              <div className="space-y-3">
+                <Label>Icon / Logo</Label>
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <Tabs value={logoMode} onValueChange={(v) => setLogoMode(v as "icon" | "custom")}>
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="icon" className="gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Icon
+                      </TabsTrigger>
+                      <TabsTrigger value="custom" className="gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Custom Logo
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="icon" className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        {/* Icon Preview */}
+                        <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="h-16 w-16 rounded-xl flex items-center justify-center border-2 border-dashed hover:border-primary/50 transition-colors cursor-pointer"
+                              style={{ backgroundColor: `${color}20` }}
+                            >
+                              <DynamicIcon 
+                                name={icon} 
+                                className="h-8 w-8" 
+                                style={{ color }} 
+                              />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-3" align="start">
+                            <div className="space-y-3">
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search icons..."
+                                  value={iconSearch}
+                                  onChange={(e) => setIconSearch(e.target.value)}
+                                  className="pl-8 h-9"
+                                />
+                              </div>
+                              <ScrollArea className="h-[200px]">
+                                <div className="grid grid-cols-8 gap-1">
+                                  {filteredIcons.map((i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      className={cn(
+                                        "h-8 w-8 rounded flex items-center justify-center hover:bg-accent transition-colors",
+                                        icon === i && "bg-primary/10 ring-1 ring-primary"
+                                      )}
+                                      onClick={() => {
+                                        setIcon(i);
+                                        setIconPickerOpen(false);
+                                        setIconSearch("");
+                                      }}
+                                      title={i}
+                                    >
+                                      <DynamicIcon name={i} className="h-4 w-4" style={{ color }} />
+                                    </button>
+                                  ))}
+                                </div>
+                                {filteredIcons.length === 0 && (
+                                  <p className="text-center text-sm text-muted-foreground py-4">
+                                    No icons found
+                                  </p>
+                                )}
+                              </ScrollArea>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+
+                        <div className="flex-1 space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            Click the icon to browse and select from 50+ options
+                          </p>
+                          {/* Color Selection */}
+                          <div className="flex flex-wrap gap-2">
+                            {colorOptions.map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                className={cn(
+                                  "w-6 h-6 rounded-full border-2 transition-all",
+                                  color === c ? "border-foreground scale-110" : "border-transparent"
+                                )}
+                                style={{ backgroundColor: c }}
+                                onClick={() => setColor(c)}
+                              />
+                            ))}
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Color</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {colorOptions.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        className={cn(
-                          "w-6 h-6 rounded-full border-2 transition-all",
-                          color === c ? "border-foreground scale-110" : "border-transparent"
-                        )}
-                        style={{ backgroundColor: c }}
-                        onClick={() => setColor(c)}
-                      />
-                    ))}
-                  </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="custom" className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        {/* Logo Preview / Upload Area */}
+                        <div className="relative">
+                          <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            disabled={uploadingLogo}
+                            className={cn(
+                              "h-16 w-16 rounded-xl flex items-center justify-center border-2 border-dashed transition-colors overflow-hidden",
+                              logoUrl 
+                                ? "border-transparent" 
+                                : "hover:border-primary/50 bg-muted/50"
+                            )}
+                          >
+                            {uploadingLogo ? (
+                              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            ) : logoUrl ? (
+                              <img 
+                                src={logoUrl} 
+                                alt="Project logo" 
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Camera className="h-6 w-6 text-muted-foreground" />
+                            )}
+                          </button>
+                          {logoUrl && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveLogo}
+                              className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium">
+                            {logoUrl ? "Logo uploaded" : "Upload project logo"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            PNG, JPG, SVG, or WebP (max 2MB)
+                          </p>
+                          {!logoUrl && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={uploadingLogo}
+                              className="mt-2 gap-2"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Upload
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               </div>
             </div>
