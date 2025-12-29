@@ -38,6 +38,8 @@ import { format, differenceInCalendarDays, addDays, isSameDay } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+type EmploymentType = 'trainee' | 'intern' | 'contract' | 'employee';
+
 interface LeaveType {
   id: string;
   name: string;
@@ -45,6 +47,7 @@ interface LeaveType {
   category: string;
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
+  applies_to_employment_types: EmploymentType[] | null;
   currentBalance: number;
   availableBalance: number;
   isExhausted: boolean;
@@ -103,13 +106,13 @@ export const AddLeaveRequestDialog = ({
     }
   }, [selectedHalfDayType, selectedStartDate, form]);
 
-  // Fetch employee's office_id and gender
+  // Fetch employee's office_id, gender, and employment_type
   const { data: employeeData } = useQuery({
-    queryKey: ["employee-office-gender", employeeId],
+    queryKey: ["employee-office-gender-employment", employeeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("office_id, gender")
+        .select("office_id, gender, employment_type")
         .eq("id", employeeId)
         .single();
       if (error) throw error;
@@ -118,9 +121,9 @@ export const AddLeaveRequestDialog = ({
     enabled: !!employeeId,
   });
 
-  // Fetch leave types based on employee's office and gender, including balances
+  // Fetch leave types based on employee's office, gender, and employment type, including balances
   const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id, employeeData?.gender, employeeId],
+    queryKey: ["leave-types-for-employee", currentOrg?.id, employeeData?.office_id, employeeData?.gender, employeeData?.employment_type, employeeId],
     queryFn: async () => {
       if (!currentOrg) return [];
       
@@ -129,7 +132,7 @@ export const AddLeaveRequestDialog = ({
       // Get all active leave types for the organization
       const { data: types, error } = await supabase
         .from("leave_types")
-        .select("id, name, min_days_advance, category, applies_to_all_offices, max_negative_days, applies_to_gender")
+        .select("id, name, min_days_advance, category, applies_to_all_offices, max_negative_days, applies_to_gender, applies_to_employment_types")
         .eq("organization_id", currentOrg.id)
         .eq("is_active", true)
         .order("name");
@@ -146,9 +149,10 @@ export const AddLeaveRequestDialog = ({
 
       const balanceMap = new Map(balances?.map(b => [b.leave_type_id, b.balance]) || []);
 
-      // Filter by office and gender
+      // Filter by office, gender, and employment type
       const filteredTypes: LeaveType[] = [];
       const employeeGender = employeeData?.gender;
+      const employeeEmploymentType = employeeData?.employment_type;
       
       for (const type of types) {
         // Check gender restriction
@@ -156,6 +160,14 @@ export const AddLeaveRequestDialog = ({
         if (genderRestriction !== 'all') {
           // If there's a gender restriction, check if employee's gender matches
           if (!employeeGender || employeeGender !== genderRestriction) {
+            continue; // Skip this leave type
+          }
+        }
+        
+        // Check employment type restriction
+        const employmentTypes = type.applies_to_employment_types;
+        if (employmentTypes && employmentTypes.length > 0) {
+          if (!employeeEmploymentType || !employmentTypes.includes(employeeEmploymentType)) {
             continue; // Skip this leave type
           }
         }
@@ -174,6 +186,7 @@ export const AddLeaveRequestDialog = ({
             category: type.category,
             max_negative_days: maxNegative,
             applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+            applies_to_employment_types: type.applies_to_employment_types as EmploymentType[] | null,
             currentBalance,
             availableBalance,
             isExhausted,
@@ -195,6 +208,7 @@ export const AddLeaveRequestDialog = ({
               category: type.category,
               max_negative_days: maxNegative,
               applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+              applies_to_employment_types: type.applies_to_employment_types as EmploymentType[] | null,
               currentBalance,
               availableBalance,
               isExhausted,

@@ -2,6 +2,8 @@
  * Leave management type definitions
  */
 
+export type EmploymentType = 'trainee' | 'intern' | 'contract' | 'employee';
+
 export interface LeaveType {
   id: string;
   organization_id: string;
@@ -15,6 +17,7 @@ export interface LeaveType {
   is_system: boolean;
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
+  applies_to_employment_types: EmploymentType[] | null;
   created_at: string;
   updated_at: string;
 }
