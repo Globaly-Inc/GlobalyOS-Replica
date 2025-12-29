@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.start-kpi-generation]
 verify_jwt = false
+
+[functions.report-broken-link]
+verify_jwt = false
