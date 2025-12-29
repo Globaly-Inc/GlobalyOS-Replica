@@ -102,6 +102,19 @@ export const FieldsSettings = () => {
   const [deletePositionId, setDeletePositionId] = useState<string | null>(null);
   const [deleteDepartmentName, setDeleteDepartmentName] = useState<string | null>(null);
 
+  // Employment Type dialog state
+  const [employmentTypeDialogOpen, setEmploymentTypeDialogOpen] = useState(false);
+  const [editingEmploymentType, setEditingEmploymentType] = useState<{ id: string; name: string; label: string; description: string | null; is_active: boolean } | null>(null);
+  const [employmentTypeLabel, setEmploymentTypeLabel] = useState("");
+  const [employmentTypeDescription, setEmploymentTypeDescription] = useState("");
+  const [deleteEmploymentTypeId, setDeleteEmploymentTypeId] = useState<string | null>(null);
+
+  // Employment types hooks
+  const { data: employmentTypes = [], isLoading: employmentTypesLoading } = useEmploymentTypes(false);
+  const createEmploymentType = useCreateEmploymentType();
+  const updateEmploymentType = useUpdateEmploymentType();
+  const deleteEmploymentType = useDeleteEmploymentType();
+
   useEffect(() => {
     if (currentOrg) {
       loadData();
@@ -704,9 +717,203 @@ export const FieldsSettings = () => {
             <TabsContent value="leave-types" className="space-y-4">
               <LeaveSettings embedded />
             </TabsContent>
+
+            <TabsContent value="employment-types" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  Employment types define the nature of employment (e.g., Full-time, Contract, Intern).
+                </p>
+                <Button 
+                  onClick={() => {
+                    setEditingEmploymentType(null);
+                    setEmploymentTypeLabel("");
+                    setEmploymentTypeDescription("");
+                    setEmploymentTypeDialogOpen(true);
+                  }} 
+                  size="sm" 
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Employment Type
+                </Button>
+              </div>
+
+              {employmentTypesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : employmentTypes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No employment types found. Click "Add Employment Type" to create one.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Label</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-center">Active</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employmentTypes.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {type.label}
+                            {type.is_system && (
+                              <Badge variant="secondary" className="text-xs">System</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          {type.description ? (
+                            <span className="text-sm text-muted-foreground truncate block">
+                              {type.description}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={type.is_active}
+                            onCheckedChange={(checked) => 
+                              updateEmploymentType.mutate({ id: type.id, is_active: checked })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingEmploymentType(type);
+                                setEmploymentTypeLabel(type.label);
+                                setEmploymentTypeDescription(type.description || "");
+                                setEmploymentTypeDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {!type.is_system && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeleteEmploymentTypeId(type.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Employment Type Dialog */}
+      <Dialog open={employmentTypeDialogOpen} onOpenChange={setEmploymentTypeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingEmploymentType ? "Edit Employment Type" : "Add Employment Type"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingEmploymentType
+                ? "Update the employment type details."
+                : "Enter the details for the new employment type."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="employmentTypeLabel">Label *</Label>
+              <Input
+                id="employmentTypeLabel"
+                value={employmentTypeLabel}
+                onChange={(e) => setEmploymentTypeLabel(e.target.value)}
+                placeholder="e.g., Full-time"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employmentTypeDescription">Description (Optional)</Label>
+              <Textarea
+                id="employmentTypeDescription"
+                value={employmentTypeDescription}
+                onChange={(e) => setEmploymentTypeDescription(e.target.value)}
+                placeholder="Brief description of this employment type"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmploymentTypeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (editingEmploymentType) {
+                  updateEmploymentType.mutate({
+                    id: editingEmploymentType.id,
+                    label: employmentTypeLabel,
+                    description: employmentTypeDescription || undefined,
+                  }, {
+                    onSuccess: () => setEmploymentTypeDialogOpen(false)
+                  });
+                } else {
+                  createEmploymentType.mutate({
+                    name: employmentTypeLabel.toLowerCase().replace(/\s+/g, '_'),
+                    label: employmentTypeLabel,
+                    description: employmentTypeDescription || undefined,
+                  }, {
+                    onSuccess: () => setEmploymentTypeDialogOpen(false)
+                  });
+                }
+              }}
+              disabled={!employmentTypeLabel.trim() || createEmploymentType.isPending || updateEmploymentType.isPending}
+            >
+              {(createEmploymentType.isPending || updateEmploymentType.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              {editingEmploymentType ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Employment Type Confirmation */}
+      <AlertDialog open={!!deleteEmploymentTypeId} onOpenChange={() => setDeleteEmploymentTypeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employment Type?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this employment type. Employees with this type will need to be reassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteEmploymentTypeId) {
+                  deleteEmploymentType.mutate(deleteEmploymentTypeId, {
+                    onSuccess: () => setDeleteEmploymentTypeId(null)
+                  });
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Position Dialog */}
       <Dialog open={positionDialogOpen} onOpenChange={(open) => !open && resetPositionDialog()}>
