@@ -13,7 +13,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Clock, Check, X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Clock, Check, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -21,6 +27,15 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errorUtils";
 import { format, parseISO } from "date-fns";
 import { OrgLink } from "./OrgLink";
+import { ApproveLeaveDialog } from "./dialogs/ApproveLeaveDialog";
+import { cn } from "@/lib/utils";
+
+interface LeaveBalance {
+  leaveTypeName: string;
+  currentBalance: number;
+  maxNegative: number;
+  availableBalance: number;
+}
 
 interface PendingLeaveRequest {
   id: string;
@@ -31,6 +46,7 @@ interface PendingLeaveRequest {
   reason: string | null;
   isHRBackup?: boolean;
   managerName?: string;
+  balance?: LeaveBalance;
   employee: {
     id: string;
     profiles: {
@@ -60,11 +76,14 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const [processing, setProcessing] = useState<string | null>(null);
   const [isManagerOnLeave, setIsManagerOnLeave] = useState(false);
   const [showAsHR, setShowAsHR] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{
+  const [approveDialog, setApproveDialog] = useState<{
     open: boolean;
     request: PendingLeaveRequest | null;
-    action: "approve" | "reject";
-  }>({ open: false, request: null, action: "approve" });
+  }>({ open: false, request: null });
+  const [rejectDialog, setRejectDialog] = useState<{
+    open: boolean;
+    request: PendingLeaveRequest | null;
+  }>({ open: false, request: null });
   const [cancelDialog, setCancelDialog] = useState<{
     open: boolean;
     request: OwnPendingRequest | null;
@@ -99,6 +118,42 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       };
     }
   }, [currentOrg?.id]);
+
+  const fetchEmployeeBalance = async (employeeId: string, leaveTypeName: string): Promise<LeaveBalance | undefined> => {
+    if (!currentOrg) return undefined;
+    
+    const currentYear = new Date().getFullYear();
+    
+    // Get leave type info
+    const { data: leaveType } = await supabase
+      .from("leave_types")
+      .select("id, name, max_negative_days")
+      .eq("organization_id", currentOrg.id)
+      .eq("is_active", true)
+      .ilike("name", leaveTypeName)
+      .maybeSingle();
+
+    if (!leaveType) return undefined;
+
+    // Get balance
+    const { data: balanceData } = await supabase
+      .from("leave_type_balances")
+      .select("balance")
+      .eq("employee_id", employeeId)
+      .eq("leave_type_id", leaveType.id)
+      .eq("year", currentYear)
+      .maybeSingle();
+
+    const currentBalance = balanceData?.balance || 0;
+    const maxNegative = leaveType.max_negative_days || 0;
+
+    return {
+      leaveTypeName: leaveType.name,
+      currentBalance,
+      maxNegative,
+      availableBalance: currentBalance + maxNegative,
+    };
+  };
 
   const loadPendingRequests = async () => {
     if (!currentOrg) return;
@@ -188,7 +243,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       );
       
       for (const req of managerRequests) {
-        requests.push(req as PendingLeaveRequest);
+        // Fetch balance for this request
+        const balance = await fetchEmployeeBalance(req.employee.id, req.leave_type);
+        requests.push({
+          ...req,
+          balance,
+        } as PendingLeaveRequest);
       }
     }
 
@@ -228,6 +288,9 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           // Skip if this is the current user's own request
           if (emp.id === currentEmployee.id) continue;
           
+          // Fetch balance for this request
+          const balance = await fetchEmployeeBalance(emp.id, req.leave_type);
+          
           if (emp.manager_id) {
             // Check if their manager is on leave
             const { data: mgrOnLeave } = await supabase
@@ -253,6 +316,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                 ...req,
                 isHRBackup: true,
                 managerName,
+                balance,
               } as PendingLeaveRequest;
               
               hrBackupRequests.push(backupReq);
@@ -264,6 +328,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
               ...req,
               isHRBackup: true,
               managerName: "No manager assigned",
+              balance,
             } as PendingLeaveRequest;
             
             hrBackupRequests.push(backupReq);
@@ -279,7 +344,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     setLoading(false);
   };
 
-  const handleApproval = async (requestId: string, approved: boolean) => {
+  const handleApproval = async (requestId: string, approved: boolean, newLeaveType?: string) => {
     setProcessing(requestId);
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -303,20 +368,33 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       .eq("organization_id", currentOrg?.id)
       .maybeSingle();
 
+    // Build update object
+    const updateData: any = {
+      status: approved ? "approved" : "rejected",
+      reviewed_by: currentEmployee?.id,
+      reviewed_at: new Date().toISOString(),
+    };
+
+    // If converting to different leave type
+    if (approved && newLeaveType && newLeaveType !== leaveRequest?.leave_type) {
+      updateData.leave_type = newLeaveType;
+    }
+
     const { error } = await supabase
       .from("leave_requests")
-      .update({
-        status: approved ? "approved" : "rejected",
-        reviewed_by: currentEmployee?.id,
-        reviewed_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", requestId);
 
     if (error) {
       toast.error(getErrorMessage(error, "Failed to update leave request"));
       console.error("Update leave status error:", error);
     } else {
-      toast.success(`Leave request ${approved ? "approved" : "rejected"}`);
+      const action = approved 
+        ? (newLeaveType && newLeaveType !== leaveRequest?.leave_type 
+            ? `approved as ${newLeaveType}` 
+            : "approved")
+        : "rejected";
+      toast.success(`Leave request ${action}`);
       
       // Send notification email to employee
       try {
@@ -338,7 +416,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     }
 
     setProcessing(null);
-    setConfirmDialog({ open: false, request: null, action: "approve" });
+    setApproveDialog({ open: false, request: null });
+    setRejectDialog({ open: false, request: null });
   };
 
   const handleCancelRequest = async (requestId: string) => {
@@ -362,14 +441,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     setCancelDialog({ open: false, request: null });
   };
 
-  const openConfirmDialog = (request: PendingLeaveRequest, action: "approve" | "reject") => {
-    setConfirmDialog({ open: true, request, action });
+  const openApproveDialog = (request: PendingLeaveRequest) => {
+    setApproveDialog({ open: true, request });
   };
 
-  const confirmApproval = () => {
-    if (confirmDialog.request) {
-      handleApproval(confirmDialog.request.id, confirmDialog.action === "approve");
-    }
+  const openRejectDialog = (request: PendingLeaveRequest) => {
+    setRejectDialog({ open: true, request });
   };
 
   const getLeaveTypeLabel = (type: string) => {
@@ -380,6 +457,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       unpaid: "Unpaid Leave",
     };
     return labels[type] || type;
+  };
+
+  const hasInsufficientBalance = (request: PendingLeaveRequest) => {
+    if (!request.balance) return false;
+    const projectedBalance = request.balance.currentBalance - request.days_count;
+    return projectedBalance < -request.balance.maxNegative;
   };
 
   if (loading) {
@@ -448,98 +531,156 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           ))}
 
           {/* Pending Requests for Approval (Manager/HR) */}
-          {pendingRequests.map((request) => (
-            <div
-              key={request.id}
-              className="rounded-lg bg-background p-4 shadow-sm border"
-            >
-              <div className="flex items-start gap-3">
-                <OrgLink to={`/team/${request.employee.id}`}>
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                </OrgLink>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <OrgLink 
-                      to={`/team/${request.employee.id}`}
-                      className="text-sm font-medium text-foreground hover:underline"
-                    >
-                      {request.employee.profiles.full_name}
-                    </OrgLink>
-                    {request.isHRBackup && (
-                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
-                        {request.managerName === "No manager assigned" 
-                          ? "No manager" 
-                          : `${request.managerName} on leave`}
+          {pendingRequests.map((request) => {
+            const insufficientBalance = hasInsufficientBalance(request);
+            
+            return (
+              <div
+                key={request.id}
+                className={cn(
+                  "rounded-lg bg-background p-4 shadow-sm border",
+                  insufficientBalance && "border-amber-300 bg-amber-50/30"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <OrgLink to={`/team/${request.employee.id}`}>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {request.employee.profiles.full_name.split(" ").map(n => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </OrgLink>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <OrgLink 
+                        to={`/team/${request.employee.id}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                      >
+                        {request.employee.profiles.full_name}
+                      </OrgLink>
+                      {request.isHRBackup && (
+                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                          {request.managerName === "No manager assigned" 
+                            ? "No manager" 
+                            : `${request.managerName} on leave`}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs">
+                        {getLeaveTypeLabel(request.leave_type)}
                       </Badge>
+                      <span>
+                        {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
+                      </span>
+                      <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
+                    </div>
+                    
+                    {/* Balance Display */}
+                    {request.balance && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs cursor-help",
+                                  insufficientBalance 
+                                    ? "bg-destructive/10 text-destructive border-destructive/30" 
+                                    : request.balance.currentBalance <= 0 
+                                      ? "bg-amber-100 text-amber-700 border-amber-200"
+                                      : "bg-green-50 text-green-700 border-green-200"
+                                )}
+                              >
+                                {insufficientBalance && (
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                )}
+                                Balance: {request.balance.currentBalance} days
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              <div className="space-y-1 text-xs">
+                                <p><span className="font-medium">Current:</span> {request.balance.currentBalance} days</p>
+                                <p><span className="font-medium">Max negative allowed:</span> {request.balance.maxNegative} days</p>
+                                <p><span className="font-medium">After approval:</span> {request.balance.currentBalance - request.days_count} days</p>
+                                {insufficientBalance && (
+                                  <p className="text-destructive font-medium mt-1">
+                                    Exceeds allowed negative balance!
+                                  </p>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    )}
+                    
+                    {request.reason && (
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {request.reason}
+                      </p>
                     )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="text-xs">
-                      {getLeaveTypeLabel(request.leave_type)}
-                    </Badge>
-                    <span>
-                      {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
-                    </span>
-                    <span>({request.days_count} {request.days_count === 1 ? "day" : "days"})</span>
-                  </div>
-                  {request.reason && (
-                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                      {request.reason}
-                    </p>
-                  )}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={insufficientBalance ? "outline" : "default"}
+                    className={cn(
+                      "flex-1",
+                      insufficientBalance && "border-amber-300 text-amber-700 hover:bg-amber-50"
+                    )}
+                    onClick={() => openApproveDialog(request)}
+                    disabled={processing === request.id}
+                  >
+                    <Check className="mr-1 h-3 w-3" />
+                    {insufficientBalance ? "Review & Approve" : "Approve"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => openRejectDialog(request)}
+                    disabled={processing === request.id}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    Reject
+                  </Button>
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="flex-1"
-                  onClick={() => openConfirmDialog(request, "approve")}
-                  disabled={processing === request.id}
-                >
-                  <Check className="mr-1 h-3 w-3" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => openConfirmDialog(request, "reject")}
-                  disabled={processing === request.id}
-                >
-                  <X className="mr-1 h-3 w-3" />
-                  Reject
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 
-      {/* Approval Confirmation Dialog */}
+      {/* Approve Dialog with Balance and Leave Type Conversion */}
+      <ApproveLeaveDialog
+        open={approveDialog.open}
+        onOpenChange={(open) => !open && setApproveDialog({ open: false, request: null })}
+        request={approveDialog.request}
+        onApprove={(requestId, newLeaveType) => handleApproval(requestId, true, newLeaveType)}
+        processing={!!processing}
+      />
+
+      {/* Reject Confirmation Dialog */}
       <AlertDialog 
-        open={confirmDialog.open} 
-        onOpenChange={(open) => !open && setConfirmDialog({ open: false, request: null, action: "approve" })}
+        open={rejectDialog.open} 
+        onOpenChange={(open) => !open && setRejectDialog({ open: false, request: null })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmDialog.action === "approve" ? "Approve" : "Reject"} Leave Request?
-            </AlertDialogTitle>
+            <AlertDialogTitle>Reject Leave Request?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.request && (
+              {rejectDialog.request && (
                 <>
-                  Are you sure you want to {confirmDialog.action}{" "}
-                  <span className="font-medium">{confirmDialog.request.employee.profiles.full_name}'s</span>{" "}
-                  {getLeaveTypeLabel(confirmDialog.request.leave_type).toLowerCase()} request for{" "}
-                  {confirmDialog.request.days_count} {confirmDialog.request.days_count === 1 ? "day" : "days"} (
-                  {format(parseISO(confirmDialog.request.start_date), "MMM d")} -{" "}
-                  {format(parseISO(confirmDialog.request.end_date), "MMM d")})?
+                  Are you sure you want to reject{" "}
+                  <span className="font-medium">{rejectDialog.request.employee.profiles.full_name}'s</span>{" "}
+                  {getLeaveTypeLabel(rejectDialog.request.leave_type).toLowerCase()} request for{" "}
+                  {rejectDialog.request.days_count} {rejectDialog.request.days_count === 1 ? "day" : "days"} (
+                  {format(parseISO(rejectDialog.request.start_date), "MMM d")} -{" "}
+                  {format(parseISO(rejectDialog.request.end_date), "MMM d")})?
                 </>
               )}
             </AlertDialogDescription>
@@ -547,11 +688,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           <AlertDialogFooter>
             <AlertDialogCancel disabled={!!processing}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmApproval}
+              onClick={() => rejectDialog.request && handleApproval(rejectDialog.request.id, false)}
               disabled={!!processing}
-              className={confirmDialog.action === "reject" ? "bg-destructive hover:bg-destructive/90" : ""}
+              className="bg-destructive hover:bg-destructive/90"
             >
-              {processing ? "Processing..." : confirmDialog.action === "approve" ? "Approve" : "Reject"}
+              {processing ? "Processing..." : "Reject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
