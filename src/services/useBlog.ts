@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errorUtils";
 
 export interface BlogPost {
   id: string;
@@ -145,7 +146,8 @@ export const useCreateBlogPost = () => {
       toast.success('Blog post created');
     },
     onError: (error) => {
-      toast.error('Failed to create blog post: ' + error.message);
+      const message = getErrorMessage(error, 'Failed to create blog post');
+      toast.error(message);
     },
   });
 };
@@ -179,7 +181,8 @@ export const useUpdateBlogPost = () => {
       toast.success('Blog post updated');
     },
     onError: (error) => {
-      toast.error('Failed to update blog post: ' + error.message);
+      const message = getErrorMessage(error, 'Failed to update blog post');
+      toast.error(message);
     },
   });
 };
@@ -202,7 +205,8 @@ export const useDeleteBlogPost = () => {
       toast.success('Blog post deleted');
     },
     onError: (error) => {
-      toast.error('Failed to delete blog post: ' + error.message);
+      const message = getErrorMessage(error, 'Failed to delete blog post');
+      toast.error(message);
     },
   });
 };
@@ -258,11 +262,8 @@ export const useCreateBlogKeyword = () => {
       toast.success('Keyword added');
     },
     onError: (error) => {
-      if (error.message.includes('duplicate')) {
-        toast.error('This keyword already exists');
-      } else {
-        toast.error('Failed to add keyword: ' + error.message);
-      }
+      const message = getErrorMessage(error, 'Failed to add keyword');
+      toast.error(message);
     },
   });
 };
@@ -288,7 +289,8 @@ export const useUpdateBlogKeyword = () => {
       toast.success('Keyword updated');
     },
     onError: (error) => {
-      toast.error('Failed to update keyword: ' + error.message);
+      const message = getErrorMessage(error, 'Failed to update keyword');
+      toast.error(message);
     },
   });
 };
@@ -311,7 +313,8 @@ export const useDeleteBlogKeyword = () => {
       toast.success('Keyword deleted');
     },
     onError: (error) => {
-      toast.error('Failed to delete keyword: ' + error.message);
+      const message = getErrorMessage(error, 'Failed to delete keyword');
+      toast.error(message);
     },
   });
 };

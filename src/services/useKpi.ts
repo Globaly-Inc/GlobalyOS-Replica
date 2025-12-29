@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errorUtils';
 import type { Kpi, KpiWithEmployee, KpiTemplate, KpiAiInsight, GroupKpiWithScope, KpiScopeType, KpiWithHierarchy, OrganizationKpi } from '@/types';
 import { sendKpiNotifications } from './kpiNotifications';
 
@@ -439,8 +440,9 @@ export const useCreateKpi = () => {
       queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
       toast.success('KPI created');
     },
-    onError: () => {
-      toast.error('Failed to create KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to create KPI');
+      toast.error(message);
     },
   });
 };
@@ -519,8 +521,9 @@ export const useCreateGroupKpi = () => {
       queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
       toast.success('KPI created');
     },
-    onError: () => {
-      toast.error('Failed to create KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to create KPI');
+      toast.error(message);
     },
   });
 };
@@ -556,8 +559,9 @@ export const useLinkKpi = () => {
       queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
       toast.success('KPI linked');
     },
-    onError: () => {
-      toast.error('Failed to link KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to link KPI');
+      toast.error(message);
     },
   });
 };
@@ -585,8 +589,9 @@ export const useUnlinkKpi = () => {
       queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
       toast.success('KPI unlinked');
     },
-    onError: () => {
-      toast.error('Failed to unlink KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to unlink KPI');
+      toast.error(message);
     },
   });
 };
@@ -610,8 +615,9 @@ export const useToggleAutoRollup = () => {
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
       toast.success('Auto-rollup setting updated');
     },
-    onError: () => {
-      toast.error('Failed to update setting');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to update setting');
+      toast.error(message);
     },
   });
 };
@@ -647,8 +653,9 @@ export const useUpdateKpiProgress = () => {
       queryClient.invalidateQueries({ queryKey: ['employee-inherited-kpis'] });
       toast.success('KPI progress updated');
     },
-    onError: () => {
-      toast.error('Failed to update KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to update KPI');
+      toast.error(message);
     },
   });
 };
@@ -673,8 +680,9 @@ export const useDeleteKpi = () => {
       queryClient.invalidateQueries({ queryKey: ['employee-inherited-kpis'] });
       toast.success('KPI deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete KPI');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to delete KPI');
+      toast.error(message);
     },
   });
 };
@@ -725,8 +733,9 @@ export const useGenerateKpiInsights = () => {
       });
       toast.success('AI insights generated');
     },
-    onError: () => {
-      toast.error('Failed to generate insights');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to generate insights');
+      toast.error(message);
     },
   });
 };

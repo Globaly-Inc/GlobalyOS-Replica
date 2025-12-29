@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errorUtils';
 import { format } from 'date-fns';
 import type { 
   AttendanceRecord, 
@@ -222,7 +223,8 @@ export const useManualAttendance = () => {
       toast.success('Attendance record updated');
     },
     onError: (error) => {
-      toast.error('Failed to update attendance');
+      const message = getErrorMessage(error, 'Failed to update attendance');
+      toast.error(message);
       console.error('Manual attendance error:', error);
     },
   });
