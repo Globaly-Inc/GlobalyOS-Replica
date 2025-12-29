@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Calendar, CalendarDays } from "lucide-react";
 import { Kpi, KpiStatus, KpiScopeType } from "@/types/kpi";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +47,7 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
   const [unit, setUnit] = useState("");
   const [status, setStatus] = useState<KpiStatus>("on_track");
   const [scopeType, setScopeType] = useState<KpiScopeType>("individual");
+  const [periodType, setPeriodType] = useState<"annual" | "quarterly">("quarterly");
   const [quarter, setQuarter] = useState<number>(1);
   const [year, setYear] = useState<number>(currentYear);
 
@@ -57,6 +60,8 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
       setUnit(kpi.unit || "");
       setStatus(kpi.status);
       setScopeType(kpi.scope_type || "individual");
+      // Determine period type based on whether quarter is set
+      setPeriodType(kpi.quarter ? "quarterly" : "annual");
       setQuarter(kpi.quarter || 1);
       setYear(kpi.year || currentYear);
     }
@@ -72,7 +77,7 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
       unit: string | null;
       status: KpiStatus;
       scope_type: KpiScopeType;
-      quarter: number;
+      quarter: number | null;
       year: number;
       oldValues: Record<string, unknown>;
     }) => {
@@ -104,7 +109,11 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
         if (data.oldValues.unit !== data.unit) changedFields.push('unit');
         if (data.oldValues.status !== data.status) changedFields.push('status');
         if (data.oldValues.scope_type !== data.scope_type) changedFields.push('scope');
-        if (data.oldValues.quarter !== data.quarter) changedFields.push('quarter');
+        // Check for period type change (annual vs quarterly)
+        const oldIsAnnual = data.oldValues.quarter === null;
+        const newIsAnnual = data.quarter === null;
+        if (oldIsAnnual !== newIsAnnual) changedFields.push('period type');
+        else if (data.oldValues.quarter !== data.quarter) changedFields.push('quarter');
         if (data.oldValues.year !== data.year) changedFields.push('year');
 
         if (changedFields.length > 0) {
@@ -160,7 +169,7 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
       unit: unit || null,
       status,
       scope_type: scopeType,
-      quarter,
+      quarter: periodType === "annual" ? null : quarter,
       year,
       oldValues: {
         title: kpi.title,
@@ -203,6 +212,28 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
             />
           </div>
 
+          {/* Period Type Toggle */}
+          <div>
+            <Label className="mb-2 block">Period Type</Label>
+            <ToggleGroup 
+              type="single" 
+              value={periodType}
+              onValueChange={(value) => {
+                if (value) setPeriodType(value as "annual" | "quarterly");
+              }}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="annual" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Annual
+              </ToggleGroupItem>
+              <ToggleGroupItem value="quarterly" className="gap-2">
+                <CalendarDays className="h-4 w-4" />
+                Quarterly
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="scopeType">Scope</Label>
@@ -219,20 +250,22 @@ export function EditKPIDialog({ open, onOpenChange, kpi }: EditKPIDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="quarter">Quarter</Label>
-              <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Q1</SelectItem>
-                  <SelectItem value="2">Q2</SelectItem>
-                  <SelectItem value="3">Q3</SelectItem>
-                  <SelectItem value="4">Q4</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {periodType === "quarterly" && (
+              <div className="space-y-2">
+                <Label htmlFor="quarter">Quarter</Label>
+                <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Q1</SelectItem>
+                    <SelectItem value="2">Q2</SelectItem>
+                    <SelectItem value="3">Q3</SelectItem>
+                    <SelectItem value="4">Q4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="year">Year</Label>
               <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
