@@ -177,6 +177,7 @@ export type Database = {
           kpis_enabled: boolean
           leave_enabled: boolean
           organization_id: string
+          projects_enabled: boolean
           team_directory_enabled: boolean
           updated_at: string | null
           wiki_enabled: boolean
@@ -191,6 +192,7 @@ export type Database = {
           kpis_enabled?: boolean
           leave_enabled?: boolean
           organization_id: string
+          projects_enabled?: boolean
           team_directory_enabled?: boolean
           updated_at?: string | null
           wiki_enabled?: boolean
@@ -205,6 +207,7 @@ export type Database = {
           kpis_enabled?: boolean
           leave_enabled?: boolean
           organization_id?: string
+          projects_enabled?: boolean
           team_directory_enabled?: boolean
           updated_at?: string | null
           wiki_enabled?: boolean
@@ -5772,6 +5775,71 @@ export type Database = {
         }
         Relationships: []
       }
+      project_documents: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          organization_id: string
+          project_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id: string
+          project_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id?: string
+          project_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           color: string
@@ -5781,6 +5849,8 @@ export type Database = {
           id: string
           name: string
           organization_id: string
+          project_lead_id: string | null
+          secondary_lead_id: string | null
           updated_at: string
         }
         Insert: {
@@ -5791,6 +5861,8 @@ export type Database = {
           id?: string
           name: string
           organization_id: string
+          project_lead_id?: string | null
+          secondary_lead_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -5801,6 +5873,8 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string
+          project_lead_id?: string | null
+          secondary_lead_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5809,6 +5883,34 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_project_lead_id_fkey"
+            columns: ["project_lead_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_project_lead_id_fkey"
+            columns: ["project_lead_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_secondary_lead_id_fkey"
+            columns: ["secondary_lead_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_secondary_lead_id_fkey"
+            columns: ["secondary_lead_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]

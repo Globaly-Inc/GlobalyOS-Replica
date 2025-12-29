@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { 
-  List, 
+  Users, 
   Briefcase, 
   Building, 
   Plus, 
@@ -47,11 +47,13 @@ import {
   Sparkles,
   Wand2,
   X,
-  UserCheck
+  UserCheck,
+  Clock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { LeaveSettings } from "./LeaveSettings";
+import { AttendanceSettings } from "./AttendanceSettings";
 import { useEmploymentTypes, useCreateEmploymentType, useUpdateEmploymentType, useDeleteEmploymentType } from "@/hooks/useEmploymentTypes";
 
 interface Position {
@@ -529,11 +531,11 @@ export const FieldsSettings = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <List className="h-5 w-5" />
-            Field Management
+            <Users className="h-5 w-5" />
+            HR & Team Settings
           </CardTitle>
           <CardDescription>
-            Manage dropdown options used throughout the system
+            Manage HR fields and team configuration options
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -557,6 +559,10 @@ export const FieldsSettings = () => {
               <TabsTrigger value="employment-types" className="gap-2">
                 <UserCheck className="h-4 w-4" />
                 Employment Types
+              </TabsTrigger>
+              <TabsTrigger value="attendance" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Attendance
               </TabsTrigger>
             </TabsList>
 
@@ -814,6 +820,10 @@ export const FieldsSettings = () => {
                   </TableBody>
                 </Table>
               )}
+            </TabsContent>
+
+            <TabsContent value="attendance" className="space-y-4">
+              <AttendanceSettings embedded />
             </TabsContent>
           </Tabs>
         </CardContent>
