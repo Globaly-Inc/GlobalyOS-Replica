@@ -906,7 +906,7 @@ const TeamMemberProfile = () => {
                 open={showAddPositionDialog}
                 onOpenChange={setShowAddPositionDialog}
                 employeeId={id}
-                mode="add"
+                existingPositions={positionHistory}
                 onSuccess={() => {
                   loadPositionHistory();
                   loadEmployee();
