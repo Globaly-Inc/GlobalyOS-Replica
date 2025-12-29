@@ -747,3 +747,82 @@ export const useGenerateKpiInsights = () => {
     },
   });
 };
+
+// Update KPI owner
+export const useUpdateKpiOwner = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ kpiId, employeeId }: { kpiId: string; employeeId: string | null }) => {
+      const { data, error } = await supabase
+        .from('kpis')
+        .update({ employee_id: employeeId })
+        .eq('id', kpiId)
+        .eq('organization_id', currentOrg?.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-detail', variables.kpiId] });
+      queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
+    },
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to update owner');
+      toast.error(message);
+    },
+  });
+};
+
+// Log KPI activity
+export const useLogKpiActivity = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      kpiId,
+      actionType,
+      description,
+      oldValue,
+      newValue,
+    }: {
+      kpiId: string;
+      actionType: string;
+      description?: string;
+      oldValue?: Record<string, unknown>;
+      newValue?: Record<string, unknown>;
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Missing organization or employee context');
+      }
+
+      const insertData = {
+        kpi_id: kpiId,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        action_type: actionType,
+        description: description || null,
+        old_value: oldValue || null,
+        new_value: newValue || null,
+      };
+
+      const { data, error } = await supabase
+        .from('kpi_activity_logs')
+        .insert(insertData as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', variables.kpiId] });
+    },
+  });
+};

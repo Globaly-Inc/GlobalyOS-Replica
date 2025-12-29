@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/ui/card';
@@ -41,7 +41,17 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import type { KpiStatus, KpiReminderFrequency, KpiAttachment, KpiMilestone } from '@/types';
-import { KpiAttachmentUpload, KpiAttachmentPreview, KpiMilestoneProgress, KpiCelebration, StaleKpiIndicator, ParentKpiSection, LinkedKpisSection } from '@/components/kpi';
+import { 
+  KpiAttachmentUpload, 
+  KpiAttachmentPreview, 
+  KpiMilestoneProgress, 
+  KpiCelebration, 
+  StaleKpiIndicator, 
+  ParentKpiSection, 
+  LinkedKpisSection,
+  KpiActivityLogs,
+  KpiOwnersDisplay
+} from '@/components/kpi';
 import { useKpiHierarchy } from '@/services/useKpi';
 
 const statusColors: Record<KpiStatus, string> = {
@@ -65,7 +75,7 @@ const KpiDetail = () => {
   const { navigateOrg } = useOrgNavigation();
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
-  const { isAdmin, isHR } = useUserRole();
+  const { isAdmin, isHR, isOwner } = useUserRole();
   
   const { data: kpi, isLoading } = useKpiDetail(kpiId);
   const { data: hierarchy } = useKpiHierarchy(kpiId);
@@ -89,7 +99,6 @@ const KpiDetail = () => {
   const [dayOfWeek, setDayOfWeek] = useState<number>(1);
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [reminderTime, setReminderTime] = useState('09:00');
-  const [showReminderSettings, setShowReminderSettings] = useState(false);
   
   // Timeline expansion
   const [showAllUpdates, setShowAllUpdates] = useState(false);
@@ -106,10 +115,23 @@ const KpiDetail = () => {
     }
   }, [kpi?.update_settings]);
 
+  // Detect changes in reminder settings for smart save button
+  const hasReminderChanges = useMemo(() => {
+    if (!kpi?.update_settings) return true; // New settings - show save
+    const settings = kpi.update_settings;
+    return (
+      reminderEnabled !== settings.is_enabled ||
+      frequency !== settings.frequency ||
+      dayOfWeek !== (settings.day_of_week ?? 1) ||
+      dayOfMonth !== (settings.day_of_month ?? 1) ||
+      reminderTime !== (settings.reminder_time?.slice(0, 5) || '09:00')
+    );
+  }, [kpi?.update_settings, reminderEnabled, frequency, dayOfWeek, dayOfMonth, reminderTime]);
+
   // Check if user can edit this KPI
   const canEdit = () => {
     if (!kpi || !currentEmployee) return false;
-    if (isAdmin || isHR) return true;
+    if (isAdmin || isHR || isOwner) return true;
     
     // Own individual KPI
     if (kpi.employee_id === currentEmployee.id) return true;
@@ -117,6 +139,21 @@ const KpiDetail = () => {
     // Group KPI membership
     if (kpi.scope_type === 'department' && kpi.scope_department === currentEmployee.department) return true;
     if (kpi.scope_type === 'office' && kpi.scope_office_id === currentEmployee.office_id) return true;
+    
+    return false;
+  };
+
+  // Check if user can edit KPI owners
+  const canEditOwners = () => {
+    if (!kpi || !currentEmployee) return false;
+    if (isAdmin || isHR || isOwner) return true;
+    
+    // Manager can edit for subordinates
+    if (kpi.employee_id) {
+      // Would need to check if kpi.employee is a subordinate of currentEmployee
+      // For now, allow managers to edit if they can edit the KPI
+      return canEdit();
+    }
     
     return false;
   };
@@ -171,6 +208,16 @@ const KpiDetail = () => {
   const displayedUpdates = showAllUpdates 
     ? kpi?.updates || [] 
     : (kpi?.updates || []).slice(0, 5);
+
+  // Build owners array for display
+  const kpiOwners = useMemo(() => {
+    if (!kpi?.employee) return [];
+    return [{
+      id: kpi.employee.id,
+      full_name: kpi.employee.profiles.full_name,
+      avatar_url: kpi.employee.profiles.avatar_url,
+    }];
+  }, [kpi?.employee]);
 
   if (isLoading) {
     return (
@@ -458,6 +505,16 @@ const KpiDetail = () => {
               )}
             </Card>
 
+            {/* Parent KPI Section - Moved below Update History */}
+            {hierarchy?.parent && (
+              <ParentKpiSection
+                parent={hierarchy.parent}
+                childKpiId={kpi.id}
+                contributionWeight={kpi.child_contribution_weight || 1}
+                canEdit={canEdit()}
+              />
+            )}
+
             {/* Linked KPIs Section (for org/group KPIs) */}
             {(kpi.scope_type === 'organization' || kpi.scope_type === 'department' || 
               kpi.scope_type === 'office' || kpi.scope_type === 'project') && (
@@ -473,27 +530,17 @@ const KpiDetail = () => {
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
-            {/* Parent KPI Section */}
-            {hierarchy?.parent && (
-              <ParentKpiSection
-                parent={hierarchy.parent}
-                childKpiId={kpi.id}
-                contributionWeight={kpi.child_contribution_weight || 1}
-                canEdit={canEdit()}
-              />
-            )}
-
-
             {/* Quick Stats */}
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Quick Stats</h3>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Owner</span>
-                  <span className="font-medium flex items-center gap-1">
-                    {getScopeIcon()}
-                    {getScopeName()}
-                  </span>
+                <div className="space-y-2">
+                  <span className="text-sm text-muted-foreground">Owner</span>
+                  <KpiOwnersDisplay 
+                    owners={kpiOwners}
+                    kpiId={kpi.id}
+                    canEdit={canEditOwners()}
+                  />
                 </div>
                 <Separator />
                 <div className="flex justify-between text-sm">
@@ -511,105 +558,96 @@ const KpiDetail = () => {
               </div>
             </Card>
 
-            {/* Reminder Settings */}
+            {/* Reminder Settings - Always Open, Smart Save */}
             {canEdit() && (
               <Card className="p-6">
-                <div 
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => setShowReminderSettings(!showReminderSettings)}
-                >
-                  <h3 className="font-semibold flex items-center gap-2">
-                    {reminderEnabled ? (
-                      <Bell className="h-5 w-5 text-primary" />
-                    ) : (
-                      <BellOff className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    Update Reminders
-                  </h3>
-                  {showReminderSettings ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold flex items-center gap-2 mb-4">
+                  {reminderEnabled ? (
+                    <Bell className="h-5 w-5 text-primary" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    <BellOff className="h-5 w-5 text-muted-foreground" />
                   )}
-                </div>
+                  Update Reminders
+                </h3>
                 
-                {showReminderSettings && (
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="reminder-enabled">Enable Reminders</Label>
-                      <Switch
-                        id="reminder-enabled"
-                        checked={reminderEnabled}
-                        onCheckedChange={setReminderEnabled}
-                      />
-                    </div>
-                    
-                    {reminderEnabled && (
-                      <>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="reminder-enabled">Enable Reminders</Label>
+                    <Switch
+                      id="reminder-enabled"
+                      checked={reminderEnabled}
+                      onCheckedChange={setReminderEnabled}
+                    />
+                  </div>
+                  
+                  {reminderEnabled && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Frequency</Label>
+                        <Select value={frequency} onValueChange={(v) => setFrequency(v as KpiReminderFrequency)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {(frequency === 'weekly' || frequency === 'biweekly') && (
                         <div className="space-y-2">
-                          <Label>Frequency</Label>
-                          <Select value={frequency} onValueChange={(v) => setFrequency(v as KpiReminderFrequency)}>
+                          <Label>Day of Week</Label>
+                          <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="daily">Daily</SelectItem>
-                              <SelectItem value="weekly">Weekly</SelectItem>
-                              <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="0">Sunday</SelectItem>
+                              <SelectItem value="1">Monday</SelectItem>
+                              <SelectItem value="2">Tuesday</SelectItem>
+                              <SelectItem value="3">Wednesday</SelectItem>
+                              <SelectItem value="4">Thursday</SelectItem>
+                              <SelectItem value="5">Friday</SelectItem>
+                              <SelectItem value="6">Saturday</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        
-                        {(frequency === 'weekly' || frequency === 'biweekly') && (
-                          <div className="space-y-2">
-                            <Label>Day of Week</Label>
-                            <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="0">Sunday</SelectItem>
-                                <SelectItem value="1">Monday</SelectItem>
-                                <SelectItem value="2">Tuesday</SelectItem>
-                                <SelectItem value="3">Wednesday</SelectItem>
-                                <SelectItem value="4">Thursday</SelectItem>
-                                <SelectItem value="5">Friday</SelectItem>
-                                <SelectItem value="6">Saturday</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                        
-                        {frequency === 'monthly' && (
-                          <div className="space-y-2">
-                            <Label>Day of Month</Label>
-                            <Select value={dayOfMonth.toString()} onValueChange={(v) => setDayOfMonth(parseInt(v))}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: 28 }, (_, i) => (
-                                  <SelectItem key={i + 1} value={(i + 1).toString()}>
-                                    {i + 1}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                        
+                      )}
+                      
+                      {frequency === 'monthly' && (
                         <div className="space-y-2">
-                          <Label>Reminder Time</Label>
-                          <Input
-                            type="time"
-                            value={reminderTime}
-                            onChange={(e) => setReminderTime(e.target.value)}
-                          />
+                          <Label>Day of Month</Label>
+                          <Select value={dayOfMonth.toString()} onValueChange={(v) => setDayOfMonth(parseInt(v))}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 28 }, (_, i) => (
+                                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                  {i + 1}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </>
-                    )}
-                    
+                      )}
+                      
+                      <div className="space-y-2">
+                        <Label>Reminder Time</Label>
+                        <Input
+                          type="time"
+                          value={reminderTime}
+                          onChange={(e) => setReminderTime(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Smart Save Button - Only shows when changes detected */}
+                  {hasReminderChanges && (
                     <Button 
                       className="w-full" 
                       onClick={handleSaveReminderSettings}
@@ -617,16 +655,19 @@ const KpiDetail = () => {
                     >
                       {saveSettings.isPending ? 'Saving...' : 'Save Settings'}
                     </Button>
-                    
-                    {kpi.update_settings?.next_reminder_at && reminderEnabled && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Next reminder: {format(parseISO(kpi.update_settings.next_reminder_at), 'MMM d, yyyy h:mm a')}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  )}
+                  
+                  {kpi.update_settings?.next_reminder_at && reminderEnabled && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Next reminder: {format(parseISO(kpi.update_settings.next_reminder_at), 'MMM d, yyyy h:mm a')}
+                    </p>
+                  )}
+                </div>
               </Card>
             )}
+
+            {/* KPI Activity Logs */}
+            <KpiActivityLogs kpiId={kpiId} />
           </div>
         </div>
 

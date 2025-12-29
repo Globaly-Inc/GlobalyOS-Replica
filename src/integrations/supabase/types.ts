@@ -2397,6 +2397,71 @@ export type Database = {
           },
         ]
       }
+      kpi_activity_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string | null
+          employee_id: string
+          id: string
+          kpi_id: string
+          new_value: Json | null
+          old_value: Json | null
+          organization_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          kpi_id: string
+          new_value?: Json | null
+          old_value?: Json | null
+          organization_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          kpi_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_activity_logs_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_ai_insights: {
         Row: {
           employee_id: string
