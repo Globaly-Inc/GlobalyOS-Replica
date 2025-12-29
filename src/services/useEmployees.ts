@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errorUtils';
 import type { EmployeeDirectoryItem } from '@/types';
 
 interface UseEmployeesOptions {
@@ -153,7 +154,8 @@ export const useUpdateEmployee = () => {
       toast.success('Employee updated');
     },
     onError: (error) => {
-      toast.error('Failed to update employee');
+      const message = getErrorMessage(error, 'Failed to update employee');
+      toast.error(message);
       console.error('Update employee error:', error);
     },
   });

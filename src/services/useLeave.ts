@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errorUtils';
 import type { 
   LeaveType, 
   LeaveTypeBalanceWithType, 
@@ -223,7 +224,8 @@ export const useCreateLeaveRequest = () => {
       toast.success('Leave request submitted');
     },
     onError: (error) => {
-      toast.error('Failed to submit leave request');
+      const message = getErrorMessage(error, 'Failed to submit leave request');
+      toast.error(message);
       console.error('Create leave request error:', error);
     },
   });
@@ -263,7 +265,8 @@ export const useUpdateLeaveStatus = () => {
       toast.success(`Leave request ${variables.status}`);
     },
     onError: (error) => {
-      toast.error('Failed to update leave request');
+      const message = getErrorMessage(error, 'Failed to update leave request');
+      toast.error(message);
       console.error('Update leave status error:', error);
     },
   });
@@ -288,7 +291,8 @@ export const useCancelLeaveRequest = () => {
       toast.success('Leave request cancelled');
     },
     onError: (error) => {
-      toast.error('Failed to cancel leave request');
+      const message = getErrorMessage(error, 'Failed to cancel leave request');
+      toast.error(message);
       console.error('Cancel leave request error:', error);
     },
   });

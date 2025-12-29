@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "./useCurrentEmployee";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { WfhRequest, WfhRequestWithEmployee, WorkLocation } from "@/types/wfh";
 
 // Fetch employee's work location
@@ -167,8 +168,9 @@ export const useCreateWfhRequest = () => {
       queryClient.invalidateQueries({ queryKey: ["pending-wfh-requests"] });
       queryClient.invalidateQueries({ queryKey: ["own-pending-wfh-requests"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to submit WFH request");
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to submit WFH request');
+      toast.error(message);
     },
   });
 };
@@ -205,8 +207,9 @@ export const useUpdateWfhRequest = () => {
       queryClient.invalidateQueries({ queryKey: ["own-pending-wfh-requests"] });
       queryClient.invalidateQueries({ queryKey: ["wfh-days"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to update WFH request");
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to update WFH request');
+      toast.error(message);
     },
   });
 };
@@ -229,8 +232,9 @@ export const useCancelWfhRequest = () => {
       queryClient.invalidateQueries({ queryKey: ["pending-wfh-requests"] });
       queryClient.invalidateQueries({ queryKey: ["own-pending-wfh-requests"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to cancel WFH request");
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to cancel WFH request');
+      toast.error(message);
     },
   });
 };
@@ -276,8 +280,9 @@ export const useRemoteAttendance = () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-week"] });
       queryClient.invalidateQueries({ queryKey: ["check-in-status"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to record attendance");
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to record attendance');
+      toast.error(message);
     },
   });
 };

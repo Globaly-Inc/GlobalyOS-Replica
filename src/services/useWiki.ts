@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errorUtils';
 import type { WikiFolder, WikiPage, WikiPageWithRelations } from '@/types';
 
 // Fetch wiki folders
@@ -122,8 +123,9 @@ export const useCreateWikiFolder = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
       toast.success('Folder created');
     },
-    onError: () => {
-      toast.error('Failed to create folder');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to create folder');
+      toast.error(message);
     },
   });
 };
@@ -159,8 +161,9 @@ export const useCreateWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Page created');
     },
-    onError: () => {
-      toast.error('Failed to create page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to create page');
+      toast.error(message);
     },
   });
 };
@@ -219,8 +222,9 @@ export const useUpdateWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Page saved');
     },
-    onError: () => {
-      toast.error('Failed to save page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to save page');
+      toast.error(message);
     },
   });
 };
@@ -258,8 +262,9 @@ export const useDeleteWikiFolder = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Folder and contents deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete folder');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to delete folder');
+      toast.error(message);
     },
   });
 };
@@ -281,8 +286,9 @@ export const useDeleteWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Page deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to delete page');
+      toast.error(message);
     },
   });
 };
@@ -304,8 +310,9 @@ export const useRenameWikiFolder = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
       toast.success('Folder renamed');
     },
-    onError: () => {
-      toast.error('Failed to rename folder');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to rename folder');
+      toast.error(message);
     },
   });
 };
@@ -328,8 +335,9 @@ export const useRenameWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Page renamed');
     },
-    onError: () => {
-      toast.error('Failed to rename page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to rename page');
+      toast.error(message);
     },
   });
 };
@@ -351,8 +359,9 @@ export const useMoveWikiFolder = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-folders'] });
       toast.success('Folder moved');
     },
-    onError: () => {
-      toast.error('Failed to move folder');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to move folder');
+      toast.error(message);
     },
   });
 };
@@ -375,8 +384,9 @@ export const useMoveWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-page', variables.pageId] });
       toast.success('Page moved');
     },
-    onError: () => {
-      toast.error('Failed to move page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to move page');
+      toast.error(message);
     },
   });
 };
@@ -422,8 +432,9 @@ export const useDuplicateWikiPage = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
       toast.success('Page duplicated');
     },
-    onError: () => {
-      toast.error('Failed to duplicate page');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to duplicate page');
+      toast.error(message);
     },
   });
 };
@@ -483,8 +494,9 @@ export const useRestoreWikiPageVersion = () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-page-versions', variables.pageId] });
       toast.success('Version restored');
     },
-    onError: () => {
-      toast.error('Failed to restore version');
+    onError: (error) => {
+      const message = getErrorMessage(error, 'Failed to restore version');
+      toast.error(message);
     },
   });
 };
