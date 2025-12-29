@@ -61,7 +61,7 @@ export function ParentKpiSection({
     : 0;
 
   const handleUnlink = async () => {
-    await unlinkKpi.mutateAsync(childKpiId);
+    await unlinkKpi.mutateAsync({ kpiId: childKpiId, parentTitle: parent.title });
   };
 
   return (

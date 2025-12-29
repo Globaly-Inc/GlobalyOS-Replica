@@ -149,6 +149,19 @@ export const useAddKpiUpdate = () => {
           .eq('id', input.kpiId);
       }
 
+      // Log the activity
+      await supabase.from('kpi_activity_logs').insert({
+        kpi_id: input.kpiId,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        action_type: 'progress_updated',
+        description: input.notes 
+          ? `Updated progress: ${input.notes}` 
+          : `Updated value from ${input.previousValue ?? 0} to ${input.newValue ?? 0}`,
+        old_value: { value: input.previousValue, status: input.statusBefore },
+        new_value: { value: input.newValue, status: input.statusAfter },
+      });
+
       // Check for milestone achievement
       const { data: kpi } = await supabase
         .from('kpis')
@@ -187,6 +200,16 @@ export const useAddKpiUpdate = () => {
             .update({ milestones: updatedMilestones })
             .eq('id', input.kpiId);
 
+          // Log milestone achievement
+          await supabase.from('kpi_activity_logs').insert({
+            kpi_id: input.kpiId,
+            employee_id: currentEmployee.id,
+            organization_id: currentOrg.id,
+            action_type: 'milestone_reached',
+            description: `Reached ${crossedMilestone.percent}% milestone: ${crossedMilestone.label}`,
+            new_value: { percent: crossedMilestone.percent, label: crossedMilestone.label },
+          });
+
           return { 
             milestoneReached: { 
               percent: crossedMilestone.percent, 
@@ -201,6 +224,7 @@ export const useAddKpiUpdate = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-detail', variables.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['kpi-updates', variables.kpiId] });
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', variables.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
@@ -216,20 +240,47 @@ export const useAddKpiUpdate = () => {
 // Delete a KPI update
 export const useDeleteKpiUpdate = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ updateId, kpiId }: { updateId: string; kpiId: string }) => {
+      // Get the update details before deleting for the activity log
+      const { data: updateData } = await supabase
+        .from('kpi_updates')
+        .select('previous_value, new_value, notes')
+        .eq('id', updateId)
+        .single();
+
       const { error } = await supabase
         .from('kpi_updates')
         .delete()
         .eq('id', updateId);
 
       if (error) throw error;
+
+      // Log the deletion
+      if (currentOrg?.id && currentEmployee?.id) {
+        await supabase.from('kpi_activity_logs').insert({
+          kpi_id: kpiId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          action_type: 'update_deleted',
+          description: 'Deleted a progress update',
+          old_value: updateData ? { 
+            previous_value: updateData.previous_value, 
+            new_value: updateData.new_value,
+            notes: updateData.notes 
+          } : null,
+        });
+      }
+
       return kpiId;
     },
     onSuccess: (kpiId) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-detail', kpiId] });
       queryClient.invalidateQueries({ queryKey: ['kpi-updates', kpiId] });
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', kpiId] });
       toast.success('Update deleted');
     },
     onError: () => {
@@ -279,6 +330,13 @@ export const useSaveKpiUpdateSettings = () => {
         throw new Error('Not authenticated');
       }
 
+      // Get existing settings for the activity log
+      const { data: existingSettings } = await supabase
+        .from('kpi_update_settings')
+        .select('frequency, day_of_week, day_of_month, reminder_time, is_enabled')
+        .eq('kpi_id', input.kpiId)
+        .maybeSingle();
+
       // Calculate next reminder based on settings
       const nextReminder = calculateNextReminder(
         input.frequency,
@@ -305,10 +363,38 @@ export const useSaveKpiUpdateSettings = () => {
         });
 
       if (error) throw error;
+
+      // Log the activity
+      const description = input.isEnabled 
+        ? `Set ${input.frequency} reminder at ${input.reminderTime}`
+        : 'Disabled reminders';
+      
+      await supabase.from('kpi_activity_logs').insert({
+        kpi_id: input.kpiId,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        action_type: 'reminder_changed',
+        description,
+        old_value: existingSettings ? {
+          frequency: existingSettings.frequency,
+          day_of_week: existingSettings.day_of_week,
+          day_of_month: existingSettings.day_of_month,
+          reminder_time: existingSettings.reminder_time,
+          is_enabled: existingSettings.is_enabled,
+        } : null,
+        new_value: {
+          frequency: input.frequency,
+          day_of_week: input.dayOfWeek,
+          day_of_month: input.dayOfMonth,
+          reminder_time: input.reminderTime,
+          is_enabled: input.isEnabled,
+        },
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-update-settings', variables.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['kpi-detail', variables.kpiId] });
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', variables.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['pending-kpi-updates'] });
       toast.success('Reminder settings saved');
     },
