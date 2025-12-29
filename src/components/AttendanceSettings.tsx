@@ -12,7 +12,11 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 
-export const AttendanceSettings = () => {
+interface AttendanceSettingsProps {
+  embedded?: boolean;
+}
+
+export const AttendanceSettings = ({ embedded = false }: AttendanceSettingsProps) => {
   const { currentOrg, refreshOrganizations } = useOrganization();
   const { isAdmin } = useUserRole();
   const [loading, setLoading] = useState(false);

@@ -9,14 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, CreditCard, Save, Upload, Loader2, List, Clock, Sparkles } from "lucide-react";
+import { Building2, Users, CreditCard, Save, Upload, Loader2, Briefcase, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PageHeader } from "@/components/PageHeader";
 import { FieldsSettings } from "@/components/FieldsSettings";
-import { AttendanceSettings } from "@/components/AttendanceSettings";
 import { AIKnowledgeSettings } from "@/components/AIKnowledgeSettings";
 import BillingSettings from "@/components/BillingSettings";
+import { ProjectsSettings } from "@/components/settings/ProjectsSettings";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -165,13 +165,13 @@ const Settings = () => {
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
-          <TabsTrigger value="fields" className="gap-2">
-            <List className="h-4 w-4" />
-            Fields
+          <TabsTrigger value="hr-team" className="gap-2 tour-offices-manage tour-settings-menu">
+            <Users className="h-4 w-4" />
+            HR & Team
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2 tour-offices-manage tour-settings-menu">
-            <Clock className="h-4 w-4" />
-            Attendance
+          <TabsTrigger value="projects" className="gap-2">
+            <Briefcase className="h-4 w-4" />
+            Projects
           </TabsTrigger>
           <TabsTrigger value="ai" className="gap-2">
             <Sparkles className="h-4 w-4" />
@@ -283,12 +283,12 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="fields" className="space-y-6">
+        <TabsContent value="hr-team" className="space-y-6">
           <FieldsSettings />
         </TabsContent>
 
-        <TabsContent value="attendance" className="space-y-6">
-          <AttendanceSettings />
+        <TabsContent value="projects" className="space-y-6">
+          <ProjectsSettings organizationId={currentOrg?.id} />
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-6">
