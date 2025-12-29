@@ -275,6 +275,12 @@ const Team = () => {
 
   // clearAllFilters is now provided by useTeamFilters
 
+  // Count employees with no project assignments
+  const noProjectCount = useMemo(() => {
+    const employeesWithProjects = new Set(employeeProjects.map(ep => ep.employee_id));
+    return employees.filter(e => !employeesWithProjects.has(e.id)).length;
+  }, [employees, employeeProjects]);
+
   const filteredEmployees = employees
     .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)
     .filter((employee) => {
@@ -284,6 +290,9 @@ const Team = () => {
     })
     .filter((employee) => {
       if (projectFilter === 'all') return true;
+      if (projectFilter === 'none') {
+        return !employeeProjects.some(ep => ep.employee_id === employee.id);
+      }
       return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
     })
     .filter((employee) =>
@@ -568,6 +577,13 @@ const Team = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="none">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full border border-dashed border-muted-foreground/50" />
+                      <span>No Project</span>
+                      <span className="text-muted-foreground">({noProjectCount})</span>
+                    </div>
+                  </SelectItem>
                   {projects.map((project) => {
                     const memberCount = employeeProjects.filter(ep => ep.project_id === project.id).length;
                     return (
