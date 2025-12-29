@@ -373,6 +373,7 @@ const TeamMemberProfile = () => {
         tax_number,
         remuneration,
         remuneration_currency,
+        employment_type,
         emergency_contact_name,
         emergency_contact_phone,
         emergency_contact_relationship,
@@ -663,7 +664,7 @@ const TeamMemberProfile = () => {
                   <p className="text-base font-medium text-primary">{employee.position}</p>
                   <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditEmployeeInfoDialog employeeId={id!} currentPosition={employee.position} currentDepartment={employee.department} onSuccess={loadEmployee} />
+                      <EditEmployeeInfoDialog employeeId={id!} currentPosition={employee.position} currentDepartment={employee.department} currentEmploymentType={employee.employment_type || "employee"} onSuccess={loadEmployee} />
                     </span>}
                   <span className="text-muted-foreground">·</span>
                   {employeeProjects.length > 0 ? employeeProjects.map(ep => <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
@@ -882,7 +883,7 @@ const TeamMemberProfile = () => {
                   </div>
                 </div>
                 <div className="p-4">
-                  <PositionTimeline entries={positionHistory} currentPosition={employee.position} currentDepartment={employee.department} currentSalary={canViewSalary ? employee.remuneration : undefined} currentCurrency={employee.remuneration_currency || "USD"} currentEffectiveDate={employee.position_effective_date} employeeId={id} canEdit={canEditPositionTimeline} showSalary={canViewSalary} onRefresh={() => {
+                  <PositionTimeline entries={positionHistory} currentPosition={employee.position} currentDepartment={employee.department} currentSalary={canViewSalary ? employee.remuneration : undefined} currentCurrency={employee.remuneration_currency || "USD"} currentEffectiveDate={employee.position_effective_date} currentEmploymentType={employee.employment_type || "employee"} employeeId={id} canEdit={canEditPositionTimeline} showSalary={canViewSalary} onRefresh={() => {
                 loadPositionHistory();
                 loadEmployee();
               }} />

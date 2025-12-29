@@ -9,10 +9,18 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 
+const EMPLOYMENT_TYPES = [
+  { value: 'trainee', label: 'Trainee' },
+  { value: 'intern', label: 'Intern' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'employee', label: 'Employee' },
+] as const;
+
 interface EditEmployeeInfoDialogProps {
   employeeId: string;
   currentPosition: string;
   currentDepartment: string;
+  currentEmploymentType?: string;
   onSuccess: () => void;
 }
 
@@ -20,11 +28,13 @@ export const EditEmployeeInfoDialog = ({
   employeeId,
   currentPosition,
   currentDepartment,
+  currentEmploymentType = 'employee',
   onSuccess,
 }: EditEmployeeInfoDialogProps) => {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(currentPosition);
   const [department, setDepartment] = useState(currentDepartment);
+  const [employmentType, setEmploymentType] = useState(currentEmploymentType);
   const [loading, setLoading] = useState(false);
   const [positions, setPositions] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
@@ -73,7 +83,11 @@ export const EditEmployeeInfoDialog = ({
     try {
       const { error } = await supabase
         .from("employees")
-        .update({ position: finalPosition, department: finalDepartment })
+        .update({ 
+          position: finalPosition, 
+          department: finalDepartment,
+          employment_type: employmentType,
+        })
         .eq("id", employeeId);
       
       if (error) throw error;
@@ -166,6 +180,22 @@ export const EditEmployeeInfoDialog = ({
                 </Button>
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Employment Type</Label>
+            <Select value={employmentType} onValueChange={setEmploymentType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select employment type" />
+              </SelectTrigger>
+              <SelectContent>
+                {EMPLOYMENT_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2">
