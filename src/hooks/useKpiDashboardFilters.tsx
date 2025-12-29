@@ -10,6 +10,7 @@ export interface KpiDashboardFilters {
   departmentFilter: string;
   projectFilter: string;
   officeFilter: string;
+  selectedEmployees: string[];
 }
 
 const DEFAULT_FILTERS: KpiDashboardFilters = {
@@ -19,6 +20,7 @@ const DEFAULT_FILTERS: KpiDashboardFilters = {
   departmentFilter: "all",
   projectFilter: "all",
   officeFilter: "all",
+  selectedEmployees: [],
 };
 
 export const useKpiDashboardFilters = () => {
@@ -40,6 +42,7 @@ export const useKpiDashboardFilters = () => {
     departmentFilter: filters.departmentFilter,
     projectFilter: filters.projectFilter,
     officeFilter: filters.officeFilter,
+    selectedEmployees: filters.selectedEmployees,
     // Setters
     setViewMode: (value: "quarterly" | "annual") => setFilter("viewMode", value),
     setQuarter: (value: number) => setFilter("quarter", value),
@@ -47,6 +50,7 @@ export const useKpiDashboardFilters = () => {
     setDepartmentFilter: (value: string) => setFilter("departmentFilter", value),
     setProjectFilter: (value: string) => setFilter("projectFilter", value),
     setOfficeFilter: (value: string) => setFilter("officeFilter", value),
+    setSelectedEmployees: (value: string[]) => setFilter("selectedEmployees", value),
     clearFilters,
     isLoaded,
   };
