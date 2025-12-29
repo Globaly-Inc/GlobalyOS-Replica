@@ -7,9 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
@@ -86,6 +89,8 @@ export const PositionDialog = ({
   const [showNewPosition, setShowNewPosition] = useState(false);
   const [newDepartment, setNewDepartment] = useState("");
   const [newPosition, setNewPosition] = useState("");
+  const [positionOpen, setPositionOpen] = useState(false);
+  const [positionSearch, setPositionSearch] = useState("");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const { currentOrg } = useOrganization();
@@ -356,7 +361,7 @@ export const PositionDialog = ({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-1.5">
                 <Label htmlFor="position">Position *</Label>
                 {showNewPosition ? (
                   <div className="flex gap-2">
@@ -367,22 +372,90 @@ export const PositionDialog = ({
                       autoFocus
                     />
                     <Button type="button" size="sm" onClick={addNewPosition}>Add</Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewPosition(false)}>Cancel</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => {
+                      setShowNewPosition(false);
+                      setNewPosition("");
+                    }}>Cancel</Button>
                   </div>
                 ) : (
-                  <Select value={formData.position} onValueChange={handlePositionChange}>
-                    <SelectTrigger id="position">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Create new position</span>
-                      </SelectItem>
-                      {positions.map((pos) => (
-                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={positionOpen} onOpenChange={setPositionOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={positionOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {formData.position || "Select position..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search positions..." 
+                          value={positionSearch}
+                          onValueChange={setPositionSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            <div className="py-2 text-center">
+                              <p className="text-sm text-muted-foreground mb-2">No position found.</p>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setNewPosition(positionSearch);
+                                  setShowNewPosition(true);
+                                  setPositionOpen(false);
+                                  setPositionSearch("");
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Create "{positionSearch}"
+                              </Button>
+                            </div>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {positions.map((pos) => (
+                              <CommandItem
+                                key={pos}
+                                value={pos}
+                                onSelect={() => {
+                                  setFormData({ ...formData, position: pos });
+                                  setPositionOpen(false);
+                                  setPositionSearch("");
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.position === pos ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {pos}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                          <CommandSeparator />
+                          <CommandGroup>
+                            <CommandItem
+                              onSelect={() => {
+                                setShowNewPosition(true);
+                                setPositionOpen(false);
+                                setPositionSearch("");
+                              }}
+                              className="text-primary"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Create new position
+                            </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 )}
                 {errors.position && <p className="text-sm text-destructive mt-1">{errors.position}</p>}
               </div>
