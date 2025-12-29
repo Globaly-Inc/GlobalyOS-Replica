@@ -92,6 +92,24 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
     <OrgLink to={`/team/${employee.id}`}>
       <Card className="group overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer h-full">
         <div className="p-6 relative">
+          {/* Work Location Badge - Top Right */}
+          {employee.workLocation && (
+            <Badge 
+              variant="secondary" 
+              className={`absolute top-2 ${showResendInvite && employee.status === 'invited' ? 'right-11' : 'right-2'} text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employee.workLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employee.workLocation]?.color} border-0`}
+            >
+              {employee.workLocation === 'office' ? (
+                <Building2 className="h-3 w-3 mr-0.5" />
+              ) : employee.workLocation === 'hybrid' ? (
+                <RefreshCw className="h-3 w-3 mr-0.5" />
+              ) : (
+                <Home className="h-3 w-3 mr-0.5" />
+              )}
+              {WORK_LOCATION_CONFIG[employee.workLocation]?.label}
+            </Badge>
+          )}
+
+          {/* Resend Invite Button - Top Right */}
           {showResendInvite && employee.status === 'invited' && (
             <TooltipProvider>
               <Tooltip>
@@ -130,24 +148,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
             </div>
             
             <div className="space-y-2 w-full">
-              <div className="flex items-center justify-center gap-2">
-                <h3 className="font-bold text-lg text-foreground employee-name" data-privacy="name">{employee.name}</h3>
-                {employee.workLocation && (
-                  <Badge 
-                    variant="secondary" 
-                    className={`text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employee.workLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employee.workLocation]?.color} border-0`}
-                  >
-                    {employee.workLocation === 'office' ? (
-                      <Building2 className="h-3 w-3 mr-0.5" />
-                    ) : employee.workLocation === 'hybrid' ? (
-                      <RefreshCw className="h-3 w-3 mr-0.5" />
-                    ) : (
-                      <Home className="h-3 w-3 mr-0.5" />
-                    )}
-                    {WORK_LOCATION_CONFIG[employee.workLocation]?.label}
-                  </Badge>
-                )}
-              </div>
+              <h3 className="font-bold text-lg text-foreground employee-name" data-privacy="name">{employee.name}</h3>
               <p className="text-sm font-medium text-primary">{employee.position}</p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-normal">
