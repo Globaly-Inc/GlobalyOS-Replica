@@ -1272,16 +1272,16 @@ const TeamKPIDashboard = () => {
                         ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
                         : 0;
                       
-                      // Determine scope display
+                      // Determine scope display with project data
                       const getScopeDisplay = () => {
                         if (kpi.scope_type === 'department') {
-                          return { icon: Building, label: kpi.scope_department, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30' };
+                          return { icon: Building, label: kpi.scope_department, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30', project: null };
                         } else if (kpi.scope_type === 'office') {
-                          return { icon: MapPin, label: kpi.office?.name, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' };
+                          return { icon: MapPin, label: kpi.office?.name, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30', project: null };
                         } else if (kpi.scope_type === 'project') {
-                          return { icon: FolderKanban, label: kpi.project?.name, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30' };
+                          return { icon: FolderKanban, label: kpi.project?.name, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30', project: kpi.project };
                         }
-                        return { icon: Target, label: 'Unknown', color: 'text-gray-600 bg-gray-100' };
+                        return { icon: Target, label: 'Unknown', color: 'text-gray-600 bg-gray-100', project: null };
                       };
                       
                       const scope = getScopeDisplay();
@@ -1299,30 +1299,50 @@ const TeamKPIDashboard = () => {
                           <OrgLink
                             to={`/kpi/${kpi.id}`}
                             className={cn(
-                              "flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group",
+                              "flex-1 grid grid-cols-[40px_1fr_160px_100px_32px] sm:grid-cols-[40px_1fr_180px_120px_32px_20px] gap-3 items-center p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group",
                               selectedKpis.has(kpi.id) && "bg-primary/5 border-primary/30"
                             )}
                           >
-                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                              <div className={cn("p-2 rounded-lg shrink-0", scope.color)}>
-                                <ScopeIcon className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
-                                <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
+                            {/* Icon column - show project logo if available */}
+                            {scope.project?.logo_url ? (
+                              <Avatar className="h-8 w-8 rounded-lg shrink-0">
+                                <AvatarImage src={scope.project.logo_url} className="object-cover" />
+                                <AvatarFallback 
+                                  className="rounded-lg text-xs"
+                                  style={{ backgroundColor: scope.project.color ? `${scope.project.color}20` : undefined }}
+                                >
+                                  {scope.project.name?.charAt(0) || 'P'}
+                                </AvatarFallback>
+                              </Avatar>
+                            ) : (
+                              <div 
+                                className={cn("p-2 rounded-lg shrink-0 flex items-center justify-center", !scope.project?.color && scope.color)}
+                                style={scope.project?.color ? { backgroundColor: `${scope.project.color}20` } : undefined}
+                              >
+                                <ScopeIcon 
+                                  className="h-4 w-4" 
+                                  style={scope.project?.color ? { color: scope.project.color } : undefined}
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Title + Description column */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <p className="font-medium text-sm truncate">{kpi.title}</p>
                                 {quarter === 0 && (
-                                  <Badge variant="outline" className="text-xs">Q{kpi.quarter}</Badge>
+                                  <Badge variant="outline" className="text-xs shrink-0">Q{kpi.quarter}</Badge>
                                 )}
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-xs shrink-0">
                                   {scope.label}
                                 </Badge>
                                 <Badge
                                   className={cn(
                                     "text-xs shrink-0",
-                                    kpi.status === "on_track" && "bg-green-100 text-green-700",
-                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
-                                    kpi.status === "behind" && "bg-red-100 text-red-700",
-                                    kpi.status === "completed" && "bg-blue-100 text-blue-700"
+                                    kpi.status === "on_track" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                                    kpi.status === "behind" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                    kpi.status === "completed" && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                                   )}
                                 >
                                   {kpi.status?.replace("_", " ")}
@@ -1332,19 +1352,21 @@ const TeamKPIDashboard = () => {
                                 {kpi.description || "No description"}
                               </p>
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-2 sm:gap-4">
-                            <div className="flex items-center gap-2 min-w-[120px] sm:min-w-[150px]">
+                            {/* Progress bar column - fixed width */}
+                            <div className="flex items-center gap-2">
                               <Progress value={progress} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground w-10 text-right">
+                              <span className="text-xs text-muted-foreground w-10 text-right shrink-0">
                                 {progress}%
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground hidden sm:inline w-24 text-right">
+                            
+                            {/* Target metrics column - fixed width */}
+                            <span className="text-xs text-muted-foreground text-right truncate hidden sm:block">
                               {kpi.current_value || 0} / {kpi.target_value || 0} {kpi.unit || ""}
                             </span>
                             
+                            {/* Actions menu */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
@@ -1375,9 +1397,10 @@ const TeamKPIDashboard = () => {
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            
+                            {/* Chevron - hidden on mobile */}
                             <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
-                          </div>
-                        </OrgLink>
+                          </OrgLink>
                         </div>
                       );
                     })}

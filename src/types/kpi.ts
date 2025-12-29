@@ -68,7 +68,13 @@ export interface GroupKpi extends Kpi {
 
 export interface GroupKpiWithScope extends GroupKpi {
   office?: { id: string; name: string } | null;
-  project?: { id: string; name: string } | null;
+  project?: { 
+    id: string; 
+    name: string;
+    icon?: string | null;
+    color?: string | null;
+    logo_url?: string | null;
+  } | null;
 }
 
 // Child KPI with optional employee data for display
