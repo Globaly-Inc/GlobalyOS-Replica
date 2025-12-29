@@ -39,7 +39,6 @@ import { OrgLink } from '@/components/OrgLink';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useOrganization } from '@/hooks/useOrganization';
-import { supabase } from '@/integrations/supabase/client';
 import type { KpiStatus, KpiReminderFrequency, KpiAttachment, KpiMilestone } from '@/types';
 import { 
   KpiAttachmentUpload, 
@@ -53,6 +52,7 @@ import {
   KpiOwnersDisplay
 } from '@/components/kpi';
 import { useKpiHierarchy } from '@/services/useKpi';
+import { useKpiOwners, KpiOwner } from '@/services/useKpiOwners';
 
 const statusColors: Record<KpiStatus, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -79,6 +79,7 @@ const KpiDetail = () => {
   
   const { data: kpi, isLoading } = useKpiDetail(kpiId);
   const { data: hierarchy } = useKpiHierarchy(kpiId);
+  const { data: kpiOwners = [] } = useKpiOwners(kpiId, kpi?.scope_type);
   const addUpdate = useAddKpiUpdate();
   const saveSettings = useSaveKpiUpdateSettings();
   const deleteUpdate = useDeleteKpiUpdate();
@@ -209,15 +210,7 @@ const KpiDetail = () => {
     ? kpi?.updates || [] 
     : (kpi?.updates || []).slice(0, 5);
 
-  // Build owners array for display
-  const kpiOwners = useMemo(() => {
-    if (!kpi?.employee) return [];
-    return [{
-      id: kpi.employee.id,
-      full_name: kpi.employee.profiles.full_name,
-      avatar_url: kpi.employee.profiles.avatar_url,
-    }];
-  }, [kpi?.employee]);
+  // Owners are now fetched via useKpiOwners hook
 
   if (isLoading) {
     return (
@@ -535,11 +528,14 @@ const KpiDetail = () => {
               <h3 className="font-semibold mb-4">Quick Stats</h3>
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Owner</span>
+                  <span className="text-sm text-muted-foreground">
+                    {kpi.scope_type === 'individual' ? 'Owner' : 'Owners'}
+                  </span>
                   <KpiOwnersDisplay 
                     owners={kpiOwners}
                     kpiId={kpi.id}
                     canEdit={canEditOwners()}
+                    scopeType={kpi.scope_type || 'individual'}
                   />
                 </div>
                 <Separator />
