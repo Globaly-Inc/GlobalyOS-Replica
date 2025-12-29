@@ -877,6 +877,12 @@ const TeamMemberProfile = () => {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
+                  {canEditPositionTimeline && (
+                    <Button size="sm" variant="outline" onClick={() => setShowAddPositionDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Position
+                    </Button>
+                  )}
                 </div>
                 <div className="p-4">
                   <PositionTimeline 
@@ -892,6 +898,20 @@ const TeamMemberProfile = () => {
                   />
                 </div>
               </Card>}
+
+            {/* Add Position Dialog */}
+            {canEditPositionTimeline && id && (
+              <PositionDialog
+                open={showAddPositionDialog}
+                onOpenChange={setShowAddPositionDialog}
+                employeeId={id}
+                mode="add"
+                onSuccess={() => {
+                  loadPositionHistory();
+                  loadEmployee();
+                }}
+              />
+            )}
 
             {/* KPIs Card */}
             {(isAdminOrHR || isOwnProfile || isManagerOfEmployee) && employee?.organization_id && <Card className="overflow-hidden order-2 lg:order-none">

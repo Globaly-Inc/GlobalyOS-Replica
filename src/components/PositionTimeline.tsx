@@ -150,16 +150,6 @@ export const PositionTimeline = ({
   return (
     <>
       <div className="relative pb-1">
-        {/* Add Position button at top-right */}
-        {canEdit && employeeId && (
-          <div className="flex justify-end mb-4">
-            <Button size="sm" variant="outline" onClick={handleAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Position
-            </Button>
-          </div>
-        )}
-
         {/* Timeline line */}
         <div className="absolute left-[13px] top-0 bottom-0 w-0.5 bg-border" />
 
