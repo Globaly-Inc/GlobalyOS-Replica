@@ -3478,6 +3478,7 @@ export type Database = {
       leave_types: {
         Row: {
           applies_to_all_offices: boolean
+          applies_to_employment_types: string[] | null
           applies_to_gender: string | null
           category: string
           created_at: string
@@ -3494,6 +3495,7 @@ export type Database = {
         }
         Insert: {
           applies_to_all_offices?: boolean
+          applies_to_employment_types?: string[] | null
           applies_to_gender?: string | null
           category?: string
           created_at?: string
@@ -3510,6 +3512,7 @@ export type Database = {
         }
         Update: {
           applies_to_all_offices?: boolean
+          applies_to_employment_types?: string[] | null
           applies_to_gender?: string | null
           category?: string
           created_at?: string

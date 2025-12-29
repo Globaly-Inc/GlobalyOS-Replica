@@ -38,6 +38,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 
 
+type EmploymentType = 'trainee' | 'intern' | 'contract' | 'employee';
+
 interface LeaveType {
   id: string;
   name: string;
@@ -51,6 +53,7 @@ interface LeaveType {
   office_ids?: string[];
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
+  applies_to_employment_types: EmploymentType[];
 }
 
 interface Office {
@@ -77,6 +80,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [formSelectedOffices, setFormSelectedOffices] = useState<string[]>([]);
   const [formMaxNegativeDays, setFormMaxNegativeDays] = useState("0");
   const [formAppliesToGender, setFormAppliesToGender] = useState<'all' | 'male' | 'female'>('all');
+  const [formAppliesToEmploymentTypes, setFormAppliesToEmploymentTypes] = useState<EmploymentType[]>(['trainee', 'intern', 'contract', 'employee']);
   
   const { currentOrg } = useOrganization();
   const { isAdmin } = useUserRole();
@@ -132,6 +136,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             office_ids: officeData?.map((o) => o.office_id) || [],
             applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
             max_negative_days: type.max_negative_days || 0,
+            applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
           };
         }
         return { 
@@ -139,6 +144,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
           office_ids: [],
           applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
           max_negative_days: type.max_negative_days || 0,
+          applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
         };
       })
     );
@@ -157,6 +163,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormSelectedOffices([]);
     setFormMaxNegativeDays("0");
     setFormAppliesToGender('all');
+    setFormAppliesToEmploymentTypes(['trainee', 'intern', 'contract', 'employee']);
     setEditingType(null);
   };
 
@@ -171,6 +178,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormSelectedOffices(leaveType.office_ids || []);
     setFormMaxNegativeDays(String(leaveType.max_negative_days || 0));
     setFormAppliesToGender(leaveType.applies_to_gender || 'all');
+    setFormAppliesToEmploymentTypes(leaveType.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee']);
     setDialogOpen(true);
   };
 
@@ -198,6 +206,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
         applies_to_all_offices: formAppliesToAll,
         max_negative_days: parseFloat(formMaxNegativeDays) || 0,
         applies_to_gender: formAppliesToGender,
+        applies_to_employment_types: formAppliesToEmploymentTypes,
       };
 
       let leaveTypeId: string;
@@ -382,6 +391,39 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             </div>
           </div>
           
+          {/* Employment Type Selector */}
+          <div className="space-y-2">
+            <Label>Applies to Employment Types</Label>
+            <div className="flex flex-wrap gap-2">
+              {(['trainee', 'intern', 'contract', 'employee'] as EmploymentType[]).map((type) => (
+                <Button
+                  key={type}
+                  type="button"
+                  size="sm"
+                  variant={formAppliesToEmploymentTypes.includes(type) ? "default" : "outline"}
+                  onClick={() => {
+                    if (formAppliesToEmploymentTypes.includes(type)) {
+                      // Don't allow deselecting if it's the last one
+                      if (formAppliesToEmploymentTypes.length > 1) {
+                        setFormAppliesToEmploymentTypes(
+                          formAppliesToEmploymentTypes.filter((t) => t !== type)
+                        );
+                      }
+                    } else {
+                      setFormAppliesToEmploymentTypes([...formAppliesToEmploymentTypes, type]);
+                    }
+                  }}
+                  className="capitalize"
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Select which employment types can use this leave type
+            </p>
+          </div>
+          
           {/* Numeric fields - 3 columns with aligned labels */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -525,6 +567,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               <TableHead>Annual Days</TableHead>
               <TableHead>Max Negative</TableHead>
               <TableHead>Gender</TableHead>
+              <TableHead>Employment Types</TableHead>
               <TableHead>Applies To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
@@ -559,6 +602,19 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                     <Badge variant="outline" className="text-xs capitalize">
                       {leaveType.applies_to_gender}
                     </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {leaveType.applies_to_employment_types.length === 4 ? (
+                    <span className="text-muted-foreground text-sm">All</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {leaveType.applies_to_employment_types.map((type) => (
+                        <Badge key={type} variant="outline" className="text-xs capitalize">
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>
