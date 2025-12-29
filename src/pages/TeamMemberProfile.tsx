@@ -11,7 +11,7 @@ import WinCard from "@/components/WinCard";
 import { FeedReactions } from "@/components/FeedReactions";
 import { Update } from "@/types/employee";
 import { PositionTimeline } from "@/components/PositionTimeline";
-// PositionDialog is now used internally by PositionTimeline
+import { PositionDialog } from "@/components/dialogs/PositionDialog";
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
