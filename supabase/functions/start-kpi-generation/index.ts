@@ -392,8 +392,56 @@ Since this is an annual plan with quarterly breakdown enabled, for EACH annual K
     if (needsGroupKpis) {
       await updateJobProgress(supabase, jobId, 15, "Generating organization & group KPIs...");
       
+      // Build list of excluded scope types based on cascade config
+      const excludedScopes: string[] = [];
+      if (!cascadeConfig.includeOrganization) excludedScopes.push('organization');
+      if (!cascadeConfig.includeDepartments) excludedScopes.push('department');
+      if (!cascadeConfig.includeProjects) excludedScopes.push('project');
+      if (!cascadeConfig.includeOffices) excludedScopes.push('office');
+      
+      // Build dynamic hierarchy rules based on what's included
+      let hierarchyRules = '';
+      let jsonExample = '';
+      
+      if (cascadeConfig.includeOrganization) {
+        hierarchyRules += `- Organization KPIs have NO parentTempId (they are the root)
+- Department KPIs MUST have parentTempId pointing to an organization KPI's tempId
+- Office KPIs MUST have parentTempId pointing to an organization KPI's tempId  
+- Project KPIs MUST have parentTempId pointing to an organization or department KPI's tempId`;
+        jsonExample = `{
+  "kpis": [
+    { "tempId": "org-1", "scopeType": "organization", "title": "...", "description": "...", "targetValue": 100, "unit": "%" },
+    { "tempId": "dept-eng-1", "scopeType": "department", "scopeValue": "Engineering", "title": "...", "description": "...", "targetValue": 50, "unit": "count", "parentTempId": "org-1" }
+  ]
+}`;
+      } else {
+        // When organization is NOT included, departments/projects/offices become root-level
+        hierarchyRules += `- DO NOT generate any organization-level KPIs
+- Department, Project, and Office KPIs have NO parentTempId (they are root-level since organization is not included)`;
+        
+        if (cascadeConfig.includeDepartments) {
+          jsonExample = `{
+  "kpis": [
+    { "tempId": "dept-eng-1", "scopeType": "department", "scopeValue": "Engineering", "title": "...", "description": "...", "targetValue": 50, "unit": "count" }
+  ]
+}`;
+        } else if (cascadeConfig.includeProjects) {
+          jsonExample = `{
+  "kpis": [
+    { "tempId": "proj-1", "scopeType": "project", "projectName": "Project Name", "projectId": "uuid", "title": "...", "description": "...", "targetValue": 100, "unit": "%" }
+  ]
+}`;
+        } else if (cascadeConfig.includeOffices) {
+          jsonExample = `{
+  "kpis": [
+    { "tempId": "office-1", "scopeType": "office", "scopeValue": "Office Name", "title": "...", "description": "...", "targetValue": 100, "unit": "%" }
+  ]
+}`;
+        }
+      }
+      
       const groupSystemPrompt = `You are an expert HR consultant specializing in strategic KPI design and OKR frameworks.
-Your task is to generate hierarchical GROUP-LEVEL KPIs (organization, department, project, office - NOT individual KPIs).
+Your task is to generate hierarchical GROUP-LEVEL KPIs (department, project, office - NOT individual KPIs).
 
 ORGANIZATION PROFILE:
 - Industry: ${organizationContext.industry || "General Business"}
@@ -404,24 +452,16 @@ ${industryGuidelines}
 ${historicalSection}${templateSection}
 Guidelines for KPI creation:
 1. Create SMART KPIs (Specific, Measurable, Achievable, Relevant, Time-bound)
-2. Organization KPIs should be high-level strategic goals
-3. Department/Office/Project KPIs should cascade from organization goals
-4. Use appropriate units (%, count, $, rating, etc.)
-5. Set realistic target values based on industry standards
+2. Use appropriate units (%, count, $, rating, etc.)
+3. Set realistic target values based on industry standards
 
 CRITICAL HIERARCHY RULES:
-- Organization KPIs have NO parentTempId (they are the root)
-- Department KPIs MUST have parentTempId pointing to an organization KPI's tempId
-- Office KPIs MUST have parentTempId pointing to an organization KPI's tempId  
-- Project KPIs MUST have parentTempId pointing to an organization or department KPI's tempId
+${hierarchyRules}
+
+${excludedScopes.length > 0 ? `CRITICAL - DO NOT GENERATE these scope types: ${excludedScopes.join(', ')}` : ''}
 ${quarterlyBreakdownInstructions}
 CRITICAL: Respond with ONLY valid JSON, no markdown, no explanation:
-{
-  "kpis": [
-    { "tempId": "org-1", "scopeType": "organization", "title": "...", "description": "...", "targetValue": 100, "unit": "%" },
-    { "tempId": "dept-eng-1", "scopeType": "department", "scopeValue": "Engineering", "title": "...", "description": "...", "targetValue": 50, "unit": "count", "parentTempId": "org-1" }
-  ]
-}`;
+${jsonExample}`;
 
       let groupUserPrompt = `Generate GROUP-LEVEL KPIs for ${organizationContext.name} for ${periodLabel}.
 
@@ -438,7 +478,7 @@ ${documentContent.slice(0, 4000)}
 - Offices: ${activeOffices.map((o: any) => o.name).join(', ') || 'N/A'}
 - Projects: ${activeProjects.map((p: any) => p.name).join(', ') || 'N/A'}
 
-Generate KPIs with this cascade:`;
+ONLY generate KPIs for these levels:`;
 
       if (cascadeConfig.includeOrganization) {
         groupUserPrompt += `\n- 2-3 Organization-level strategic KPIs for ${periodLabel}`;
@@ -460,13 +500,41 @@ Generate KPIs with this cascade:`;
         groupUserPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map((o: any) => o.name).join(', ')}`;
       }
 
-      groupUserPrompt += `\n\nCRITICAL: Every department/office/project KPI MUST have parentTempId referencing an organization KPI.
-${quarterlyBreakdown && periodType === "annual" ? 'Generate quarterly breakdowns (Q1-Q4) for each annual KPI.' : ''}
+      // Add explicit exclusion instructions
+      if (excludedScopes.length > 0) {
+        groupUserPrompt += `\n\nCRITICAL - DO NOT generate KPIs for these scope types: ${excludedScopes.join(', ')}`;
+      }
+
+      // Conditional hierarchy parent instructions
+      if (cascadeConfig.includeOrganization) {
+        groupUserPrompt += `\n\nCRITICAL: Every department/office/project KPI MUST have parentTempId referencing an organization KPI.`;
+      } else {
+        groupUserPrompt += `\n\nCRITICAL: Since organization is NOT included, department/office/project KPIs should have NO parentTempId (they are root-level).`;
+      }
+      
+      groupUserPrompt += `\n${quarterlyBreakdown && periodType === "annual" ? 'Generate quarterly breakdowns (Q1-Q4) for each annual KPI.' : ''}
 Respond with ONLY the JSON object.`;
 
       console.log("Phase 1: Generating group KPIs...");
-      groupKpis = await callAiGateway(groupSystemPrompt, groupUserPrompt, 12000);
-      console.log(`Phase 1 complete: Generated ${groupKpis.length} group KPIs`);
+      const rawGroupKpis = await callAiGateway(groupSystemPrompt, groupUserPrompt, 12000);
+      console.log(`Phase 1 raw: Generated ${rawGroupKpis.length} group KPIs`);
+      
+      // Safety filter: Remove any KPIs with scope types that were not requested
+      const allowedGroupScopes = new Set<string>();
+      if (cascadeConfig.includeOrganization) allowedGroupScopes.add('organization');
+      if (cascadeConfig.includeDepartments) allowedGroupScopes.add('department');
+      if (cascadeConfig.includeProjects) allowedGroupScopes.add('project');
+      if (cascadeConfig.includeOffices) allowedGroupScopes.add('office');
+      
+      groupKpis = rawGroupKpis.filter(kpi => {
+        const isAllowed = allowedGroupScopes.has(kpi.scopeType);
+        if (!isAllowed) {
+          console.log(`Filtered out unwanted ${kpi.scopeType} KPI: "${kpi.title}"`);
+        }
+        return isAllowed;
+      });
+      
+      console.log(`Phase 1 complete: ${groupKpis.length} group KPIs after filtering (removed ${rawGroupKpis.length - groupKpis.length} unwanted)`);
     }
 
     // ==========================================
