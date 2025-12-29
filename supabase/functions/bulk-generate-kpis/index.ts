@@ -31,7 +31,7 @@ interface RequestBody {
     companySize?: string;
     departments: string[];
     offices: { id: string; name: string }[];
-    projects: { id: string; name: string; description?: string }[];
+    projects: { id: string; name: string; description?: string; documentContent?: string }[];
     employeeProjects: { employee_id: string; project_id: string }[];
     employees: { 
       id: string; 
@@ -165,7 +165,7 @@ serve(async (req) => {
       : [];
 
     // Filter projects based on targets and employee assignments
-    let activeProjects: { id: string; name: string; description?: string }[] = [];
+    let activeProjects: { id: string; name: string; description?: string; documentContent?: string }[] = [];
     if (cascadeConfig.includeProjects && organizationContext.projects) {
       if (targetProjects?.length) {
         activeProjects = organizationContext.projects.filter(p => targetProjects.includes(p.id));
@@ -252,8 +252,9 @@ Guidelines for KPI creation:
 4. Individual KPIs should be specific, actionable tasks that contribute to their team/project goals
 5. Use appropriate units (%, count, $, rating, etc.)
 6. Set realistic target values based on industry standards and historical performance
-7. For project KPIs, use the project description to create relevant product-specific outcomes
-8. Link individual KPIs to projects when the employee is assigned to that project
+7. For project KPIs, use the project description AND any attached reference documents to create relevant product-specific outcomes
+8. When project documents are provided, extract key metrics, goals, and milestones from them for KPI targets
+9. Link individual KPIs to projects when the employee is assigned to that project
 9. For individual KPIs, use position responsibilities to create role-aligned, actionable KPIs
 10. For NEW employees (<6 months), focus on onboarding, learning, and initial contributions
 11. For VETERAN employees (>3 years), include leadership, mentoring, and strategic initiatives
@@ -338,9 +339,13 @@ Generate KPIs with this cascade:`;
         if (projectTeam.length > 0 && projectTeam.length <= 5) {
           userPrompt += ` (${projectTeam.map(e => e.name).join(', ')})`;
         }
-        // Include project description for context (truncated)
+        // Include project description for context
         if (p.description) {
-          userPrompt += `\n    Project focus: ${p.description.slice(0, 150)}`;
+          userPrompt += `\n    Project focus: ${p.description.slice(0, 200)}`;
+        }
+        // Include parsed project document content for richer AI context
+        if (p.documentContent) {
+          userPrompt += `\n    Reference documents:\n${p.documentContent.slice(0, 800)}`;
         }
       });
     }
