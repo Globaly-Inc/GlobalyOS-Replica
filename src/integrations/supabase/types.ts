@@ -5847,6 +5847,7 @@ export type Database = {
           description: string | null
           icon: string
           id: string
+          logo_url: string | null
           name: string
           organization_id: string
           project_lead_id: string | null
@@ -5859,6 +5860,7 @@ export type Database = {
           description?: string | null
           icon?: string
           id?: string
+          logo_url?: string | null
           name: string
           organization_id: string
           project_lead_id?: string | null
@@ -5871,6 +5873,7 @@ export type Database = {
           description?: string | null
           icon?: string
           id?: string
+          logo_url?: string | null
           name?: string
           organization_id?: string
           project_lead_id?: string | null
