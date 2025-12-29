@@ -219,12 +219,6 @@ export const PositionTimeline = ({
                       </div>
                     )}
 
-                    {!isCurrent && (
-                      <Badge variant="outline" className="text-xs mt-1 gap-1">
-                        <Icon className="h-3 w-3" />
-                        {config.label}
-                      </Badge>
-                    )}
 
                     {entry.notes && (
                       <p className="text-xs text-muted-foreground mt-1 italic">
