@@ -178,10 +178,13 @@ export const PositionTimeline = ({
                           Current
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs px-2 py-0.5">
-                          <Icon className="h-3 w-3 mr-1" />
-                          {config.label}
-                        </Badge>
+                        /* Hide "Salary Increase" tag from general users - only show if showSalary is true */
+                        (entry.change_type !== 'salary_increase' || showSalary) && (
+                          <Badge variant="outline" className="text-xs px-2 py-0.5">
+                            <Icon className="h-3 w-3 mr-1" />
+                            {config.label}
+                          </Badge>
+                        )
                       )}
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
@@ -220,7 +223,8 @@ export const PositionTimeline = ({
                     )}
 
 
-                    {entry.notes && (
+                    {/* Notes only visible to Owner, Admin, HR, Manager, and Self (controlled by showSalary prop) */}
+                    {showSalary && entry.notes && (
                       <p className="text-xs text-muted-foreground mt-1 italic">
                         {entry.notes}
                       </p>
