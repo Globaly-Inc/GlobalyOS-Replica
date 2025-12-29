@@ -86,21 +86,25 @@ export const useTeamKpis = (quarter?: number, year?: number) => {
 // Fetch group KPIs (department, office, project scoped - excludes organization)
 export const useGroupKpis = (quarter?: number, year?: number) => {
   const { currentOrg } = useOrganization();
-  const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
   const currentYear = year || new Date().getFullYear();
 
   return useQuery({
-    queryKey: ['group-kpis', currentOrg?.id, currentQuarter, currentYear],
+    queryKey: ['group-kpis', currentOrg?.id, quarter, currentYear],
     queryFn: async (): Promise<GroupKpiWithScope[]> => {
       if (!currentOrg?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('kpis')
         .select('*')
         .eq('organization_id', currentOrg.id)
-        .eq('quarter', currentQuarter)
-        .eq('year', currentYear)
-        .order('created_at');
+        .eq('year', currentYear);
+      
+      // Only filter by quarter if a specific quarter is provided
+      if (quarter !== undefined) {
+        query = query.eq('quarter', quarter);
+      }
+      
+      const { data, error } = await query.order('created_at');
 
       if (error) throw error;
 
@@ -138,21 +142,25 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
 // Fetch organization-level KPIs (top level)
 export const useOrganizationKpis = (quarter?: number, year?: number) => {
   const { currentOrg } = useOrganization();
-  const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
   const currentYear = year || new Date().getFullYear();
 
   return useQuery({
-    queryKey: ['organization-kpis', currentOrg?.id, currentQuarter, currentYear],
+    queryKey: ['organization-kpis', currentOrg?.id, quarter, currentYear],
     queryFn: async (): Promise<OrganizationKpi[]> => {
       if (!currentOrg?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('kpis')
         .select('*')
         .eq('organization_id', currentOrg.id)
-        .eq('quarter', currentQuarter)
-        .eq('year', currentYear)
-        .order('created_at');
+        .eq('year', currentYear);
+      
+      // Only filter by quarter if a specific quarter is provided
+      if (quarter !== undefined) {
+        query = query.eq('quarter', quarter);
+      }
+      
+      const { data, error } = await query.order('created_at');
 
       if (error) throw error;
 
