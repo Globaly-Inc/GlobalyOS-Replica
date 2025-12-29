@@ -282,6 +282,13 @@ export const PositionDialog = ({
     setLoading(true);
 
     try {
+      // Validate organization context
+      if (!currentOrg?.id) {
+        toast.error("Organization not found");
+        setLoading(false);
+        return;
+      }
+
       // Calculate annual salary
       const amount = parseFloat(validated.salary || "0");
       const frequency = paymentFrequencies.find(f => f.value === validated.paymentFrequency);
@@ -289,6 +296,7 @@ export const PositionDialog = ({
 
       const historyData: any = {
         employee_id: employeeId,
+        organization_id: currentOrg.id,
         position: validated.position,
         department: validated.department,
         effective_date: validated.effective_date,
