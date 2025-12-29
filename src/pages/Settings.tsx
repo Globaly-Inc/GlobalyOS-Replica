@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, CreditCard, Save, Upload, Loader2, Briefcase, Sparkles } from "lucide-react";
+import { Building2, Users, CreditCard, Save, Upload, Loader2, Briefcase, Sparkles, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PageHeader } from "@/components/PageHeader";
@@ -17,6 +17,7 @@ import { FieldsSettings } from "@/components/FieldsSettings";
 import { AIKnowledgeSettings } from "@/components/AIKnowledgeSettings";
 import BillingSettings from "@/components/BillingSettings";
 import { ProjectsSettings } from "@/components/settings/ProjectsSettings";
+import { KpiGenerationSettings } from "@/components/settings/KpiGenerationSettings";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -173,6 +174,10 @@ const Settings = () => {
             <Briefcase className="h-4 w-4" />
             Projects
           </TabsTrigger>
+          <TabsTrigger value="kpis" className="gap-2">
+            <Target className="h-4 w-4" />
+            KPIs
+          </TabsTrigger>
           <TabsTrigger value="ai" className="gap-2">
             <Sparkles className="h-4 w-4" />
             AI
@@ -289,6 +294,10 @@ const Settings = () => {
 
         <TabsContent value="projects" className="space-y-6">
           <ProjectsSettings organizationId={currentOrg?.id} />
+        </TabsContent>
+
+        <TabsContent value="kpis" className="space-y-6">
+          <KpiGenerationSettings organizationId={currentOrg?.id} />
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-6">
