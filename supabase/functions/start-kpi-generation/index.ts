@@ -74,7 +74,8 @@ async function updateJobProgress(
 ) {
   const updates: any = { 
     progress, 
-    progress_message: message 
+    progress_message: message,
+    last_heartbeat: new Date().toISOString(), // Update heartbeat on every progress update
   };
   
   if (status) {
@@ -105,8 +106,10 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
-// Constants for batching
-const INDIVIDUAL_BATCH_SIZE = 10;
+// Constants for batching - increased to reduce total batches
+const INDIVIDUAL_BATCH_SIZE = 15;
+const AI_CALL_TIMEOUT_MS = 30000; // 30 second timeout per AI call
+const PARALLEL_BATCH_COUNT = 2; // Process 2 batches in parallel
 
 // Parse AI response and handle truncation
 function parseAiResponse(content: string): GeneratedKpi[] {
@@ -159,50 +162,66 @@ function parseAiResponse(content: string): GeneratedKpi[] {
   }
 }
 
-// Call AI Gateway
-async function callAiGateway(systemPrompt: string, userPrompt: string, maxTokens: number = 8000): Promise<GeneratedKpi[]> {
+// Call AI Gateway with timeout handling
+async function callAiGateway(systemPrompt: string, userPrompt: string, maxTokens: number = 6000): Promise<GeneratedKpi[]> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new Error("LOVABLE_API_KEY is not configured");
   }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: maxTokens,
-    }),
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_CALL_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("AI Gateway error:", response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again in a moment.");
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI Gateway error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("AI credits exhausted. Please add credits to continue.");
+      }
+      throw new Error(`AI service error: ${response.status}`);
     }
-    if (response.status === 402) {
-      throw new Error("AI credits exhausted. Please add credits to continue.");
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("No response from AI");
     }
-    throw new Error(`AI service error: ${response.status}`);
+
+    return parseAiResponse(content);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.error("AI call timed out after", AI_CALL_TIMEOUT_MS, "ms");
+      throw new Error("AI request timed out. Continuing with partial results.");
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("No response from AI");
-  }
-
-  return parseAiResponse(content);
 }
 
 async function processKpiGeneration(jobId: string, config: JobConfig) {
@@ -466,16 +485,21 @@ Respond with ONLY the JSON object.`;
       const employeeBatches = chunkArray(filteredEmployees, INDIVIDUAL_BATCH_SIZE);
       const totalBatches = employeeBatches.length;
       
-      console.log(`Phase 2: Generating individual KPIs in ${totalBatches} batches of up to ${INDIVIDUAL_BATCH_SIZE} employees each`);
+      console.log(`Phase 2: Generating individual KPIs in ${totalBatches} batches of up to ${INDIVIDUAL_BATCH_SIZE} employees each (parallel: ${PARALLEL_BATCH_COUNT})`);
       
-      for (let batchIndex = 0; batchIndex < employeeBatches.length; batchIndex++) {
-        const batch = employeeBatches[batchIndex];
-        const batchProgress = 35 + Math.round(((batchIndex + 1) / totalBatches) * 45);
+      // Process batches in parallel groups
+      for (let parallelIndex = 0; parallelIndex < totalBatches; parallelIndex += PARALLEL_BATCH_COUNT) {
+        const parallelBatches = employeeBatches.slice(parallelIndex, parallelIndex + PARALLEL_BATCH_COUNT);
+        const batchProgress = 35 + Math.round(((parallelIndex + parallelBatches.length) / totalBatches) * 45);
         
         await updateJobProgress(supabase, jobId, batchProgress, 
-          `Generating individual KPIs (batch ${batchIndex + 1} of ${totalBatches})...`);
+          `Generating individual KPIs (batch ${parallelIndex + 1}-${Math.min(parallelIndex + PARALLEL_BATCH_COUNT, totalBatches)} of ${totalBatches})...`);
         
-        const individualSystemPrompt = `You are an expert HR consultant. Generate INDIVIDUAL employee KPIs that link to existing group KPIs.
+        // Create promises for parallel execution
+        const batchPromises = parallelBatches.map(async (batch, subIndex) => {
+          const actualBatchIndex = parallelIndex + subIndex;
+          
+          const individualSystemPrompt = `You are an expert HR consultant. Generate INDIVIDUAL employee KPIs that link to existing group KPIs.
 
 ORGANIZATION: ${organizationContext.name}
 PERIOD: ${periodLabel}
@@ -485,7 +509,7 @@ EXISTING PARENT KPIs (use these tempIds for parentTempId):
 ${parentKpiSummary}
 
 Guidelines:
-1. Generate 2-3 SMART individual KPIs per employee
+1. Generate 2 SMART individual KPIs per employee
 2. Each individual KPI MUST have parentTempId linking to a relevant department/project/office KPI
 3. If employee is in a project, prefer linking to that project's KPI
 4. Otherwise link to their department or office KPI
@@ -500,58 +524,63 @@ CRITICAL: Respond with ONLY valid JSON:
   ]
 }`;
 
-        let batchUserPrompt = `Generate individual KPIs for these ${batch.length} employees:
+          let batchUserPrompt = `Generate individual KPIs for these ${batch.length} employees:
 
 `;
-        batch.forEach((e: any) => {
-          const empProjects = employeeProjects
-            .filter((ep: any) => ep.employee_id === e.id)
-            .map((ep: any) => activeProjects.find((p: any) => p.id === ep.project_id))
-            .filter(Boolean);
-          
-          const projectInfo = empProjects.length > 0 
-            ? `Projects: ${empProjects.map((p: any) => `${p.name} (ID: ${p.id})`).join(', ')}`
-            : 'No projects';
-          
-          // Find best parent KPI for hint
-          let suggestedParent = defaultParentTempId;
-          if (empProjects.length > 0) {
-            const projKpi = projectKpiMap.get(empProjects[0].id);
-            if (projKpi) suggestedParent = projKpi.tempId;
-          } else if (e.department && deptKpiMap.has(e.department.toLowerCase())) {
-            suggestedParent = deptKpiMap.get(e.department.toLowerCase())!.tempId;
-          } else if (e.officeId && officeKpiMap.has(e.officeId)) {
-            suggestedParent = officeKpiMap.get(e.officeId)!.tempId;
-          }
-          
-          const tenureNote = e.tenure === "new" 
-            ? " [NEW - focus on learning/onboarding]"
-            : e.tenure === "veteran"
-            ? " [VETERAN - include leadership/mentoring]"
-            : "";
-          
-          batchUserPrompt += `• ${e.name} (ID: ${e.id})
+          batch.forEach((e: any) => {
+            const empProjects = employeeProjects
+              .filter((ep: any) => ep.employee_id === e.id)
+              .map((ep: any) => activeProjects.find((p: any) => p.id === ep.project_id))
+              .filter(Boolean);
+            
+            const projectInfo = empProjects.length > 0 
+              ? `Projects: ${empProjects.map((p: any) => `${p.name} (ID: ${p.id})`).join(', ')}`
+              : 'No projects';
+            
+            // Find best parent KPI for hint
+            let suggestedParent = defaultParentTempId;
+            if (empProjects.length > 0) {
+              const projKpi = projectKpiMap.get(empProjects[0].id);
+              if (projKpi) suggestedParent = projKpi.tempId;
+            } else if (e.department && deptKpiMap.has(e.department.toLowerCase())) {
+              suggestedParent = deptKpiMap.get(e.department.toLowerCase())!.tempId;
+            } else if (e.officeId && officeKpiMap.has(e.officeId)) {
+              suggestedParent = officeKpiMap.get(e.officeId)!.tempId;
+            }
+            
+            const tenureNote = e.tenure === "new" 
+              ? " [NEW - focus on learning/onboarding]"
+              : e.tenure === "veteran"
+              ? " [VETERAN - include leadership/mentoring]"
+              : "";
+            
+            batchUserPrompt += `• ${e.name} (ID: ${e.id})
   Position: ${e.position}, Department: ${e.department}
   ${projectInfo}${tenureNote}
   Suggested parentTempId: ${suggestedParent}
 `;
-          if (e.positionResponsibilities?.length > 0) {
-            batchUserPrompt += `  Key responsibilities: ${e.positionResponsibilities.slice(0, 3).join('; ')}\n`;
-          }
-          batchUserPrompt += '\n';
-        });
+            if (e.positionResponsibilities?.length > 0) {
+              batchUserPrompt += `  Key responsibilities: ${e.positionResponsibilities.slice(0, 2).join('; ')}\n`;
+            }
+            batchUserPrompt += '\n';
+          });
 
-        batchUserPrompt += `Generate 2-3 individual KPIs per employee. Each KPI MUST have a valid parentTempId from the parent KPIs listed above.
+          batchUserPrompt += `Generate 2 individual KPIs per employee. Each KPI MUST have a valid parentTempId.
 Respond with ONLY the JSON object.`;
 
-        try {
-          const batchKpis = await callAiGateway(individualSystemPrompt, batchUserPrompt, 8000);
-          console.log(`Batch ${batchIndex + 1}/${totalBatches}: Generated ${batchKpis.length} individual KPIs`);
-          individualKpis.push(...batchKpis);
-        } catch (error) {
-          console.error(`Batch ${batchIndex + 1} failed:`, error);
-          // Continue with other batches even if one fails
-        }
+          try {
+            const batchKpis = await callAiGateway(individualSystemPrompt, batchUserPrompt, 5000);
+            console.log(`Batch ${actualBatchIndex + 1}/${totalBatches}: Generated ${batchKpis.length} individual KPIs`);
+            return batchKpis;
+          } catch (error) {
+            console.error(`Batch ${actualBatchIndex + 1} failed:`, error);
+            return []; // Return empty on failure, continue with other batches
+          }
+        });
+        
+        // Wait for parallel batches to complete
+        const parallelResults = await Promise.all(batchPromises);
+        parallelResults.forEach(kpis => individualKpis.push(...kpis));
       }
       
       console.log(`Phase 2 complete: Generated ${individualKpis.length} individual KPIs for ${filteredEmployees.length} employees`);
