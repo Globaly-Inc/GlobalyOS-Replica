@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { format, parseISO } from "date-fns";
 import { OrgLink } from "./OrgLink";
 
@@ -312,7 +313,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       .eq("id", requestId);
 
     if (error) {
-      toast.error("Failed to update leave request");
+      toast.error(getErrorMessage(error, "Failed to update leave request"));
+      console.error("Update leave status error:", error);
     } else {
       toast.success(`Leave request ${approved ? "approved" : "rejected"}`);
       
@@ -348,7 +350,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       .eq("id", requestId);
 
     if (error) {
-      toast.error("Failed to cancel leave request");
+      toast.error(getErrorMessage(error, "Failed to cancel leave request"));
+      console.error("Cancel leave request error:", error);
     } else {
       toast.success("Leave request cancelled");
       loadPendingRequests();
