@@ -156,57 +156,6 @@ export function OrganisationKpiCard({
             </div>
             <Progress value={displayProgress} className="h-2" />
           </div>
-
-          {/* Linked KPIs Expansion */}
-          {showLinkedKpis && childCount > 0 && (
-            <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                  <span className="text-sm">
-                    {childCount} linked KPI{childCount !== 1 ? "s" : ""}
-                  </span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="space-y-2 pl-4 border-l-2 border-muted">
-                  {children.map((child) => {
-                    const childProgress = child.target_value 
-                      ? Math.min(Math.round(((child.current_value || 0) / child.target_value) * 100), 100)
-                      : 0;
-                    
-                    return (
-                      <OrgLink
-                        key={child.id}
-                        to={`/kpi/${child.id}`}
-                        className="block p-2 rounded-md hover:bg-muted transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Target className={cn("h-4 w-4 shrink-0", scopeColors[child.scope_type] || "text-gray-600")} />
-                            <span className="text-sm truncate">{child.title}</span>
-                            <Badge variant="outline" className="text-xs shrink-0">
-                              {child.scope_type === 'individual' ? 'Individual' : 
-                               child.scope_type === 'department' ? 'Dept' :
-                               child.scope_type === 'office' ? 'Office' :
-                               child.scope_type === 'project' ? 'Project' : child.scope_type}
-                            </Badge>
-                          </div>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {childProgress}%
-                          </span>
-                        </div>
-                      </OrgLink>
-                    );
-                  })}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
         </div>
       </CardContent>
     </Card>
