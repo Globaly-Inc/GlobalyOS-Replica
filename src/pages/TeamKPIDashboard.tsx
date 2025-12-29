@@ -34,6 +34,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
 import { OrgLink } from "@/components/OrgLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,6 +82,7 @@ import {
   Eye,
   Globe,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useKpiDashboardFilters } from "@/hooks/useKpiDashboardFilters";
@@ -119,8 +134,13 @@ const TeamKPIDashboard = () => {
     departmentFilter, setDepartmentFilter,
     projectFilter, setProjectFilter,
     officeFilter, setOfficeFilter,
+    selectedEmployees, setSelectedEmployees,
     clearFilters,
   } = useKpiDashboardFilters();
+  
+  // Employee filter popover state
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   
   // Edit/Delete state
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
@@ -387,9 +407,43 @@ const TeamKPIDashboard = () => {
     return counts;
   }, [teamMembers]);
 
-  // Filter team members based on department, project, and office filters
+  // Build employee list for the popover
+  const employeesList = useMemo(() => {
+    return teamMembers.map(m => ({
+      id: m.id,
+      name: (m as any).profiles?.full_name || 'Unknown',
+      avatarUrl: (m as any).profiles?.avatar_url,
+      position: m.position,
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers]);
+
+  // Filter employee list based on search
+  const filteredEmployeesList = useMemo(() => {
+    if (!employeeSearchQuery) return employeesList;
+    const query = employeeSearchQuery.toLowerCase();
+    return employeesList.filter(e => 
+      e.name.toLowerCase().includes(query) || 
+      e.position?.toLowerCase().includes(query)
+    );
+  }, [employeesList, employeeSearchQuery]);
+
+  // Employee filter label
+  const employeeFilterLabel = useMemo(() => {
+    if (selectedEmployees.length === 0) return "All Team";
+    if (selectedEmployees.length === 1) {
+      const emp = employeesList.find(e => e.id === selectedEmployees[0]);
+      return emp?.name || "1 Selected";
+    }
+    return `${selectedEmployees.length} Selected`;
+  }, [selectedEmployees, employeesList]);
+
+  // Filter team members based on department, project, office, and employee filters
   const filteredTeamMembers = useMemo(() => {
     return teamMembers.filter(member => {
+      // Employee filter
+      if (selectedEmployees.length > 0 && !selectedEmployees.includes(member.id)) {
+        return false;
+      }
       if (departmentFilter !== "all" && member.department !== departmentFilter) {
         return false;
       }
@@ -406,7 +460,7 @@ const TeamKPIDashboard = () => {
       }
       return true;
     });
-  }, [teamMembers, departmentFilter, projectFilter, officeFilter, employeeProjects]);
+  }, [teamMembers, selectedEmployees, departmentFilter, projectFilter, officeFilter, employeeProjects]);
 
   // Filter KPIs based on filtered team members
   const filteredTeamKPIs = useMemo(() => {
@@ -618,7 +672,7 @@ const TeamKPIDashboard = () => {
   }, [groupKpis, offices, projects]);
 
   const isLoading = loadingTeam || loadingKPIs || roleLoading || loadingCurrentEmployee;
-  const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all";
+  const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all" || selectedEmployees.length > 0;
 
 
   // Period navigation helpers
@@ -718,17 +772,73 @@ const TeamKPIDashboard = () => {
           </Card>
         ) : (
           <>
-            {/* Filter Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
-              {/* Left: Filters */}
-              <div className="flex items-center gap-2 flex-wrap flex-1">
-                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                  <Filter className="h-4 w-4" />
-                  <span>Filter by:</span>
-                </div>
-                
+            {/* Sticky Filter Bar - Light Purple Background */}
+            <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
+              <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+                {/* Employee Multi-Select Dropdown */}
+                <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="w-[160px] h-9 justify-between bg-background">
+                      <div className="flex items-center gap-2 truncate">
+                        <Users className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{employeeFilterLabel}</span>
+                      </div>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput placeholder="Search employees..." value={employeeSearchQuery} onValueChange={setEmployeeSearchQuery} />
+                      <CommandList>
+                        <CommandEmpty>No employees found.</CommandEmpty>
+                        <CommandGroup>
+                          {/* Select All / Clear All */}
+                          {(isAdmin || isHR) && employeesList.length > 1 && (
+                            <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
+                                Select All
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
+                                Clear All
+                              </Button>
+                            </div>
+                          )}
+                          {filteredEmployeesList.map(employee => (
+                            <CommandItem 
+                              key={employee.id} 
+                              value={employee.id} 
+                              onSelect={() => {
+                                setSelectedEmployees(
+                                  selectedEmployees.includes(employee.id) 
+                                    ? selectedEmployees.filter(id => id !== employee.id) 
+                                    : [...selectedEmployees, employee.id]
+                                );
+                              }}
+                            >
+                              <div className="flex items-center gap-2 flex-1">
+                                <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={employee.avatarUrl || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
+                                  {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
+                                </div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Department Dropdown */}
                 <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                  <SelectTrigger className="w-[150px] h-9 bg-background">
                     <Building className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Department" />
                   </SelectTrigger>
@@ -742,8 +852,9 @@ const TeamKPIDashboard = () => {
                   </SelectContent>
                 </Select>
 
+                {/* Project Dropdown */}
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                  <SelectTrigger className="w-[140px] h-9 bg-background">
                     <FolderKanban className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Project" />
                   </SelectTrigger>
@@ -757,8 +868,9 @@ const TeamKPIDashboard = () => {
                   </SelectContent>
                 </Select>
 
+                {/* Office Dropdown */}
                 <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px]">
+                  <SelectTrigger className="w-[130px] h-9 bg-background">
                     <MapPin className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Office" />
                   </SelectTrigger>
@@ -772,12 +884,40 @@ const TeamKPIDashboard = () => {
                   </SelectContent>
                 </Select>
 
+                {/* Year Dropdown */}
+                <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
+                  <SelectTrigger className="w-[90px] h-9 bg-background">
+                    <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                    <SelectValue>{year}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Quarter Dropdown - Only shown in Quarterly mode */}
+                {viewMode === "quarterly" && (
+                  <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                    <SelectTrigger className="w-[80px] h-9 bg-background">
+                      <SelectValue>Q{quarter}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4].map((q) => (
+                        <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Clear Filters */}
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
-                    className="text-muted-foreground hover:text-foreground px-2"
+                    className="h-9 text-muted-foreground hover:text-foreground px-2"
                   >
                     <X className="h-4 w-4 sm:mr-1" />
                     <span className="hidden sm:inline">Clear</span>
@@ -789,85 +929,25 @@ const TeamKPIDashboard = () => {
                     {filteredTeamMembers.length}/{teamMembers.length}
                   </Badge>
                 )}
-              </div>
 
-              {/* Right: Period Navigation */}
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={goToPreviousPeriod}
-                  aria-label="Previous period"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <Select
-                  value={viewMode === "quarterly" ? `${quarter}-${year}` : year.toString()}
-                  onValueChange={(v) => {
-                    if (viewMode === "quarterly") {
-                      const [q, y] = v.split("-");
-                      setQuarter(parseInt(q));
-                      setYear(parseInt(y));
-                    } else {
-                      setYear(parseInt(v));
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-[100px] sm:w-[110px]">
-                    <SelectValue>{getPeriodLabel()}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {viewMode === "quarterly" ? (
-                      <>
-                        {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].flatMap((y) =>
-                          [1, 2, 3, 4].map((q) => (
-                            <SelectItem key={`${q}-${y}`} value={`${q}-${y}`}>
-                              Q{q} {y}
-                            </SelectItem>
-                          ))
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {[getCurrentYear() - 2, getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
-                          <SelectItem key={y} value={y.toString()}>
-                            {y}
-                          </SelectItem>
-                        ))}
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={goToNextPeriod}
-                  aria-label="Next period"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-
-                <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
-
-                <ToggleGroup
-                  type="single"
-                  value={viewMode}
-                  onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
-                  className="border rounded-lg"
-                >
-                  <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5 h-8">
-                    <Calendar className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Quarterly</span>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5 h-8">
-                    <CalendarDays className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Annual</span>
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                {/* Quarterly/Annual Toggle - Right side */}
+                <div className="ml-auto">
+                  <ToggleGroup
+                    type="single"
+                    value={viewMode}
+                    onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
+                    className="border rounded-lg bg-background"
+                  >
+                    <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5 h-8">
+                      <Calendar className="h-4 w-4" />
+                      <span className="hidden sm:inline text-xs">Quarterly</span>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5 h-8">
+                      <CalendarDays className="h-4 w-4" />
+                      <span className="hidden sm:inline text-xs">Annual</span>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
               </div>
             </div>
 
