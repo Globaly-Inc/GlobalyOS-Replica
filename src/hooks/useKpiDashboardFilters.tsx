@@ -4,8 +4,7 @@ const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 const getCurrentYear = () => new Date().getFullYear();
 
 export interface KpiDashboardFilters {
-  viewMode: "quarterly" | "annual";
-  quarter: number;
+  quarter: number; // 0 = All quarters (annual view), 1-4 = specific quarter
   year: number;
   departmentFilter: string;
   projectFilter: string;
@@ -14,7 +13,6 @@ export interface KpiDashboardFilters {
 }
 
 const DEFAULT_FILTERS: KpiDashboardFilters = {
-  viewMode: "quarterly",
   quarter: getCurrentQuarter(),
   year: getCurrentYear(),
   departmentFilter: "all",
@@ -36,7 +34,6 @@ export const useKpiDashboardFilters = () => {
 
   return {
     // Filter values
-    viewMode: filters.viewMode,
     quarter: filters.quarter,
     year: filters.year,
     departmentFilter: filters.departmentFilter,
@@ -44,7 +41,6 @@ export const useKpiDashboardFilters = () => {
     officeFilter: filters.officeFilter,
     selectedEmployees: filters.selectedEmployees,
     // Setters
-    setViewMode: (value: "quarterly" | "annual") => setFilter("viewMode", value),
     setQuarter: (value: number) => setFilter("quarter", value),
     setYear: (value: number) => setFilter("year", value),
     setDepartmentFilter: (value: string) => setFilter("departmentFilter", value),
