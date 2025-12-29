@@ -21,6 +21,7 @@ import { OrgLink } from "@/components/OrgLink";
 import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
 import type { Kpi, KpiWithHierarchy } from "@/types";
 import { cn } from "@/lib/utils";
+import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
 
 interface LinkedKpisSectionProps {
   kpi: KpiWithHierarchy;
@@ -54,6 +55,7 @@ const statusColors: Record<string, string> = {
 export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
   const unlinkKpi = useUnlinkKpi();
   const toggleAutoRollup = useToggleAutoRollup();
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   
   const children = kpi.children || [];
   const hasChildren = children.length > 0;
@@ -71,18 +73,29 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-muted-foreground" />
-            Linked KPIs
-            {hasChildren && (
-              <Badge variant="secondary">{children.length}</Badge>
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              Linked KPIs
+              {hasChildren && (
+                <Badge variant="secondary">{children.length}</Badge>
+              )}
+            </CardTitle>
+            {canEdit && kpi.scope_type !== 'individual' && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowLinkDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Link Child
+              </Button>
             )}
-          </CardTitle>
-        </div>
-      </CardHeader>
+          </div>
+        </CardHeader>
       <CardContent className="space-y-4">
         {/* Aggregated Progress */}
         {hasChildren && (
@@ -201,7 +214,14 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
             </p>
           </div>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <LinkChildKpiDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        parentKpi={kpi}
+      />
+    </>
   );
 }
