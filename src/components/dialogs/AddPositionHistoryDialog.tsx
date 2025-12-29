@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { z } from "zod";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
 const positionHistorySchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -21,6 +22,7 @@ const positionHistorySchema = z.object({
   end_date: z.string().optional(),
   change_type: z.enum(["promotion", "lateral_move", "salary_increase", "manager_change", "initial"]),
   notes: z.string().optional(),
+  employment_type: z.string().optional(),
 });
 
 const currencies = [
@@ -57,6 +59,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
   const [newDepartment, setNewDepartment] = useState("");
   const [newPosition, setNewPosition] = useState("");
   const { currentOrg } = useOrganization();
+  const { data: employmentTypes = [] } = useEmploymentTypes();
   const [formData, setFormData] = useState({
     position: "",
     department: "",
@@ -67,6 +70,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
     end_date: "",
     change_type: "promotion" as const,
     notes: "",
+    employment_type: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -163,6 +167,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
         change_type: validated.change_type,
         notes: validated.notes || null,
         end_date: validated.end_date || null,
+        employment_type: validated.employment_type || null,
       };
 
       if (validated.salary) {
@@ -187,6 +192,7 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
         end_date: "",
         change_type: "promotion",
         notes: "",
+        employment_type: "",
       });
       onSuccess?.();
     } catch (error: any) {
@@ -367,6 +373,24 @@ export const AddPositionHistoryDialog = ({ employeeId, onSuccess }: AddPositionH
                 </SelectContent>
               </Select>
               {errors.change_type && <p className="text-sm text-destructive mt-1">{errors.change_type}</p>}
+            </div>
+          </div>
+
+          {/* Employment Type Selector */}
+          <div className="space-y-2">
+            <Label>Employment Type</Label>
+            <div className="flex flex-wrap gap-2">
+              {employmentTypes.map((type) => (
+                <Button
+                  key={type.id}
+                  type="button"
+                  size="sm"
+                  variant={formData.employment_type === type.name ? "default" : "outline"}
+                  onClick={() => setFormData({ ...formData, employment_type: type.name })}
+                >
+                  {type.label}
+                </Button>
+              ))}
             </div>
           </div>
 

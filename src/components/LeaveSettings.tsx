@@ -36,9 +36,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
-
-type EmploymentType = 'trainee' | 'intern' | 'contract' | 'employee';
+type EmploymentType = string;
 
 interface LeaveType {
   id: string;
@@ -80,10 +80,11 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [formSelectedOffices, setFormSelectedOffices] = useState<string[]>([]);
   const [formMaxNegativeDays, setFormMaxNegativeDays] = useState("0");
   const [formAppliesToGender, setFormAppliesToGender] = useState<'all' | 'male' | 'female'>('all');
-  const [formAppliesToEmploymentTypes, setFormAppliesToEmploymentTypes] = useState<EmploymentType[]>(['trainee', 'intern', 'contract', 'employee']);
+  const [formAppliesToEmploymentTypes, setFormAppliesToEmploymentTypes] = useState<EmploymentType[]>([]);
   
   const { currentOrg } = useOrganization();
   const { isAdmin } = useUserRole();
+  const { data: employmentTypesData = [] } = useEmploymentTypes();
 
   useEffect(() => {
     if (currentOrg) {
@@ -163,7 +164,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormSelectedOffices([]);
     setFormMaxNegativeDays("0");
     setFormAppliesToGender('all');
-    setFormAppliesToEmploymentTypes(['trainee', 'intern', 'contract', 'employee']);
+    setFormAppliesToEmploymentTypes(employmentTypesData.map(t => t.name));
     setEditingType(null);
   };
 
@@ -395,27 +396,26 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
           <div className="space-y-2">
             <Label>Applies to Employment Types</Label>
             <div className="flex flex-wrap gap-2">
-              {(['trainee', 'intern', 'contract', 'employee'] as EmploymentType[]).map((type) => (
+              {employmentTypesData.map((type) => (
                 <Button
-                  key={type}
+                  key={type.id}
                   type="button"
                   size="sm"
-                  variant={formAppliesToEmploymentTypes.includes(type) ? "default" : "outline"}
+                  variant={formAppliesToEmploymentTypes.includes(type.name) ? "default" : "outline"}
                   onClick={() => {
-                    if (formAppliesToEmploymentTypes.includes(type)) {
+                    if (formAppliesToEmploymentTypes.includes(type.name)) {
                       // Don't allow deselecting if it's the last one
                       if (formAppliesToEmploymentTypes.length > 1) {
                         setFormAppliesToEmploymentTypes(
-                          formAppliesToEmploymentTypes.filter((t) => t !== type)
+                          formAppliesToEmploymentTypes.filter((t) => t !== type.name)
                         );
                       }
                     } else {
-                      setFormAppliesToEmploymentTypes([...formAppliesToEmploymentTypes, type]);
+                      setFormAppliesToEmploymentTypes([...formAppliesToEmploymentTypes, type.name]);
                     }
                   }}
-                  className="capitalize"
                 >
-                  {type}
+                  {type.label}
                 </Button>
               ))}
             </div>

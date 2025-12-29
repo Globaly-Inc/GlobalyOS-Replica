@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
 const positionHistorySchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -19,6 +20,7 @@ const positionHistorySchema = z.object({
   end_date: z.string().optional(),
   change_type: z.enum(["promotion", "lateral_move", "salary_increase", "manager_change", "initial"]),
   notes: z.string().optional(),
+  employment_type: z.string().optional(),
 });
 
 const currencies = [
@@ -49,6 +51,7 @@ interface PositionHistoryEntry {
   end_date: string | null;
   change_type: string;
   notes: string | null;
+  employment_type?: string | null;
 }
 
 interface EditPositionHistoryDialogProps {
@@ -65,6 +68,7 @@ export const EditPositionHistoryDialog = ({
   onSuccess 
 }: EditPositionHistoryDialogProps) => {
   const [loading, setLoading] = useState(false);
+  const { data: employmentTypes = [] } = useEmploymentTypes();
   const [formData, setFormData] = useState({
     position: "",
     department: "",
@@ -75,6 +79,7 @@ export const EditPositionHistoryDialog = ({
     end_date: "",
     change_type: "promotion" as const,
     notes: "",
+    employment_type: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -90,6 +95,7 @@ export const EditPositionHistoryDialog = ({
         end_date: entry.end_date || "",
         change_type: (entry.change_type as any) || "promotion",
         notes: entry.notes || "",
+        employment_type: entry.employment_type || "",
       });
     }
   }, [entry]);
@@ -132,6 +138,7 @@ export const EditPositionHistoryDialog = ({
         notes: validated.notes || null,
         end_date: validated.end_date || null,
         salary: validated.salary ? annualSalary : null,
+        employment_type: validated.employment_type || null,
       };
 
       const { error } = await supabase
@@ -276,6 +283,24 @@ export const EditPositionHistoryDialog = ({
                 </SelectContent>
               </Select>
               {errors.change_type && <p className="text-sm text-destructive mt-1">{errors.change_type}</p>}
+            </div>
+          </div>
+
+          {/* Employment Type Selector */}
+          <div className="space-y-2">
+            <Label>Employment Type</Label>
+            <div className="flex flex-wrap gap-2">
+              {employmentTypes.map((type) => (
+                <Button
+                  key={type.id}
+                  type="button"
+                  size="sm"
+                  variant={formData.employment_type === type.name ? "default" : "outline"}
+                  onClick={() => setFormData({ ...formData, employment_type: type.name })}
+                >
+                  {type.label}
+                </Button>
+              ))}
             </div>
           </div>
 

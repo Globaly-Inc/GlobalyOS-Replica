@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { 
   List, 
   Briefcase, 
@@ -45,11 +46,13 @@ import {
   Calendar,
   Sparkles,
   Wand2,
-  X
+  X,
+  UserCheck
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { LeaveSettings } from "./LeaveSettings";
+import { useEmploymentTypes, useCreateEmploymentType, useUpdateEmploymentType, useDeleteEmploymentType } from "@/hooks/useEmploymentTypes";
 
 interface Position {
   id: string;
@@ -537,6 +540,10 @@ export const FieldsSettings = () => {
                 <Calendar className="h-4 w-4" />
                 Leave Types
                 <Badge variant="secondary" className="ml-1">{leaveTypesCount}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="employment-types" className="gap-2">
+                <UserCheck className="h-4 w-4" />
+                Employment Types
               </TabsTrigger>
             </TabsList>
 

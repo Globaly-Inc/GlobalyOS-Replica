@@ -2182,6 +2182,53 @@ export type Database = {
           },
         ]
       }
+      employment_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          is_system: boolean | null
+          label: string
+          name: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          label: string
+          name: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          label?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_reactions: {
         Row: {
           created_at: string
@@ -4849,6 +4896,7 @@ export type Database = {
           department: string
           effective_date: string
           employee_id: string
+          employment_type: string | null
           end_date: string | null
           id: string
           manager_id: string | null
@@ -4864,6 +4912,7 @@ export type Database = {
           department: string
           effective_date: string
           employee_id: string
+          employment_type?: string | null
           end_date?: string | null
           id?: string
           manager_id?: string | null
@@ -4879,6 +4928,7 @@ export type Database = {
           department?: string
           effective_date?: string
           employee_id?: string
+          employment_type?: string | null
           end_date?: string | null
           id?: string
           manager_id?: string | null
