@@ -7,3 +7,6 @@ export { LinkedKpiSelector } from './LinkedKpiSelector';
 export { OrganisationKpiCard } from './OrganisationKpiCard';
 export { LinkedKpisSection } from './LinkedKpisSection';
 export { ParentKpiSection } from './ParentKpiSection';
+export { KpiActivityLogs } from './KpiActivityLogs';
+export { KpiOwnersDisplay } from './KpiOwnersDisplay';
+export { EditKpiOwnersDialog } from './EditKpiOwnersDialog';
