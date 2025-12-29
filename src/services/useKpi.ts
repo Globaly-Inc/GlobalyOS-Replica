@@ -122,7 +122,7 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
           ? supabase.from('offices').select('id, name').in('id', officeIds)
           : { data: [] },
         projectIds.length > 0
-          ? supabase.from('projects').select('id, name').in('id', projectIds)
+          ? supabase.from('projects').select('id, name, icon, color, logo_url').in('id', projectIds)
           : { data: [] },
       ]);
 
