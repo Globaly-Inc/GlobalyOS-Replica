@@ -75,6 +75,33 @@ interface GeneratedKpi {
   isQuarterlyChild?: boolean;
 }
 
+// Helper function to identify project themes for intelligent KPI assignment
+function getProjectThemes(project: { name: string; description?: string }): string[] {
+  const desc = (project.description || '').toLowerCase();
+  const name = project.name.toLowerCase();
+  const themes: string[] = [];
+  
+  // Talent/growth hub detection
+  if (desc.includes('talent') || desc.includes('skill') || 
+      desc.includes('team') || desc.includes('execution engine') ||
+      desc.includes('hub') || desc.includes('upgrading') ||
+      desc.includes('internal') || desc.includes('capability') ||
+      desc.includes('development') || desc.includes('training') ||
+      name.includes('hub') || name.includes('holding')) {
+    themes.push('talent-development', 'team-growth', 'skill-building');
+  }
+  
+  // Product detection
+  if (desc.includes('product') || desc.includes('saas') || 
+      desc.includes('platform') || desc.includes('marketplace') ||
+      desc.includes('customer') || desc.includes('revenue') ||
+      desc.includes('feature') || desc.includes('app')) {
+    themes.push('product', 'revenue', 'customer');
+  }
+  
+  return themes;
+}
+
 // Industry-specific KPI guidelines
 function getIndustryKpiGuidelines(industry: string): string {
   const guidelines: Record<string, string> = {
@@ -490,11 +517,38 @@ ONLY generate KPIs for these levels:`;
         groupUserPrompt += `\n- 2-3 KPIs per project:`;
         activeProjects.forEach(p => {
           const projectTeam = projectEmployeeMap[p.name] || [];
+          const themes = getProjectThemes(p);
           groupUserPrompt += `\n  • ${p.name} (ID: ${p.id}) - Team: ${projectTeam.length} members`;
           if (p.description) {
-            groupUserPrompt += `\n    Focus: ${p.description.slice(0, 100)}`;
+            // Include more context for better AI understanding
+            groupUserPrompt += `\n    Description: ${p.description.slice(0, 300)}`;
+          }
+          if (themes.length > 0) {
+            groupUserPrompt += `\n    Focus areas: ${themes.join(', ')}`;
           }
         });
+        
+        // Add semantic mapping guidance for project KPIs
+        groupUserPrompt += `\n\nPROJECT KPI ASSIGNMENT RULES:`;
+        groupUserPrompt += `\n- Team growth, skill development, talent, training, capability building KPIs → Assign to hub/holding company projects`;
+        groupUserPrompt += `\n- Product-specific features, revenue, customer acquisition/retention KPIs → Assign to respective product projects`;
+        
+        // Detect if GlobalyHub-type project exists and add specific instructions
+        const hubProject = activeProjects.find(p => {
+          const themes = getProjectThemes(p);
+          return themes.includes('talent-development') || themes.includes('team-growth');
+        });
+        
+        if (hubProject) {
+          groupUserPrompt += `\n\nSPECIAL INSTRUCTION FOR "${hubProject.name}":`;
+          groupUserPrompt += `\nThis is a talent/operations hub. Assign these KPI types to ${hubProject.name}:`;
+          groupUserPrompt += `\n- Team growth and headcount targets`;
+          groupUserPrompt += `\n- Skill development and training completion`;
+          groupUserPrompt += `\n- Employee capability building`;
+          groupUserPrompt += `\n- Internal process optimization`;
+          groupUserPrompt += `\n- Cross-team collaboration metrics`;
+          groupUserPrompt += `\n- Talent retention and development`;
+        }
       }
       if (cascadeConfig.includeOffices && activeOffices.length > 0) {
         groupUserPrompt += `\n- 1-2 KPIs per office: ${activeOffices.map((o: any) => o.name).join(', ')}`;
@@ -597,14 +651,34 @@ Respond with ONLY the JSON object.`;
         const batchPromises = parallelBatches.map(async (batch, subIndex) => {
           const actualBatchIndex = parallelIndex + subIndex;
           
+          // Build project context summary with descriptions for semantic understanding
+          const projectContextSummary = activeProjects.map(p => {
+            const themes = getProjectThemes(p);
+            return `${p.name}: ${p.description?.slice(0, 150) || 'No description'}${themes.length > 0 ? ` [Themes: ${themes.join(', ')}]` : ''}`;
+          }).join('\n');
+          
+          // Detect hub project for explicit guidance
+          const hubProject = activeProjects.find(p => {
+            const themes = getProjectThemes(p);
+            return themes.includes('talent-development') || themes.includes('team-growth');
+          });
+          
           const individualSystemPrompt = `You are an expert HR consultant. Generate INDIVIDUAL employee KPIs that link to existing group KPIs.
 
 ORGANIZATION: ${organizationContext.name}
 PERIOD: ${periodLabel}
 INDUSTRY: ${organizationContext.industry || "General Business"}
 
+PROJECT CONTEXT (use this to decide where to assign KPIs):
+${projectContextSummary || 'No projects available'}
+
 EXISTING PARENT KPIs (use these tempIds for parentTempId):
 ${parentKpiSummary}
+
+KPI ASSIGNMENT RULES:
+- For skill development, learning, training, growth, capability KPIs → Link to projects with talent-development/team-growth themes${hubProject ? ` (prefer: ${hubProject.name})` : ''}
+- For product/feature/revenue/customer KPIs → Link to the specific product project
+- If employee works on multiple projects, assign KPIs to the most relevant project based on KPI topic
 
 Guidelines:
 1. Generate 2 SMART individual KPIs per employee
@@ -622,6 +696,12 @@ CRITICAL: Respond with ONLY valid JSON:
   ]
 }`;
 
+          // Detect hub project for intelligent assignment
+          const hubProjectForBatch = activeProjects.find(p => {
+            const themes = getProjectThemes(p);
+            return themes.includes('talent-development') || themes.includes('team-growth');
+          });
+          
           let batchUserPrompt = `Generate individual KPIs for these ${batch.length} employees:
 
 `;
@@ -632,12 +712,29 @@ CRITICAL: Respond with ONLY valid JSON:
               .filter(Boolean);
             
             const projectInfo = empProjects.length > 0 
-              ? `Projects: ${empProjects.map((p: any) => `${p.name} (ID: ${p.id})`).join(', ')}`
+              ? `Projects: ${empProjects.map((p: any) => {
+                  const themes = getProjectThemes(p);
+                  return `${p.name} (ID: ${p.id})${themes.length > 0 ? ` [${themes.join(', ')}]` : ''}`;
+                }).join(', ')}`
               : 'No projects';
             
-            // Find best parent KPI for hint
+            // Find best parent KPI for hint - with intelligent theme-based matching
             let suggestedParent = defaultParentTempId;
+            let suggestedHubParent = '';
+            
             if (empProjects.length > 0) {
+              // Check if employee is in the hub project
+              const empHubProject = empProjects.find((p: any) => {
+                const themes = getProjectThemes(p);
+                return themes.includes('talent-development') || themes.includes('team-growth');
+              });
+              
+              if (empHubProject) {
+                const hubKpi = projectKpiMap.get(empHubProject.id);
+                if (hubKpi) suggestedHubParent = hubKpi.tempId;
+              }
+              
+              // Default to first project
               const projKpi = projectKpiMap.get(empProjects[0].id);
               if (projKpi) suggestedParent = projKpi.tempId;
             } else if (e.department && deptKpiMap.has(e.department.toLowerCase())) {
@@ -655,8 +752,14 @@ CRITICAL: Respond with ONLY valid JSON:
             batchUserPrompt += `• ${e.name} (ID: ${e.id})
   Position: ${e.position}, Department: ${e.department}
   ${projectInfo}${tenureNote}
-  Suggested parentTempId: ${suggestedParent}
-`;
+  Suggested parentTempId: ${suggestedParent}`;
+            
+            // Add explicit hub guidance for skill-related KPIs
+            if (suggestedHubParent && hubProjectForBatch) {
+              batchUserPrompt += `\n  For skill development/training KPIs → Use ${hubProjectForBatch.name}'s KPI (tempId: ${suggestedHubParent})`;
+            }
+            
+            batchUserPrompt += '\n';
             if (e.positionResponsibilities?.length > 0) {
               batchUserPrompt += `  Key responsibilities: ${e.positionResponsibilities.slice(0, 2).join('; ')}\n`;
             }
