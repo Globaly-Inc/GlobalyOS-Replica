@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 import {
   Popover,
   PopoverContent,
@@ -75,7 +75,6 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Calendar,
   CalendarDays,
   Plus,
   LayoutGrid,
@@ -128,7 +127,6 @@ const TeamKPIDashboard = () => {
   const { buildOrgPath } = useOrgNavigation();
   
   const {
-    viewMode, setViewMode,
     quarter, setQuarter,
     year, setYear,
     departmentFilter, setDepartmentFilter,
@@ -290,21 +288,21 @@ const TeamKPIDashboard = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // Fetch group KPIs
+  // Fetch group KPIs (quarter 0 = all quarters/annual)
   const { data: groupKpis = [], isLoading: loadingGroupKpis } = useGroupKpis(
-    viewMode === "quarterly" ? quarter : undefined,
+    quarter !== 0 ? quarter : undefined,
     year
   );
 
   // Fetch organization KPIs
   const { data: organizationKpis = [], isLoading: loadingOrgKpis } = useOrganizationKpis(
-    viewMode === "quarterly" ? quarter : undefined,
+    quarter !== 0 ? quarter : undefined,
     year
   );
 
   // Fetch all KPIs for the team (based on view mode)
   const { data: teamKPIs = [], isLoading: loadingKPIs } = useQuery({
-    queryKey: ["team-kpis", teamMembers.map(t => t.id), viewMode, quarter, year],
+    queryKey: ["team-kpis", teamMembers.map(t => t.id), quarter, year],
     queryFn: async () => {
       if (teamMembers.length === 0) return [];
       
@@ -314,8 +312,8 @@ const TeamKPIDashboard = () => {
         .in("employee_id", teamMembers.map(t => t.id))
         .eq("year", year);
       
-      // Only filter by quarter in quarterly mode
-      if (viewMode === "quarterly") {
+      // Only filter by quarter when a specific quarter is selected (1-4)
+      if (quarter !== 0) {
         query = query.eq("quarter", quarter);
       }
       
@@ -675,38 +673,13 @@ const TeamKPIDashboard = () => {
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all" || selectedEmployees.length > 0;
 
 
-  // Period navigation helpers
-  const goToPreviousPeriod = () => {
-    if (viewMode === "quarterly") {
-      if (quarter === 1) {
-        setQuarter(4);
-        setYear(year - 1);
-      } else {
-        setQuarter(quarter - 1);
-      }
-    } else {
-      setYear(year - 1);
-    }
-  };
-
-  const goToNextPeriod = () => {
-    if (viewMode === "quarterly") {
-      if (quarter === 4) {
-        setQuarter(1);
-        setYear(year + 1);
-      } else {
-        setQuarter(quarter + 1);
-      }
-    } else {
-      setYear(year + 1);
-    }
-  };
+  // Period navigation helpers (removed - now using direct dropdowns)
 
   const getPeriodLabel = () => {
-    if (viewMode === "quarterly") {
-      return `Q${quarter} ${year}`;
+    if (quarter === 0) {
+      return year.toString();
     }
-    return year.toString();
+    return `Q${quarter} ${year}`;
   };
 
   return (
@@ -838,7 +811,7 @@ const TeamKPIDashboard = () => {
 
                 {/* Department Dropdown */}
                 <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[150px] h-9 bg-background">
+                  <SelectTrigger className="w-[170px] h-9 bg-background">
                     <Building className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Department" />
                   </SelectTrigger>
@@ -854,7 +827,7 @@ const TeamKPIDashboard = () => {
 
                 {/* Project Dropdown */}
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[140px] h-9 bg-background">
+                  <SelectTrigger className="w-[150px] h-9 bg-background">
                     <FolderKanban className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Project" />
                   </SelectTrigger>
@@ -870,7 +843,7 @@ const TeamKPIDashboard = () => {
 
                 {/* Office Dropdown */}
                 <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                  <SelectTrigger className="w-[130px] h-9 bg-background">
+                  <SelectTrigger className="w-[140px] h-9 bg-background">
                     <MapPin className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Office" />
                   </SelectTrigger>
@@ -886,7 +859,7 @@ const TeamKPIDashboard = () => {
 
                 {/* Year Dropdown */}
                 <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-                  <SelectTrigger className="w-[90px] h-9 bg-background">
+                  <SelectTrigger className="w-[100px] h-9 bg-background">
                     <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
                     <SelectValue>{year}</SelectValue>
                   </SelectTrigger>
@@ -897,19 +870,21 @@ const TeamKPIDashboard = () => {
                   </SelectContent>
                 </Select>
 
-                {/* Quarter Dropdown - Only shown in Quarterly mode */}
-                {viewMode === "quarterly" && (
-                  <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
-                    <SelectTrigger className="w-[80px] h-9 bg-background">
-                      <SelectValue>Q{quarter}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4].map((q) => (
-                        <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                {/* Quarter Dropdown - Always visible with "All" option */}
+                <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                  <SelectTrigger className="w-[130px] h-9 bg-background">
+                    <SelectValue>
+                      {quarter === 0 ? "All Quarters" : `Q${quarter}`}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">All (Annual)</SelectItem>
+                    <SelectItem value="1">Q1</SelectItem>
+                    <SelectItem value="2">Q2</SelectItem>
+                    <SelectItem value="3">Q3</SelectItem>
+                    <SelectItem value="4">Q4</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (
@@ -929,25 +904,6 @@ const TeamKPIDashboard = () => {
                     {filteredTeamMembers.length}/{teamMembers.length}
                   </Badge>
                 )}
-
-                {/* Quarterly/Annual Toggle - Right side */}
-                <div className="ml-auto">
-                  <ToggleGroup
-                    type="single"
-                    value={viewMode}
-                    onValueChange={(v) => v && setViewMode(v as "quarterly" | "annual")}
-                    className="border rounded-lg bg-background"
-                  >
-                    <ToggleGroupItem value="quarterly" aria-label="Quarterly view" className="px-2 sm:px-3 gap-1.5 h-8">
-                      <Calendar className="h-4 w-4" />
-                      <span className="hidden sm:inline text-xs">Quarterly</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="annual" aria-label="Annual view" className="px-2 sm:px-3 gap-1.5 h-8">
-                      <CalendarDays className="h-4 w-4" />
-                      <span className="hidden sm:inline text-xs">Annual</span>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
               </div>
             </div>
 
@@ -1184,7 +1140,7 @@ const TeamKPIDashboard = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
                                 <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
-                                {viewMode === "annual" && (
+                                {quarter === 0 && (
                                   <Badge variant="outline" className="text-xs">Q{kpi.quarter}</Badge>
                                 )}
                                 <Badge variant="secondary" className="text-xs">
@@ -1278,7 +1234,7 @@ const TeamKPIDashboard = () => {
                     <p className="text-sm">
                       {hasActiveFilters 
                         ? "No KPIs match the selected filters" 
-                        : viewMode === "annual" 
+                        : quarter === 0 
                           ? `No KPIs set for ${year}`
                           : `No KPIs set for Q${quarter} ${year}`}
                     </p>
@@ -1308,7 +1264,7 @@ const TeamKPIDashboard = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
                                 <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
-                                {viewMode === "annual" && (
+                                {quarter === 0 && (
                                   <Badge variant="outline" className="text-xs">
                                     Q{kpi.quarter}
                                   </Badge>
