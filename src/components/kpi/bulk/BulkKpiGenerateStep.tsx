@@ -36,10 +36,13 @@ const calculateTenure = (joinDate: string | null): "new" | "experienced" | "vete
   return "experienced";
 };
 
-// Check if a job is stale (processing for >3 minutes without completion)
+// Check if a job is stale (processing for >3 minutes without heartbeat)
 const isJobStale = (job: any) => {
-  if (!job?.started_at || job.status !== 'processing') return false;
-  const ageMinutes = (Date.now() - new Date(job.started_at).getTime()) / 60000;
+  if (!job || job.status !== 'processing') return false;
+  // Prefer last_heartbeat, fallback to started_at
+  const heartbeat = job.last_heartbeat || job.started_at;
+  if (!heartbeat) return false;
+  const ageMinutes = (Date.now() - new Date(heartbeat).getTime()) / 60000;
   return ageMinutes > 3;
 };
 
@@ -58,7 +61,7 @@ export const BulkKpiGenerateStep = ({ state, updateState }: Props) => {
       if (!currentOrg?.id) return null;
       const { data } = await supabase
         .from("kpi_generation_jobs")
-        .select("*")
+        .select("*, last_heartbeat")
         .eq("organization_id", currentOrg.id)
         .in("status", ["pending", "processing"])
         .order("created_at", { ascending: false })

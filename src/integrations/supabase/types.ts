@@ -2526,6 +2526,7 @@ export type Database = {
           error_message: string | null
           generated_kpis: Json | null
           id: string
+          last_heartbeat: string | null
           organization_id: string
           progress: number | null
           progress_message: string | null
@@ -2540,6 +2541,7 @@ export type Database = {
           error_message?: string | null
           generated_kpis?: Json | null
           id?: string
+          last_heartbeat?: string | null
           organization_id: string
           progress?: number | null
           progress_message?: string | null
@@ -2554,6 +2556,7 @@ export type Database = {
           error_message?: string | null
           generated_kpis?: Json | null
           id?: string
+          last_heartbeat?: string | null
           organization_id?: string
           progress?: number | null
           progress_message?: string | null
