@@ -58,8 +58,8 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
   const children = kpi.children || [];
   const hasChildren = children.length > 0;
 
-  const handleUnlink = async (childId: string) => {
-    await unlinkKpi.mutateAsync(childId);
+  const handleUnlink = async (childId: string, childTitle?: string) => {
+    await unlinkKpi.mutateAsync({ kpiId: childId, parentTitle: kpi.title });
   };
 
   const handleToggleAutoRollup = async (checked: boolean) => {

@@ -409,7 +409,7 @@ export const useCreateKpi = () => {
 
   return useMutation({
     mutationFn: async (input: CreateKpiInput) => {
-      if (!currentOrg?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
         .from('kpis')
@@ -429,8 +429,26 @@ export const useCreateKpi = () => {
 
       if (error) throw error;
 
+      // Log the activity
+      await supabase.from('kpi_activity_logs').insert({
+        kpi_id: data.id,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        action_type: 'created',
+        description: `Created KPI: ${input.title}`,
+        new_value: {
+          title: input.title,
+          description: input.description,
+          target_value: input.targetValue,
+          unit: input.unit,
+          quarter: input.quarter,
+          year: input.year,
+          scope_type: 'individual',
+        },
+      });
+
       // Send notification to the assigned employee
-      if (currentEmployee?.id && data?.id) {
+      if (data?.id) {
         await sendKpiNotifications({
           kpiId: data.id,
           kpiTitle: input.title,
@@ -479,7 +497,7 @@ export const useCreateGroupKpi = () => {
 
   return useMutation({
     mutationFn: async (input: CreateGroupKpiInput) => {
-      if (!currentOrg?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
         .from('kpis')
@@ -504,8 +522,30 @@ export const useCreateGroupKpi = () => {
 
       if (error) throw error;
 
+      // Log the activity
+      await supabase.from('kpi_activity_logs').insert({
+        kpi_id: data.id,
+        employee_id: currentEmployee.id,
+        organization_id: currentOrg.id,
+        action_type: 'created',
+        description: `Created ${input.scopeType} KPI: ${input.title}`,
+        new_value: {
+          title: input.title,
+          description: input.description,
+          target_value: input.targetValue,
+          unit: input.unit,
+          quarter: input.quarter,
+          year: input.year,
+          scope_type: input.scopeType,
+          scope_department: input.scopeDepartment,
+          scope_office_id: input.scopeOfficeId,
+          scope_project_id: input.scopeProjectId,
+          scope_name: input.scopeName,
+        },
+      });
+
       // Send notifications to affected employees (skip organization scope)
-      if (currentEmployee?.id && data?.id && input.scopeType !== 'organization') {
+      if (data?.id && input.scopeType !== 'organization') {
         await sendKpiNotifications({
           kpiId: data.id,
           kpiTitle: input.title,
@@ -539,15 +579,19 @@ export const useCreateGroupKpi = () => {
 // Link a KPI to a parent
 export const useLinkKpi = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
       kpiId, 
       parentKpiId,
+      parentTitle,
       weight = 1.0 
     }: { 
       kpiId: string; 
       parentKpiId: string;
+      parentTitle?: string;
       weight?: number;
     }) => {
       const { error } = await supabase
@@ -559,9 +603,24 @@ export const useLinkKpi = () => {
         .eq('id', kpiId);
 
       if (error) throw error;
+
+      // Log the activity
+      if (currentOrg?.id && currentEmployee?.id) {
+        await supabase.from('kpi_activity_logs').insert({
+          kpi_id: kpiId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          action_type: 'linked',
+          description: parentTitle ? `Linked to parent KPI: ${parentTitle}` : 'Linked to parent KPI',
+          new_value: { parent_kpi_id: parentKpiId, weight },
+        });
+      }
+
+      return { kpiId };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', result.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
@@ -577,9 +636,18 @@ export const useLinkKpi = () => {
 // Unlink a KPI from its parent
 export const useUnlinkKpi = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
-    mutationFn: async (kpiId: string) => {
+    mutationFn: async ({ kpiId, parentTitle }: { kpiId: string; parentTitle?: string }) => {
+      // Get the current parent before unlinking
+      const { data: kpi } = await supabase
+        .from('kpis')
+        .select('parent_kpi_id')
+        .eq('id', kpiId)
+        .single();
+
       const { error } = await supabase
         .from('kpis')
         .update({ 
@@ -589,9 +657,24 @@ export const useUnlinkKpi = () => {
         .eq('id', kpiId);
 
       if (error) throw error;
+
+      // Log the activity
+      if (currentOrg?.id && currentEmployee?.id) {
+        await supabase.from('kpi_activity_logs').insert({
+          kpi_id: kpiId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          action_type: 'unlinked',
+          description: parentTitle ? `Unlinked from parent KPI: ${parentTitle}` : 'Unlinked from parent KPI',
+          old_value: { parent_kpi_id: kpi?.parent_kpi_id },
+        });
+      }
+
+      return { kpiId };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['kpi-activity-logs', result.kpiId] });
       queryClient.invalidateQueries({ queryKey: ['organization-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['available-parent-kpis'] });
@@ -671,22 +754,37 @@ export const useUpdateKpiProgress = () => {
 // Delete KPI
 export const useDeleteKpi = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
-    mutationFn: async (kpiId: string) => {
+    mutationFn: async ({ kpiId, kpiTitle }: { kpiId: string; kpiTitle?: string }) => {
+      // Get KPI details before deletion for activity log
+      const { data: kpi } = await supabase
+        .from('kpis')
+        .select('title, description, scope_type, target_value, unit')
+        .eq('id', kpiId)
+        .single();
+
+      // Note: We can't log to kpi_activity_logs after deletion as the KPI won't exist
+      // The activity log entry will be deleted via cascade
+      // For audit purposes, consider a separate audit table in the future
+
       const { error } = await supabase
         .from('kpis')
         .delete()
         .eq('id', kpiId);
 
       if (error) throw error;
+      
+      return { kpiTitle: kpiTitle || kpi?.title };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['group-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['employee-inherited-kpis'] });
-      toast.success('KPI deleted');
+      toast.success(`KPI "${result.kpiTitle || 'KPI'}" deleted`);
     },
     onError: (error) => {
       const message = getErrorMessage(error, 'Failed to delete KPI');
