@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus, Calendar } from "lucide-react";
+import { TrendingUp, ArrowRight, DollarSign, UserCheck, Pencil, Eye, EyeOff, Plus, Calendar, Briefcase } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { EditPositionHistoryDialog } from "@/components/dialogs/EditPositionHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
 interface TimelineEntry {
   id: string;
@@ -23,6 +24,7 @@ interface TimelineEntry {
   end_date: string | null;
   change_type: string;
   notes: string | null;
+  employment_type?: string | null;
   manager?: {
     profiles: {
       full_name: string;
@@ -44,12 +46,7 @@ interface PositionTimelineProps {
   onRefresh?: () => void;
 }
 
-const EMPLOYMENT_TYPES = [
-  { value: 'trainee', label: 'Trainee' },
-  { value: 'intern', label: 'Intern' },
-  { value: 'contract', label: 'Contract' },
-  { value: 'employee', label: 'Employee' },
-] as const;
+// Remove hardcoded EMPLOYMENT_TYPES - now using useEmploymentTypes hook
 
 const changeTypeConfig: Record<string, { label: string; color: string; icon: any }> = {
   promotion: { label: "Promotion", color: "bg-green-500", icon: TrendingUp },
@@ -103,6 +100,7 @@ export const PositionTimeline = ({
   const [newDepartment, setNewDepartment] = useState("");
   const [newPosition, setNewPosition] = useState("");
   const { currentOrg } = useOrganization();
+  const { data: employmentTypes = [] } = useEmploymentTypes();
   const [currentEditData, setCurrentEditData] = useState({
     position: currentPosition,
     department: currentDepartment,
@@ -412,6 +410,13 @@ export const PositionTimeline = ({
                     <h4 className="font-medium text-sm">{entry.position}</h4>
                     <p className="text-sm text-muted-foreground">{entry.department}</p>
                     
+                    {entry.employment_type && (
+                      <Badge variant="secondary" className="text-xs mt-1 gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        {employmentTypes.find(t => t.name === entry.employment_type)?.label || entry.employment_type}
+                      </Badge>
+                    )}
+                    
                     {showSalary && entry.salary && (
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm font-medium text-primary">
@@ -544,21 +549,19 @@ export const PositionTimeline = ({
 
             <div>
               <Label htmlFor="current-employment-type">Employment Type</Label>
-              <Select 
-                value={currentEditData.employmentType} 
-                onValueChange={(value) => setCurrentEditData({ ...currentEditData, employmentType: value })}
-              >
-                <SelectTrigger id="current-employment-type">
-                  <SelectValue placeholder="Select employment type" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {EMPLOYMENT_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {employmentTypes.map((type) => (
+                  <Button
+                    key={type.id}
+                    type="button"
+                    size="sm"
+                    variant={currentEditData.employmentType === type.name ? "default" : "outline"}
+                    onClick={() => setCurrentEditData({ ...currentEditData, employmentType: type.name })}
+                  >
+                    {type.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             
             {showSalary && (
