@@ -257,7 +257,7 @@ export const ApproveLeaveDialog = ({
                           <div className="flex items-center justify-between w-full gap-3">
                             <span>{lt.leaveTypeName}</span>
                             <span className="text-xs text-muted-foreground">
-                              ({lt.currentBalance} days available)
+                              ({lt.availableBalance} days available)
                             </span>
                           </div>
                         </SelectItem>

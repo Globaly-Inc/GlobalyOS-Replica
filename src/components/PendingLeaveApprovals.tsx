@@ -375,9 +375,24 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       reviewed_at: new Date().toISOString(),
     };
 
-    // If converting to different leave type
+    // If converting to different leave type, update both leave_type and leave_type_id
     if (approved && newLeaveType && newLeaveType !== leaveRequest?.leave_type) {
-      updateData.leave_type = newLeaveType;
+      // Get the leave_type_id for the new leave type
+      const { data: newLeaveTypeData } = await supabase
+        .from("leave_types")
+        .select("id")
+        .eq("organization_id", currentOrg?.id)
+        .ilike("name", newLeaveType)
+        .maybeSingle();
+      
+      if (newLeaveTypeData) {
+        updateData.leave_type = newLeaveType;
+        updateData.leave_type_id = newLeaveTypeData.id;
+      } else {
+        toast.error(`Could not find leave type: ${newLeaveType}`);
+        setProcessing(null);
+        return;
+      }
     }
 
     const { error } = await supabase
