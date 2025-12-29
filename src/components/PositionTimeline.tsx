@@ -37,11 +37,19 @@ interface PositionTimelineProps {
   currentSalary?: number | null;
   currentCurrency?: string;
   currentEffectiveDate?: string | null;
+  currentEmploymentType?: string;
   employeeId?: string;
   canEdit?: boolean;
   showSalary?: boolean;
   onRefresh?: () => void;
 }
+
+const EMPLOYMENT_TYPES = [
+  { value: 'trainee', label: 'Trainee' },
+  { value: 'intern', label: 'Intern' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'employee', label: 'Employee' },
+] as const;
 
 const changeTypeConfig: Record<string, { label: string; color: string; icon: any }> = {
   promotion: { label: "Promotion", color: "bg-green-500", icon: TrendingUp },
@@ -77,6 +85,7 @@ export const PositionTimeline = ({
   currentSalary,
   currentCurrency = "USD",
   currentEffectiveDate,
+  currentEmploymentType = "employee",
   employeeId,
   canEdit = false,
   showSalary = true,
@@ -101,6 +110,7 @@ export const PositionTimeline = ({
     currency: currentCurrency,
     paymentFrequency: "annual" as string,
     effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
+    employmentType: currentEmploymentType,
     notes: "",
   });
 
@@ -246,6 +256,7 @@ export const PositionTimeline = ({
       currency: currentCurrency,
       paymentFrequency: "annual",
       effectiveDate: currentEffectiveDate || new Date().toISOString().split('T')[0],
+      employmentType: currentEmploymentType,
       notes: "",
     });
     setCurrentEditOpen(true);
@@ -272,6 +283,7 @@ export const PositionTimeline = ({
         .update({
           position: currentEditData.position,
           department: currentEditData.department,
+          employment_type: currentEditData.employmentType,
           remuneration: annualSalary || null,
           remuneration_currency: currentEditData.currency,
           position_effective_date: currentEditData.effectiveDate,
@@ -528,6 +540,25 @@ export const PositionTimeline = ({
                   </Select>
                 )}
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="current-employment-type">Employment Type</Label>
+              <Select 
+                value={currentEditData.employmentType} 
+                onValueChange={(value) => setCurrentEditData({ ...currentEditData, employmentType: value })}
+              >
+                <SelectTrigger id="current-employment-type">
+                  <SelectValue placeholder="Select employment type" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {EMPLOYMENT_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             {showSalary && (
