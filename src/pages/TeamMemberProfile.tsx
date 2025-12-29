@@ -11,7 +11,7 @@ import WinCard from "@/components/WinCard";
 import { FeedReactions } from "@/components/FeedReactions";
 import { Update } from "@/types/employee";
 import { PositionTimeline } from "@/components/PositionTimeline";
-// PositionDialog is now used internally by PositionTimeline
+import { PositionDialog } from "@/components/dialogs/PositionDialog";
 import { LearningDevelopment } from "@/components/LearningDevelopment";
 import { AddLearningDialog } from "@/components/dialogs/AddLearningDialog";
 import { LeaveManagement } from "@/components/LeaveManagement";
@@ -107,6 +107,7 @@ const TeamMemberProfile = () => {
   const [performanceReviews, setPerformanceReviews] = useState<any[]>([]);
   const [positionId, setPositionId] = useState<string | null>(null);
   const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
+  const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
 
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
@@ -877,6 +878,12 @@ const TeamMemberProfile = () => {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Position Timeline
                   </h2>
+                  {canEditPositionTimeline && (
+                    <Button size="sm" variant="outline" onClick={() => setShowAddPositionDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Position
+                    </Button>
+                  )}
                 </div>
                 <div className="p-4">
                   <PositionTimeline 
@@ -892,6 +899,20 @@ const TeamMemberProfile = () => {
                   />
                 </div>
               </Card>}
+
+            {/* Add Position Dialog */}
+            {canEditPositionTimeline && id && (
+              <PositionDialog
+                open={showAddPositionDialog}
+                onOpenChange={setShowAddPositionDialog}
+                employeeId={id}
+                existingPositions={positionHistory}
+                onSuccess={() => {
+                  loadPositionHistory();
+                  loadEmployee();
+                }}
+              />
+            )}
 
             {/* KPIs Card */}
             {(isAdminOrHR || isOwnProfile || isManagerOfEmployee) && employee?.organization_id && <Card className="overflow-hidden order-2 lg:order-none">
