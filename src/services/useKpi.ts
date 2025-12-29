@@ -228,10 +228,16 @@ export const useKpiHierarchy = (kpiId: string | undefined) => {
         parent = parentData as unknown as Kpi | null;
       }
 
-      // Fetch children
+      // Fetch children with employee profiles for individual KPIs
       const { data: children } = await supabase
         .from('kpis')
-        .select('*')
+        .select(`
+          *,
+          employee:employees!kpis_employee_id_fkey(
+            id,
+            profiles:profiles(full_name, avatar_url)
+          )
+        `)
         .eq('parent_kpi_id', kpiId)
         .order('created_at');
 

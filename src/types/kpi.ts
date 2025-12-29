@@ -71,10 +71,21 @@ export interface GroupKpiWithScope extends GroupKpi {
   project?: { id: string; name: string } | null;
 }
 
+// Child KPI with optional employee data for display
+export interface KpiChild extends Kpi {
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  } | null;
+}
+
 // KPI with hierarchy information
 export interface KpiWithHierarchy extends Kpi {
   parent?: Kpi | null;
-  children?: Kpi[];
+  children?: KpiChild[];
   child_count?: number;
   aggregated_progress?: number;
 }
