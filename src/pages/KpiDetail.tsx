@@ -23,6 +23,7 @@ import {
   Bell,
   BellOff,
   Calendar,
+  CalendarDays,
   User,
   Building2,
   Briefcase,
@@ -349,9 +350,19 @@ const KpiDetail = () => {
                 {getScopeIcon()}
                 {kpi.scope_type === 'individual' ? 'Individual' : kpi.scope_type}
               </Badge>
-              <span className="text-sm text-muted-foreground">
-                Q{kpi.quarter} {kpi.year}
-              </span>
+              <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                {kpi.quarter != null ? (
+                  <>
+                    <CalendarDays className="h-3 w-3" />
+                    Q{kpi.quarter} {kpi.year}
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="h-3 w-3" />
+                    Annual {kpi.year}
+                  </>
+                )}
+              </Badge>
             </div>
             <h1 className="text-2xl font-bold">{kpi.title}</h1>
             {kpi.description && (
