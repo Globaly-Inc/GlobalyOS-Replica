@@ -1054,30 +1054,32 @@ const OrgAttendanceHistory = () => {
                 <Settings className="h-4 w-4" />
                 Settings
               </Button>}
-            <AttendanceQRButton />
+            {canEdit && <AttendanceQRButton />}
             {canEdit && <Button variant="outline" size="sm" onClick={() => setReportScheduleOpen(true)} className="gap-2">
               <Sparkles className="h-4 w-4 text-ai" />
               <span className="text-ai">AI Email Reports</span>
             </Button>}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportPDF}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportCSV}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export as CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canEdit && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportCSV}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {canEdit && <Button onClick={() => setAddAttendanceOpen(true)} size="sm" className="gap-2">
               <UserPlus className="h-4 w-4" />
               Add Attendance
