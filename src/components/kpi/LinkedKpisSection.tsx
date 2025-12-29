@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Plus, Link2, Unlink, Target, TrendingUp, Globe, Building, MapPin, FolderKanban, User } from "lucide-react";
+import { Plus, Link2, Unlink, Target, TrendingUp, Globe, Building, MapPin, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,9 +20,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { OrgLink } from "@/components/OrgLink";
 import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
-import type { Kpi, KpiWithHierarchy } from "@/types";
+import type { KpiWithHierarchy } from "@/types";
 import { cn } from "@/lib/utils";
 import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
+
+const getInitials = (name: string | undefined): string => {
+  if (!name) return "?";
+  return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+};
 
 interface LinkedKpisSectionProps {
   kpi: KpiWithHierarchy;
@@ -33,7 +39,7 @@ const scopeIcons: Record<string, React.ElementType> = {
   department: Building,
   office: MapPin,
   project: FolderKanban,
-  individual: User,
+  individual: Target, // Fallback, individual KPIs show avatar instead
 };
 
 const scopeColors: Record<string, string> = {
@@ -151,7 +157,16 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                   key={child.id}
                   className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
-                  <Icon className={cn("h-5 w-5 shrink-0", scopeColors[child.scope_type])} />
+                  {child.scope_type === 'individual' && child.employee ? (
+                    <Avatar className="h-6 w-6 shrink-0">
+                      <AvatarImage src={child.employee.profiles?.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(child.employee.profiles?.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Icon className={cn("h-5 w-5 shrink-0", scopeColors[child.scope_type])} />
+                  )}
                   <div className="flex-1 min-w-0">
                     <OrgLink 
                       to={`/kpi/${child.id}`}
@@ -159,16 +174,15 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                     >
                       {child.title}
                     </OrgLink>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Progress value={childProgress} className="h-1.5 flex-1 max-w-24" />
-                      <span className="text-xs text-muted-foreground">{childProgress}%</span>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs", statusColors[child.status])}
-                      >
-                        {child.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">{childProgress}%</span>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("text-xs", statusColors[child.status])}
+                    >
+                      {child.status.replace('_', ' ')}
+                    </Badge>
                   </div>
                   {canEdit && (
                     <AlertDialog>
