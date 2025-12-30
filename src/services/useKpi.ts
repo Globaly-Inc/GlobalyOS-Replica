@@ -447,6 +447,76 @@ export const useEmployeeInheritedKpis = (
   });
 };
 
+// Fetch Group KPIs where employee is an owner
+export const useEmployeeOwnedGroupKpis = (
+  employeeId: string | undefined,
+  quarter?: number,
+  year?: number
+) => {
+  const { currentOrg } = useOrganization();
+  const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
+  const currentYear = year || new Date().getFullYear();
+
+  return useQuery({
+    queryKey: ['employee-owned-group-kpis', employeeId, currentQuarter, currentYear],
+    queryFn: async (): Promise<GroupKpiWithScope[]> => {
+      if (!currentOrg?.id || !employeeId) return [];
+
+      // Get KPI IDs where this employee is an owner
+      const { data: ownershipData, error: ownershipError } = await supabase
+        .from('kpi_owners')
+        .select('kpi_id')
+        .eq('employee_id', employeeId);
+
+      if (ownershipError) throw ownershipError;
+      if (!ownershipData || ownershipData.length === 0) return [];
+
+      const ownedKpiIds = ownershipData.map(o => o.kpi_id);
+
+      // Fetch those KPIs that are group-scoped
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .in('id', ownedKpiIds)
+        .eq('organization_id', currentOrg.id)
+        .eq('quarter', currentQuarter)
+        .eq('year', currentYear);
+
+      if (error) throw error;
+
+      // Filter to group KPIs only (exclude individual and organization)
+      const groupKpis = (data || []).filter((kpi: any) =>
+        kpi.scope_type && kpi.scope_type !== 'individual' && kpi.scope_type !== 'organization'
+      );
+
+      if (groupKpis.length === 0) return [];
+
+      // Fetch office and project names
+      const officeIds = groupKpis.filter((k: any) => k.scope_office_id).map((k: any) => k.scope_office_id);
+      const projectIds = groupKpis.filter((k: any) => k.scope_project_id).map((k: any) => k.scope_project_id);
+
+      const [officesResult, projectsResult] = await Promise.all([
+        officeIds.length > 0
+          ? supabase.from('offices').select('id, name').in('id', officeIds)
+          : { data: [] },
+        projectIds.length > 0
+          ? supabase.from('projects').select('id, name').in('id', projectIds)
+          : { data: [] },
+      ]);
+
+      const officeMap = new Map((officesResult.data || []).map((o: any) => [o.id, o]));
+      const projectMap = new Map((projectsResult.data || []).map((p: any) => [p.id, p]));
+
+      return groupKpis.map((kpi: any) => ({
+        ...kpi,
+        office: kpi.scope_office_id ? officeMap.get(kpi.scope_office_id) || null : null,
+        project: kpi.scope_project_id ? projectMap.get(kpi.scope_project_id) || null : null,
+      })) as GroupKpiWithScope[];
+    },
+    enabled: !!currentOrg?.id && !!employeeId,
+  });
+};
+
 // Fetch KPI templates
 export const useKpiTemplates = () => {
   const { currentOrg } = useOrganization();
