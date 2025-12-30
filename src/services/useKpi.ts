@@ -179,13 +179,38 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
         }
       });
       
-      // Build owners map
-      const ownersMap = new Map<string, Array<{ employee_id: string; is_primary: boolean }>>();
+      // Build owners map from kpi_owners result
+      const ownerEmployeeIds = [...new Set((ownersResult.data || []).map((o: any) => o.employee_id))];
+      
+      // Fetch employee profile data for owners
+      let ownerProfilesMap = new Map<string, { full_name: string; avatar_url: string | null }>();
+      if (ownerEmployeeIds.length > 0) {
+        const { data: employeeProfiles } = await supabase
+          .from('employees')
+          .select('id, profiles!inner(full_name, avatar_url)')
+          .in('id', ownerEmployeeIds);
+        
+        (employeeProfiles || []).forEach((e: any) => {
+          ownerProfilesMap.set(e.id, {
+            full_name: e.profiles?.full_name || 'Unknown',
+            avatar_url: e.profiles?.avatar_url || null,
+          });
+        });
+      }
+      
+      // Build owners map with profile data
+      const ownersMap = new Map<string, Array<{ employee_id: string; is_primary: boolean; full_name?: string; avatar_url?: string | null }>>();
       (ownersResult.data || []).forEach((o: any) => {
         if (!ownersMap.has(o.kpi_id)) {
           ownersMap.set(o.kpi_id, []);
         }
-        ownersMap.get(o.kpi_id)!.push({ employee_id: o.employee_id, is_primary: o.is_primary });
+        const profile = ownerProfilesMap.get(o.employee_id);
+        ownersMap.get(o.kpi_id)!.push({ 
+          employee_id: o.employee_id, 
+          is_primary: o.is_primary,
+          full_name: profile?.full_name,
+          avatar_url: profile?.avatar_url,
+        });
       });
 
       return groupKpis.map((kpi: any) => ({
@@ -447,18 +472,16 @@ export const useEmployeeInheritedKpis = (
   });
 };
 
-// Fetch Group KPIs where employee is an owner
+// Fetch Group KPIs where employee is an owner (fetches ALL periods, not filtered by quarter/year)
 export const useEmployeeOwnedGroupKpis = (
   employeeId: string | undefined,
-  quarter?: number,
-  year?: number
+  _quarter?: number, // Ignored - kept for API compatibility
+  _year?: number     // Ignored - kept for API compatibility
 ) => {
   const { currentOrg } = useOrganization();
-  const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
-  const currentYear = year || new Date().getFullYear();
 
   return useQuery({
-    queryKey: ['employee-owned-group-kpis', employeeId, currentQuarter, currentYear],
+    queryKey: ['employee-owned-group-kpis', employeeId, currentOrg?.id],
     queryFn: async (): Promise<GroupKpiWithScope[]> => {
       if (!currentOrg?.id || !employeeId) return [];
 
@@ -473,14 +496,12 @@ export const useEmployeeOwnedGroupKpis = (
 
       const ownedKpiIds = ownershipData.map(o => o.kpi_id);
 
-      // Fetch those KPIs that are group-scoped
+      // Fetch those KPIs that are group-scoped (NO quarter/year filter - show all)
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
         .in('id', ownedKpiIds)
-        .eq('organization_id', currentOrg.id)
-        .eq('quarter', currentQuarter)
-        .eq('year', currentYear);
+        .eq('organization_id', currentOrg.id);
 
       if (error) throw error;
 
@@ -491,7 +512,7 @@ export const useEmployeeOwnedGroupKpis = (
 
       if (groupKpis.length === 0) return [];
 
-      // Fetch office and project names
+      // Fetch office and project details including icon, color, logo_url
       const officeIds = groupKpis.filter((k: any) => k.scope_office_id).map((k: any) => k.scope_office_id);
       const projectIds = groupKpis.filter((k: any) => k.scope_project_id).map((k: any) => k.scope_project_id);
 
@@ -500,7 +521,7 @@ export const useEmployeeOwnedGroupKpis = (
           ? supabase.from('offices').select('id, name').in('id', officeIds)
           : { data: [] },
         projectIds.length > 0
-          ? supabase.from('projects').select('id, name').in('id', projectIds)
+          ? supabase.from('projects').select('id, name, icon, color, logo_url').in('id', projectIds)
           : { data: [] },
       ]);
 

@@ -317,12 +317,49 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
             {allGroupKpis.map((kpi) => {
               const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
               const isOwned = ownedGroupKpis.some(k => k.id === kpi.id);
-              const getScopeIcon = () => {
-                if (kpi.scope_type === 'department') return <Building className="h-3 w-3 text-purple-600" />;
-                if (kpi.scope_type === 'office') return <MapPin className="h-3 w-3 text-orange-600" />;
-                if (kpi.scope_type === 'project') return <FolderKanban className="h-3 w-3 text-blue-600" />;
+              
+              // Render scope icon/logo
+              const renderScopeIcon = () => {
+                if (kpi.scope_type === 'project' && kpi.project) {
+                  if (kpi.project.logo_url) {
+                    return (
+                      <div className="h-5 w-5 rounded-full overflow-hidden bg-muted shrink-0">
+                        <img 
+                          src={kpi.project.logo_url} 
+                          alt={kpi.project.name} 
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    );
+                  }
+                  // Use project icon with color
+                  const iconColor = kpi.project.color || 'hsl(var(--primary))';
+                  return (
+                    <div 
+                      className="h-5 w-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${iconColor}20` }}
+                    >
+                      <FolderKanban className="h-3 w-3" style={{ color: iconColor }} />
+                    </div>
+                  );
+                }
+                if (kpi.scope_type === 'department') {
+                  return (
+                    <div className="h-5 w-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                      <Building className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  );
+                }
+                if (kpi.scope_type === 'office') {
+                  return (
+                    <div className="h-5 w-5 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                      <MapPin className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                    </div>
+                  );
+                }
                 return null;
               };
+              
               const getScopeName = () => {
                 if (kpi.scope_type === 'department') return kpi.scope_department;
                 if (kpi.scope_type === 'office') return kpi.office?.name;
@@ -334,8 +371,11 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                 <OrgLink 
                   key={kpi.id} 
                   to={`/kpi/${kpi.id}`}
-                  className="flex items-start justify-between text-sm gap-2 bg-muted/30 rounded p-2 hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-2 text-sm bg-muted/30 rounded p-2 hover:bg-muted/50 transition-colors"
                 >
+                  {/* Scope icon/logo */}
+                  {renderScopeIcon()}
+                  
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm leading-tight break-words">{kpi.title}</span>
@@ -346,8 +386,9 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                       )}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
-                      {getScopeIcon()}
                       <span className="text-xs text-muted-foreground">{getScopeName()}</span>
+                      <span className="text-xs text-muted-foreground/50">•</span>
+                      <span className="text-xs text-muted-foreground">Q{kpi.quarter} {kpi.year}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

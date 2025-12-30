@@ -1460,6 +1460,7 @@ const TeamKPIDashboard = () => {
                         kpi={kpi}
                         type="group"
                         project={kpi.project || undefined}
+                        owners={(kpi as any).kpi_owners || []}
                         isSelected={selectedKpis.has(kpi.id)}
                         onSelect={() => toggleSelectKpi(kpi.id)}
                         showCheckbox={isOwner || isAdmin}
