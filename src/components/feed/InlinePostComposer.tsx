@@ -287,7 +287,7 @@ export const InlinePostComposer = ({
   const postTypes = [
     { type: 'win' as PostType, icon: Trophy, label: 'Win', color: 'amber' },
     { type: 'kudos' as PostType, icon: Heart, label: 'Kudos', color: 'pink' },
-    { type: 'social' as PostType, icon: MessageSquare, label: 'Social', color: 'green' },
+    { type: 'social' as PostType, icon: Users, label: 'Social', color: 'green' },
     { type: 'update' as PostType, icon: MessageSquare, label: 'Updates', color: 'cyan' },
     ...(canPostAnnouncement ? [{ type: 'announcement' as PostType, icon: Megaphone, label: 'Announcement', color: 'blue' }] : []),
     ...(canPostExecutive ? [{ type: 'executive_message' as PostType, icon: Crown, label: 'Executive', color: 'purple' }] : []),

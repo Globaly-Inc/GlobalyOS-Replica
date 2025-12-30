@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
@@ -593,7 +593,7 @@ const Home = () => {
                     </SelectItem>
                     <SelectItem value="social">
                       <span className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-green-500" /> Social
+                        <Users className="h-4 w-4 text-green-500" /> Social
                       </span>
                     </SelectItem>
                     <SelectItem value="update">
