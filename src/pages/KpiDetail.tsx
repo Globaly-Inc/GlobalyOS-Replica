@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -124,6 +126,21 @@ const KpiDetail = () => {
     kpi?.year || new Date().getFullYear(),
     kpiId
   );
+  
+  // Fetch current employee's project memberships for project-scoped Group KPIs
+  const { data: employeeProjectIds = [] } = useQuery({
+    queryKey: ['employee-projects', currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentEmployee?.id || !currentOrg?.id) return [];
+      const { data } = await supabase
+        .from('employee_projects')
+        .select('project_id')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+      return (data || []).map(p => p.project_id);
+    },
+    enabled: !!currentEmployee?.id && !!currentOrg?.id,
+  });
 
   // Form state
   const [showUpdateForm, setShowUpdateForm] = useState(false);
@@ -175,20 +192,28 @@ const KpiDetail = () => {
     );
   }, [kpi?.update_settings, reminderEnabled, frequency, dayOfWeek, dayOfMonth, reminderTime]);
 
-  // Check if user can edit this KPI (Owner, Admin, Manager for subordinates, Self)
+  // Check if current employee is a KPI owner (from kpi_owners table)
+  const isKpiOwner = useMemo(() => {
+    if (!currentEmployee?.id || !kpiOwners.length) return false;
+    return kpiOwners.some(owner => owner.employee_id === currentEmployee.id);
+  }, [kpiOwners, currentEmployee?.id]);
+
+  // Check if user can edit this KPI (Owner, Admin, Manager for subordinates, Self for individual, KPI Owner for group)
   const canEditKpi = () => {
     if (!kpi || !currentEmployee) return false;
     if (isOwner || isAdmin) return true;
     
-    // Own individual KPI
-    if (kpi.employee_id === currentEmployee.id) return true;
+    // Individual KPI - Self can edit
+    if (kpi.scope_type === 'individual') {
+      if (kpi.employee_id === currentEmployee.id) return true;
+      // Manager can edit subordinates' KPIs
+      if (kpi.employee_id && (kpi.employee as any)?.manager_id === currentEmployee.id) return true;
+    }
     
-    // Manager can edit subordinates' KPIs - check if KPI owner reports to current user
-    if (kpi.employee_id && (kpi.employee as any)?.manager_id === currentEmployee.id) return true;
-    
-    // Group KPI membership
-    if (kpi.scope_type === 'department' && kpi.scope_department === currentEmployee.department) return true;
-    if (kpi.scope_type === 'office' && kpi.scope_office_id === currentEmployee.office_id) return true;
+    // Group/Organization KPI - Only KPI owners can edit (not any group member)
+    if (['department', 'project', 'office', 'organization'].includes(kpi.scope_type)) {
+      return isKpiOwner;
+    }
     
     return false;
   };
@@ -208,17 +233,28 @@ const KpiDetail = () => {
     return false;
   };
 
-  // Check if user can add updates (existing logic)
+  // Check if user can add updates (group membership OR KPI owner)
   const canEdit = () => {
     if (!kpi || !currentEmployee) return false;
     if (isAdmin || isHR || isOwner) return true;
     
-    // Own individual KPI
-    if (kpi.employee_id === currentEmployee.id) return true;
+    // Individual KPI - Self can add updates
+    if (kpi.scope_type === 'individual') {
+      if (kpi.employee_id === currentEmployee.id) return true;
+      // Manager can add updates for subordinates
+      if (kpi.employee_id && (kpi.employee as any)?.manager_id === currentEmployee.id) return true;
+    }
     
-    // Group KPI membership
+    // Group KPI membership - check if user belongs to the group
     if (kpi.scope_type === 'department' && kpi.scope_department === currentEmployee.department) return true;
     if (kpi.scope_type === 'office' && kpi.scope_office_id === currentEmployee.office_id) return true;
+    if (kpi.scope_type === 'project' && employeeProjectIds.includes(kpi.scope_project_id || '')) return true;
+    
+    // Organization KPI - any org member can add updates
+    if (kpi.scope_type === 'organization') return true;
+    
+    // KPI owners can always add updates
+    if (isKpiOwner) return true;
     
     return false;
   };
@@ -226,11 +262,14 @@ const KpiDetail = () => {
   // Check if user can edit KPI owners
   const canEditOwners = () => {
     if (!kpi || !currentEmployee) return false;
-    if (isAdmin || isHR || isOwner) return true;
+    if (isAdmin || isOwner) return true;
     
-    // Manager can edit for subordinates
-    if (kpi.employee_id) {
-      return canEdit();
+    // Individual KPI - owner (assigned employee) can manage
+    if (kpi.scope_type === 'individual' && kpi.employee_id === currentEmployee.id) return true;
+    
+    // Group/Organization KPI - only existing KPI owners can manage
+    if (['department', 'project', 'office', 'organization'].includes(kpi.scope_type)) {
+      return isKpiOwner;
     }
     
     return false;
