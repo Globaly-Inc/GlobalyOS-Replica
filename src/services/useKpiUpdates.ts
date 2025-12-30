@@ -18,7 +18,7 @@ export const useKpiDetail = (kpiId: string | undefined) => {
     queryFn: async (): Promise<KpiWithUpdates | null> => {
       if (!kpiId || !currentOrg?.id) return null;
 
-      // Fetch KPI
+      // Fetch KPI with project details
       const { data: kpi, error: kpiError } = await supabase
         .from('kpis')
         .select(`
@@ -26,6 +26,13 @@ export const useKpiDetail = (kpiId: string | undefined) => {
           employee:employees!kpis_employee_id_fkey(
             id,
             profiles!inner(full_name, avatar_url)
+          ),
+          project:projects!kpis_scope_project_id_fkey(
+            id,
+            name,
+            icon,
+            color,
+            logo_url
           )
         `)
         .eq('id', kpiId)

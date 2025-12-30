@@ -35,6 +35,7 @@ import {
   Pencil,
   Link2
 } from 'lucide-react';
+import * as icons from 'lucide-react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { useKpiDetail, useAddKpiUpdate, useSaveKpiUpdateSettings, useDeleteKpiUpdate } from '@/services/useKpiUpdates';
 import { useDeleteKpi, useKpiHierarchy, useLinkKpi, useAvailableParentKpis } from '@/services/useKpi';
@@ -69,6 +70,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// Helper component for dynamic icons
+const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
+  const IconComponent = (icons as any)[name.charAt(0).toUpperCase() + name.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase())] || icons.Folder;
+  return <IconComponent className={className} style={style} />;
+};
 
 const statusColors: Record<KpiStatus, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -316,7 +323,28 @@ const KpiDetail = () => {
     switch (kpi.scope_type) {
       case 'department': return <Users className="h-4 w-4" />;
       case 'office': return <Building2 className="h-4 w-4" />;
-      case 'project': return <Briefcase className="h-4 w-4" />;
+      case 'project': 
+        // Show project logo if available
+        if (kpi.project?.logo_url) {
+          return (
+            <img 
+              src={kpi.project.logo_url} 
+              alt={kpi.project.name}
+              className="h-4 w-4 rounded-sm object-cover"
+            />
+          );
+        }
+        // Fall back to project icon with color
+        if (kpi.project?.icon) {
+          return (
+            <DynamicIcon 
+              name={kpi.project.icon} 
+              className="h-4 w-4" 
+              style={{ color: kpi.project.color || undefined }}
+            />
+          );
+        }
+        return <Briefcase className="h-4 w-4" />;
       default: return <User className="h-4 w-4" />;
     }
   };
@@ -327,7 +355,7 @@ const KpiDetail = () => {
     }
     if (kpi.scope_type === 'department') return kpi.scope_department;
     if (kpi.scope_type === 'office') return 'Office KPI';
-    if (kpi.scope_type === 'project') return 'Project KPI';
+    if (kpi.scope_type === 'project') return kpi.project?.name || 'Project KPI';
     return 'Unknown';
   };
 
