@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2, Calendar,
-  BarChart3, AlertTriangle
+  BarChart3, AlertTriangle, Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -459,7 +459,7 @@ export const CreatePostModal = ({
   const postTypes = [
     { type: 'win' as PostType, icon: Trophy, label: 'Win', color: 'amber', description: 'Celebrate an achievement' },
     { type: 'kudos' as PostType, icon: Heart, label: 'Kudos', color: 'pink', description: 'Recognize a teammate' },
-    { type: 'social' as PostType, icon: MessageSquare, label: 'Social', color: 'green', description: 'Share with the team' },
+    { type: 'social' as PostType, icon: Users, label: 'Social', color: 'green', description: 'Share with the team' },
     { type: 'update' as PostType, icon: MessageSquare, label: 'Updates', color: 'cyan', description: 'Share a progress update' },
     ...(canPostAnnouncement ? [{ type: 'announcement' as PostType, icon: Megaphone, label: 'Announcement', color: 'blue', description: 'Important updates' }] : []),
     ...(canPostExecutive ? [{ type: 'executive_message' as PostType, icon: Crown, label: 'Executive', color: 'purple', description: 'Leadership message' }] : []),

@@ -28,6 +28,7 @@ import {
   Trash2,
   Pencil,
   Bookmark,
+  Users,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -72,7 +73,7 @@ const POST_TYPE_CONFIG = {
     borderColor: 'border-l-blue-500',
   },
   social: {
-    icon: MessageSquare,
+    icon: Users,
     label: 'Social',
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
