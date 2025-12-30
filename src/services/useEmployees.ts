@@ -75,36 +75,19 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
     queryFn: async () => {
       if (!employeeId) return null;
 
-      const { data, error } = await supabase
+      // Use the secure RPC function that enforces field-level access control
+      const { data: employeeData, error: rpcError } = await supabase
+        .rpc('get_employee_for_viewer', { target_employee_id: employeeId });
+
+      if (rpcError) throw rpcError;
+      
+      const employee = employeeData?.[0];
+      if (!employee) return null;
+
+      // Fetch related data (profile, office, manager) separately
+      const { data: relatedData, error: relatedError } = await supabase
         .from('employees')
         .select(`
-          id,
-          user_id,
-          position,
-          department,
-          office_id,
-          manager_id,
-          join_date,
-          status,
-          superpowers,
-          phone,
-          personal_email,
-          street,
-          city,
-          state,
-          postcode,
-          country,
-          date_of_birth,
-          salary,
-          remuneration,
-          remuneration_currency,
-          id_number,
-          tax_number,
-          bank_details,
-          emergency_contact_name,
-          emergency_contact_phone,
-          emergency_contact_relationship,
-          position_effective_date,
           profiles!inner(
             id,
             full_name,
@@ -121,9 +104,43 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
         .eq('id', employeeId)
         .single();
 
-      if (error) throw error;
+      if (relatedError) throw relatedError;
 
-      return data;
+      // Map RPC response fields to expected format with field-level security applied
+      return {
+        id: employee.emp_id,
+        user_id: employee.emp_user_id,
+        position: employee.emp_position,
+        department: employee.emp_department,
+        office_id: employee.emp_office_id,
+        manager_id: employee.emp_manager_id,
+        join_date: employee.emp_join_date,
+        status: employee.emp_status,
+        superpowers: employee.emp_superpowers,
+        phone: employee.emp_phone,
+        personal_email: employee.emp_personal_email,
+        street: employee.emp_street,
+        city: employee.emp_city,
+        state: employee.emp_state,
+        postcode: employee.emp_postcode,
+        country: employee.emp_country,
+        date_of_birth: employee.emp_date_of_birth,
+        // Financial fields - will be NULL unless viewer is self/HR/admin
+        salary: employee.emp_salary,
+        remuneration: employee.emp_remuneration,
+        remuneration_currency: employee.emp_remuneration_currency,
+        id_number: employee.emp_id_number,
+        tax_number: employee.emp_tax_number,
+        bank_details: employee.emp_bank_details,
+        emergency_contact_name: employee.emp_emergency_contact_name,
+        emergency_contact_phone: employee.emp_emergency_contact_phone,
+        emergency_contact_relationship: employee.emp_emergency_contact_relationship,
+        position_effective_date: null,
+        // Related data from second query
+        profiles: relatedData?.profiles,
+        office: relatedData?.office,
+        manager: relatedData?.manager,
+      };
     },
     enabled: !!employeeId,
   });
