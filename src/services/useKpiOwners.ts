@@ -16,6 +16,7 @@ export interface KpiOwner {
   is_primary: boolean;
   full_name: string;
   avatar_url: string | null;
+  position: string | null;
 }
 
 // Fetch KPI owners based on scope type
@@ -35,6 +36,7 @@ export const useKpiOwners = (kpiId: string | undefined, scopeType: string | unde
             employee_id,
             employee:employees!kpis_employee_id_fkey(
               id,
+              position,
               profiles!inner(full_name, avatar_url)
             )
           `)
@@ -50,6 +52,7 @@ export const useKpiOwners = (kpiId: string | undefined, scopeType: string | unde
           is_primary: true,
           full_name: (kpi.employee as any).profiles.full_name,
           avatar_url: (kpi.employee as any).profiles.avatar_url,
+          position: (kpi.employee as any).position,
         }];
       }
 
@@ -62,6 +65,7 @@ export const useKpiOwners = (kpiId: string | undefined, scopeType: string | unde
           is_primary,
           employee:employees!inner(
             id,
+            position,
             profiles!inner(full_name, avatar_url)
           )
         `)
@@ -76,6 +80,7 @@ export const useKpiOwners = (kpiId: string | undefined, scopeType: string | unde
         is_primary: owner.is_primary,
         full_name: owner.employee.profiles.full_name,
         avatar_url: owner.employee.profiles.avatar_url,
+        position: owner.employee.position,
       }));
     },
     enabled: !!kpiId && !!currentOrg?.id && !!scopeType,

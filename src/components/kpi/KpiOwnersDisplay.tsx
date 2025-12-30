@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import { EditKpiOwnersDialog } from './EditKpiOwnersDialog';
 import { KpiOwner } from '@/services/useKpiOwners';
+import { OrgLink } from '@/components/OrgLink';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface KpiOwnersDisplayProps {
   owners: KpiOwner[];
@@ -11,6 +13,81 @@ interface KpiOwnersDisplayProps {
   canEdit: boolean;
   scopeType: string;
   maxDisplay?: number;
+}
+
+// Sub-component for Individual KPI Owner with online status and link
+function IndividualKpiOwner({ 
+  owner, 
+  kpiId, 
+  owners,
+  scopeType,
+  canEdit 
+}: { 
+  owner: KpiOwner | undefined; 
+  kpiId: string; 
+  owners: KpiOwner[];
+  scopeType: string;
+  canEdit: boolean;
+}) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const { isOnline } = useOnlineStatus(owner?.employee_id);
+
+  return (
+    <div className="flex items-center justify-between">
+      {owner ? (
+        <OrgLink 
+          to={`/team/${owner.employee_id}`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          {/* Avatar with online status dot */}
+          <div className="relative">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={owner.avatar_url || undefined} alt={owner.full_name} />
+              <AvatarFallback>
+                {owner.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+              </AvatarFallback>
+            </Avatar>
+            {isOnline && (
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+            )}
+          </div>
+          
+          {/* Name and Position */}
+          <div className="flex flex-col">
+            <span className="font-medium">{owner.full_name}</span>
+            {owner.position && (
+              <span className="text-xs text-muted-foreground">{owner.position}</span>
+            )}
+          </div>
+        </OrgLink>
+      ) : (
+        <span className="text-sm text-muted-foreground">No owner assigned</span>
+      )}
+      
+      {canEdit && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-7 w-7 p-0"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowEditDialog(true);
+          }}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      
+      <EditKpiOwnersDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        kpiId={kpiId}
+        currentOwners={owners}
+        scopeType={scopeType}
+      />
+    </div>
+  );
 }
 
 export function KpiOwnersDisplay({ 
@@ -26,48 +103,15 @@ export function KpiOwnersDisplay({
   const displayedOwners = owners.slice(0, maxDisplay);
   const remainingCount = owners.length - maxDisplay;
 
-  // For individual KPIs, show single owner with full name and photo
+  // For individual KPIs, show single owner with full name, position, online status and link to profile
   if (isIndividual) {
-    const owner = owners[0];
-    
-    return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {owner ? (
-            <>
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={owner.avatar_url || undefined} alt={owner.full_name} />
-                <AvatarFallback>
-                  {owner.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-medium">{owner.full_name}</span>
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">No owner assigned</span>
-          )}
-        </div>
-        
-        {canEdit && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0"
-            onClick={() => setShowEditDialog(true)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-        )}
-        
-        <EditKpiOwnersDialog
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          kpiId={kpiId}
-          currentOwners={owners}
-          scopeType={scopeType}
-        />
-      </div>
-    );
+    return <IndividualKpiOwner 
+      owner={owners[0]} 
+      kpiId={kpiId} 
+      owners={owners}
+      scopeType={scopeType}
+      canEdit={canEdit} 
+    />;
   }
 
   // For group/organization KPIs, show stacked avatars
