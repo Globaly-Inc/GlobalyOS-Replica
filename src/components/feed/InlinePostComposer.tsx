@@ -288,6 +288,7 @@ export const InlinePostComposer = ({
     { type: 'win' as PostType, icon: Trophy, label: 'Win', color: 'amber' },
     { type: 'kudos' as PostType, icon: Heart, label: 'Kudos', color: 'pink' },
     { type: 'social' as PostType, icon: MessageSquare, label: 'Social', color: 'green' },
+    { type: 'update' as PostType, icon: MessageSquare, label: 'Updates', color: 'cyan' },
     ...(canPostAnnouncement ? [{ type: 'announcement' as PostType, icon: Megaphone, label: 'Announcement', color: 'blue' }] : []),
     ...(canPostExecutive ? [{ type: 'executive_message' as PostType, icon: Crown, label: 'Executive', color: 'purple' }] : []),
   ];
@@ -310,6 +311,7 @@ export const InlinePostComposer = ({
       case 'announcement':
       case 'executive_message': return 'announcement';
       case 'social':
+      case 'update':
       default: return 'social';
     }
   };
@@ -351,6 +353,7 @@ export const InlinePostComposer = ({
                         color === 'amber' && 'bg-amber-100 text-amber-700 border-amber-300 ring-amber-400 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700',
                         color === 'pink' && 'bg-pink-100 text-pink-700 border-pink-300 ring-pink-400 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-700',
                         color === 'green' && 'bg-emerald-100 text-emerald-700 border-emerald-300 ring-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700',
+                        color === 'cyan' && 'bg-cyan-100 text-cyan-700 border-cyan-300 ring-cyan-400 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-700',
                         color === 'blue' && 'bg-blue-100 text-blue-700 border-blue-300 ring-blue-400 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700',
                         color === 'purple' && 'bg-purple-100 text-purple-700 border-purple-300 ring-purple-400 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700',
                       ] : [

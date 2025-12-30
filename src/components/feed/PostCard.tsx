@@ -78,6 +78,13 @@ const POST_TYPE_CONFIG = {
     bgColor: 'bg-green-500/10',
     borderColor: 'border-l-green-500',
   },
+  update: {
+    icon: MessageSquare,
+    label: 'Update',
+    color: 'text-cyan-500',
+    bgColor: 'bg-cyan-500/10',
+    borderColor: 'border-l-cyan-500',
+  },
   executive_message: {
     icon: Crown,
     label: 'Executive Message',

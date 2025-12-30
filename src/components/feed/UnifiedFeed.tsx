@@ -76,6 +76,7 @@ export const UnifiedFeed = ({
       win: 'No wins shared yet!',
       kudos: 'No kudos given yet!',
       social: 'No social posts yet!',
+      update: 'No updates shared yet!',
       announcement: 'No announcements yet!',
       executive_message: 'No executive messages yet!',
     };

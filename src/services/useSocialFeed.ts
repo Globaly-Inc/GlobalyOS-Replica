@@ -9,7 +9,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { useToast } from '@/hooks/use-toast';
 
-export type PostType = 'win' | 'kudos' | 'announcement' | 'social' | 'executive_message';
+export type PostType = 'win' | 'kudos' | 'announcement' | 'social' | 'update' | 'executive_message';
 
 export interface Post {
   id: string;
