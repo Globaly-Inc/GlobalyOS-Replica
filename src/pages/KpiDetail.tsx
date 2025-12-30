@@ -73,7 +73,15 @@ import {
 
 // Helper component for dynamic icons
 const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
-  const IconComponent = (icons as any)[name.charAt(0).toUpperCase() + name.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase())] || icons.Folder;
+  if (!name) return <icons.Folder className={className} style={style} />;
+  
+  // Convert icon name from various formats to PascalCase: "rocket" -> "Rocket", "arrow-left" -> "ArrowLeft"
+  const pascalCase = name
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('');
+  
+  const IconComponent = (icons as any)[pascalCase] || icons.Folder;
   return <IconComponent className={className} style={style} />;
 };
 
@@ -377,7 +385,7 @@ const KpiDetail = () => {
               </Badge>
               <Badge variant="secondary" className="flex items-center gap-1">
                 {getScopeIcon()}
-                {kpi.scope_type === 'individual' ? 'Individual' : kpi.scope_type}
+                {getScopeName()}
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
                 {kpi.quarter != null ? (
