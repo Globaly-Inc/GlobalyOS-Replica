@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { CircularProgress } from "@/components/ui/circular-progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -1377,10 +1377,10 @@ const TeamKPIDashboard = () => {
                               </p>
                             </div>
 
-                            {/* Progress bar column - fixed width */}
-                            <div className="flex items-center gap-2">
-                              <Progress value={progress} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground w-10 text-right shrink-0">
+                            {/* Progress column - fixed width */}
+                            <div className="flex items-center gap-1.5">
+                              <CircularProgress value={progress} size={18} strokeWidth={2} />
+                              <span className="text-xs text-muted-foreground shrink-0">
                                 {progress}%
                               </span>
                             </div>
@@ -1494,11 +1494,6 @@ const TeamKPIDashboard = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
                                 <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
-                                {quarter === 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Q{kpi.quarter}
-                                  </Badge>
-                                )}
                                 <Badge
                                   className={cn(
                                     "text-xs shrink-0",
@@ -1509,6 +1504,9 @@ const TeamKPIDashboard = () => {
                                   )}
                                 >
                                   {kpi.status.replace("_", " ")}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px]">
+                                  {kpi.quarter ? `Q${kpi.quarter} ${kpi.year}` : kpi.year}
                                 </Badge>
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
@@ -1548,14 +1546,12 @@ const TeamKPIDashboard = () => {
                             </DropdownMenu>
                           </div>
                           {/* Mobile: Progress bar on second row */}
-                          {kpi.target_value && (
-                            <div className="flex items-center gap-2 w-full sm:w-32 pl-11 sm:pl-0">
-                              <Progress value={progress} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground w-8 text-right">
-                                {progress}%
-                              </span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0 pl-11 sm:pl-0">
+                            <CircularProgress value={progress} size={18} strokeWidth={2} />
+                            <span className="text-xs text-muted-foreground">
+                              {progress}%
+                            </span>
+                          </div>
                           {/* Desktop: Menu button */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
@@ -1669,12 +1665,12 @@ const TeamKPIDashboard = () => {
                               </OrgLink>
                             </div>
 
-                            <div className="mb-3">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
-                                <span className="font-medium">{member.avgProgress}%</span>
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs text-muted-foreground">{member.kpis.length} KPIs</span>
+                              <div className="flex items-center gap-1.5">
+                                <CircularProgress value={member.avgProgress} size={20} strokeWidth={2.5} />
+                                <span className="text-xs font-medium">{member.avgProgress}%</span>
                               </div>
-                              <Progress value={member.avgProgress} className="h-2" />
                             </div>
 
                             <div className="flex items-center justify-between gap-2">
@@ -1741,12 +1737,12 @@ const TeamKPIDashboard = () => {
                                 </div>
                               </div>
 
-                              <div className="mb-3">
-                                <div className="flex items-center justify-between text-xs mb-1">
-                                  <span className="text-muted-foreground">{group.kpis.length} KPIs</span>
-                                  <span className="font-medium">{group.avgProgress}%</span>
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs text-muted-foreground">{group.kpis.length} KPIs</span>
+                                <div className="flex items-center gap-1.5">
+                                  <CircularProgress value={group.avgProgress} size={20} strokeWidth={2.5} />
+                                  <span className="text-xs font-medium">{group.avgProgress}%</span>
                                 </div>
-                                <Progress value={group.avgProgress} className="h-2" />
                               </div>
 
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1814,12 +1810,12 @@ const TeamKPIDashboard = () => {
                               </OrgLink>
                             </div>
 
-                            <div className="mb-3">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground">{member.kpis.length} KPIs</span>
-                                <span className="font-medium">{member.avgProgress}%</span>
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs text-muted-foreground">{member.kpis.length} KPIs</span>
+                              <div className="flex items-center gap-1.5">
+                                <CircularProgress value={member.avgProgress} size={20} strokeWidth={2.5} />
+                                <span className="text-xs font-medium">{member.avgProgress}%</span>
                               </div>
-                              <Progress value={member.avgProgress} className="h-2" />
                             </div>
 
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1890,12 +1886,12 @@ const TeamKPIDashboard = () => {
                                 </div>
                               </div>
 
-                              <div className="mb-3">
-                                <div className="flex items-center justify-between text-xs mb-1">
-                                  <span className="text-muted-foreground">{group.kpis.length} KPIs</span>
-                                  <span className="font-medium">{group.avgProgress}%</span>
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs text-muted-foreground">{group.kpis.length} KPIs</span>
+                                <div className="flex items-center gap-1.5">
+                                  <CircularProgress value={group.avgProgress} size={20} strokeWidth={2.5} />
+                                  <span className="text-xs font-medium">{group.avgProgress}%</span>
                                 </div>
-                                <Progress value={group.avgProgress} className="h-2" />
                               </div>
 
                               <div className="flex items-center gap-1.5 flex-wrap">

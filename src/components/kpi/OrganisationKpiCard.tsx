@@ -96,6 +96,9 @@ export function OrganisationKpiCard({
             <Badge className={cn("text-xs", statusColors[kpi.status] || statusColors.on_track)}>
               {statusLabels[kpi.status] || "On Track"}
             </Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {kpi.quarter ? `Q${kpi.quarter} ${kpi.year}` : kpi.year}
+            </Badge>
             {childCount > 0 && (
               <Badge variant="outline" className="text-xs gap-1">
                 <Link2 className="h-3 w-3" />
