@@ -182,6 +182,13 @@ export interface KpiWithUpdates extends Kpi {
       avatar_url: string | null;
     };
   } | null;
+  project?: {
+    id: string;
+    name: string;
+    icon: string | null;
+    color: string | null;
+    logo_url: string | null;
+  } | null;
 }
 
 // Performance Review
