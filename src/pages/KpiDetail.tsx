@@ -72,6 +72,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // Helper component for dynamic icons
 const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
@@ -488,7 +496,7 @@ const KpiDetail = () => {
               </AlertDialog>
             )}
             {canEdit() && (
-              <Button onClick={() => setShowUpdateForm(!showUpdateForm)}>
+              <Button onClick={() => setShowUpdateForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Update
               </Button>
@@ -526,14 +534,20 @@ const KpiDetail = () => {
               </div>
             </Card>
 
-            {/* Add Update Form */}
-            {showUpdateForm && canEdit() && (
-              <Card className="p-6 border-primary/20 bg-primary/5">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Add Progress Update
-                </h3>
-                <div className="space-y-4">
+            {/* Add Update Dialog */}
+            <Dialog open={showUpdateForm} onOpenChange={setShowUpdateForm}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Add Progress Update
+                  </DialogTitle>
+                  <DialogDescription>
+                    Record your progress for "{kpi.title}"
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="newValue">New Value</Label>
@@ -571,7 +585,6 @@ const KpiDetail = () => {
                     />
                   </div>
 
-                  {/* Attachments */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Paperclip className="h-4 w-4" />
@@ -584,21 +597,21 @@ const KpiDetail = () => {
                       kpiId={kpi.id}
                     />
                   </div>
-                  
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setShowUpdateForm(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleSubmitUpdate}
-                      disabled={!newValue || !notes.trim() || addUpdate.isPending}
-                    >
-                      {addUpdate.isPending ? 'Saving...' : 'Save Update'}
-                    </Button>
-                  </div>
                 </div>
-              </Card>
-            )}
+                
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowUpdateForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSubmitUpdate}
+                    disabled={!newValue || !notes.trim() || addUpdate.isPending}
+                  >
+                    {addUpdate.isPending ? 'Saving...' : 'Save Update'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Updates Timeline */}
             <Card className="p-6">
