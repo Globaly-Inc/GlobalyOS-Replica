@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Link2, Unlink, TrendingUp, Globe, Building, MapPin, FolderKanban, Target } from "lucide-react";
+import * as icons from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { OrgLink } from "@/components/OrgLink";
 import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
-import type { KpiWithHierarchy } from "@/types";
+import type { KpiWithHierarchy, KpiChild } from "@/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
+
+// Helper component for dynamic icons
+const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
+  const IconComponent = (icons as any)[name.charAt(0).toUpperCase() + name.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase())] || icons.Folder;
+  return <IconComponent className={className} style={style} />;
+};
 
 const getInitials = (name: string | undefined): string => {
   if (!name) return "?";
@@ -139,12 +146,21 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
         {/* Child KPIs List */}
         {hasChildren ? (
           <div className="space-y-2">
-            {children.map((child) => {
+            {(children as KpiChild[]).map((child) => {
               const Icon = scopeIcons[child.scope_type] || Target;
               const childProgress = child.target_value 
                 ? Math.min(Math.round(((child.current_value || 0) / child.target_value) * 100), 100)
                 : 0;
               const periodText = child.quarter ? `Q${child.quarter} ${child.year}` : `${child.year}`;
+              
+              // Determine scope name based on type
+              const getScopeName = () => {
+                if (child.scope_type === 'individual') return child.employee?.profiles?.full_name;
+                if (child.scope_type === 'project') return child.project?.name;
+                if (child.scope_type === 'office') return child.office?.name;
+                if (child.scope_type === 'department') return child.scope_department;
+                return 'Group';
+              };
 
               return (
                 <OrgLink 
@@ -152,12 +168,32 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                   to={`/kpi/${child.id}`}
                   className="grid grid-cols-[32px_1fr_auto] gap-3 items-center p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
-                  {/* Left: Avatar/Icon */}
+                  {/* Left: Avatar/Icon with project logo support */}
                   {child.scope_type === 'individual' && child.employee ? (
                     <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={child.employee.profiles?.avatar_url || undefined} />
                       <AvatarFallback className="text-xs">
                         {getInitials(child.employee.profiles?.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : child.scope_type === 'project' && child.project ? (
+                    <Avatar className="h-8 w-8 shrink-0">
+                      {child.project.logo_url ? (
+                        <AvatarImage src={child.project.logo_url} />
+                      ) : null}
+                      <AvatarFallback 
+                        className="text-xs"
+                        style={{ backgroundColor: child.project.color ? `${child.project.color}20` : undefined }}
+                      >
+                        {child.project.icon ? (
+                          <DynamicIcon 
+                            name={child.project.icon} 
+                            className="h-4 w-4" 
+                            style={{ color: child.project.color || undefined }} 
+                          />
+                        ) : (
+                          <FolderKanban className="h-4 w-4" style={{ color: child.project.color || undefined }} />
+                        )}
                       </AvatarFallback>
                     </Avatar>
                   ) : (
@@ -172,10 +208,8 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                       {child.title}
                     </p>
                     <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-                      <span className="truncate max-w-[100px]">
-                        {child.scope_type === 'individual' 
-                          ? child.employee?.profiles?.full_name 
-                          : child.scope_department || 'Group'}
+                      <span className="truncate max-w-[120px]">
+                        {getScopeName() || 'Group'}
                       </span>
                       <span className="text-muted-foreground/50">•</span>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
