@@ -1,18 +1,17 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
-import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Pencil, Check, X, Building, MapPin, FolderKanban, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Sparkles, TrendingUp, TrendingDown, Minus, Target, Lightbulb, GraduationCap, RefreshCw, Clock, Building, MapPin, FolderKanban, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
-import { useEmployeeInheritedKpis } from "@/services/useKpi";
+import { useEmployeeInheritedKpis, useEmployeeOwnedGroupKpis } from "@/services/useKpi";
+import { OrgLink } from "@/components/OrgLink";
 import type { GroupKpiWithScope } from "@/types";
 
 interface AIKPIInsightsProps {
@@ -62,27 +61,9 @@ const getCurrentQuarter = () => {
 };
 
 const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const currentQuarter = getCurrentQuarter();
   const currentYear = new Date().getFullYear();
-  const [editingKpiId, setEditingKpiId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<string>("");
-
-  // Check if the current user owns this employee record
-  const { data: isOwnProfile } = useQuery({
-    queryKey: ["is-own-profile", employeeId, user?.id],
-    queryFn: async () => {
-      if (!user?.id) return false;
-      const { data } = await supabase
-        .from("employees")
-        .select("user_id")
-        .eq("id", employeeId)
-        .single();
-      return data?.user_id === user.id;
-    },
-    enabled: !!user?.id && !!employeeId,
-  });
 
   // Fetch employee details for inherited KPIs
   const { data: employeeDetails } = useQuery({
@@ -122,6 +103,24 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
     currentQuarter,
     currentYear
   );
+
+  // Fetch owned group KPIs (where employee is a KPI owner)
+  const { data: ownedGroupKpis = [] } = useEmployeeOwnedGroupKpis(
+    employeeId,
+    currentQuarter,
+    currentYear
+  );
+
+  // Combine inherited and owned group KPIs (deduplicated)
+  const allGroupKpis = useMemo(() => {
+    const combined = [...inheritedKpis];
+    ownedGroupKpis.forEach(kpi => {
+      if (!combined.find(k => k.id === kpi.id)) {
+        combined.push(kpi);
+      }
+    });
+    return combined;
+  }, [inheritedKpis, ownedGroupKpis]);
 
   // Fetch cached insights
   const { data: cachedInsights, isLoading } = useQuery({
@@ -168,7 +167,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [kpis]);
 
-
   const generateMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("generate-kpi-insights", {
@@ -186,44 +184,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
       toast.error(error.message || "Failed to generate insights");
     },
   });
-
-  const updateProgressMutation = useMutation({
-    mutationFn: async ({ kpiId, newValue }: { kpiId: string; newValue: number }) => {
-      const { error } = await supabase
-        .from("kpis")
-        .update({ current_value: newValue, updated_at: new Date().toISOString() })
-        .eq("id", kpiId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["kpis", employeeId] });
-      setEditingKpiId(null);
-      setEditValue("");
-      toast.success("Progress updated");
-    },
-    onError: () => {
-      toast.error("Failed to update progress");
-    },
-  });
-
-  const handleStartEdit = (kpi: { id: string; current_value: number | null }) => {
-    setEditingKpiId(kpi.id);
-    setEditValue(String(kpi.current_value || 0));
-  };
-
-  const handleSaveEdit = (kpiId: string) => {
-    const value = parseFloat(editValue);
-    if (isNaN(value) || value < 0) {
-      toast.error("Please enter a valid positive number");
-      return;
-    }
-    updateProgressMutation.mutate({ kpiId, newValue: value });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingKpiId(null);
-    setEditValue("");
-  };
 
   const insights: Insights | null = cachedInsights?.insights as unknown as Insights | null;
   const generatedAt = cachedInsights?.generated_at;
@@ -286,7 +246,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
       {/* KPIs Summary - Grouped by Quarter */}
       {groupedKpis.length > 0 && (
         <div className="space-y-2">
-          
           {groupedKpis.map(([quarterKey, quarterKpis]) => {
             const [year, quarter] = quarterKey.split("-");
             const isCurrentQuarter = quarterKey === `${currentYear}-Q${currentQuarter}`;
@@ -305,69 +264,27 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                 <div className="grid gap-2 pl-2">
                   {quarterKpis.map((kpi) => {
                     const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
-                    const isEditing = editingKpiId === kpi.id;
                     
                     return (
-                      <div key={kpi.id} className="flex items-start justify-between text-sm gap-2">
+                      <OrgLink 
+                        key={kpi.id} 
+                        to={`/kpi/${kpi.id}`}
+                        className="flex items-start justify-between text-sm gap-2 hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
+                      >
                         <span className="flex-1 text-sm leading-tight break-words min-w-0">{kpi.title}</span>
-                        
-                        {isEditing ? (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              className="w-20 h-7 text-xs"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleSaveEdit(kpi.id);
-                                if (e.key === "Escape") handleCancelEdit();
-                              }}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
+                              )}
+                              style={{ width: `${Math.min(progress, 100)}%` }}
                             />
-                            <span className="text-xs text-muted-foreground">/ {kpi.target_value}{kpi.unit}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => handleSaveEdit(kpi.id)}
-                              disabled={updateProgressMutation.isPending}
-                            >
-                              <Check className="h-3 w-3 text-green-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={handleCancelEdit}
-                            >
-                              <X className="h-3 w-3 text-muted-foreground" />
-                            </Button>
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full",
-                                  progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                                )}
-                                style={{ width: `${Math.min(progress, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
-                            {isOwnProfile && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-50 hover:opacity-100"
-                                onClick={() => handleStartEdit(kpi)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                        </div>
+                      </OrgLink>
                     );
                   })}
                 </div>
@@ -377,15 +294,15 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
         </div>
       )}
 
-      {(!kpis || kpis.length === 0) && inheritedKpis.length === 0 && (
+      {(!kpis || kpis.length === 0) && allGroupKpis.length === 0 && (
         <div className="text-center py-4 text-muted-foreground">
           <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No KPIs assigned yet.</p>
         </div>
       )}
 
-      {/* Inherited Group KPIs */}
-      {inheritedKpis.length > 0 && (
+      {/* Group KPIs (Inherited + Owned) */}
+      {allGroupKpis.length > 0 && (
         <div className="space-y-2 border-t pt-4 mt-4">
           <div className="flex items-center gap-2 py-1.5 px-2">
             <Badge variant="outline" className="text-xs flex items-center gap-1">
@@ -393,12 +310,13 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
               Group KPIs
             </Badge>
             <span className="text-xs text-muted-foreground">
-              ({inheritedKpis.length} inherited)
+              ({allGroupKpis.length})
             </span>
           </div>
           <div className="grid gap-2 pl-2">
-            {inheritedKpis.map((kpi) => {
+            {allGroupKpis.map((kpi) => {
               const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+              const isOwned = ownedGroupKpis.some(k => k.id === kpi.id);
               const getScopeIcon = () => {
                 if (kpi.scope_type === 'department') return <Building className="h-3 w-3 text-purple-600" />;
                 if (kpi.scope_type === 'office') return <MapPin className="h-3 w-3 text-orange-600" />;
@@ -413,9 +331,20 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
               };
               
               return (
-                <div key={kpi.id} className="flex items-start justify-between text-sm gap-2 bg-muted/30 rounded p-2">
+                <OrgLink 
+                  key={kpi.id} 
+                  to={`/kpi/${kpi.id}`}
+                  className="flex items-start justify-between text-sm gap-2 bg-muted/30 rounded p-2 hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm leading-tight break-words">{kpi.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm leading-tight break-words">{kpi.title}</span>
+                      {isOwned && (
+                        <Badge variant="secondary" className="text-[10px] h-4">
+                          Owner
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1 mt-0.5">
                       {getScopeIcon()}
                       <span className="text-xs text-muted-foreground">{getScopeName()}</span>
@@ -433,7 +362,7 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                     </div>
                     <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
                   </div>
-                </div>
+                </OrgLink>
               );
             })}
           </div>
