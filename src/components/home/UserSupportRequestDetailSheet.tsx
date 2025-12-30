@@ -169,7 +169,7 @@ export const UserSupportRequestDetailSheet = ({ request, open, onOpenChange }: U
                       <Sparkles className="h-3 w-3" />
                       AI-Improved
                     </div>
-                    <p className="text-xs whitespace-pre-wrap bg-primary/5 border border-primary/20 p-2.5 rounded-lg leading-relaxed">
+                    <p className="text-xs whitespace-pre-wrap break-words overflow-x-auto bg-primary/5 border border-primary/20 p-2.5 rounded-lg leading-relaxed max-w-full">
                       {request.ai_improved_description}
                     </p>
                   </div>
@@ -294,7 +294,7 @@ export const UserSupportRequestDetailSheet = ({ request, open, onOpenChange }: U
                         {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    <p className="text-xs leading-relaxed">{comment.content}</p>
+                    <p className="text-xs leading-relaxed break-words overflow-x-auto max-w-full">{comment.content}</p>
                     {comment.attachment_url && (
                       <a 
                         href={comment.attachment_url} 
