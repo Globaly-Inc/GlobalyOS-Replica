@@ -33,6 +33,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  DrawerFooter,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 import {
   Popover,
@@ -48,6 +57,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { OrgLink } from "@/components/OrgLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -141,6 +151,10 @@ const TeamKPIDashboard = () => {
   // Employee filter popover state
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  
+  // Mobile filter drawer state
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const isMobile = useIsMobile();
   
   // Bulk selection state
   const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set());
@@ -1004,7 +1018,18 @@ const TeamKPIDashboard = () => {
 
   const isLoading = loadingTeam || loadingKPIs || roleLoading || loadingCurrentEmployee;
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all" || selectedEmployees.length > 0;
-
+  
+  // Calculate active filter count for mobile badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedEmployees.length > 0) count++;
+    if (departmentFilter !== "all") count++;
+    if (projectFilter !== "all") count++;
+    if (officeFilter !== "all") count++;
+    if (quarter !== getCurrentQuarter()) count++;
+    if (year !== getCurrentYear()) count++;
+    return count;
+  }, [selectedEmployees, departmentFilter, projectFilter, officeFilter, quarter, year]);
 
   // Period navigation helpers (removed - now using direct dropdowns)
 
@@ -1078,8 +1103,236 @@ const TeamKPIDashboard = () => {
           </Card>
         ) : (
           <>
-            {/* Sticky Filter Bar - Light Purple Background */}
-            <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
+            {/* Mobile Filter Button + Drawer */}
+            <div className="md:hidden sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm py-2 rounded-lg">
+              <div className="flex items-center gap-2 justify-between px-2">
+                <Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
+                  <DrawerTrigger asChild>
+                    <Button variant="outline" className="flex-1 justify-between bg-background">
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4" />
+                        <span>Filters</span>
+                      </div>
+                      {activeFilterCount > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {activeFilterCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle className="flex items-center justify-between">
+                        <span>Filter KPIs</span>
+                        {hasActiveFilters && (
+                          <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setFilterDrawerOpen(false); }}>
+                            <X className="h-4 w-4 mr-1" />
+                            Clear All
+                          </Button>
+                        )}
+                      </DrawerTitle>
+                    </DrawerHeader>
+                    <div className="px-4 pb-4 flex flex-col gap-4">
+                      {/* Employee Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Employee</label>
+                        <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                              <div className="flex items-center gap-2 truncate">
+                                <Users className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{employeeFilterLabel}</span>
+                              </div>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[280px] p-0" align="start">
+                            <Command shouldFilter={false}>
+                              <CommandInput placeholder="Search employees..." value={employeeSearchQuery} onValueChange={setEmployeeSearchQuery} />
+                              <CommandList>
+                                <CommandEmpty>No employees found.</CommandEmpty>
+                                <CommandGroup>
+                                  {(isAdmin || isHR) && employeesList.length > 1 && (
+                                    <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
+                                        Select All
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
+                                        Clear All
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {filteredEmployeesList.map(employee => (
+                                    <CommandItem 
+                                      key={employee.id} 
+                                      value={employee.id} 
+                                      onSelect={() => {
+                                        setSelectedEmployees(
+                                          selectedEmployees.includes(employee.id) 
+                                            ? selectedEmployees.filter(id => id !== employee.id) 
+                                            : [...selectedEmployees, employee.id]
+                                        );
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2 flex-1">
+                                        <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={employee.avatarUrl || undefined} />
+                                          <AvatarFallback className="text-xs">
+                                            {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                          <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
+                                          {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
+                                        </div>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Department Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Department</label>
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                          <SelectTrigger className="w-full">
+                            <Building className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                            <SelectValue placeholder="Department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept} value={dept}>
+                                {dept} ({departmentCounts[dept] || 0})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Project Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Project</label>
+                        <Select value={projectFilter} onValueChange={setProjectFilter}>
+                          <SelectTrigger className="w-full">
+                            <FolderKanban className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                            <SelectValue placeholder="Project" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Projects</SelectItem>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name} ({projectCounts[project.id] || 0})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Office Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Office</label>
+                        <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                          <SelectTrigger className="w-full">
+                            <MapPin className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                            <SelectValue placeholder="Office" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Offices</SelectItem>
+                            {offices.map((office) => (
+                              <SelectItem key={office.id} value={office.id}>
+                                {office.name} ({officeCounts[office.id] || 0})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Year Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Year</label>
+                        <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
+                          <SelectTrigger className="w-full">
+                            <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground shrink-0" />
+                            <SelectValue>{year}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
+                              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Quarter Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Quarter</label>
+                        <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue>
+                              {quarter === 0 ? "All Quarters" : `Q${quarter}`}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">All (Annual)</SelectItem>
+                            <SelectItem value="1">Q1</SelectItem>
+                            <SelectItem value="2">Q2</SelectItem>
+                            <SelectItem value="3">Q3</SelectItem>
+                            <SelectItem value="4">Q4</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DrawerFooter>
+                      <DrawerClose asChild>
+                        <Button className="w-full">
+                          Apply Filters
+                          {hasActiveFilters && (
+                            <Badge variant="secondary" className="ml-2">
+                              {filteredTeamMembers.length} results
+                            </Badge>
+                          )}
+                        </Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
+
+                {/* Quick Period Selector - Always visible on mobile */}
+                <div className="flex items-center gap-1">
+                  <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
+                    <SelectTrigger className="w-[70px] h-9 bg-background text-xs">
+                      <SelectValue>{year}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                    <SelectTrigger className="w-[60px] h-9 bg-background text-xs">
+                      <SelectValue>{quarter === 0 ? "All" : `Q${quarter}`}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">All</SelectItem>
+                      <SelectItem value="1">Q1</SelectItem>
+                      <SelectItem value="2">Q2</SelectItem>
+                      <SelectItem value="3">Q3</SelectItem>
+                      <SelectItem value="4">Q4</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Filter Bar */}
+            <div className="hidden md:block sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
               <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
                 {/* Employee Multi-Select Dropdown */}
                 <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
@@ -1098,7 +1351,6 @@ const TeamKPIDashboard = () => {
                       <CommandList>
                         <CommandEmpty>No employees found.</CommandEmpty>
                         <CommandGroup>
-                          {/* Select All / Clear All */}
                           {(isAdmin || isHR) && employeesList.length > 1 && (
                             <div className="flex items-center justify-between px-2 py-1.5 border-b">
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
@@ -1203,7 +1455,7 @@ const TeamKPIDashboard = () => {
                   </SelectContent>
                 </Select>
 
-                {/* Quarter Dropdown - Always visible with "All" option */}
+                {/* Quarter Dropdown */}
                 <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
                   <SelectTrigger className="w-[130px] h-9 bg-background">
                     <SelectValue>
@@ -1227,8 +1479,8 @@ const TeamKPIDashboard = () => {
                     onClick={clearFilters}
                     className="h-9 text-muted-foreground hover:text-foreground px-2"
                   >
-                    <X className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Clear</span>
+                    <X className="h-4 w-4 mr-1" />
+                    <span>Clear</span>
                   </Button>
                 )}
 
