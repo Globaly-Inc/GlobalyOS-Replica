@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck } from 'lucide-react';
+import { LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck, LifeBuoy } from 'lucide-react';
+import { GetHelpDialog } from "./dialogs/GetHelpDialog";
 import globalyosLogo from "@/assets/globalyos-icon.png";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -84,6 +85,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showWelcomeSurvey, setShowWelcomeSurvey] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [getHelpDialogOpen, setGetHelpDialogOpen] = useState(false);
 
   // Work location and WFH hooks for smart check-in
   const { data: workLocation } = useEmployeeWorkLocation(userProfile?.employeeId || undefined);
@@ -689,6 +691,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Search className="h-4 w-4 text-muted-foreground" />
               </button>
               
+              {/* Get Help */}
+              <button
+                onClick={() => setGetHelpDialogOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <LifeBuoy className="h-4 w-4 text-muted-foreground" />
+              </button>
+              
               {/* Notifications */}
               <button 
                 onClick={() => navigateOrg('/notifications')}
@@ -769,6 +779,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Global Search Command Palette */}
       <GlobalSearch open={globalSearchOpen} onOpenChange={setGlobalSearchOpen} />
+
+      {/* Get Help Dialog */}
+      <GetHelpDialog open={getHelpDialogOpen} onOpenChange={setGetHelpDialogOpen} />
 
       {/* Onboarding Checklist - only show floating version on non-home pages */}
       {!isHomePage && <OnboardingChecklist userRole={role} />}
