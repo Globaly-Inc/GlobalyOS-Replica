@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CircularProgress } from "@/components/ui/circular-progress";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -261,28 +262,28 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                   </span>
                 </div>
                 
-                <div className="grid gap-2 pl-2">
+                <div className="grid gap-1.5 pl-2">
                   {quarterKpis.map((kpi) => {
                     const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
+                    const progressColor = progress >= 80 ? "text-green-500" : progress >= 50 ? "text-amber-500" : "text-red-500";
+                    const borderColor = progress >= 80 ? '#22c55e' : progress >= 50 ? '#f59e0b' : '#ef4444';
                     
                     return (
                       <OrgLink 
                         key={kpi.id} 
                         to={`/kpi/${kpi.id}`}
-                        className="flex items-start justify-between text-sm gap-2 hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
+                        className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-muted/50 transition-all group border-l-2"
+                        style={{ borderLeftColor: borderColor }}
                       >
-                        <span className="flex-1 text-sm leading-tight break-words min-w-0">{kpi.title}</span>
+                        <span className="flex-1 text-sm leading-tight break-words min-w-0 group-hover:text-primary transition-colors">{kpi.title}</span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full",
-                                progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                              )}
-                              style={{ width: `${Math.min(progress, 100)}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                          <CircularProgress 
+                            value={progress} 
+                            size={24} 
+                            strokeWidth={3} 
+                            className={progressColor}
+                          />
+                          <span className="text-xs font-medium text-muted-foreground w-8 text-right">{progress}%</span>
                         </div>
                       </OrgLink>
                     );
@@ -316,7 +317,6 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
           <div className="grid gap-2 pl-2">
             {allGroupKpis.map((kpi) => {
               const progress = kpi.target_value ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100) : 0;
-              const isOwned = ownedGroupKpis.some(k => k.id === kpi.id);
               
               // Render scope icon/logo
               const renderScopeIcon = () => {
@@ -367,41 +367,36 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
                 return '';
               };
               
+              const progressColor = progress >= 80 ? "text-green-500" : progress >= 50 ? "text-amber-500" : "text-red-500";
+              
               return (
                 <OrgLink 
                   key={kpi.id} 
                   to={`/kpi/${kpi.id}`}
-                  className="flex items-center gap-2 text-sm bg-muted/30 rounded p-2 hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 hover:bg-muted/40 transition-all border border-border/50 group"
                 >
-                  {/* Scope icon/logo */}
-                  {renderScopeIcon()}
-                  
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm leading-tight break-words">{kpi.title}</span>
-                      {isOwned && (
-                        <Badge variant="secondary" className="text-[10px] h-4">
-                          Owner
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    {/* Row 1: Title only */}
+                    <span className="text-sm font-medium leading-tight break-words block group-hover:text-primary transition-colors">{kpi.title}</span>
+                    
+                    {/* Row 2: Icon + Group Name + Period */}
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      {renderScopeIcon()}
                       <span className="text-xs text-muted-foreground">{getScopeName()}</span>
                       <span className="text-xs text-muted-foreground/50">•</span>
                       <span className="text-xs text-muted-foreground">Q{kpi.quarter} {kpi.year}</span>
                     </div>
                   </div>
+                  
+                  {/* Right side: Circular progress + percentage */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full",
-                          progress >= 80 ? "bg-green-500" : progress >= 50 ? "bg-amber-500" : "bg-red-500"
-                        )}
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
+                    <CircularProgress 
+                      value={progress} 
+                      size={28} 
+                      strokeWidth={3} 
+                      className={progressColor}
+                    />
+                    <span className="text-xs font-medium text-muted-foreground w-8 text-right">{progress}%</span>
                   </div>
                 </OrgLink>
               );
