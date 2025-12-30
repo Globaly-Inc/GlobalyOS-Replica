@@ -95,27 +95,57 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
       
       const canvas = await html2canvas(captureTarget, {
         useCORS: true,
-        allowTaint: true,
-        scale: window.devicePixelRatio || 1,
+        allowTaint: false, // Prevent tainted canvas
+        scale: Math.min(window.devicePixelRatio || 1, 2), // Cap scale for performance
         logging: false,
-        // Fallback: ignore any Radix portal content that might be inside root
+        backgroundColor: '#ffffff',
+        // Ignore any Radix portal content that might be inside root
         ignoreElements: (element) => {
           return element.closest('[data-radix-portal]') !== null || 
                  element.getAttribute('role') === 'dialog';
+        },
+        onclone: (clonedDoc) => {
+          // Replace cross-origin images with placeholders to prevent tainting
+          const images = clonedDoc.querySelectorAll('img');
+          images.forEach((img) => {
+            const src = img.getAttribute('src') || '';
+            // Check if image is cross-origin (not from same origin or data URL)
+            const isCrossOrigin = src && 
+              !src.startsWith('data:') && 
+              !src.startsWith(window.location.origin) &&
+              !src.startsWith('/');
+            
+            if (isCrossOrigin) {
+              // Hide cross-origin images to prevent tainting
+              img.style.visibility = 'hidden';
+            }
+          });
         }
       });
       
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
-          setScreenshot(file);
-          setScreenshotPreview(canvas.toDataURL('image/png'));
+      // Use Promise wrapper for better error handling
+      const blob = await new Promise<Blob | null>((resolve) => {
+        try {
+          canvas.toBlob((b) => resolve(b), 'image/png');
+        } catch (e) {
+          console.error('toBlob failed:', e);
+          resolve(null);
         }
-      }, 'image/png');
+      });
+
+      if (blob) {
+        const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+        setScreenshot(file);
+        // Use URL.createObjectURL instead of toDataURL for reliability
+        setScreenshotPreview(URL.createObjectURL(blob));
+        toast.success('Screenshot captured successfully');
+      } else {
+        throw new Error('Could not generate screenshot image');
+      }
       
     } catch (error) {
       console.error('Failed to capture screenshot:', error);
-      toast.error('Failed to capture screenshot');
+      toast.error('Failed to capture screenshot. Try uploading an image instead.');
     } finally {
       setIsCapturing(false);
     }
