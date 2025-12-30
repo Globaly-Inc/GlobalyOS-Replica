@@ -30,7 +30,7 @@ import { format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import UploadProgress, { UploadingFile } from '@/components/chat/UploadProgress';
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const getTextLength = (html: string): number => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -247,7 +247,7 @@ export const CreatePostModal = ({
     if (validFiles.length < files.length) {
       toast({
         title: 'Some files skipped',
-        description: 'Files must be under 25MB',
+        description: 'Files must be under 50MB',
         variant: 'destructive',
       });
     }
