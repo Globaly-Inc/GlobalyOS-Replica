@@ -264,7 +264,7 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
                   {descriptionOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-2">
-                  <p className="text-xs whitespace-pre-wrap bg-muted/30 p-2.5 rounded-lg leading-relaxed">
+                  <p className="text-xs whitespace-pre-wrap break-words overflow-x-auto bg-muted/30 p-2.5 rounded-lg leading-relaxed max-w-full">
                     {request.description}
                   </p>
                   {request.ai_improved_description && (

@@ -360,17 +360,19 @@ const VisualRegressionView = ({ runId }: VisualRegressionViewProps) => {
                       style={{ left: `${sliderValue[0]}%` }}
                     />
                   </div>
-                  <div className="mt-4 px-4">
+                  <div className="mt-4 px-4 space-y-3">
                     <Slider
                       value={sliderValue}
                       onValueChange={setSliderValue}
                       min={0}
                       max={100}
                       step={1}
+                      className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                      <span>Baseline</span>
-                      <span>Current</span>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span className="font-medium">Baseline</span>
+                      <span className="text-sm font-semibold text-foreground bg-muted px-2 py-0.5 rounded-md">{sliderValue[0]}%</span>
+                      <span className="font-medium">Current</span>
                     </div>
                   </div>
                 </TabsContent>
