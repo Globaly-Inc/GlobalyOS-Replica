@@ -25,7 +25,7 @@ export const UserSupportRequestCard = ({ request, onClick, readonly = false }: U
   return (
     <Card 
       className={cn(
-        "p-3 transition-all border-l-3",
+        "p-3 transition-all border-l-3 h-[100px] flex flex-col",
         readonly 
           ? "opacity-90" 
           : "cursor-pointer hover:shadow-md group"
@@ -53,12 +53,12 @@ export const UserSupportRequestCard = ({ request, onClick, readonly = false }: U
       </div>
 
       {/* Title */}
-      <h4 className="font-medium text-xs line-clamp-2 mb-2 leading-tight group-hover:text-primary transition-colors">
+      <h4 className="font-medium text-xs line-clamp-2 flex-1 leading-tight group-hover:text-primary transition-colors">
         {request.title}
       </h4>
 
       {/* Footer Row */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-auto">
         <span>{readonly ? 'Released' : ''} {timeAgo} ago</span>
         {!readonly && (request.comment_count ?? 0) > 0 && (
           <div className="flex items-center gap-0.5">
