@@ -1304,6 +1304,8 @@ const TeamKPIDashboard = () => {
                         canEdit={isAdmin}
                         onEdit={() => setEditingKpi(kpi)}
                         onDelete={() => setDeletingKpiId(kpi.id)}
+                        updatesCount={(kpi as any).updates_count || 0}
+                        childCount={(kpi as any).child_count || 0}
                       />
                     ))}
                   </div>
@@ -1358,6 +1360,8 @@ const TeamKPIDashboard = () => {
                           canEdit={canEdit}
                           onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
                           onDelete={() => setDeletingKpiId(kpi.id)}
+                          updatesCount={(kpi as any).updates_count || 0}
+                          childCount={(kpi as any).child_count || 0}
                         />
                       );
                     })}

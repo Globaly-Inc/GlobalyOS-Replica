@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { MoreHorizontal, Pencil, Trash2, Eye, Link2, Building, MapPin, FolderKanban, Globe, Target } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Link2, Building, MapPin, FolderKanban, Globe, Target, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -208,27 +207,46 @@ export function UnifiedKpiCard({
             {kpi.title}
           </p>
           <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+            {/* Owner/Scope name */}
             <span className="truncate max-w-[120px]">{getScopeName()}</span>
+            
+            {/* Position (individual KPIs only) - no truncation on larger screens */}
             {type === 'individual' && employee?.position && (
               <>
                 <span className="text-muted-foreground/50">•</span>
-                <span className="truncate max-w-[100px]">{employee.position}</span>
+                <span className="truncate max-w-[80px] sm:max-w-[150px] lg:max-w-none">{employee.position}</span>
               </>
             )}
+            
+            {/* Period badge */}
             <span className="text-muted-foreground/50">•</span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
               {periodText}
             </Badge>
+            
+            {/* Updates count */}
             {updatesCount > 0 && (
               <>
                 <span className="text-muted-foreground/50">•</span>
-                <span>{updatesCount} update{updatesCount !== 1 ? 's' : ''}</span>
+                <span className="flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  {updatesCount}
+                </span>
               </>
             )}
-            <span className="text-muted-foreground/50">•</span>
-            <Badge className={cn("text-[10px] shrink-0", statusColors[kpi.status])}>
-              {kpi.status.replace("_", " ")}
-            </Badge>
+            
+            {/* Linked KPIs count - moved to left side */}
+            {childCount > 0 && (
+              <>
+                <span className="text-muted-foreground/50">•</span>
+                <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+                  <Link2 className="h-3 w-3" />
+                  {childCount}
+                </Badge>
+              </>
+            )}
+            
+            {/* Last updated */}
             {kpi.updated_at && (
               <>
                 <span className="text-muted-foreground/50">•</span>
@@ -238,30 +256,27 @@ export function UnifiedKpiCard({
           </div>
         </div>
 
-        {/* Right: Progress, Targets, Linked Count, Menu */}
+        {/* Right: Targets, Status, Progress, Menu - reordered */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Progress */}
-          <div className="flex items-center gap-1.5">
-            <CircularProgress value={progress} size={compact ? 16 : 20} strokeWidth={compact ? 2 : 2.5} />
-            <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{progress}%</span>
-          </div>
-
-          {/* Targets */}
+          {/* 1. Targets */}
           {formatTarget() && (
             <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
               {formatTarget()}
             </span>
           )}
 
-          {/* Linked KPIs count */}
-          {childCount > 0 && (
-            <Badge variant="secondary" className="gap-1 text-[10px] hidden sm:flex">
-              <Link2 className="h-3 w-3" />
-              {childCount}
-            </Badge>
-          )}
+          {/* 2. Status Badge */}
+          <Badge className={cn("text-[10px] shrink-0 hidden sm:flex", statusColors[kpi.status])}>
+            {kpi.status.replace("_", " ")}
+          </Badge>
 
-          {/* 3-dot menu */}
+          {/* 3. Progress */}
+          <div className="flex items-center gap-1.5">
+            <CircularProgress value={progress} size={compact ? 16 : 20} strokeWidth={compact ? 2 : 2.5} />
+            <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{progress}%</span>
+          </div>
+
+          {/* 4. 3-dot menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
               <Button variant="ghost" size="icon" className={cn("shrink-0", compact ? "h-7 w-7" : "h-8 w-8")}>

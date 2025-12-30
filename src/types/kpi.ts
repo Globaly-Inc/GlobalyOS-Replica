@@ -52,11 +52,14 @@ export type KpiStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved' | 'comple
 export interface KpiWithEmployee extends Kpi {
   employee: {
     id: string;
+    position?: string;
     profiles: {
       full_name: string;
       avatar_url: string | null;
     };
   } | null;
+  updates_count?: number;
+  child_count?: number;
 }
 
 export interface GroupKpi extends Kpi {
@@ -75,6 +78,8 @@ export interface GroupKpiWithScope extends GroupKpi {
     color?: string | null;
     logo_url?: string | null;
   } | null;
+  updates_count?: number;
+  child_count?: number;
 }
 
 // Child KPI with optional employee data for display

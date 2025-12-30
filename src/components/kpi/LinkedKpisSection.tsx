@@ -181,10 +181,6 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {periodText}
                       </Badge>
-                      <span className="text-muted-foreground/50">•</span>
-                      <Badge className={cn("text-[10px]", statusColors[child.status])}>
-                        {child.status.replace('_', ' ')}
-                      </Badge>
                       {child.updated_at && (
                         <>
                           <span className="text-muted-foreground/50">•</span>
@@ -194,15 +190,25 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                     </div>
                   </div>
 
-                  {/* Right: Progress, Target, Unlink */}
+                  {/* Right: Targets, Status, Progress, Unlink - reordered to match UnifiedKpiCard */}
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* 1. Targets */}
+                    <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                      {child.current_value || 0}/{child.target_value || 0} {child.unit || ''}
+                    </span>
+                    
+                    {/* 2. Status Badge */}
+                    <Badge className={cn("text-[10px] shrink-0 hidden sm:flex", statusColors[child.status])}>
+                      {child.status.replace('_', ' ')}
+                    </Badge>
+                    
+                    {/* 3. Progress */}
                     <div className="flex items-center gap-1.5">
                       <CircularProgress value={childProgress} size={16} strokeWidth={2} />
                       <span className="text-xs font-medium">{childProgress}%</span>
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
-                      {child.current_value || 0}/{child.target_value || 0} {child.unit || ''}
-                    </span>
+                    
+                    {/* 4. Unlink button */}
                     {canEdit && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
