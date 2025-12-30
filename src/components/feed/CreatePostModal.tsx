@@ -460,6 +460,7 @@ export const CreatePostModal = ({
     { type: 'win' as PostType, icon: Trophy, label: 'Win', color: 'amber', description: 'Celebrate an achievement' },
     { type: 'kudos' as PostType, icon: Heart, label: 'Kudos', color: 'pink', description: 'Recognize a teammate' },
     { type: 'social' as PostType, icon: MessageSquare, label: 'Social', color: 'green', description: 'Share with the team' },
+    { type: 'update' as PostType, icon: MessageSquare, label: 'Updates', color: 'cyan', description: 'Share a progress update' },
     ...(canPostAnnouncement ? [{ type: 'announcement' as PostType, icon: Megaphone, label: 'Announcement', color: 'blue', description: 'Important updates' }] : []),
     ...(canPostExecutive ? [{ type: 'executive_message' as PostType, icon: Crown, label: 'Executive', color: 'purple', description: 'Leadership message' }] : []),
   ];
@@ -504,6 +505,7 @@ export const CreatePostModal = ({
                       color === 'amber' && 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
                       color === 'pink' && 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
                       color === 'green' && 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                      color === 'cyan' && 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
                       color === 'blue' && 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
                       color === 'purple' && 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
                     )}

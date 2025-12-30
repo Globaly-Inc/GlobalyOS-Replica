@@ -596,6 +596,11 @@ const Home = () => {
                         <MessageSquare className="h-4 w-4 text-green-500" /> Social
                       </span>
                     </SelectItem>
+                    <SelectItem value="update">
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-cyan-500" /> Updates
+                      </span>
+                    </SelectItem>
                     <SelectItem value="announcement">
                       <span className="flex items-center gap-2">
                         <Megaphone className="h-4 w-4 text-blue-500" /> Announcements

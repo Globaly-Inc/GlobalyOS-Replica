@@ -15,6 +15,7 @@ const POST_TYPE_LABELS: Record<string, string> = {
   kudos: 'Kudos',
   announcement: 'Announcement',
   social: 'Post',
+  update: 'Update',
   executive_message: 'Executive Message',
 };
 
