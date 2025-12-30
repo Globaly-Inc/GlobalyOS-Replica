@@ -617,11 +617,37 @@ const TeamKPIDashboard = () => {
   const trendData = useMemo(() => {
     if (historicalKPIs.length === 0) return [];
     
-    // Group by quarter/year
-    const quarterlyData: Record<string, {
+    // Quarter to months mapping
+    const quarterMonths: Record<number, number[]> = {
+      1: [0, 1, 2],   // Jan, Feb, Mar
+      2: [3, 4, 5],   // Apr, May, Jun
+      3: [6, 7, 8],   // Jul, Aug, Sep
+      4: [9, 10, 11], // Oct, Nov, Dec
+    };
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Determine periods based on filter selection
+    type Period = { type: 'quarter'; q: number; y: number } | 
+                  { type: 'month'; m: number; y: number };
+    const periods: Period[] = [];
+
+    if (quarter === 0) {
+      // "All Quarters" selected - show Q1 to Q4 of the selected year
+      for (let q = 1; q <= 4; q++) {
+        periods.push({ type: 'quarter', q, y: year });
+      }
+    } else {
+      // Specific quarter selected - show the 3 months of that quarter
+      const months = quarterMonths[quarter];
+      months.forEach(m => {
+        periods.push({ type: 'month', m, y: year });
+      });
+    }
+
+    // Build period data
+    const periodData: Record<string, {
       period: string;
-      quarter: number;
-      year: number;
       totalKPIs: number;
       avgProgress: number;
       onTrack: number;
@@ -630,24 +656,21 @@ const TeamKPIDashboard = () => {
       completed: number;
     }> = {};
 
-    // Get last 4 quarters including current
-    const quarters: { q: number; y: number }[] = [];
-    let currentQ = quarter;
-    let currentY = year;
-    for (let i = 0; i < 4; i++) {
-      quarters.unshift({ q: currentQ, y: currentY });
-      currentQ--;
-      if (currentQ < 1) {
-        currentQ = 4;
-        currentY--;
-      }
-    }
-
-    quarters.forEach(({ q, y }) => {
-      const key = `Q${q} ${y}`;
-      const kpisInQuarter = historicalKPIs.filter(k => k.quarter === q && k.year === y);
+    periods.forEach(p => {
+      let key: string;
+      let kpisInPeriod: typeof historicalKPIs;
       
-      const kpisWithTarget = kpisInQuarter.filter(k => k.target_value);
+      if (p.type === 'quarter') {
+        key = `Q${p.q} ${p.y}`;
+        kpisInPeriod = historicalKPIs.filter(k => k.quarter === p.q && k.year === p.y);
+      } else {
+        key = `${monthNames[p.m]} ${p.y}`;
+        // For monthly view, filter KPIs by the quarter they belong to
+        const quarterForMonth = Math.floor(p.m / 3) + 1;
+        kpisInPeriod = historicalKPIs.filter(k => k.quarter === quarterForMonth && k.year === p.y);
+      }
+      
+      const kpisWithTarget = kpisInPeriod.filter(k => k.target_value);
       const avgProgress = kpisWithTarget.length > 0
         ? Math.round(
             kpisWithTarget.reduce((acc, kpi) => {
@@ -656,20 +679,21 @@ const TeamKPIDashboard = () => {
           )
         : 0;
 
-      quarterlyData[key] = {
+      periodData[key] = {
         period: key,
-        quarter: q,
-        year: y,
-        totalKPIs: kpisInQuarter.length,
+        totalKPIs: kpisInPeriod.length,
         avgProgress,
-        onTrack: kpisInQuarter.filter(k => k.status === "on_track").length,
-        atRisk: kpisInQuarter.filter(k => k.status === "at_risk").length,
-        behind: kpisInQuarter.filter(k => k.status === "behind").length,
-        completed: kpisInQuarter.filter(k => k.status === "completed").length,
+        onTrack: kpisInPeriod.filter(k => k.status === "on_track").length,
+        atRisk: kpisInPeriod.filter(k => k.status === "at_risk").length,
+        behind: kpisInPeriod.filter(k => k.status === "behind").length,
+        completed: kpisInPeriod.filter(k => k.status === "completed").length,
       };
     });
 
-    return quarters.map(({ q, y }) => quarterlyData[`Q${q} ${y}`]);
+    return periods.map(p => {
+      const key = p.type === 'quarter' ? `Q${p.q} ${p.y}` : `${monthNames[p.m]} ${p.y}`;
+      return periodData[key];
+    });
   }, [historicalKPIs, quarter, year]);
 
   const chartConfig = {
