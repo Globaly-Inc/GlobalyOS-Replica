@@ -720,22 +720,47 @@ const TeamKPIDashboard = () => {
     },
   };
 
-  // Calculate aggregated stats (from filtered data)
-  const stats = {
-    totalKPIs: filteredTeamKPIs.length,
-    onTrack: filteredTeamKPIs.filter(k => k.status === "on_track").length,
-    atRisk: filteredTeamKPIs.filter(k => k.status === "at_risk").length,
-    behind: filteredTeamKPIs.filter(k => k.status === "behind").length,
-    completed: filteredTeamKPIs.filter(k => k.status === "completed").length,
-    avgProgress: filteredTeamKPIs.length > 0
-      ? Math.round(
-          filteredTeamKPIs.reduce((acc, kpi) => {
-            if (!kpi.target_value) return acc;
-            return acc + ((kpi.current_value || 0) / kpi.target_value) * 100;
-          }, 0) / filteredTeamKPIs.filter(k => k.target_value).length || 0
-        )
-      : 0,
-  };
+  // Filter group KPIs based on active filters
+  const filteredGroupKpis = useMemo(() => {
+    return groupKpis.filter(kpi => {
+      if (departmentFilter !== "all" && kpi.scope_type === 'department') {
+        if (kpi.scope_department !== departmentFilter) return false;
+      }
+      if (projectFilter !== "all" && kpi.scope_type === 'project') {
+        if (kpi.scope_project_id !== projectFilter) return false;
+      }
+      if (officeFilter !== "all" && kpi.scope_type === 'office') {
+        if (kpi.scope_office_id !== officeFilter) return false;
+      }
+      return true;
+    });
+  }, [groupKpis, departmentFilter, projectFilter, officeFilter]);
+
+  // Calculate aggregated stats (from all filtered KPI types)
+  const stats = useMemo(() => {
+    const allVisibleKpis = [
+      ...organizationKpis,
+      ...filteredGroupKpis,
+      ...filteredTeamKPIs,
+    ];
+    
+    const kpisWithTarget = allVisibleKpis.filter(k => k.target_value);
+    
+    return {
+      totalKPIs: allVisibleKpis.length,
+      onTrack: allVisibleKpis.filter(k => k.status === "on_track").length,
+      atRisk: allVisibleKpis.filter(k => k.status === "at_risk").length,
+      behind: allVisibleKpis.filter(k => k.status === "behind").length,
+      completed: allVisibleKpis.filter(k => k.status === "completed").length,
+      avgProgress: kpisWithTarget.length > 0
+        ? Math.round(
+            kpisWithTarget.reduce((acc, kpi) => {
+              return acc + ((kpi.current_value || 0) / (kpi.target_value || 1)) * 100;
+            }, 0) / kpisWithTarget.length
+          )
+        : 0,
+    };
+  }, [organizationKpis, filteredGroupKpis, filteredTeamKPIs]);
 
   // Group KPIs by employee (using filtered members and KPIs)
   const kpisByEmployee = filteredTeamMembers.map(member => {
