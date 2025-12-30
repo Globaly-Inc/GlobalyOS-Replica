@@ -235,7 +235,7 @@ const TeamKPIDashboard = () => {
 
   // Helper to determine if user can edit a specific KPI
   const canEditKpi = (kpi: Kpi) => {
-    if (isAdmin) return true; // Owner/Admin can edit all
+    if (isOwner || isAdmin) return true; // Owner/Admin can edit all
     
     // User can always edit their own KPIs
     if (kpi.employee_id === currentEmployee?.id) return true;
@@ -244,6 +244,23 @@ const TeamKPIDashboard = () => {
     const employee = teamMembers.find(m => m.id === kpi.employee_id);
     if (employee?.manager_id === currentEmployee?.id) return true;
     
+    return false;
+  };
+
+  // Helper to determine if user can DELETE a specific KPI
+  // Only Owner, Admin, and Manager (for subordinates' KPIs) can delete - NOT Self
+  const canDeleteKpi = (kpi: Kpi) => {
+    // Owner and Admin can delete all
+    if (isOwner || isAdmin) return true;
+    
+    // Manager can delete their direct reports' KPIs (NOT their own)
+    if (kpi.employee_id && kpi.employee_id !== currentEmployee?.id) {
+      const employee = teamMembers.find(m => m.id === kpi.employee_id);
+      if (employee?.manager_id === currentEmployee?.id) return true;
+    }
+    
+    // Self CANNOT delete their own KPIs
+    // No other users can delete
     return false;
   };
 
@@ -507,12 +524,12 @@ const TeamKPIDashboard = () => {
     setSelectedKpis(newSelected);
   };
 
-  // Get all selectable KPIs based on permissions
+  // Get all selectable KPIs based on DELETE permissions (for bulk actions)
   const getAllSelectableKpis = useMemo((): SelectedKpi[] => {
     const selectableKpis: SelectedKpi[] = [];
     
-    // Add organization KPIs (only admin can edit)
-    if (isAdmin) {
+    // Add organization KPIs (only Owner/Admin can delete)
+    if (isOwner || isAdmin) {
       organizationKpis.forEach(kpi => {
         selectableKpis.push({
           id: kpi.id,
@@ -522,8 +539,8 @@ const TeamKPIDashboard = () => {
       });
     }
     
-    // Add group KPIs (only admin can edit)
-    if (isAdmin) {
+    // Add group KPIs (only Owner/Admin can delete)
+    if (isOwner || isAdmin) {
       groupKpis.forEach(kpi => {
         selectableKpis.push({
           id: kpi.id,
@@ -533,9 +550,9 @@ const TeamKPIDashboard = () => {
       });
     }
     
-    // Add individual KPIs that user can edit
+    // Add individual KPIs that user can DELETE (Owner/Admin/Manager for subordinates only)
     filteredTeamKPIs.forEach(kpi => {
-      if (canEditKpi(kpi as unknown as Kpi)) {
+      if (canDeleteKpi(kpi as unknown as Kpi)) {
         selectableKpis.push({
           id: kpi.id,
           scopeType: 'individual',
@@ -545,7 +562,7 @@ const TeamKPIDashboard = () => {
     });
     
     return selectableKpis;
-  }, [isAdmin, organizationKpis, groupKpis, filteredTeamKPIs, currentEmployee?.id, teamMembers]);
+  }, [isOwner, isAdmin, organizationKpis, groupKpis, filteredTeamKPIs, currentEmployee?.id, teamMembers]);
 
   // Select all visible KPIs (that user can edit)
   const selectAllKpis = () => {
@@ -1281,7 +1298,7 @@ const TeamKPIDashboard = () => {
                         "flex items-start gap-3",
                         selectedKpis.has(kpi.id) && "ring-2 ring-primary/30 rounded-lg"
                       )}>
-                        {isAdmin && (
+                        {(isOwner || isAdmin) && (
                           <Checkbox
                             checked={selectedKpis.has(kpi.id)}
                             onCheckedChange={() => toggleSelectKpi(kpi.id)}
@@ -1291,7 +1308,8 @@ const TeamKPIDashboard = () => {
                         <div className="flex-1 min-w-0">
                           <OrganisationKpiCard 
                             kpi={kpi} 
-                            canEdit={isAdmin}
+                            canEdit={isOwner || isAdmin}
+                            canDelete={isOwner || isAdmin}
                             onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
                             onDelete={() => setDeletingKpiId(kpi.id)}
                           />
@@ -1325,8 +1343,9 @@ const TeamKPIDashboard = () => {
                         project={kpi.project || undefined}
                         isSelected={selectedKpis.has(kpi.id)}
                         onSelect={() => toggleSelectKpi(kpi.id)}
-                        showCheckbox={isAdmin}
-                        canEdit={isAdmin}
+                        showCheckbox={isOwner || isAdmin}
+                        canEdit={isOwner || isAdmin}
+                        canDelete={isOwner || isAdmin}
                         onEdit={() => setEditingKpi(kpi)}
                         onDelete={() => setDeletingKpiId(kpi.id)}
                         updatesCount={(kpi as any).updates_count || 0}
@@ -1367,6 +1386,7 @@ const TeamKPIDashboard = () => {
                     {filteredTeamKPIs.map((kpi) => {
                       const member = filteredTeamMembers.find(m => m.id === kpi.employee_id);
                       const canEdit = canEditKpi(kpi as unknown as Kpi);
+                      const canDelete = canDeleteKpi(kpi as unknown as Kpi);
                       
                       return (
                         <UnifiedKpiCard
@@ -1381,8 +1401,9 @@ const TeamKPIDashboard = () => {
                           } : undefined}
                           isSelected={selectedKpis.has(kpi.id)}
                           onSelect={() => toggleSelectKpi(kpi.id)}
-                          showCheckbox={canEdit}
+                          showCheckbox={canDelete}
                           canEdit={canEdit}
+                          canDelete={canDelete}
                           onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
                           onDelete={() => setDeletingKpiId(kpi.id)}
                           updatesCount={(kpi as any).updates_count || 0}

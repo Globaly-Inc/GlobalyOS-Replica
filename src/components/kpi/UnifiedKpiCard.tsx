@@ -40,6 +40,7 @@ interface UnifiedKpiCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   canEdit?: boolean;
+  canDelete?: boolean; // Separate delete permission (Owner/Admin/Manager for subordinates only)
   // Display options
   compact?: boolean;
   updatesCount?: number;
@@ -78,6 +79,7 @@ export function UnifiedKpiCard({
   onEdit,
   onDelete,
   canEdit,
+  canDelete,
   compact = false,
   updatesCount = 0,
   childCount = 0,
@@ -291,19 +293,19 @@ export function UnifiedKpiCard({
                 </OrgLink>
               </DropdownMenuItem>
               {canEdit && (
-                <>
-                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit?.(); }}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={(e) => { e.preventDefault(); onDelete?.(); }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit?.(); }}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
+                <DropdownMenuItem 
+                  onClick={(e) => { e.preventDefault(); onDelete?.(); }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
