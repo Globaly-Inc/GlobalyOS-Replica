@@ -264,6 +264,16 @@ const TeamKPIDashboard = () => {
     return false;
   };
 
+  // Helper to determine if user can EDIT a Group KPI
+  // Only KPI Owners (from kpi_owners), Owner, or Admin can edit Group KPIs
+  const canEditGroupKpi = (kpi: any) => {
+    if (isOwner || isAdmin) return true;
+    
+    // Check if current employee is in the kpi_owners array
+    const owners = kpi.kpi_owners || [];
+    return owners.some((owner: any) => owner.employee_id === currentEmployee?.id);
+  };
+
   // Fetch projects for filter
   const { data: projects = [] } = useQuery({
     queryKey: ["projects", currentOrg?.id],
@@ -1453,7 +1463,7 @@ const TeamKPIDashboard = () => {
                         isSelected={selectedKpis.has(kpi.id)}
                         onSelect={() => toggleSelectKpi(kpi.id)}
                         showCheckbox={isOwner || isAdmin}
-                        canEdit={isOwner || isAdmin}
+                        canEdit={canEditGroupKpi(kpi)}
                         canDelete={isOwner || isAdmin}
                         onEdit={() => setEditingKpi(kpi)}
                         onDelete={() => setDeletingKpiId(kpi.id)}

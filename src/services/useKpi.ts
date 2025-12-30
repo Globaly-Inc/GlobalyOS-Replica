@@ -145,12 +145,12 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
 
       if (groupKpis.length === 0) return [];
 
-      // Fetch office, project names, updates count and child count in parallel
+      // Fetch office, project names, updates count, child count, and owners in parallel
       const kpiIds = groupKpis.map((k: any) => k.id);
       const officeIds = groupKpis.filter((k: any) => k.scope_office_id).map((k: any) => k.scope_office_id);
       const projectIds = groupKpis.filter((k: any) => k.scope_project_id).map((k: any) => k.scope_project_id);
 
-      const [officesResult, projectsResult, updatesResult, childrenResult] = await Promise.all([
+      const [officesResult, projectsResult, updatesResult, childrenResult, ownersResult] = await Promise.all([
         officeIds.length > 0 
           ? supabase.from('offices').select('id, name').in('id', officeIds)
           : { data: [] },
@@ -159,6 +159,7 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
           : { data: [] },
         supabase.from('kpi_updates').select('kpi_id').in('kpi_id', kpiIds),
         supabase.from('kpis').select('parent_kpi_id').in('parent_kpi_id', kpiIds),
+        supabase.from('kpi_owners').select('kpi_id, employee_id, is_primary').in('kpi_id', kpiIds),
       ]);
 
       const officeMap = new Map((officesResult.data || []).map((o: any) => [o.id, o]));
@@ -177,6 +178,15 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
           childMap.set(c.parent_kpi_id, (childMap.get(c.parent_kpi_id) || 0) + 1);
         }
       });
+      
+      // Build owners map
+      const ownersMap = new Map<string, Array<{ employee_id: string; is_primary: boolean }>>();
+      (ownersResult.data || []).forEach((o: any) => {
+        if (!ownersMap.has(o.kpi_id)) {
+          ownersMap.set(o.kpi_id, []);
+        }
+        ownersMap.get(o.kpi_id)!.push({ employee_id: o.employee_id, is_primary: o.is_primary });
+      });
 
       return groupKpis.map((kpi: any) => ({
         ...kpi,
@@ -184,6 +194,7 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
         project: kpi.scope_project_id ? projectMap.get(kpi.scope_project_id) || null : null,
         updates_count: updatesMap.get(kpi.id) || 0,
         child_count: childMap.get(kpi.id) || 0,
+        kpi_owners: ownersMap.get(kpi.id) || [],
       })) as GroupKpiWithScope[];
     },
     enabled: !!currentOrg?.id,
