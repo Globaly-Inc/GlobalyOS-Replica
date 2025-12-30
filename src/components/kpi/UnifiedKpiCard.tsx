@@ -184,167 +184,276 @@ export function UnifiedKpiCard({
   // Period badge text
   const periodText = kpi.quarter ? `Q${kpi.quarter} ${kpi.year}` : `${kpi.year}`;
 
+  // Render mobile avatar (smaller)
+  const renderMobileAvatar = () => {
+    const size = "h-8 w-8";
+    
+    if (type === 'individual' && employee) {
+      return (
+        <Avatar className={size}>
+          <AvatarImage src={employee.avatarUrl} />
+          <AvatarFallback className="text-xs">
+            {getInitials(employee.name)}
+          </AvatarFallback>
+        </Avatar>
+      );
+    }
+
+    const groupKpi = kpi as GroupKpiWithScope;
+    const projectData = groupKpi.project || project;
+    
+    if (groupKpi.scope_type === 'project' && projectData) {
+      if (projectData.logo_url) {
+        return (
+          <div className={cn(size, "rounded-full overflow-hidden bg-muted")}>
+            <img 
+              src={projectData.logo_url} 
+              alt={projectData.name} 
+              className="h-full w-full object-cover"
+            />
+          </div>
+        );
+      }
+      const iconColor = projectData.color || 'hsl(var(--primary))';
+      return (
+        <div 
+          className={cn(size, "rounded-full flex items-center justify-center")}
+          style={{ backgroundColor: `${iconColor}20` }}
+        >
+          <FolderKanban className="h-4 w-4" style={{ color: iconColor }} />
+        </div>
+      );
+    }
+
+    return (
+      <div className={cn(size, "rounded-full bg-primary/10 flex items-center justify-center")}>
+        <ScopeIcon className="h-4 w-4 text-primary" />
+      </div>
+    );
+  };
+
   return (
     <div className={cn(
       "flex items-center gap-2",
       compact && "gap-1"
     )}>
+      {/* Checkbox - hidden on mobile */}
       {showCheckbox && canEdit && (
         <Checkbox
           checked={isSelected}
           onCheckedChange={onSelect}
-          className="shrink-0"
+          className="shrink-0 hidden md:block"
         />
       )}
       
       <OrgLink
         to={`/kpi/${kpi.id}`}
         className={cn(
-          "flex-1 grid items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group",
-          compact ? "grid-cols-[32px_1fr_auto]" : "grid-cols-[40px_1fr_auto]",
+          "flex-1 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group",
           isSelected && "bg-primary/5 border-primary/30"
         )}
       >
-        {/* Left: Avatar/Icon */}
-        <div className="shrink-0">
-          {renderAvatar()}
-        </div>
-
-        {/* Middle: Title + Metadata */}
-        <div className="min-w-0 space-y-0.5">
-          <p className={cn(
-            "font-medium truncate",
-            compact ? "text-sm" : "text-sm"
-          )}>
-            {kpi.title}
-          </p>
-          <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-            {/* Owner/Scope name */}
-            <span className="truncate max-w-[120px]">{getScopeName()}</span>
-            
-            {/* Position (individual KPIs only) - no truncation on larger screens */}
-            {type === 'individual' && employee?.position && (
-              <>
-                <span className="text-muted-foreground/50">•</span>
-                <span className="truncate max-w-[80px] sm:max-w-[150px] lg:max-w-none">{employee.position}</span>
-              </>
-            )}
-            
-            {/* Owner avatars for group KPIs - between scope name and period */}
+        {/* Mobile Layout: Two-row design */}
+        <div className="flex flex-col p-2.5 md:hidden">
+          {/* Row 1: Avatar + Title + Progress */}
+          <div className="flex items-center gap-2">
+            <div className="shrink-0">
+              {renderMobileAvatar()}
+            </div>
+            <p className="font-medium text-sm flex-1 line-clamp-2 leading-tight">
+              {kpi.title}
+            </p>
+            <div className="flex items-center gap-1 shrink-0">
+              <CircularProgress value={progress} size={18} strokeWidth={2.5} />
+              <span className="text-sm font-medium w-8 text-right">{progress}%</span>
+            </div>
+          </div>
+          
+          {/* Row 2: Scope icon + Group/Employee name + Owners + Period */}
+          <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground ml-10">
+            {/* For group KPIs: Show scope icon before group name */}
             {type === 'group' && (
               <>
+                <ScopeIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate max-w-[100px]">{getScopeName()}</span>
                 <span className="text-muted-foreground/50">•</span>
                 {owners && owners.length > 0 ? (
-                  <div className="flex items-center">
-                    <div className="flex -space-x-1.5">
-                      {owners.slice(0, 3).map((owner, index) => (
-                        <Avatar key={owner.employee_id} className="h-5 w-5 border-2 border-background">
+                  <div className="flex items-center shrink-0">
+                    <div className="flex -space-x-1">
+                      {owners.slice(0, 2).map((owner) => (
+                        <Avatar key={owner.employee_id} className="h-4 w-4 border border-background">
                           <AvatarImage src={owner.avatar_url || undefined} />
-                          <AvatarFallback className="text-[8px]">
-                            {getInitials(owner.full_name)}
-                          </AvatarFallback>
+                          <AvatarFallback className="text-[6px]">{getInitials(owner.full_name)}</AvatarFallback>
                         </Avatar>
                       ))}
                     </div>
-                    {owners.length > 3 && (
-                      <span className="text-[10px] ml-1 text-muted-foreground">+{owners.length - 3}</span>
-                    )}
+                    {owners.length > 2 && <span className="text-[10px] ml-0.5">+{owners.length - 2}</span>}
                   </div>
                 ) : (
-                  <span className="text-[10px] text-muted-foreground/70 italic">No Owner</span>
+                  <span className="text-[10px] italic">No Owner</span>
                 )}
               </>
             )}
             
+            {/* For individual KPIs: Show employee name */}
+            {type === 'individual' && employee && (
+              <span className="truncate max-w-[120px]">{employee.name}</span>
+            )}
+            
             {/* Period badge */}
             <span className="text-muted-foreground/50">•</span>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
               {periodText}
             </Badge>
-            
-            {/* Updates count */}
-            {updatesCount > 0 && (
-              <>
-                <span className="text-muted-foreground/50">•</span>
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />
-                  {updatesCount}
-                </span>
-              </>
-            )}
-            
-            {/* Linked KPIs count - moved to left side */}
-            {childCount > 0 && (
-              <>
-                <span className="text-muted-foreground/50">•</span>
-                <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
-                  <Link2 className="h-3 w-3" />
-                  {childCount}
-                </Badge>
-              </>
-            )}
-            
-            {/* Last updated */}
-            {kpi.updated_at && (
-              <>
-                <span className="text-muted-foreground/50">•</span>
-                <span className="whitespace-nowrap">{formatRelativeTime(kpi.updated_at)}</span>
-              </>
-            )}
           </div>
         </div>
 
-        {/* Right: Targets, Status, Progress, Menu - reordered */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* 1. Targets */}
-          {formatTarget() && (
-            <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
-              {formatTarget()}
-            </span>
-          )}
-
-          {/* 2. Status Badge */}
-          <Badge className={cn("text-[10px] shrink-0 hidden sm:flex", statusColors[kpi.status])}>
-            {kpi.status.replace("_", " ")}
-          </Badge>
-
-          {/* 3. Progress */}
-          <div className="flex items-center gap-1.5">
-            <CircularProgress value={progress} size={compact ? 16 : 20} strokeWidth={compact ? 2 : 2.5} />
-            <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{progress}%</span>
+        {/* Desktop Layout: Original grid design */}
+        <div className={cn(
+          "hidden md:grid items-center gap-3 p-3",
+          compact ? "grid-cols-[32px_1fr_auto]" : "grid-cols-[40px_1fr_auto]"
+        )}>
+          {/* Left: Avatar/Icon */}
+          <div className="shrink-0">
+            {renderAvatar()}
           </div>
 
-          {/* 4. 3-dot menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-              <Button variant="ghost" size="icon" className={cn("shrink-0", compact ? "h-7 w-7" : "h-8 w-8")}>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </OrgLink>
-              </DropdownMenuItem>
-              {canEdit && (
-                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit?.(); }}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
+          {/* Middle: Title + Metadata */}
+          <div className="min-w-0 space-y-0.5">
+            <p className={cn(
+              "font-medium truncate",
+              compact ? "text-sm" : "text-sm"
+            )}>
+              {kpi.title}
+            </p>
+            <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+              {/* Owner/Scope name */}
+              <span className="truncate max-w-[120px]">{getScopeName()}</span>
+              
+              {/* Position (individual KPIs only) */}
+              {type === 'individual' && employee?.position && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="truncate max-w-[150px] lg:max-w-none">{employee.position}</span>
+                </>
               )}
-              {canDelete && (
-                <DropdownMenuItem 
-                  onClick={(e) => { e.preventDefault(); onDelete?.(); }}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
+              
+              {/* Owner avatars for group KPIs */}
+              {type === 'group' && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  {owners && owners.length > 0 ? (
+                    <div className="flex items-center">
+                      <div className="flex -space-x-1.5">
+                        {owners.slice(0, 3).map((owner) => (
+                          <Avatar key={owner.employee_id} className="h-5 w-5 border-2 border-background">
+                            <AvatarImage src={owner.avatar_url || undefined} />
+                            <AvatarFallback className="text-[8px]">
+                              {getInitials(owner.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+                      {owners.length > 3 && (
+                        <span className="text-[10px] ml-1 text-muted-foreground">+{owners.length - 3}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/70 italic">No Owner</span>
+                  )}
+                </>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              
+              {/* Period badge */}
+              <span className="text-muted-foreground/50">•</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {periodText}
+              </Badge>
+              
+              {/* Updates count */}
+              {updatesCount > 0 && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    {updatesCount}
+                  </span>
+                </>
+              )}
+              
+              {/* Linked KPIs count */}
+              {childCount > 0 && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+                    <Link2 className="h-3 w-3" />
+                    {childCount}
+                  </Badge>
+                </>
+              )}
+              
+              {/* Last updated */}
+              {kpi.updated_at && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="whitespace-nowrap">{formatRelativeTime(kpi.updated_at)}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Targets, Status, Progress, Menu */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Targets */}
+            {formatTarget() && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                {formatTarget()}
+              </span>
+            )}
+
+            {/* Status Badge */}
+            <Badge className={cn("text-[10px] shrink-0", statusColors[kpi.status])}>
+              {kpi.status.replace("_", " ")}
+            </Badge>
+
+            {/* Progress */}
+            <div className="flex items-center gap-1.5">
+              <CircularProgress value={progress} size={compact ? 16 : 20} strokeWidth={compact ? 2 : 2.5} />
+              <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{progress}%</span>
+            </div>
+
+            {/* 3-dot menu - desktop only */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                <Button variant="ghost" size="icon" className={cn("shrink-0", compact ? "h-7 w-7" : "h-8 w-8")}>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
+                  </OrgLink>
+                </DropdownMenuItem>
+                {canEdit && (
+                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit?.(); }}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <DropdownMenuItem 
+                    onClick={(e) => { e.preventDefault(); onDelete?.(); }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </OrgLink>
     </div>
