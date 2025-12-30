@@ -737,27 +737,102 @@ const TeamKPIDashboard = () => {
     },
   };
 
-  // Filter group KPIs based on active filters
+  // Filter group KPIs based on active filters (including employee selection)
   const filteredGroupKpis = useMemo(() => {
+    // Build sets of departments/projects/offices for selected employees
+    const selectedDepts = new Set<string>();
+    const selectedProjects = new Set<string>();
+    const selectedOffices = new Set<string>();
+    
+    if (selectedEmployees.length > 0) {
+      selectedEmployees.forEach(empId => {
+        const emp = teamMembers.find(m => m.id === empId);
+        if (emp?.department) selectedDepts.add(emp.department);
+        if (emp?.office_id) selectedOffices.add(emp.office_id);
+        employeeProjects.forEach(ep => {
+          if (ep.employee_id === empId) selectedProjects.add(ep.project_id);
+        });
+      });
+    }
+    
     return groupKpis.filter(kpi => {
+      // Department filter
       if (departmentFilter !== "all" && kpi.scope_type === 'department') {
         if (kpi.scope_department !== departmentFilter) return false;
       }
+      // Project filter
       if (projectFilter !== "all" && kpi.scope_type === 'project') {
         if (kpi.scope_project_id !== projectFilter) return false;
       }
+      // Office filter
       if (officeFilter !== "all" && kpi.scope_type === 'office') {
         if (kpi.scope_office_id !== officeFilter) return false;
       }
+      
+      // Employee selection filter - show groups that include selected employees
+      if (selectedEmployees.length > 0) {
+        if (kpi.scope_type === 'department' && !selectedDepts.has(kpi.scope_department || '')) return false;
+        if (kpi.scope_type === 'project' && !selectedProjects.has(kpi.scope_project_id || '')) return false;
+        if (kpi.scope_type === 'office' && !selectedOffices.has(kpi.scope_office_id || '')) return false;
+      }
+      
       return true;
     });
-  }, [groupKpis, departmentFilter, projectFilter, officeFilter]);
+  }, [groupKpis, departmentFilter, projectFilter, officeFilter, selectedEmployees, teamMembers, employeeProjects]);
 
-  // Calculate aggregated stats (from all filtered KPI types)
+  // Access-controlled group KPIs - regular users only see groups they belong to
+  const userVisibleGroupKpis = useMemo(() => {
+    // Admin/HR/Owner see all filtered group KPIs
+    if (isAdmin || isHR || isOwner) {
+      return filteredGroupKpis;
+    }
+    
+    // Get current user's department, projects, office
+    const userDept = currentEmployee?.department;
+    const userOffice = currentEmployee?.office_id;
+    const userProjectIds = employeeProjects
+      .filter(ep => ep.employee_id === currentEmployee?.id)
+      .map(ep => ep.project_id);
+    
+    // Include subordinates' groups if manager
+    const subordinateDepts = new Set<string>();
+    const subordinateOffices = new Set<string>();
+    const subordinateProjects = new Set<string>();
+    
+    if (isManager) {
+      teamMembers.forEach(m => {
+        if (m.manager_id === currentEmployee?.id) {
+          if (m.department) subordinateDepts.add(m.department);
+          if (m.office_id) subordinateOffices.add(m.office_id);
+          employeeProjects.forEach(ep => {
+            if (ep.employee_id === m.id) subordinateProjects.add(ep.project_id);
+          });
+        }
+      });
+    }
+    
+    return filteredGroupKpis.filter(kpi => {
+      if (kpi.scope_type === 'department') {
+        return kpi.scope_department === userDept || subordinateDepts.has(kpi.scope_department || '');
+      }
+      if (kpi.scope_type === 'project') {
+        return userProjectIds.includes(kpi.scope_project_id || '') || subordinateProjects.has(kpi.scope_project_id || '');
+      }
+      if (kpi.scope_type === 'office') {
+        return kpi.scope_office_id === userOffice || subordinateOffices.has(kpi.scope_office_id || '');
+      }
+      return false;
+    });
+  }, [filteredGroupKpis, isAdmin, isHR, isOwner, isManager, currentEmployee, teamMembers, employeeProjects]);
+
+  // Calculate aggregated stats (from all filtered KPI types based on user access)
   const stats = useMemo(() => {
+    // Only include org KPIs for admin/HR/owner
+    const visibleOrgKpis = (isAdmin || isHR || isOwner) ? organizationKpis : [];
+    
     const allVisibleKpis = [
-      ...organizationKpis,
-      ...filteredGroupKpis,
+      ...visibleOrgKpis,
+      ...userVisibleGroupKpis,
       ...filteredTeamKPIs,
     ];
     
@@ -777,7 +852,7 @@ const TeamKPIDashboard = () => {
           )
         : 0,
     };
-  }, [organizationKpis, filteredGroupKpis, filteredTeamKPIs]);
+  }, [organizationKpis, userVisibleGroupKpis, filteredTeamKPIs, isAdmin, isHR, isOwner]);
 
   // Group KPIs by employee (using filtered members and KPIs)
   const kpisByEmployee = filteredTeamMembers.map(member => {
@@ -811,24 +886,26 @@ const TeamKPIDashboard = () => {
     };
   }).sort((a, b) => b.kpis.length - a.kpis.length);
 
-  // Aggregate group KPIs by scope (department/office/project)
+  // Aggregate group KPIs by scope (department/office/project) - using access-controlled list
   const groupKpisByScope = useMemo(() => {
     const scopeMap = new Map<string, {
       scopeType: 'department' | 'office' | 'project';
       scopeName: string;
       scopeId: string;
-      kpis: typeof groupKpis;
+      kpis: typeof userVisibleGroupKpis;
       avgProgress: number;
       onTrack: number;
       atRisk: number;
       behind: number;
       completed: number;
+      projectData?: { logo_url?: string; color?: string; icon?: string };
     }>();
 
-    groupKpis.forEach(kpi => {
+    userVisibleGroupKpis.forEach(kpi => {
       let key: string;
       let name: string;
       let scopeType: 'department' | 'office' | 'project';
+      let projectData: { logo_url?: string; color?: string; icon?: string } | undefined;
       
       if (kpi.scope_type === 'department') {
         key = `department-${kpi.scope_department}`;
@@ -840,8 +917,14 @@ const TeamKPIDashboard = () => {
         scopeType = 'office';
       } else {
         key = `project-${kpi.scope_project_id}`;
-        name = (kpi as any).project?.name || projects.find(p => p.id === kpi.scope_project_id)?.name || 'Unknown Project';
+        const project = (kpi as any).project || projects.find(p => p.id === kpi.scope_project_id);
+        name = project?.name || 'Unknown Project';
         scopeType = 'project';
+        projectData = {
+          logo_url: project?.logo_url,
+          color: project?.color,
+          icon: project?.icon,
+        };
       }
       
       if (!scopeMap.has(key)) {
@@ -855,6 +938,7 @@ const TeamKPIDashboard = () => {
           atRisk: 0,
           behind: 0,
           completed: 0,
+          projectData,
         });
       }
       
@@ -881,7 +965,32 @@ const TeamKPIDashboard = () => {
     });
 
     return Array.from(scopeMap.values()).sort((a, b) => b.kpis.length - a.kpis.length);
-  }, [groupKpis, offices, projects]);
+  }, [userVisibleGroupKpis, offices, projects]);
+
+  // Handle clicking on a group card to filter the dashboard
+  const handleGroupClick = (group: typeof groupKpisByScope[0]) => {
+    // Clear employee selection
+    setSelectedEmployees([]);
+    
+    if (group.scopeType === 'department') {
+      setDepartmentFilter(group.scopeName);
+      setProjectFilter('all');
+      setOfficeFilter('all');
+    } else if (group.scopeType === 'project') {
+      const projectId = group.scopeId.replace('project-', '');
+      setProjectFilter(projectId);
+      setDepartmentFilter('all');
+      setOfficeFilter('all');
+    } else if (group.scopeType === 'office') {
+      const officeId = group.scopeId.replace('office-', '');
+      setOfficeFilter(officeId);
+      setDepartmentFilter('all');
+      setProjectFilter('all');
+    }
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const isLoading = loadingTeam || loadingKPIs || roleLoading || loadingCurrentEmployee;
   const hasActiveFilters = departmentFilter !== "all" || projectFilter !== "all" || officeFilter !== "all" || selectedEmployees.length > 0;
@@ -1321,21 +1430,21 @@ const TeamKPIDashboard = () => {
               </Card>
             )}
 
-            {/* Group KPIs Section */}
-            {(isAdmin || isHR) && groupKpis.length > 0 && (
+            {/* Group KPIs Section - visible to all users who have access to group KPIs */}
+            {userVisibleGroupKpis.length > 0 && (
               <Card className="mb-4 sm:mb-6">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Group KPIs
                     <Badge variant="secondary" className="ml-2">
-                      {groupKpis.length}
+                      {userVisibleGroupKpis.length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-3 sm:px-6">
                   <div className="space-y-2 sm:space-y-3">
-                    {groupKpis.map((kpi) => (
+                    {userVisibleGroupKpis.map((kpi) => (
                       <UnifiedKpiCard
                         key={kpi.id}
                         kpi={kpi}
@@ -1544,12 +1653,38 @@ const TeamKPIDashboard = () => {
                           return (
                             <Card 
                               key={`group-${group.scopeId}`} 
-                              className="p-4 hover:shadow-md transition-shadow border bg-card"
+                              className="p-4 hover:shadow-md transition-shadow border bg-card cursor-pointer"
+                              onClick={() => handleGroupClick(group)}
                             >
                               <div className="flex items-start gap-3 mb-3">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <ScopeIcon className="h-5 w-5 text-primary" />
-                                </div>
+                                {/* Project logo for project-scoped groups */}
+                                {group.scopeType === 'project' && group.projectData?.logo_url ? (
+                                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted shrink-0">
+                                    <img 
+                                      src={group.projectData.logo_url} 
+                                      alt={group.scopeName}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
+                                    style={{ 
+                                      backgroundColor: group.scopeType === 'project' && group.projectData?.color 
+                                        ? `${group.projectData.color}20` 
+                                        : 'hsl(var(--primary) / 0.1)' 
+                                    }}
+                                  >
+                                    <ScopeIcon 
+                                      className="h-5 w-5" 
+                                      style={{ 
+                                        color: group.scopeType === 'project' && group.projectData?.color 
+                                          ? group.projectData.color 
+                                          : 'hsl(var(--primary))' 
+                                      }}
+                                    />
+                                  </div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">
                                     {group.scopeName}
@@ -1693,12 +1828,38 @@ const TeamKPIDashboard = () => {
                           return (
                             <Card 
                               key={group.scopeId} 
-                              className="p-4 hover:shadow-md transition-shadow border bg-card"
+                              className="p-4 hover:shadow-md transition-shadow border bg-card cursor-pointer"
+                              onClick={() => handleGroupClick(group)}
                             >
                               <div className="flex items-start gap-3 mb-3">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <ScopeIcon className="h-5 w-5 text-primary" />
-                                </div>
+                                {/* Project logo for project-scoped groups */}
+                                {group.scopeType === 'project' && group.projectData?.logo_url ? (
+                                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted shrink-0">
+                                    <img 
+                                      src={group.projectData.logo_url} 
+                                      alt={group.scopeName}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
+                                    style={{ 
+                                      backgroundColor: group.scopeType === 'project' && group.projectData?.color 
+                                        ? `${group.projectData.color}20` 
+                                        : 'hsl(var(--primary) / 0.1)' 
+                                    }}
+                                  >
+                                    <ScopeIcon 
+                                      className="h-5 w-5" 
+                                      style={{ 
+                                        color: group.scopeType === 'project' && group.projectData?.color 
+                                          ? group.projectData.color 
+                                          : 'hsl(var(--primary))' 
+                                      }}
+                                    />
+                                  </div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">
                                     {group.scopeName}
