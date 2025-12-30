@@ -339,10 +339,11 @@ const KpiDetail = () => {
           Back to KPI Dashboard
         </OrgLink>
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
+        {/* Header - Same grid as content for alignment */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left: KPI Info - aligned with left content section */}
+          <div className="lg:col-span-2 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className={statusColors[kpi.status]}>
                 {statusLabels[kpi.status]}
               </Badge>
@@ -366,11 +367,12 @@ const KpiDetail = () => {
             </div>
             <h1 className="text-2xl font-bold">{kpi.title}</h1>
             {kpi.description && (
-              <p className="text-muted-foreground">{kpi.description}</p>
+              <p className="text-muted-foreground max-w-2xl">{kpi.description}</p>
             )}
           </div>
           
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Right: Action buttons - aligned with sidebar */}
+          <div className="flex items-start justify-end gap-2 flex-wrap">
             {canEditKpi() && (
               <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
                 <Pencil className="h-4 w-4 mr-1" />
