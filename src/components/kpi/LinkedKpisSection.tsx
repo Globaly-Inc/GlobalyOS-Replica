@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Link2, Unlink, Target, TrendingUp, Globe, Building, MapPin, FolderKanban } from "lucide-react";
+import * as icons from "lucide-react";
+import { Plus, Link2, Unlink, Target, TrendingUp, Globe, Building, MapPin, FolderKanban, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,17 @@ import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
 import type { KpiWithHierarchy } from "@/types";
 import { cn } from "@/lib/utils";
 import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
+
+// Helper component for dynamic icons
+const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
+  if (!name) return <icons.Folder className={className} style={style} />;
+  const pascalCase = name
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('');
+  const IconComponent = (icons as any)[pascalCase] || icons.Folder;
+  return <IconComponent className={className} style={style} />;
+};
 
 const getInitials = (name: string | undefined): string => {
   if (!name) return "?";
@@ -177,6 +189,46 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">{childProgress}%</span>
+                    {/* Scope Badge */}
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      {child.scope_type === 'project' && child.project ? (
+                        <>
+                          {child.project.logo_url ? (
+                            <img 
+                              src={child.project.logo_url} 
+                              alt={child.project.name}
+                              className="h-3 w-3 rounded-sm object-cover"
+                            />
+                          ) : child.project.icon ? (
+                            <DynamicIcon 
+                              name={child.project.icon} 
+                              className="h-3 w-3" 
+                              style={{ color: child.project.color || undefined }}
+                            />
+                          ) : (
+                            <FolderKanban className="h-3 w-3" />
+                          )}
+                          <span className="max-w-[80px] truncate">{child.project.name}</span>
+                        </>
+                      ) : child.scope_type === 'office' && child.office ? (
+                        <>
+                          <MapPin className="h-3 w-3" />
+                          <span className="max-w-[80px] truncate">{child.office.name}</span>
+                        </>
+                      ) : child.scope_type === 'department' && child.scope_department ? (
+                        <>
+                          <Building className="h-3 w-3" />
+                          <span className="max-w-[80px] truncate">{child.scope_department}</span>
+                        </>
+                      ) : child.scope_type === 'individual' && child.employee ? (
+                        <>
+                          <User className="h-3 w-3" />
+                          <span className="max-w-[80px] truncate">{child.employee.profiles?.full_name}</span>
+                        </>
+                      ) : (
+                        <span className="capitalize">{child.scope_type}</span>
+                      )}
+                    </Badge>
                     <Badge 
                       variant="outline" 
                       className={cn("text-xs", statusColors[child.status])}
