@@ -42,7 +42,7 @@ export const useEmployeeKpis = (employeeId: string | undefined, quarter?: number
   });
 };
 
-// Fetch team KPIs (individual KPIs for managers)
+// Fetch team KPIs (individual KPIs for managers) with metadata
 export const useTeamKpis = (quarter?: number, year?: number) => {
   const { currentOrg } = useOrganization();
   const currentQuarter = quarter || Math.ceil((new Date().getMonth() + 1) / 3);
@@ -59,6 +59,7 @@ export const useTeamKpis = (quarter?: number, year?: number) => {
           *,
           employee:employees!kpis_employee_id_fkey(
             id,
+            position,
             profiles!inner(
               full_name,
               avatar_url
@@ -77,13 +78,42 @@ export const useTeamKpis = (quarter?: number, year?: number) => {
         kpi.scope_type === 'individual' || !kpi.scope_type
       );
 
-      return filtered as unknown as KpiWithEmployee[];
+      // Get KPI IDs for metadata fetching
+      const kpiIds = filtered.map((k: any) => k.id);
+      if (kpiIds.length === 0) return [];
+
+      // Fetch updates count and child count in parallel
+      const [updatesResult, childrenResult] = await Promise.all([
+        supabase.from('kpi_updates').select('kpi_id').in('kpi_id', kpiIds),
+        supabase.from('kpis').select('parent_kpi_id').in('parent_kpi_id', kpiIds),
+      ]);
+
+      // Build maps for counts
+      const updatesMap = new Map<string, number>();
+      const childMap = new Map<string, number>();
+      
+      (updatesResult.data || []).forEach((u: any) => {
+        updatesMap.set(u.kpi_id, (updatesMap.get(u.kpi_id) || 0) + 1);
+      });
+      
+      (childrenResult.data || []).forEach((c: any) => {
+        if (c.parent_kpi_id) {
+          childMap.set(c.parent_kpi_id, (childMap.get(c.parent_kpi_id) || 0) + 1);
+        }
+      });
+
+      // Enrich KPIs with metadata
+      return filtered.map((kpi: any) => ({
+        ...kpi,
+        updates_count: updatesMap.get(kpi.id) || 0,
+        child_count: childMap.get(kpi.id) || 0,
+      })) as unknown as KpiWithEmployee[];
     },
     enabled: !!currentOrg?.id,
   });
 };
 
-// Fetch group KPIs (department, office, project scoped - excludes organization)
+// Fetch group KPIs (department, office, project scoped - excludes organization) with metadata
 export const useGroupKpis = (quarter?: number, year?: number) => {
   const { currentOrg } = useOrganization();
   const currentYear = year || new Date().getFullYear();
@@ -113,26 +143,47 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
         kpi.scope_type && kpi.scope_type !== 'individual' && kpi.scope_type !== 'organization'
       );
 
-      // Fetch office and project names for group KPIs
+      if (groupKpis.length === 0) return [];
+
+      // Fetch office, project names, updates count and child count in parallel
+      const kpiIds = groupKpis.map((k: any) => k.id);
       const officeIds = groupKpis.filter((k: any) => k.scope_office_id).map((k: any) => k.scope_office_id);
       const projectIds = groupKpis.filter((k: any) => k.scope_project_id).map((k: any) => k.scope_project_id);
 
-      const [officesResult, projectsResult] = await Promise.all([
+      const [officesResult, projectsResult, updatesResult, childrenResult] = await Promise.all([
         officeIds.length > 0 
           ? supabase.from('offices').select('id, name').in('id', officeIds)
           : { data: [] },
         projectIds.length > 0
           ? supabase.from('projects').select('id, name, icon, color, logo_url').in('id', projectIds)
           : { data: [] },
+        supabase.from('kpi_updates').select('kpi_id').in('kpi_id', kpiIds),
+        supabase.from('kpis').select('parent_kpi_id').in('parent_kpi_id', kpiIds),
       ]);
 
       const officeMap = new Map((officesResult.data || []).map((o: any) => [o.id, o]));
       const projectMap = new Map((projectsResult.data || []).map((p: any) => [p.id, p]));
+      
+      // Build maps for counts
+      const updatesMap = new Map<string, number>();
+      const childMap = new Map<string, number>();
+      
+      (updatesResult.data || []).forEach((u: any) => {
+        updatesMap.set(u.kpi_id, (updatesMap.get(u.kpi_id) || 0) + 1);
+      });
+      
+      (childrenResult.data || []).forEach((c: any) => {
+        if (c.parent_kpi_id) {
+          childMap.set(c.parent_kpi_id, (childMap.get(c.parent_kpi_id) || 0) + 1);
+        }
+      });
 
       return groupKpis.map((kpi: any) => ({
         ...kpi,
         office: kpi.scope_office_id ? officeMap.get(kpi.scope_office_id) || null : null,
         project: kpi.scope_project_id ? projectMap.get(kpi.scope_project_id) || null : null,
+        updates_count: updatesMap.get(kpi.id) || 0,
+        child_count: childMap.get(kpi.id) || 0,
       })) as GroupKpiWithScope[];
     },
     enabled: !!currentOrg?.id,
