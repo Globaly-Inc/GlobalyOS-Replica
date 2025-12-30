@@ -193,10 +193,19 @@ const KpiDetail = () => {
     return false;
   };
 
-  // Check if user can delete this KPI (Owner, Admin only)
+  // Check if user can delete this KPI (Owner, Admin, or Manager for subordinates)
   const canDeleteKpi = () => {
     if (!kpi || !currentEmployee) return false;
-    return isOwner || isAdmin;
+    
+    // Owner and Admin can delete all
+    if (isOwner || isAdmin) return true;
+    
+    // Manager can delete subordinates' KPIs (NOT their own)
+    if (kpi.employee_id && kpi.employee_id !== currentEmployee.id) {
+      if ((kpi.employee as any)?.manager_id === currentEmployee.id) return true;
+    }
+    
+    return false;
   };
 
   // Check if user can add updates (existing logic)

@@ -21,6 +21,7 @@ interface OrganisationKpiCardProps {
   showLinkedKpis?: boolean;
   children?: Kpi[];
   canEdit?: boolean;
+  canDelete?: boolean; // Separate delete permission (Owner/Admin only)
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -53,6 +54,7 @@ export function OrganisationKpiCard({
   showLinkedKpis = true,
   children = [],
   canEdit = false,
+  canDelete = false,
   onEdit,
   onDelete,
 }: OrganisationKpiCardProps) {
@@ -105,7 +107,7 @@ export function OrganisationKpiCard({
                 {childCount}
               </Badge>
             )}
-            {canEdit && (onEdit || onDelete) && (
+            {(canEdit || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -119,13 +121,13 @@ export function OrganisationKpiCard({
                       View Details
                     </OrgLink>
                   </DropdownMenuItem>
-                  {onEdit && (
+                  {canEdit && onEdit && (
                     <DropdownMenuItem onClick={onEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
                   )}
-                  {onDelete && (
+                  {canDelete && onDelete && (
                     <DropdownMenuItem onClick={onDelete} className="text-destructive">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
