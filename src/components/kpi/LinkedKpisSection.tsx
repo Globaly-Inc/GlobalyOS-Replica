@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Link2, Unlink, Target, TrendingUp, Globe, Building, MapPin, FolderKanban } from "lucide-react";
+import { Plus, Link2, Unlink, TrendingUp, Globe, Building, MapPin, FolderKanban, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CircularProgress } from "@/components/ui/circular-progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +22,7 @@ import {
 import { OrgLink } from "@/components/OrgLink";
 import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
 import type { KpiWithHierarchy } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
 
 const getInitials = (name: string | undefined): string => {
@@ -39,23 +40,15 @@ const scopeIcons: Record<string, React.ElementType> = {
   department: Building,
   office: MapPin,
   project: FolderKanban,
-  individual: Target, // Fallback, individual KPIs show avatar instead
-};
-
-const scopeColors: Record<string, string> = {
-  organization: "text-indigo-600",
-  department: "text-purple-600",
-  office: "text-orange-600",
-  project: "text-blue-600",
-  individual: "text-green-600",
+  individual: Target,
 };
 
 const statusColors: Record<string, string> = {
-  on_track: "bg-green-100 text-green-800",
-  at_risk: "bg-amber-100 text-amber-800",
-  behind: "bg-red-100 text-red-800",
-  achieved: "bg-blue-100 text-blue-800",
-  completed: "bg-purple-100 text-purple-800",
+  on_track: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  at_risk: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  behind: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  achieved: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  completed: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
 };
 
 export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
@@ -151,71 +144,98 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
               const childProgress = child.target_value 
                 ? Math.min(Math.round(((child.current_value || 0) / child.target_value) * 100), 100)
                 : 0;
+              const periodText = child.quarter ? `Q${child.quarter} ${child.year}` : `${child.year}`;
 
               return (
-                <div 
+                <OrgLink 
                   key={child.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                  to={`/kpi/${child.id}`}
+                  className="grid grid-cols-[32px_1fr_auto] gap-3 items-center p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
+                  {/* Left: Avatar/Icon */}
                   {child.scope_type === 'individual' && child.employee ? (
-                    <Avatar className="h-6 w-6 shrink-0">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={child.employee.profiles?.avatar_url || undefined} />
                       <AvatarFallback className="text-xs">
                         {getInitials(child.employee.profiles?.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   ) : (
-                    <Icon className={cn("h-5 w-5 shrink-0", scopeColors[child.scope_type])} />
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <OrgLink 
-                      to={`/kpi/${child.id}`}
-                      className="font-medium text-sm hover:text-primary truncate block"
-                    >
+
+                  {/* Middle: Title + Metadata */}
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="font-medium text-sm truncate">
                       {child.title}
-                    </OrgLink>
+                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                      <span className="truncate max-w-[100px]">
+                        {child.scope_type === 'individual' 
+                          ? child.employee?.profiles?.full_name 
+                          : child.scope_department || 'Group'}
+                      </span>
+                      <span className="text-muted-foreground/50">•</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {periodText}
+                      </Badge>
+                      <span className="text-muted-foreground/50">•</span>
+                      <Badge className={cn("text-[10px]", statusColors[child.status])}>
+                        {child.status.replace('_', ' ')}
+                      </Badge>
+                      {child.updated_at && (
+                        <>
+                          <span className="text-muted-foreground/50">•</span>
+                          <span className="whitespace-nowrap">{formatRelativeTime(child.updated_at)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Right: Progress, Target, Unlink */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">{childProgress}%</span>
-                    <Badge 
-                      variant="outline" 
-                      className={cn("text-xs", statusColors[child.status])}
-                    >
-                      {child.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  {canEdit && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Unlink className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Unlink KPI</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to unlink "{child.title}" from this KPI? 
-                            The KPI will continue to exist but won't contribute to this goal's progress.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleUnlink(child.id)}
-                            disabled={unlinkKpi.isPending}
+                    <div className="flex items-center gap-1.5">
+                      <CircularProgress value={childProgress} size={16} strokeWidth={2} />
+                      <span className="text-xs font-medium">{childProgress}%</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                      {child.current_value || 0}/{child.target_value || 0} {child.unit || ''}
+                    </span>
+                    {canEdit && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
                           >
-                            Unlink
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
+                            <Unlink className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Unlink KPI</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to unlink "{child.title}" from this KPI? 
+                              The KPI will continue to exist but won't contribute to this goal's progress.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={(e) => { e.stopPropagation(); handleUnlink(child.id); }}
+                              disabled={unlinkKpi.isPending}
+                            >
+                              Unlink
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                </OrgLink>
               );
             })}
           </div>

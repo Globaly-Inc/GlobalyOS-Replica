@@ -77,3 +77,26 @@ export function formatTime(date: string | Date | null | undefined, timezone?: st
   }
   return format(dateObj, "h:mm a");
 }
+
+// Format a date as relative time (e.g., "2d ago", "1w ago")
+export function formatRelativeTime(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  const dateObj = new Date(date);
+  if (!isValidDate(dateObj)) return '';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - dateObj.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffWeeks < 4) return `${diffWeeks}w ago`;
+  return `${diffMonths}mo ago`;
+}

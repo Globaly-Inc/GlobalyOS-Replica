@@ -91,6 +91,7 @@ import { EditKPIDialog } from "@/components/dialogs/EditKPIDialog";
 import { AddKPIDialog } from "@/components/dialogs/AddKPIDialog";
 import { useGroupKpis, useOrganizationKpis } from "@/services/useKpi";
 import { OrganisationKpiCard } from "@/components/kpi";
+import { UnifiedKpiCard } from "@/components/kpi/UnifiedKpiCard";
 import { KpiBulkActionsBar, SelectedKpi } from "@/components/kpi/KpiBulkActionsBar";
 import {
   ChartContainer,
@@ -1291,143 +1292,20 @@ const TeamKPIDashboard = () => {
                 </CardHeader>
                 <CardContent className="px-3 sm:px-6">
                   <div className="space-y-2 sm:space-y-3">
-                    {groupKpis.map((kpi) => {
-                      const progress = kpi.target_value
-                        ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
-                        : 0;
-                      
-                      // Determine scope display with project data
-                      const getScopeDisplay = () => {
-                        if (kpi.scope_type === 'department') {
-                          return { icon: Building, label: kpi.scope_department, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30', project: null };
-                        } else if (kpi.scope_type === 'office') {
-                          return { icon: MapPin, label: kpi.office?.name, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30', project: null };
-                        } else if (kpi.scope_type === 'project') {
-                          return { icon: FolderKanban, label: kpi.project?.name, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30', project: kpi.project };
-                        }
-                        return { icon: Target, label: 'Unknown', color: 'text-gray-600 bg-gray-100', project: null };
-                      };
-                      
-                      const scope = getScopeDisplay();
-                      const ScopeIcon = scope.icon;
-                      
-                      return (
-                        <div key={kpi.id} className="flex items-center gap-2">
-                          {isAdmin && (
-                            <Checkbox
-                              checked={selectedKpis.has(kpi.id)}
-                              onCheckedChange={() => toggleSelectKpi(kpi.id)}
-                              className="shrink-0"
-                            />
-                          )}
-                          <OrgLink
-                            to={`/kpi/${kpi.id}`}
-                            className={cn(
-                              "flex-1 grid grid-cols-[40px_1fr_160px_100px_32px] sm:grid-cols-[40px_1fr_180px_120px_32px_20px] gap-3 items-center p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group",
-                              selectedKpis.has(kpi.id) && "bg-primary/5 border-primary/30"
-                            )}
-                          >
-                            {/* Icon column - show project logo if available */}
-                            {scope.project?.logo_url ? (
-                              <Avatar className="h-8 w-8 rounded-lg shrink-0">
-                                <AvatarImage src={scope.project.logo_url} className="object-cover" />
-                                <AvatarFallback 
-                                  className="rounded-lg text-xs"
-                                  style={{ backgroundColor: scope.project.color ? `${scope.project.color}20` : undefined }}
-                                >
-                                  {scope.project.name?.charAt(0) || 'P'}
-                                </AvatarFallback>
-                              </Avatar>
-                            ) : (
-                              <div 
-                                className={cn("p-2 rounded-lg shrink-0 flex items-center justify-center", !scope.project?.color && scope.color)}
-                                style={scope.project?.color ? { backgroundColor: `${scope.project.color}20` } : undefined}
-                              >
-                                <ScopeIcon 
-                                  className="h-4 w-4" 
-                                  style={scope.project?.color ? { color: scope.project.color } : undefined}
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Title + Description column */}
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                <p className="font-medium text-sm truncate">{kpi.title}</p>
-                                {quarter === 0 && (
-                                  <Badge variant="outline" className="text-xs shrink-0">Q{kpi.quarter}</Badge>
-                                )}
-                                <Badge variant="secondary" className="text-xs shrink-0">
-                                  {scope.label}
-                                </Badge>
-                                <Badge
-                                  className={cn(
-                                    "text-xs shrink-0",
-                                    kpi.status === "on_track" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                                    kpi.status === "behind" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                    kpi.status === "completed" && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                  )}
-                                >
-                                  {kpi.status?.replace("_", " ")}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground truncate hidden sm:block">
-                                {kpi.description || "No description"}
-                              </p>
-                            </div>
-
-                            {/* Progress column - fixed width */}
-                            <div className="flex items-center gap-1.5">
-                              <CircularProgress value={progress} size={18} strokeWidth={2} />
-                              <span className="text-xs text-muted-foreground shrink-0">
-                                {progress}%
-                              </span>
-                            </div>
-                            
-                            {/* Target metrics column - fixed width */}
-                            <span className="text-xs text-muted-foreground text-right truncate hidden sm:block">
-                              {kpi.current_value || 0} / {kpi.target_value || 0} {kpi.unit || ""}
-                            </span>
-                            
-                            {/* Actions menu */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </OrgLink>
-                                </DropdownMenuItem>
-                                {isAdmin && (
-                                  <>
-                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi); }}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
-                                      className="text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                            
-                            {/* Chevron - hidden on mobile */}
-                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
-                          </OrgLink>
-                        </div>
-                      );
-                    })}
+                    {groupKpis.map((kpi) => (
+                      <UnifiedKpiCard
+                        key={kpi.id}
+                        kpi={kpi}
+                        type="group"
+                        project={kpi.project || undefined}
+                        isSelected={selectedKpis.has(kpi.id)}
+                        onSelect={() => toggleSelectKpi(kpi.id)}
+                        showCheckbox={isAdmin}
+                        canEdit={isAdmin}
+                        onEdit={() => setEditingKpi(kpi)}
+                        onDelete={() => setDeletingKpiId(kpi.id)}
+                      />
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -1461,131 +1339,26 @@ const TeamKPIDashboard = () => {
                   <div className="space-y-2 sm:space-y-3">
                     {filteredTeamKPIs.map((kpi) => {
                       const member = filteredTeamMembers.find(m => m.id === kpi.employee_id);
-                      const progress = kpi.target_value
-                        ? Math.round(((kpi.current_value || 0) / kpi.target_value) * 100)
-                        : 0;
-                      
                       const canEdit = canEditKpi(kpi as unknown as Kpi);
                       
                       return (
-                        <div key={kpi.id} className="flex items-center gap-2">
-                          {canEdit && (
-                            <Checkbox
-                              checked={selectedKpis.has(kpi.id)}
-                              onCheckedChange={() => toggleSelectKpi(kpi.id)}
-                              className="shrink-0"
-                            />
-                          )}
-                          <OrgLink
-                            to={`/kpi/${kpi.id}`}
-                            className={cn(
-                              "flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group",
-                              selectedKpis.has(kpi.id) && "bg-primary/5 border-primary/30"
-                            )}
-                          >
-                            {/* Mobile: Top row with avatar, name, status */}
-                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                              <Avatar className="h-8 w-8 shrink-0">
-                                <AvatarImage src={(member?.profiles as any)?.avatar_url} />
-                                <AvatarFallback className="text-xs">
-                                  {(member?.profiles as any)?.full_name?.charAt(0) || "?"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
-                                <p className="font-medium text-sm truncate max-w-[150px] sm:max-w-none">{kpi.title}</p>
-                                <Badge
-                                  className={cn(
-                                    "text-xs shrink-0",
-                                    kpi.status === "on_track" && "bg-green-100 text-green-700",
-                                    kpi.status === "at_risk" && "bg-amber-100 text-amber-700",
-                                    kpi.status === "behind" && "bg-red-100 text-red-700",
-                                    kpi.status === "achieved" && "bg-blue-100 text-blue-700"
-                                  )}
-                                >
-                                  {kpi.status.replace("_", " ")}
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px]">
-                                  {kpi.quarter ? `Q${kpi.quarter} ${kpi.year}` : kpi.year}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {(member?.profiles as any)?.full_name} • {member?.position}
-                              </p>
-                            </div>
-                            {/* Mobile: Menu button inline */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 sm:hidden">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </OrgLink>
-                                </DropdownMenuItem>
-                                {canEditKpi(kpi as unknown as Kpi) && (
-                                  <>
-                                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as unknown as Kpi); }}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
-                                      className="text-destructive focus:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          {/* Mobile: Progress bar on second row */}
-                          <div className="flex items-center gap-1.5 shrink-0 pl-11 sm:pl-0">
-                            <CircularProgress value={progress} size={18} strokeWidth={2} />
-                            <span className="text-xs text-muted-foreground">
-                              {progress}%
-                            </span>
-                          </div>
-                          {/* Desktop: Menu button */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hidden sm:flex">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <OrgLink to={`/kpi/${kpi.id}`} className="flex items-center">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </OrgLink>
-                              </DropdownMenuItem>
-                              {canEditKpi(kpi as unknown as Kpi) && (
-                                <>
-                                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); setEditingKpi(kpi as unknown as Kpi); }}>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={(e) => { e.preventDefault(); setDeletingKpiId(kpi.id); }}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
-                        </OrgLink>
-                        </div>
+                        <UnifiedKpiCard
+                          key={kpi.id}
+                          kpi={kpi as unknown as Kpi}
+                          type="individual"
+                          employee={member ? {
+                            id: member.id,
+                            name: (member.profiles as any)?.full_name || 'Unknown',
+                            position: member.position,
+                            avatarUrl: (member.profiles as any)?.avatar_url,
+                          } : undefined}
+                          isSelected={selectedKpis.has(kpi.id)}
+                          onSelect={() => toggleSelectKpi(kpi.id)}
+                          showCheckbox={canEdit}
+                          canEdit={canEdit}
+                          onEdit={() => setEditingKpi(kpi as unknown as Kpi)}
+                          onDelete={() => setDeletingKpiId(kpi.id)}
+                        />
                       );
                     })}
                   </div>
