@@ -228,7 +228,7 @@ export const useKpiHierarchy = (kpiId: string | undefined) => {
         parent = parentData as unknown as Kpi | null;
       }
 
-      // Fetch children with employee profiles for individual KPIs
+      // Fetch children with employee profiles AND project/office details
       const { data: children } = await supabase
         .from('kpis')
         .select(`
@@ -236,6 +236,17 @@ export const useKpiHierarchy = (kpiId: string | undefined) => {
           employee:employees!kpis_employee_id_fkey(
             id,
             profiles:profiles(full_name, avatar_url)
+          ),
+          project:projects!kpis_scope_project_id_fkey(
+            id,
+            name,
+            icon,
+            color,
+            logo_url
+          ),
+          office:offices!kpis_scope_office_id_fkey(
+            id,
+            name
           )
         `)
         .eq('parent_kpi_id', kpiId)
