@@ -19,7 +19,7 @@ const Growth = () => {
         <OrgLink to="/kpi-dashboard">
           <Button variant="outline">
             <BarChart3 className="h-4 w-4 mr-2" />
-            {isAdmin || isHR ? "Team KPI Dashboard" : "Team KPIs"}
+            KPI Dashboard
           </Button>
         </OrgLink>
       </div>
