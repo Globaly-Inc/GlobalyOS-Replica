@@ -4,7 +4,7 @@ import { Bug, Lightbulb, LifeBuoy, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { useUserSupportRequests, useReleasedFeatures } from '@/services/useSupportRequests';
 import { UserSupportRequestCard } from './UserSupportRequestCard';
 import { UserSupportRequestDetailSheet } from './UserSupportRequestDetailSheet';
@@ -23,8 +23,10 @@ export const UserHelpRequests = () => {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
 
-  const bugs = useMemo(() => requests.filter(r => r.type === 'bug'), [requests]);
-  const features = useMemo(() => requests.filter(r => r.type === 'feature'), [requests]);
+  // Only show pending items (not resolved, closed, or wont_fix)
+  const pendingStatuses = ['new', 'triaging', 'in_progress'];
+  const bugs = useMemo(() => requests.filter(r => r.type === 'bug' && pendingStatuses.includes(r.status)), [requests]);
+  const features = useMemo(() => requests.filter(r => r.type === 'feature' && pendingStatuses.includes(r.status)), [requests]);
 
   const handleTabClick = (tab: Exclude<TabType, null>) => {
     setActiveTab(current => current === tab ? null : tab);
@@ -156,12 +158,6 @@ export const UserHelpRequests = () => {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              {activeRequests.length > 1 && (
-                <>
-                  <CarouselPrevious className="left-0 h-7 w-7" />
-                  <CarouselNext className="right-0 h-7 w-7" />
-                </>
-              )}
             </Carousel>
           </div>
         )}
