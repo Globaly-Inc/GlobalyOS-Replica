@@ -80,7 +80,12 @@ export interface GroupKpiWithScope extends GroupKpi {
   } | null;
   updates_count?: number;
   child_count?: number;
-  kpi_owners?: Array<{ employee_id: string; is_primary: boolean }>;
+  kpi_owners?: Array<{ 
+    employee_id: string; 
+    is_primary: boolean;
+    full_name?: string;
+    avatar_url?: string | null;
+  }>;
 }
 
 // Child KPI with optional employee data for display

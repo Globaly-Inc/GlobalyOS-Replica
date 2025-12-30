@@ -14,6 +14,13 @@ import { OrgLink } from "@/components/OrgLink";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Kpi, KpiWithEmployee, GroupKpiWithScope } from "@/types";
 
+interface KpiOwner {
+  employee_id: string;
+  is_primary: boolean;
+  full_name?: string;
+  avatar_url?: string | null;
+}
+
 interface UnifiedKpiCardProps {
   kpi: Kpi | KpiWithEmployee | GroupKpiWithScope;
   type: 'individual' | 'group';
@@ -32,6 +39,8 @@ interface UnifiedKpiCardProps {
     color?: string | null;
     logo_url?: string | null;
   };
+  // Owners for group KPIs
+  owners?: KpiOwner[];
   // Selection
   isSelected?: boolean;
   onSelect?: () => void;
@@ -73,6 +82,7 @@ export function UnifiedKpiCard({
   type,
   employee,
   project,
+  owners,
   isSelected,
   onSelect,
   showCheckbox,
@@ -217,6 +227,32 @@ export function UnifiedKpiCard({
               <>
                 <span className="text-muted-foreground/50">•</span>
                 <span className="truncate max-w-[80px] sm:max-w-[150px] lg:max-w-none">{employee.position}</span>
+              </>
+            )}
+            
+            {/* Owner avatars for group KPIs - between scope name and period */}
+            {type === 'group' && (
+              <>
+                <span className="text-muted-foreground/50">•</span>
+                {owners && owners.length > 0 ? (
+                  <div className="flex items-center">
+                    <div className="flex -space-x-1.5">
+                      {owners.slice(0, 3).map((owner, index) => (
+                        <Avatar key={owner.employee_id} className="h-5 w-5 border-2 border-background">
+                          <AvatarImage src={owner.avatar_url || undefined} />
+                          <AvatarFallback className="text-[8px]">
+                            {getInitials(owner.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                    </div>
+                    {owners.length > 3 && (
+                      <span className="text-[10px] ml-1 text-muted-foreground">+{owners.length - 3}</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground/70 italic">No Owner</span>
+                )}
               </>
             )}
             
