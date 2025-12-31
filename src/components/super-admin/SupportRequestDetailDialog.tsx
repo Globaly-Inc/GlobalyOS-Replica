@@ -280,26 +280,26 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
 
           {/* Scrollable Content */}
           <ScrollArea className="flex-1 min-h-0">
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 min-w-0 overflow-hidden">
               {/* Description - Collapsible */}
               <Collapsible open={descriptionOpen} onOpenChange={setDescriptionOpen}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full text-sm font-medium">
                   <span>Description</span>
                   {descriptionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3 space-y-3">
-                  <p className="text-sm whitespace-pre-wrap break-words bg-muted/30 p-4 rounded-lg leading-relaxed">
+                <CollapsibleContent className="mt-3 space-y-3 overflow-hidden">
+                  <div className="text-sm whitespace-pre-wrap break-words break-all overflow-x-auto bg-muted/30 p-4 rounded-lg leading-relaxed max-w-full">
                     {request.description}
-                  </p>
+                  </div>
                   {request.ai_improved_description && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
                         <Sparkles className="h-3.5 w-3.5" />
                         AI-Improved
                       </div>
-                      <p className="text-sm whitespace-pre-wrap break-words bg-primary/5 border border-primary/20 p-4 rounded-lg leading-relaxed">
+                      <div className="text-sm whitespace-pre-wrap break-words break-all overflow-x-auto bg-primary/5 border border-primary/20 p-4 rounded-lg leading-relaxed max-w-full">
                         {request.ai_improved_description}
-                      </p>
+                      </div>
                     </div>
                   )}
                 </CollapsibleContent>
@@ -537,7 +537,7 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
                           {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed break-words">{comment.content}</p>
+                      <p className="text-sm leading-relaxed break-words break-all overflow-x-auto max-w-full">{comment.content}</p>
                       {comment.attachment_url && (
                         <a 
                           href={comment.attachment_url} 
