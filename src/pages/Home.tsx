@@ -646,7 +646,6 @@ const Home = () => {
             <AllPendingLeavesCard />
             <PendingWfhApprovals />
             <PendingKpiUpdates />
-            <UserHelpRequests />
 
             {/* People on Leave Today */}
             <Card className="p-6">
@@ -824,6 +823,8 @@ const Home = () => {
                     </OrgLink>)}
                 </div> : <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>}
             </Card>
+
+            <UserHelpRequests />
           </div>
         </div>
       </div>
