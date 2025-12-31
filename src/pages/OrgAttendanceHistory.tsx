@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
@@ -36,6 +36,8 @@ import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalytic
 import { AttendanceQRButton } from "@/components/AttendanceQRButton";
 import { AttendanceSettingsDialog } from "@/components/dialogs/AttendanceSettingsDialog";
 import { useAttendanceHistoryFilters } from "@/hooks/useAttendanceHistoryFilters";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -563,6 +565,27 @@ const OrgAttendanceHistory = () => {
       return matchesEmployee && matchesDepartment && matchesWorkStatus && matchesOffice && matchesProject;
     });
   }, [records, selectedEmployees, departmentFilter, workStatusFilter, officeFilter, projectFilter, employeeProjects]);
+
+  // Pagination for filtered records
+  const pagination = usePagination({
+    pageKey: 'org-attendance-history',
+    defaultPageSize: 20,
+  });
+
+  // Update total count when filtered records change
+  useEffect(() => {
+    pagination.setTotalCount(filteredRecords.length);
+  }, [filteredRecords.length]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [dateRangeFilter, statusFilter, departmentFilter, workStatusFilter, officeFilter, projectFilter, selectedEmployees]);
+
+  // Paginated records for display
+  const paginatedRecords = useMemo(() => {
+    return filteredRecords.slice(pagination.from, pagination.from + pagination.pageSize);
+  }, [filteredRecords, pagination.from, pagination.pageSize]);
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       present: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -1404,7 +1427,23 @@ const OrgAttendanceHistory = () => {
                     {allSelected ? "Deselect All" : "Select All"}
                   </Button>}
               </div>
-              {filteredRecords.map(record => <MobileRecordCard key={record.id} record={record} />)}
+              {paginatedRecords.map(record => <MobileRecordCard key={record.id} record={record} />)}
+              
+              {/* Mobile Pagination */}
+              {filteredRecords.length > 0 && (
+                <PaginationControls
+                  page={pagination.page}
+                  pageSize={pagination.pageSize}
+                  totalCount={pagination.totalCount}
+                  totalPages={pagination.totalPages}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                  onPageChange={pagination.goToPage}
+                  onPageSizeChange={pagination.setPageSize}
+                  isLoading={isLoading}
+                  compact
+                />
+              )}
             </div> :
       // Desktop Table View
       <Card className="overflow-hidden">
@@ -1431,7 +1470,7 @@ const OrgAttendanceHistory = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRecords.map(record => {
+                    {paginatedRecords.map(record => {
                 const employee = record.employee as any;
                 const isSelected = selectedRecords.has(record.id);
                 return <TableRow key={record.id} className={cn("hover:bg-muted/50 transition-colors", isSelected && "bg-primary/5")}>
@@ -1577,6 +1616,24 @@ const OrgAttendanceHistory = () => {
                   </TableBody>
                 </Table>
               </div>
+              
+              {/* Desktop Pagination */}
+              {filteredRecords.length > 0 && (
+                <div className="border-t">
+                  <PaginationControls
+                    page={pagination.page}
+                    pageSize={pagination.pageSize}
+                    totalCount={pagination.totalCount}
+                    totalPages={pagination.totalPages}
+                    hasNextPage={pagination.hasNextPage}
+                    hasPrevPage={pagination.hasPrevPage}
+                    onPageChange={pagination.goToPage}
+                    onPageSizeChange={pagination.setPageSize}
+                    isLoading={isLoading}
+                    className="px-4"
+                  />
+                </div>
+              )}
             </Card>}
         </div>
 

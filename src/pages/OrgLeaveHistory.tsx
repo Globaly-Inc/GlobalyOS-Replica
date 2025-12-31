@@ -13,6 +13,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -460,7 +462,7 @@ const OrgLeaveHistory = () => {
     setSelectedTransactions([]);
   }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, selectedEmployees, dateRangeFilter]);
 
-  const filteredTransactions = transactions.filter((t) => {
+  const filteredTransactions = useMemo(() => transactions.filter((t) => {
     // Employee filter - if no employees selected, show all; otherwise filter to selected
     const matchesEmployee = selectedEmployees.length === 0 || 
       selectedEmployees.includes(t.employee?.id || '');
@@ -474,7 +476,28 @@ const OrgLeaveHistory = () => {
     const matchesDateRange = effectiveDate >= dateRange.startDate && effectiveDate <= dateRange.endDate;
     
     return matchesEmployee && matchesStatus && matchesType && matchesTransType && matchesDateRange;
+  }), [transactions, selectedEmployees, statusFilter, leaveTypeFilter, transactionTypeFilter, dateRange]);
+
+  // Pagination for filtered transactions
+  const pagination = usePagination({
+    pageKey: 'org-leave-history',
+    defaultPageSize: 20,
   });
+
+  // Update total count when filtered transactions change
+  useEffect(() => {
+    pagination.setTotalCount(filteredTransactions.length);
+  }, [filteredTransactions.length]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [yearFilter, statusFilter, leaveTypeFilter, transactionTypeFilter, selectedEmployees, dateRangeFilter]);
+
+  // Paginated transactions for display
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(pagination.from, pagination.from + pagination.pageSize);
+  }, [filteredTransactions, pagination.from, pagination.pageSize]);
 
   // Selection handlers
   const isTransactionSelected = (id: string, type: string) => {
@@ -1302,7 +1325,7 @@ const OrgLeaveHistory = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransactions.map((t) => (
+                  {paginatedTransactions.map((t) => (
                     <TableRow 
                       key={`${t.type}-${t.id}`} 
                       className={`group ${isTransactionSelected(t.id, t.type) ? 'bg-primary/5' : ''}`}
@@ -1475,6 +1498,24 @@ const OrgLeaveHistory = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          
+          {/* Pagination Controls */}
+          {filteredTransactions.length > 0 && (
+            <div className="border-t">
+              <PaginationControls
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                totalCount={pagination.totalCount}
+                totalPages={pagination.totalPages}
+                hasNextPage={pagination.hasNextPage}
+                hasPrevPage={pagination.hasPrevPage}
+                onPageChange={pagination.goToPage}
+                onPageSizeChange={pagination.setPageSize}
+                isLoading={loading}
+                className="px-4"
+              />
             </div>
           )}
         </CardContent>
