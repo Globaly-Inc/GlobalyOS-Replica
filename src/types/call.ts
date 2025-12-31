@@ -56,10 +56,12 @@ export interface CallSignal {
 export interface CallState {
   activeCall: CallSession | null;
   incomingCall: CallSession | null;
+  outgoingCall: CallSession | null;
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   isMuted: boolean;
   isVideoOff: boolean;
   isScreenSharing: boolean;
+  screenStream: MediaStream | null;
   callDuration: number;
 }

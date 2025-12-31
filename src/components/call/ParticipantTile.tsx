@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MicOff, VideoOff } from 'lucide-react';
+import { MicOff, VideoOff, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ParticipantTileProps {
@@ -11,6 +11,7 @@ interface ParticipantTileProps {
   isVideoOff?: boolean;
   isLocal?: boolean;
   isSpeaking?: boolean;
+  isScreenSharing?: boolean;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
   isVideoOff,
   isLocal,
   isSpeaking,
+  isScreenSharing,
   className,
 }) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -43,6 +45,14 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
         className
       )}
     >
+      {/* Screen share indicator */}
+      {isScreenSharing && (
+        <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-full bg-primary/90 text-xs text-white flex items-center gap-1 shadow-lg">
+          <Monitor className="h-3 w-3" />
+          Screen Share
+        </div>
+      )}
+      
       {/* Video element */}
       {hasVideo ? (
         <video
@@ -52,7 +62,7 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
           muted={isLocal}
           className={cn(
             "w-full h-full object-cover",
-            isLocal && "scale-x-[-1]" // Mirror local video
+            isLocal && !isScreenSharing && "scale-x-[-1]" // Mirror local video, but not screen share
           )}
         />
       ) : (
@@ -103,7 +113,7 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
       )}
       
       {/* Local indicator */}
-      {isLocal && hasVideo && (
+      {isLocal && hasVideo && !isScreenSharing && (
         <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-xs text-white">
           You
         </div>
