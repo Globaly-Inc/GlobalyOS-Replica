@@ -206,6 +206,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/super-admin/customer-success" element={<SuperAdminProtectedRoute>
                     <SuperAdminCustomerSuccess />
                   </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/customer-success/:requestId" element={<SuperAdminProtectedRoute>
+                    <SuperAdminCustomerSuccess />
+                  </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/documentation" element={<SuperAdminProtectedRoute>
                     <SuperAdminDocumentation />
                   </SuperAdminProtectedRoute>} />
