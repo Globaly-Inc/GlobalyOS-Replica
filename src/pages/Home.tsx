@@ -651,12 +651,14 @@ const Home = () => {
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
           <div className="hidden lg:block space-y-6">
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
-            <AllPendingLeavesCard />
             <PendingWfhApprovals />
             <PendingKpiUpdates />
 
             {/* Employees Not Checked In */}
             <NotCheckedInCard />
+
+            {/* All Pending Leaves */}
+            <AllPendingLeavesCard />
 
             {/* People on Leave Today */}
             <Card className="p-6">
