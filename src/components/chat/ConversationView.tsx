@@ -38,6 +38,7 @@ import {
   useSpaceMembers,
   useConversationParticipants,
 } from "@/services/useChat";
+import { useCall } from "@/contexts/CallContext";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
@@ -88,6 +89,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { initiateCall } = useCall();
   const togglePin = useTogglePinMessage();
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
@@ -552,12 +554,42 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               <Search className="h-4 w-4" />
             </Button>
             {/* Hide Phone, Video, Pin on mobile */}
-            {!isMobile && activeChat.type === 'conversation' && !activeChat.isGroup && (
+            {!isMobile && activeChat.type === 'conversation' && (
               <>
-                <Button variant="ghost" size="icon">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => initiateCall({ conversationId, callType: 'audio' })}
+                  title="Start audio call"
+                >
                   <Phone className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => initiateCall({ conversationId, callType: 'video' })}
+                  title="Start video call"
+                >
+                  <Video className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {!isMobile && activeChat.type === 'space' && (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => initiateCall({ spaceId, callType: 'audio' })}
+                  title="Start group audio call"
+                >
+                  <Phone className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => initiateCall({ spaceId, callType: 'video' })}
+                  title="Start group video call"
+                >
                   <Video className="h-4 w-4" />
                 </Button>
               </>
