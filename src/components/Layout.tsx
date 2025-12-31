@@ -34,6 +34,7 @@ import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
+import { CallProvider } from "@/contexts/CallContext";
 
 interface UserProfile {
   fullName: string;
@@ -448,6 +449,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const roleConfig = getRoleConfig(userProfile?.role);
 
   return (
+    <CallProvider>
     <div className="min-h-screen bg-background">
       {/* Spotlight Tour for Onboarding - starts after WelcomeSurvey completes */}
       <SpotlightTour />
@@ -789,5 +791,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* KPI Generation Progress Indicator */}
       <KpiGenerationProgress organizationId={currentOrg?.id} />
     </div>
+    </CallProvider>
   );
 };
