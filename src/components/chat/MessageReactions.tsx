@@ -1,10 +1,19 @@
+/**
+ * Chat Message Reactions Component
+ * Emoji reactions with avatar stacking, overflow popover, and optimistic updates
+ * (Matches Social Feed reaction UI pattern)
+ */
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { SmilePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReactionUser {
@@ -25,6 +34,9 @@ interface MessageReactionsProps {
   isOwn: boolean;
 }
 
+const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+const MAX_VISIBLE_AVATARS = 4;
+
 const MessageReactions = ({
   reactions,
   currentEmployeeId,
@@ -33,43 +45,236 @@ const MessageReactions = ({
 }: MessageReactionsProps) => {
   const reactionList = Object.values(reactions);
   
-  if (reactionList.length === 0) return null;
+  // Local state for optimistic updates
+  const [localReactions, setLocalReactions] = useState<Record<string, Reaction>>(reactions);
+  
+  // Sync local state with props
+  useEffect(() => {
+    setLocalReactions(reactions);
+  }, [reactions]);
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const handleToggle = (emoji: string) => {
+    const reaction = localReactions[emoji];
+    const hasReacted = reaction?.users.some(u => u.id === currentEmployeeId);
+    
+    // Optimistic update
+    if (hasReacted) {
+      setLocalReactions(prev => {
+        const updated = { ...prev };
+        if (updated[emoji]) {
+          updated[emoji] = {
+            ...updated[emoji],
+            users: updated[emoji].users.filter(u => u.id !== currentEmployeeId)
+          };
+          if (updated[emoji].users.length === 0) {
+            delete updated[emoji];
+          }
+        }
+        return updated;
+      });
+    } else {
+      setLocalReactions(prev => {
+        const updated = { ...prev };
+        if (!updated[emoji]) {
+          updated[emoji] = { emoji, users: [] };
+        }
+        updated[emoji] = {
+          ...updated[emoji],
+          users: [...updated[emoji].users, { id: currentEmployeeId, name: 'You' }]
+        };
+        return updated;
+      });
+    }
+    
+    onToggleReaction(emoji);
+  };
+
+  const localReactionList = Object.values(localReactions);
+
+  if (localReactionList.length === 0) {
+    return (
+      <div className={cn("flex items-center", isOwn ? "justify-end" : "justify-start")}>
+        {/* Add reaction button when no reactions exist */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 rounded-full hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <SmilePlus className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2" align="start">
+            <div className="flex gap-1">
+              {EMOJI_OPTIONS.map(emoji => (
+                <Button
+                  key={emoji}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-lg hover:bg-muted rounded-full"
+                  onClick={() => handleToggle(emoji)}
+                >
+                  {emoji}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
-      "flex flex-wrap gap-1 mt-1",
+      "flex items-center gap-1 flex-wrap",
       isOwn ? "justify-end" : "justify-start"
     )}>
-      <TooltipProvider>
-        {reactionList.map((reaction) => {
-          const hasReacted = reaction.users.some(u => u.id === currentEmployeeId);
-          const userNames = reaction.users.map(u => u.name).join(", ");
-
-          return (
-            <Tooltip key={reaction.emoji}>
-              <TooltipTrigger asChild>
+      {/* Existing reactions with avatars */}
+      {localReactionList.map((reaction) => {
+        const hasReacted = reaction.users.some(u => u.id === currentEmployeeId);
+        
+        return (
+          <div key={reaction.emoji} className="flex items-center">
+            {/* Emoji button - toggles reaction */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-7 px-1.5 rounded-l-full rounded-r-none transition-all border-r-0",
+                hasReacted 
+                  ? "bg-primary/10 hover:bg-primary/20 ring-1 ring-primary/30" 
+                  : "bg-muted/60 hover:bg-muted"
+              )}
+              onClick={() => handleToggle(reaction.emoji)}
+            >
+              <span className="text-sm">{reaction.emoji}</span>
+            </Button>
+            
+            {/* Count/Avatars button - opens user list popup */}
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "h-6 px-2 py-0 text-xs gap-1 rounded-full",
+                    "h-7 px-1.5 rounded-l-none rounded-r-full transition-all border-l-0 gap-0.5",
                     hasReacted 
-                      ? "bg-primary/10 hover:bg-primary/20 border border-primary/30" 
-                      : "bg-muted hover:bg-muted/80"
+                      ? "bg-primary/10 hover:bg-primary/20 ring-1 ring-primary/30" 
+                      : "bg-muted/60 hover:bg-muted"
                   )}
-                  onClick={() => onToggleReaction(reaction.emoji)}
                 >
-                  <span className="text-sm">{reaction.emoji}</span>
-                  <span className="font-medium">{reaction.users.length}</span>
+                  {/* Mobile: Show +N count only */}
+                  <span className="md:hidden text-xs font-medium">
+                    {reaction.users.length}
+                  </span>
+                  
+                  {/* Desktop: Stacked avatars */}
+                  <div className="hidden md:flex -space-x-1">
+                    {reaction.users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
+                      <Avatar
+                        key={user.id}
+                        className={cn(
+                          "h-4 w-4 border border-background",
+                          hasReacted && user.id === currentEmployeeId && "ring-1 ring-primary"
+                        )}
+                        style={{ zIndex: MAX_VISIBLE_AVATARS - index }}
+                      >
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback className="text-[6px] bg-muted">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop: Overflow indicator */}
+                  {reaction.users.length > MAX_VISIBLE_AVATARS && (
+                    <span className="hidden md:inline text-[10px] text-muted-foreground font-medium ml-0.5">
+                      +{reaction.users.length - MAX_VISIBLE_AVATARS}
+                    </span>
+                  )}
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">{userNames}</p>
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </TooltipProvider>
+              </PopoverTrigger>
+              
+              {/* Full user list popover */}
+              <PopoverContent className="w-48 p-2" align="start">
+                <div className="text-xs font-medium mb-2 flex items-center gap-2 pb-2 border-b border-border">
+                  <span className="text-base">{reaction.emoji}</span>
+                  <span className="text-muted-foreground">
+                    {reaction.users.length} reaction{reaction.users.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <ScrollArea className="h-[160px]">
+                  <div className="space-y-0.5 pr-2">
+                    {reaction.users.map(user => (
+                      <div 
+                        key={user.id} 
+                        className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted/80 transition-colors"
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={user.avatar} alt={user.name} />
+                          <AvatarFallback className="text-[8px] bg-muted">
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs truncate flex-1">
+                          {user.id === currentEmployeeId ? 'You' : user.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          </div>
+        );
+      })}
+
+      {/* Add reaction button */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 rounded-full hover:bg-muted"
+          >
+            <SmilePlus className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2" align="start">
+          <div className="flex gap-1 flex-wrap max-w-[180px]">
+            {EMOJI_OPTIONS.map(emoji => {
+              const hasReacted = localReactions[emoji]?.users.some(
+                u => u.id === currentEmployeeId
+              );
+              return (
+                <Button
+                  key={emoji}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 w-8 p-0 text-lg hover:bg-muted rounded-full",
+                    hasReacted && "bg-primary/10 ring-1 ring-primary/30"
+                  )}
+                  onClick={() => handleToggle(emoji)}
+                >
+                  {emoji}
+                </Button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
