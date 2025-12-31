@@ -161,3 +161,9 @@ verify_jwt = false
 
 [functions.send-checkin-reminder]
 verify_jwt = false
+
+[functions.dismiss-call-notification]
+verify_jwt = false
+
+[functions.send-call-notification]
+verify_jwt = false

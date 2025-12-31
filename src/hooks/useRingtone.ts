@@ -1,102 +1,16 @@
 import { useRef, useCallback, useEffect } from 'react';
 
-// Generate a pleasant ringtone using Web Audio API
-const createRingtone = (audioContext: AudioContext): { oscillators: OscillatorNode[], gainNode: GainNode } => {
-  const oscillators: OscillatorNode[] = [];
-  const gainNode = audioContext.createGain();
-  
-  // Create two oscillators for a pleasant ring (major third interval)
-  const osc1 = audioContext.createOscillator();
-  const osc2 = audioContext.createOscillator();
-  
-  osc1.type = 'sine';
-  osc1.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-  
-  osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
-  
-  // Create a smooth envelope
-  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + 0.05);
-  gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.4);
-  gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.8);
-  
-  osc1.connect(gainNode);
-  osc2.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillators.push(osc1, osc2);
-  return { oscillators, gainNode };
-};
-
 export const useRingtone = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
-  const gainNodeRef = useRef<GainNode | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
-  const isMountedRef = useRef(true);
   
-  // Cleanup on unmount
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-  
-  const play = useCallback(() => {
-    if (isPlayingRef.current) return;
-    isPlayingRef.current = true;
-    
-    const playTone = () => {
-      if (!isPlayingRef.current || !isMountedRef.current) return;
-      
-      try {
-        // Create a new audio context for each tone
-        const audioContext = new AudioContext();
-        audioContextRef.current = audioContext;
-        
-        const { oscillators, gainNode } = createRingtone(audioContext);
-        oscillatorsRef.current = oscillators;
-        gainNodeRef.current = gainNode;
-        
-        oscillators.forEach(osc => osc.start());
-        
-        // Stop after 800ms
-        setTimeout(() => {
-          oscillators.forEach(osc => {
-            try {
-              osc.stop();
-              osc.disconnect();
-            } catch (e) {
-              // Ignore if already stopped
-            }
-          });
-          gainNode.disconnect();
-          audioContext.close().catch(() => {});
-        }, 800);
-      } catch (error) {
-        console.error('Error playing ringtone:', error);
-      }
-    };
-    
-    // Play immediately then repeat with a pattern (ring-ring ... ring-ring)
-    playTone();
-    
-    let ringCount = 0;
-    intervalRef.current = setInterval(() => {
-      if (!isPlayingRef.current || !isMountedRef.current) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        return;
-      }
-      
-      ringCount++;
-      // Create a ring-ring pattern with pause
-      if (ringCount % 3 !== 0) {
-        playTone();
-      }
-    }, 600);
+  // Create a single reusable audio context
+  const getAudioContext = useCallback(() => {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioContext();
+    }
+    return audioContextRef.current;
   }, []);
   
   const stop = useCallback(() => {
@@ -107,35 +21,107 @@ export const useRingtone = () => {
       intervalRef.current = null;
     }
     
-    oscillatorsRef.current.forEach(osc => {
-      try {
-        osc.stop();
-        osc.disconnect();
-      } catch (e) {
-        // Ignore if already stopped
-      }
-    });
-    oscillatorsRef.current = [];
-    
-    if (gainNodeRef.current) {
-      try {
-        gainNodeRef.current.disconnect();
-      } catch (e) {
-        // Ignore
-      }
-      gainNodeRef.current = null;
-    }
-    
-    if (audioContextRef.current) {
+    // Close the audio context to release all resources
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
   }, []);
   
-  // Cleanup on unmount
+  const playTone = useCallback(() => {
+    if (!isPlayingRef.current) return;
+    
+    try {
+      const audioContext = getAudioContext();
+      
+      // Resume if suspended (browser autoplay policy)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
+      const oscillator1 = audioContext.createOscillator();
+      const oscillator2 = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      // Pleasant two-tone ring (major third interval)
+      oscillator1.type = 'sine';
+      oscillator1.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+      oscillator2.type = 'sine';
+      oscillator2.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
+      
+      // Smooth envelope
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+      gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.4);
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.7);
+      
+      oscillator1.connect(gainNode);
+      oscillator2.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      const now = audioContext.currentTime;
+      oscillator1.start(now);
+      oscillator2.start(now);
+      // Schedule stop - oscillators clean themselves up
+      oscillator1.stop(now + 0.8);
+      oscillator2.stop(now + 0.8);
+    } catch (error) {
+      console.error('Error playing ringtone:', error);
+    }
+  }, [getAudioContext]);
+  
+  const play = useCallback(() => {
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
+    
+    // Play immediately
+    playTone();
+    
+    // Then repeat in ring-ring pattern with pause
+    let count = 0;
+    intervalRef.current = setInterval(() => {
+      if (!isPlayingRef.current) {
+        stop();
+        return;
+      }
+      count++;
+      // Ring-ring pattern: play twice, pause once
+      if (count % 3 !== 0) {
+        playTone();
+      }
+    }, 600);
+  }, [playTone, stop]);
+  
+  // Cleanup on component unmount
   useEffect(() => {
     return () => {
       stop();
+    };
+  }, [stop]);
+  
+  // CRITICAL: Cleanup on page visibility change and before unload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isPlayingRef.current) {
+        // Suspend context to save resources when hidden
+        audioContextRef.current?.suspend();
+      } else if (document.visibilityState === 'visible' && isPlayingRef.current) {
+        audioContextRef.current?.resume();
+      }
+    };
+    
+    const handleBeforeUnload = () => {
+      stop();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
     };
   }, [stop]);
   
