@@ -929,6 +929,225 @@ export type Database = {
           },
         ]
       }
+      call_participants: {
+        Row: {
+          call_id: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_muted: boolean | null
+          is_video_off: boolean | null
+          joined_at: string | null
+          left_at: string | null
+          organization_id: string
+          status: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_muted?: boolean | null
+          is_video_off?: boolean | null
+          joined_at?: string | null
+          left_at?: string | null
+          organization_id: string
+          status?: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_muted?: boolean | null
+          is_video_off?: boolean | null
+          joined_at?: string | null
+          left_at?: string | null
+          organization_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_participants_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_participants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_sessions: {
+        Row: {
+          call_type: string
+          conversation_id: string | null
+          created_at: string | null
+          ended_at: string | null
+          id: string
+          initiated_by: string
+          organization_id: string
+          space_id: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          call_type: string
+          conversation_id?: string | null
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          initiated_by: string
+          organization_id: string
+          space_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          call_type?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string
+          organization_id?: string
+          space_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_signaling: {
+        Row: {
+          call_id: string
+          created_at: string | null
+          from_employee_id: string
+          id: string
+          organization_id: string
+          signal_data: Json
+          signal_type: string
+          to_employee_id: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string | null
+          from_employee_id: string
+          id?: string
+          organization_id: string
+          signal_data: Json
+          signal_type: string
+          to_employee_id: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string | null
+          from_employee_id?: string
+          id?: string
+          organization_id?: string
+          signal_data?: Json
+          signal_type?: string
+          to_employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_signaling_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_signaling_from_employee_id_fkey"
+            columns: ["from_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_signaling_from_employee_id_fkey"
+            columns: ["from_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_signaling_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_signaling_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_signaling_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_attachments: {
         Row: {
           created_at: string
