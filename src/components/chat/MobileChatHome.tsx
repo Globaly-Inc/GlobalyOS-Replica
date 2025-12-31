@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, AtSign, Star, Hash, Users } from "lucide-react";
+import { Search, Plus, AtSign, Star, Hash, Users, MessageSquarePlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,8 +7,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
-import { useConversations, useSpaces } from "@/services/useChat";
+import { useConversations, useSpaces, useOnlinePresence } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface MobileChatHomeProps {
   onSelectChat: (chat: ActiveChat) => void;
@@ -21,6 +27,19 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
   const { data: conversations = [] } = useConversations();
   const { data: spaces = [] } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { data: onlineUsers = [] } = useOnlinePresence();
+
+  const isUserOnline = (employeeId: string) => {
+    return onlineUsers.some(u => u.employee_id === employeeId && u.is_online);
+  };
+
+  const getOtherParticipantId = (conv: ChatConversation) => {
+    if (conv.is_group) return null;
+    const otherParticipant = conv.participants?.find(
+      p => p.employee_id !== currentEmployee?.id
+    );
+    return otherParticipant?.employee_id || null;
+  };
 
   const getInitials = (name: string) => {
     return name
@@ -93,23 +112,51 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
       )
     : spaces;
 
+  // Sort conversations by last message time (most recent first)
+  const sortedConversations = [...filteredConversations].sort((a, b) => {
+    const aTime = a.last_message?.created_at || a.created_at || '';
+    const bTime = b.last_message?.created_at || b.created_at || '';
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
+
+  const sortedSpaces = [...filteredSpaces].sort((a, b) => {
+    const aTime = a.last_message?.created_at || a.created_at || '';
+    const bTime = b.last_message?.created_at || b.created_at || '';
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
+
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Search Header */}
+      {/* Header */}
       <div className="px-4 py-3 border-b border-border bg-card">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search chats..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-muted/50 border-0"
-            />
-          </div>
-          <Button variant="ghost" size="icon" onClick={onNewChat} className="h-10 w-10">
-            <Plus className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-semibold text-foreground">Messages</h1>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <MessageSquarePlus className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onNewChat}>
+                <Users className="h-4 w-4 mr-2" />
+                New Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onNewSpace}>
+                <Hash className="h-4 w-4 mr-2" />
+                New Space
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-muted/50 border-0 h-10"
+          />
         </div>
       </div>
 
@@ -135,67 +182,80 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
         </div>
 
         {/* Direct Messages */}
-        {filteredConversations.length > 0 && (
+        {sortedConversations.length > 0 && (
           <div className="px-4 py-2">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               Direct Messages
             </h3>
             <div className="space-y-1">
-              {filteredConversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => handleSelectConversation(conv)}
-                  className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
-                >
-                  <div className="relative">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={getConversationAvatar(conv) || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {conv.is_group ? (
-                          <Users className="h-5 w-5" />
-                        ) : (
-                          getInitials(getConversationDisplayName(conv))
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Online indicator would go here */}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground truncate">
-                        {getConversationDisplayName(conv)}
-                      </span>
-                      {conv.last_message && (
-                        <span className="text-xs text-muted-foreground flex-shrink-0">
-                          {formatMessageTime(conv.last_message.created_at)}
-                        </span>
+              {sortedConversations.map((conv) => {
+                const otherParticipantId = getOtherParticipantId(conv);
+                const isOnline = otherParticipantId ? isUserOnline(otherParticipantId) : false;
+                
+                return (
+                  <button
+                    key={conv.id}
+                    onClick={() => handleSelectConversation(conv)}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getConversationAvatar(conv) || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {conv.is_group ? (
+                            <Users className="h-5 w-5" />
+                          ) : (
+                            getInitials(getConversationDisplayName(conv))
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      {!conv.is_group && isOnline && (
+                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background" />
                       )}
                     </div>
-                    {conv.last_message && (
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conv.last_message.content}
-                      </p>
-                    )}
-                  </div>
-                  {conv.unread_count && conv.unread_count > 0 && (
-                    <div className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center">
-                      {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={cn(
+                          "font-medium truncate",
+                          conv.unread_count && conv.unread_count > 0 ? "text-foreground" : "text-foreground"
+                        )}>
+                          {getConversationDisplayName(conv)}
+                        </span>
+                        {conv.last_message && (
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {formatMessageTime(conv.last_message.created_at)}
+                          </span>
+                        )}
+                      </div>
+                      {conv.last_message && (
+                        <p className={cn(
+                          "text-sm truncate",
+                          conv.unread_count && conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                        )}>
+                          {conv.last_message.content}
+                        </p>
+                      )}
                     </div>
-                  )}
-                </button>
-              ))}
+                    {conv.unread_count && conv.unread_count > 0 && (
+                      <div className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center">
+                        {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Spaces */}
-        {filteredSpaces.length > 0 && (
+        {sortedSpaces.length > 0 && (
           <div className="px-4 py-2">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               Spaces
             </h3>
             <div className="space-y-1">
-              {filteredSpaces.map((space) => (
+              {sortedSpaces.map((space) => (
                 <button
                   key={space.id}
                   onClick={() => handleSelectSpace(space)}
@@ -210,7 +270,10 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground truncate">
+                      <span className={cn(
+                        "font-medium truncate",
+                        space.unread_count && space.unread_count > 0 ? "text-foreground" : "text-foreground"
+                      )}>
                         {space.name}
                       </span>
                       {space.last_message && (
@@ -220,7 +283,10 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                       )}
                     </div>
                     {space.last_message && (
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className={cn(
+                        "text-sm truncate",
+                        space.unread_count && space.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                      )}>
                         {space.last_message.content}
                       </p>
                     )}
