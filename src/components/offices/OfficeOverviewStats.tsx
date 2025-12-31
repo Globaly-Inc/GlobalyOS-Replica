@@ -30,7 +30,8 @@ export const OfficeOverviewStats = ({ officeId }: OfficeOverviewStatsProps) => {
     if (!currentOrg?.id) return;
     setLoading(true);
 
-    const today = format(new Date(), 'yyyy-MM-dd');
+    // Use UTC date for consistency with database storage
+    const today = new Date().toISOString().split('T')[0];
 
     // Get all active employees in this office
     const { data: employees } = await supabase

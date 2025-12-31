@@ -50,7 +50,8 @@ export const NotCheckedInCard = () => {
     }
 
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Use UTC date for consistency with database storage
+      const today = new Date().toISOString().split('T')[0];
 
       // Get active employees WITH a schedule (inner join)
       const { data: employeesWithSchedule, error: empError } = await supabase

@@ -19,7 +19,8 @@ import type {
 // Fetch today's attendance for current employee
 export const useTodayAttendance = () => {
   const { data: currentEmployee } = useCurrentEmployee();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Use UTC date to match database storage (which uses CURRENT_DATE in UTC)
+  const today = new Date().toISOString().split('T')[0];
 
   return useQuery({
     queryKey: ['today-attendance', currentEmployee?.id, today],
@@ -233,7 +234,8 @@ export const useManualAttendance = () => {
 // Get active check-in status
 export const useCheckInStatus = () => {
   const { data: currentEmployee } = useCurrentEmployee();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Use UTC date to match database storage (which uses CURRENT_DATE in UTC)
+  const today = new Date().toISOString().split('T')[0];
 
   return useQuery({
     queryKey: ['check-in-status', currentEmployee?.id, today],

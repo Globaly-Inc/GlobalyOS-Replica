@@ -18,6 +18,7 @@ import { Home, MapPin, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock } fr
 import { useAuth } from "@/hooks/useAuth";
 import { useRemoteAttendance } from "@/services/useWfh";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface RemoteCheckInDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface RemoteCheckInDialogProps {
 
 export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [sessionCount, setSessionCount] = useState(0);
@@ -145,16 +147,21 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     fetchStatus();
   }, [open, user?.id]);
 
-  // Reset on close
+  // Reset on close and invalidate queries if successful
   useEffect(() => {
     if (!open) {
+      // If we had a successful result, invalidate check-in status queries
+      if (result?.success) {
+        queryClient.invalidateQueries({ queryKey: ['check-in-status'] });
+        queryClient.invalidateQueries({ queryKey: ['today-attendance'] });
+      }
       setLoading(true);
       setResult(null);
       setEmployeeSchedule(null);
       setShowEarlyCheckoutWarning(false);
       setEarlyCheckoutReason("");
     }
-  }, [open]);
+  }, [open, result?.success, queryClient]);
 
   const checkIsEarlyCheckout = () => {
     if (!employeeSchedule?.work_end_time) return false;

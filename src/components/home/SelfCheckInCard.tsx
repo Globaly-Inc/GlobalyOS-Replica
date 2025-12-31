@@ -75,8 +75,8 @@ export const SelfCheckInCard = () => {
 
         setSchedule(empSchedule);
 
-        // Check if on approved leave today
-        const today = format(new Date(), "yyyy-MM-dd");
+        // Check if on approved leave today - use UTC date for consistency
+        const today = new Date().toISOString().split("T")[0];
         const { data: leaveRequest } = await supabase
           .from("leave_requests")
           .select("id")
