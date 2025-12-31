@@ -113,6 +113,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -566,7 +567,20 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
             >
               <Search className="h-4 w-4" />
             </Button>
-            {/* Hide Phone, Video, Pin on mobile */}
+            
+            {/* Mobile: Show more menu button */}
+            {isMobile && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowMobileMenu(true)}
+                className="h-9 w-9"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {/* Desktop: Show all action buttons */}
             {!isMobile && activeChat.type === 'conversation' && (
               <>
                 <Button 
@@ -613,7 +627,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </Button>
             )}
             
-            {/* Space management menu */}
+            {/* Desktop: Space management menu */}
             {!isMobile && activeChat.type === 'space' && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -864,6 +878,172 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                 onClose={() => setActiveThreadMessage(null)}
               />
             )}
+          </SheetContent>
+        </Sheet>
+        
+        {/* Mobile Actions Menu Sheet */}
+        <Sheet open={showMobileMenu} onOpenChange={setShowMobileMenu}>
+          <SheetContent side="bottom" className="rounded-t-2xl px-0 pb-8">
+            {/* Header with chat info */}
+            <div className="flex items-center gap-3 px-4 pb-4 border-b mb-2">
+              {activeChat.type === 'conversation' && !activeChat.isGroup ? (
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
+                  <AvatarFallback className="text-sm bg-primary/10 text-primary">
+                    {getInitials(activeChat.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
+                groupIconUrl ? (
+                  <img src={groupIconUrl} alt={groupName} className="h-10 w-10 rounded-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                    {getInitials(groupName || "GC")}
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm">
+                  {activeChat.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-foreground truncate">{activeChat.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {activeChat.type === 'space' 
+                    ? `${spaceMembers.length} member${spaceMembers.length !== 1 ? 's' : ''}`
+                    : activeChat.isGroup 
+                      ? `${conversationParticipants.length} members`
+                      : otherParticipant?.position || 'Direct message'
+                  }
+                </p>
+              </div>
+            </div>
+            
+            {/* Action items */}
+            <div className="py-2 space-y-1">
+              {/* Call actions */}
+              {activeChat.type === 'conversation' && (
+                <>
+                  <button 
+                    onClick={() => { 
+                      initiateCall({ conversationId, callType: 'audio' }); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                  >
+                    <Phone className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Audio call</span>
+                  </button>
+                  <button 
+                    onClick={() => { 
+                      initiateCall({ conversationId, callType: 'video' }); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                  >
+                    <Video className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Video call</span>
+                  </button>
+                </>
+              )}
+              
+              {activeChat.type === 'space' && (
+                <>
+                  <button 
+                    onClick={() => { 
+                      initiateCall({ spaceId, callType: 'audio' }); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                  >
+                    <Phone className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Audio call</span>
+                  </button>
+                  <button 
+                    onClick={() => { 
+                      initiateCall({ spaceId, callType: 'video' }); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                  >
+                    <Video className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Video call</span>
+                  </button>
+                </>
+              )}
+              
+              <div className="border-t my-2 mx-4" />
+              
+              {/* Pinned messages */}
+              <button 
+                onClick={() => { 
+                  onToggleRightPanel(); 
+                  setShowMobileMenu(false); 
+                }}
+                className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+              >
+                <Pin className="h-5 w-5 text-muted-foreground" />
+                <span className="font-medium">Pinned messages</span>
+              </button>
+              
+              {/* Edit group option */}
+              {activeChat.type === 'conversation' && activeChat.isGroup && (
+                <button 
+                  onClick={() => { 
+                    setShowEditGroupDialog(true); 
+                    setShowMobileMenu(false); 
+                  }}
+                  className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                >
+                  <Pencil className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">Edit group</span>
+                </button>
+              )}
+              
+              {/* Space management options */}
+              {activeChat.type === 'space' && (
+                <>
+                  <button 
+                    onClick={() => { 
+                      setShowMembersDialog(true); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                  >
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">View members</span>
+                  </button>
+                  
+                  {isSpaceAdmin && (
+                    <>
+                      <button 
+                        onClick={() => { 
+                          setShowAddMembersDialog(true); 
+                          setShowMobileMenu(false); 
+                        }}
+                        className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                      >
+                        <UserPlus className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Add members</span>
+                      </button>
+                      
+                      <div className="border-t my-2 mx-4" />
+                      
+                      <button 
+                        onClick={() => { 
+                          setShowSettingsDialog(true); 
+                          setShowMobileMenu(false); 
+                        }}
+                        className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                      >
+                        <Settings className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Space settings</span>
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </SheetContent>
         </Sheet>
       </div>
