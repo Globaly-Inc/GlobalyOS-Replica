@@ -30,6 +30,8 @@ import { format, formatDistanceToNow, subDays } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import { UserDetailSheet } from "@/components/super-admin/UserDetailSheet";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface User {
   id: string;
@@ -66,6 +68,9 @@ const SuperAdminUsers = () => {
   // Sort state
   const [sortField, setSortField] = useState<SortField>('last_active');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Pagination
+  const pagination = usePagination({ pageKey: 'super-admin-users' });
 
   useEffect(() => {
     fetchUsers();
@@ -193,6 +198,21 @@ const SuperAdminUsers = () => {
 
     return filtered;
   }, [users, searchQuery, statusFilter, roleFilter, orgFilter, activityFilter, lastActiveFilter, sortField, sortOrder]);
+
+  // Update pagination total count when filtered users change
+  useEffect(() => {
+    pagination.setTotalCount(filteredAndSortedUsers.length);
+  }, [filteredAndSortedUsers.length]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [searchQuery, statusFilter, roleFilter, orgFilter, activityFilter, lastActiveFilter]);
+
+  // Paginated users
+  const paginatedUsers = useMemo(() => {
+    return filteredAndSortedUsers.slice(pagination.from, pagination.from + pagination.pageSize);
+  }, [filteredAndSortedUsers, pagination.from, pagination.pageSize]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -352,7 +372,7 @@ const SuperAdminUsers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <TableRow
                     key={user.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -420,7 +440,7 @@ const SuperAdminUsers = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredAndSortedUsers.length === 0 && (
+                {paginatedUsers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No users found
@@ -429,6 +449,17 @@ const SuperAdminUsers = () => {
                 )}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              totalCount={pagination.totalCount}
+              totalPages={pagination.totalPages}
+              hasNextPage={pagination.hasNextPage}
+              hasPrevPage={pagination.hasPrevPage}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              isLoading={loading}
+            />
           </CardContent>
         </Card>
 

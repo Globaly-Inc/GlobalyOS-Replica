@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { formatDateTime } from "@/lib/utils";
 import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface Notification {
   id: string;
@@ -222,14 +224,34 @@ const Notifications = () => {
       .slice(0, 2);
   };
 
-  const filteredNotifications = notifications.filter((n) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "kudos") return n.type === "kudos";
-    if (activeTab === "mentions") return n.type === "mention";
-    if (activeTab === "reactions") return n.type === "reaction";
-    if (activeTab === "leave") return n.type === "leave_request" || n.type === "leave_decision";
-    return true;
-  });
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((n) => {
+      if (activeTab === "all") return true;
+      if (activeTab === "kudos") return n.type === "kudos";
+      if (activeTab === "mentions") return n.type === "mention";
+      if (activeTab === "reactions") return n.type === "reaction";
+      if (activeTab === "leave") return n.type === "leave_request" || n.type === "leave_decision";
+      return true;
+    });
+  }, [notifications, activeTab]);
+
+  // Pagination
+  const pagination = usePagination({ pageKey: 'notifications' });
+
+  // Update total count when filtered notifications change
+  useEffect(() => {
+    pagination.setTotalCount(filteredNotifications.length);
+  }, [filteredNotifications.length]);
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    pagination.resetPage();
+  }, [activeTab]);
+
+  // Paginated notifications
+  const paginatedNotifications = useMemo(() => {
+    return filteredNotifications.slice(pagination.from, pagination.from + pagination.pageSize);
+  }, [filteredNotifications, pagination.from, pagination.pageSize]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const kudosCount = notifications.filter((n) => n.type === "kudos").length;
@@ -393,51 +415,64 @@ const Notifications = () => {
                 </CardContent>
               </Card>
             ) : (
-              filteredNotifications.map((notification) => (
-                <Card
-                  key={notification.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    !notification.is_read
-                      ? "bg-primary/5 border-primary/20"
-                      : ""
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <CardContent className="flex items-start gap-3 p-3 sm:p-4">
-                    {notification.actor ? (
-                      <Avatar className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
-                        <AvatarImage src={notification.actor.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs sm:text-sm">
-                          {getInitials(notification.actor.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+              <>
+                {paginatedNotifications.map((notification) => (
+                  <Card
+                    key={notification.id}
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      !notification.is_read
+                        ? "bg-primary/5 border-primary/20"
+                        : ""
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <CardContent className="flex items-start gap-3 p-3 sm:p-4">
+                      {notification.actor ? (
+                        <Avatar className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
+                          <AvatarImage src={notification.actor.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs sm:text-sm">
+                            {getInitials(notification.actor.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                           {getNotificationIcon(notification.type)}
-                          <p className="font-medium text-sm truncate">
-                            {notification.title}
-                          </p>
-                          {!notification.is_read && (
-                            <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                          )}
                         </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDateTime(notification.created_at)}
-                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {getNotificationIcon(notification.type)}
+                            <p className="font-medium text-sm truncate">
+                              {notification.title}
+                            </p>
+                            {!notification.is_read && (
+                              <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDateTime(notification.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {notification.message}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls
+                  page={pagination.page}
+                  pageSize={pagination.pageSize}
+                  totalCount={pagination.totalCount}
+                  totalPages={pagination.totalPages}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                  onPageChange={pagination.setPage}
+                  onPageSizeChange={pagination.setPageSize}
+                  isLoading={loading}
+                />
+              </>
             )}
           </TabsContent>
         </Tabs>
