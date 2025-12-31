@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MicOff, VideoOff, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,41 +29,103 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
   className,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [streamId, setStreamId] = useState<string | null>(null);
+  const [hasVideo, setHasVideo] = useState(false);
+  const [streamKey, setStreamKey] = useState<string>('');
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   
-  // Stable stream attachment - only update when stream ID changes
+  // Check if stream has active video
+  const checkVideoStatus = useCallback(() => {
+    if (!stream) {
+      setHasVideo(false);
+      return;
+    }
+    
+    const videoTracks = stream.getVideoTracks();
+    const activeVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
+    console.log(`[ParticipantTile] ${name} - Video tracks:`, videoTracks.length, 'Active:', activeVideo, 'isVideoOff:', isVideoOff);
+    setHasVideo(activeVideo && !isVideoOff);
+  }, [stream, isVideoOff, name]);
+
+  // Attach stream to video element
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     
-    const newStreamId = stream?.id ?? null;
+    const newStreamKey = stream?.id ?? '';
     
-    // Only update srcObject if the stream actually changed
-    if (newStreamId !== streamId) {
+    // Only update if stream changed
+    if (newStreamKey !== streamKey) {
+      console.log(`[ParticipantTile] ${name} - Attaching stream:`, newStreamKey);
       video.srcObject = stream ?? null;
-      setStreamId(newStreamId);
+      setStreamKey(newStreamKey);
     }
-  }, [stream, streamId]);
-  
-  // Separate effect for play handling
+  }, [stream, streamKey, name]);
+
+  // Play video when stream is attached
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !stream) return;
     
-    const handlePlay = () => {
-      video.play().catch(() => {
-        // Autoplay was prevented, user interaction needed
-      });
+    const handlePlay = async () => {
+      try {
+        await video.play();
+        console.log(`[ParticipantTile] ${name} - Video playing`);
+      } catch (error) {
+        console.log(`[ParticipantTile] ${name} - Autoplay prevented`);
+      }
     };
     
-    // Try to play when stream is attached
     if (video.srcObject) {
       handlePlay();
     }
-  }, [stream]);
-  
-  const hasVideo = stream?.getVideoTracks().some(t => t.enabled && t.readyState === 'live') && !isVideoOff;
+  }, [stream, name]);
+
+  // Listen for track changes on the stream
+  useEffect(() => {
+    if (!stream) {
+      setHasVideo(false);
+      return;
+    }
+
+    // Initial check
+    checkVideoStatus();
+
+    // Listen for track events
+    const handleTrackChange = () => {
+      console.log(`[ParticipantTile] ${name} - Track change detected`);
+      checkVideoStatus();
+    };
+
+    stream.addEventListener('addtrack', handleTrackChange);
+    stream.addEventListener('removetrack', handleTrackChange);
+
+    // Also listen to individual track state changes
+    const videoTracks = stream.getVideoTracks();
+    videoTracks.forEach(track => {
+      track.addEventListener('ended', handleTrackChange);
+      track.addEventListener('mute', handleTrackChange);
+      track.addEventListener('unmute', handleTrackChange);
+    });
+
+    // Periodic check as fallback (every 500ms)
+    const interval = setInterval(checkVideoStatus, 500);
+
+    return () => {
+      stream.removeEventListener('addtrack', handleTrackChange);
+      stream.removeEventListener('removetrack', handleTrackChange);
+      videoTracks.forEach(track => {
+        track.removeEventListener('ended', handleTrackChange);
+        track.removeEventListener('mute', handleTrackChange);
+        track.removeEventListener('unmute', handleTrackChange);
+      });
+      clearInterval(interval);
+    };
+  }, [stream, checkVideoStatus, name]);
+
+  // Update when isVideoOff prop changes
+  useEffect(() => {
+    checkVideoStatus();
+  }, [isVideoOff, checkVideoStatus]);
   
   return (
     <div
@@ -82,20 +144,21 @@ export const ParticipantTile: React.FC<ParticipantTileProps> = ({
         </div>
       )}
       
-      {/* Video element */}
-      {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={cn(
-            "w-full h-full object-cover transition-transform duration-200",
-            isLocal && !isScreenSharing && "scale-x-[-1]" // Mirror local video, but not screen share
-          )}
-        />
-      ) : (
-        /* Avatar fallback */
+      {/* Video element - always render but control visibility */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={cn(
+          "w-full h-full object-cover transition-transform duration-200",
+          isLocal && !isScreenSharing && "scale-x-[-1]",
+          !hasVideo && "hidden"
+        )}
+      />
+      
+      {/* Avatar fallback when no video */}
+      {!hasVideo && (
         <div className="flex flex-col items-center justify-center gap-2 p-4">
           <Avatar className={cn(
             "border-2 border-background shadow-lg",
