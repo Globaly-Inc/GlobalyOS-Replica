@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.report-broken-link]
 verify_jwt = false
+
+[functions.send-checkin-reminder]
+verify_jwt = false
