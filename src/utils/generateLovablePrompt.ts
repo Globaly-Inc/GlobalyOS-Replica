@@ -45,8 +45,9 @@ ${request.ai_improved_description || request.description}`;
     prompt = prompt.substring(0, maxPromptLength) + '\n\n[Description truncated due to length...]';
   }
 
-  // Build URL
-  const baseUrl = 'https://lovable.dev/?autosubmit=true#';
+  // Build URL - target existing GlobalyOS project
+  const GLOBALYOS_PROJECT_ID = 'e82dc3a3-760d-4b67-b09d-75a73e25acd5';
+  const baseUrl = `https://lovable.dev/projects/${GLOBALYOS_PROJECT_ID}#`;
   const encodedPrompt = encodeURIComponent(prompt);
   const imageParams = images.map(url => `images=${encodeURIComponent(url)}`).join('&');
   
