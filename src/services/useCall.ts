@@ -445,3 +445,65 @@ export const useSpaceParticipants = (spaceId: string | null) => {
     enabled: !!spaceId,
   });
 };
+
+// Create call log message when call ends
+export const useCreateCallLogMessage = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      callId,
+      conversationId,
+      spaceId,
+      callType,
+      status,
+      durationSeconds,
+      participants,
+    }: {
+      callId: string;
+      conversationId?: string | null;
+      spaceId?: string | null;
+      callType: 'audio' | 'video';
+      status: 'ended' | 'missed' | 'declined';
+      durationSeconds?: number;
+      participants: Array<{ name: string; avatar?: string | null }>;
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Get recording if exists
+      const { data: recording } = await supabase
+        .from('call_recordings')
+        .select('id, storage_path, ai_summary')
+        .eq('call_id', callId)
+        .maybeSingle();
+
+      const callLogData = {
+        call_id: callId,
+        call_type: callType,
+        status,
+        duration_seconds: durationSeconds,
+        participants,
+        recording_url: recording?.storage_path || null,
+        ai_summary: recording?.ai_summary || null,
+      };
+
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          organization_id: currentOrg.id,
+          conversation_id: conversationId || null,
+          space_id: spaceId || null,
+          sender_id: currentEmployee.id,
+          content: `${callType === 'video' ? 'Video' : 'Voice'} call ${status}`,
+          content_type: 'call_log',
+          call_log_data: callLogData,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+};

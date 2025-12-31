@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +18,7 @@ interface MentionAutocompleteProps {
   searchText: string;
   onSelect: (member: TeamMember) => void;
   onClose: () => void;
-  position?: { top: number; left: number };
+  anchorRef?: React.RefObject<HTMLElement>;
 }
 
 const MentionAutocomplete = ({
@@ -25,14 +26,40 @@ const MentionAutocomplete = ({
   searchText,
   onSelect,
   onClose,
-  position,
+  anchorRef,
 }: MentionAutocompleteProps) => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Calculate position based on anchor element
+  useEffect(() => {
+    if (!isOpen || !anchorRef?.current) return;
+
+    const updatePosition = () => {
+      const rect = anchorRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // Position above the input with some padding
+      const top = rect.top - 8;
+      const left = rect.left;
+
+      setPosition({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, anchorRef]);
 
   // Fetch team members when search text changes
   useEffect(() => {
@@ -136,10 +163,15 @@ const MentionAutocomplete = ({
       .slice(0, 2);
   };
 
-  return (
+  const content = (
     <div
       ref={containerRef}
-      className="absolute bottom-full left-0 mb-2 z-50 bg-popover border border-border rounded-lg shadow-lg w-[280px] max-h-[280px] overflow-y-auto"
+      className="fixed z-[100] bg-popover border border-border rounded-lg shadow-lg w-[280px] max-h-[280px] overflow-y-auto"
+      style={{
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        transform: 'translateY(-100%)',
+      }}
     >
       {isLoading ? (
         <div className="p-3 text-sm text-muted-foreground text-center">
@@ -183,6 +215,9 @@ const MentionAutocomplete = ({
       )}
     </div>
   );
+
+  // Use portal to render at document body level
+  return createPortal(content, document.body);
 };
 
 export default MentionAutocomplete;

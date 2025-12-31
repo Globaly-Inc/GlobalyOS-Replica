@@ -84,6 +84,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionedMembers, setMentionedMembers] = useState<MentionedMember[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -475,12 +476,13 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           )}
 
           {/* Message input area */}
-          <div className="relative">
+          <div ref={composerContainerRef} className="relative">
             <MentionAutocomplete
               isOpen={showMentions}
               searchText={mentionSearch}
               onSelect={handleMentionSelect}
               onClose={() => setShowMentions(false)}
+              anchorRef={composerContainerRef}
             />
             
             <Textarea
