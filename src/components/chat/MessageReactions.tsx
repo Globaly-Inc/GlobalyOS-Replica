@@ -102,7 +102,7 @@ const MessageReactions = ({
 
   if (localReactionList.length === 0) {
     return (
-      <div className={cn("flex items-center", isOwn ? "justify-end" : "justify-start")}>
+      <div className="flex items-center justify-start">
         {/* Add reaction button when no reactions exist */}
         <Popover>
           <PopoverTrigger asChild>
@@ -135,10 +135,7 @@ const MessageReactions = ({
   }
 
   return (
-    <div className={cn(
-      "flex items-center gap-1 flex-wrap",
-      isOwn ? "justify-end" : "justify-start"
-    )}>
+    <div className="flex items-center gap-1 flex-wrap justify-start">
       {/* Existing reactions with avatars */}
       {localReactionList.map((reaction) => {
         const hasReacted = reaction.users.some(u => u.id === currentEmployeeId);
