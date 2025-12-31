@@ -87,6 +87,7 @@ interface WikiFolderViewProps {
   hasGlobalEditAccess?: boolean;
   currentEmployeeId?: string;
   organizationId?: string;
+  isCreatingDisabled?: boolean;
   onCreateFolder?: (name: string, parentId: string | null) => void;
   onCreatePage?: (title: string, folderId: string | null) => void;
   onRenameFolder?: (folderId: string, name: string) => void;
@@ -116,6 +117,7 @@ export const WikiFolderView = ({
   hasGlobalEditAccess = false,
   currentEmployeeId,
   organizationId,
+  isCreatingDisabled = false,
   onCreateFolder,
   onCreatePage,
   onRenameFolder,
@@ -564,6 +566,7 @@ export const WikiFolderView = ({
           <WikiEmptyState
             type={currentFolderId ? "folder" : "wiki"}
             canEdit={canEditCurrentFolder}
+            disabled={isCreatingDisabled}
             onCreateFolder={() => onCreateFolder?.("New Folder", currentFolderId)}
             onCreatePage={() => onCreatePage?.("New Page", currentFolderId)}
           />
