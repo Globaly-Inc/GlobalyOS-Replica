@@ -37,6 +37,7 @@ import {
   useToggleReaction,
   useSpaceMembers,
   useConversationParticipants,
+  useMessageReplyCounts,
 } from "@/services/useChat";
 import { useCall } from "@/contexts/CallContext";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -44,6 +45,7 @@ import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
 import DateSeparator from "./DateSeparator";
 import ScrollToBottom from "./ScrollToBottom";
+import ThreadView from "./ThreadView";
 import MessageSearch from "./MessageSearch";
 import ChatDropZone from "./ChatDropZone";
 import SpaceMembersDialog from "./SpaceMembersDialog";
@@ -106,6 +108,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [showEditGroupDialog, setShowEditGroupDialog] = useState(false);
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
+  const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -115,6 +118,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
+  const { data: replyCounts = {} } = useMessageReplyCounts(conversationId, spaceId);
   
   // Check if current user is a space admin
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
@@ -440,7 +444,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
 
   return (
     <ChatDropZone onFilesDropped={handleFilesDropped}>
-      <div className="flex flex-col h-full bg-background overflow-hidden">
+      <div className="flex h-full bg-background overflow-hidden">
+        {/* Main conversation area */}
+        <div className={cn(
+          "flex flex-col h-full bg-background overflow-hidden",
+          activeThreadMessage ? "flex-1" : "w-full"
+        )}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-border bg-card flex-shrink-0">
           <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
@@ -737,6 +746,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                               messageId: message.id, 
                               emoji 
                             })}
+                            onReply={() => setActiveThreadMessage(message)}
+                            replyCount={replyCounts[message.id]}
                             isEditPending={editMessage.isPending}
                           />
                         );
@@ -823,6 +834,19 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               setGroupIconUrl(iconUrl);
             }}
           />
+        )}
+        </div>
+        
+        {/* Thread View Panel */}
+        {activeThreadMessage && (
+          <div className="w-[350px] h-full flex-shrink-0 hidden md:block">
+            <ThreadView
+              parentMessage={activeThreadMessage}
+              conversationId={conversationId}
+              spaceId={spaceId}
+              onClose={() => setActiveThreadMessage(null)}
+            />
+          </div>
         )}
       </div>
     </ChatDropZone>

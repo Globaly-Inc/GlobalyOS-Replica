@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { CallSession, CallParticipant } from '@/types/call';
-import { useCurrentEmployee, useCallParticipants, useInitiateCall, useJoinCall, useDeclineCall, useEndCall } from '@/services/useCall';
+import { useCurrentEmployee, useCallParticipants, useInitiateCall, useJoinCall, useDeclineCall, useEndCall, useCreateCallLogMessage } from '@/services/useCall';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { IncomingCallDialog } from '@/components/call/IncomingCallDialog';
 import { ActiveCallWindow } from '@/components/call/ActiveCallWindow';
@@ -41,6 +41,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const joinCallMutation = useJoinCall();
   const declineCallMutation = useDeclineCall();
   const endCallMutation = useEndCall();
+  const createCallLogMessage = useCreateCallLogMessage();
   
   const {
     localStream,
@@ -358,12 +359,40 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const handleEndCall = useCallback(async () => {
     if (!activeCall) return;
+    
+    // Calculate duration
+    const durationSeconds = activeCall.started_at 
+      ? Math.floor((Date.now() - new Date(activeCall.started_at).getTime()) / 1000)
+      : undefined;
+    
+    // Get participant names for the call log
+    const participantNames = callParticipants.map(p => ({
+      name: p.employee?.profiles?.full_name || 'Unknown',
+      avatar: p.employee?.profiles?.avatar_url || null,
+    }));
+    
     cleanup();
     await endCallMutation.mutateAsync(activeCall.id);
+    
+    // Create call log message in the chat
+    try {
+      await createCallLogMessage.mutateAsync({
+        callId: activeCall.id,
+        conversationId: activeCall.conversation_id,
+        spaceId: activeCall.space_id,
+        callType: activeCall.call_type as 'audio' | 'video',
+        status: 'ended',
+        durationSeconds,
+        participants: participantNames,
+      });
+    } catch (error) {
+      console.error('Failed to create call log message:', error);
+    }
+    
     setActiveCall(null);
     setOutgoingCall(null);
     toast.info('Call ended');
-  }, [activeCall, cleanup, endCallMutation]);
+  }, [activeCall, callParticipants, cleanup, endCallMutation, createCallLogMessage]);
   
   const handleCancelOutgoing = useCallback(async () => {
     if (!outgoingCall) return;
