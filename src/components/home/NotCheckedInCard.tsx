@@ -107,10 +107,27 @@ export const NotCheckedInCard = () => {
       
       setSentReminders(reminderSentIds);
 
-      // Filter to find not-checked-in employees
-      const filtered = (employeesWithSchedule || []).filter(emp =>
-        !onLeaveIds.has(emp.id) && !checkedInIds.has(emp.id)
-      ) as NotCheckedInEmployee[];
+      // Get current time in HH:mm:ss format for comparison
+      const currentTimeStr = format(new Date(), 'HH:mm:ss');
+
+      // Filter to find not-checked-in employees whose start time has passed
+      const filtered = (employeesWithSchedule || []).filter(emp => {
+        // Exclude employees on leave or already checked in
+        if (onLeaveIds.has(emp.id) || checkedInIds.has(emp.id)) {
+          return false;
+        }
+
+        // Get employee's schedule
+        const scheduleData = emp.employee_schedules;
+        const schedule = Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
+        
+        if (!schedule?.work_start_time) {
+          return false;
+        }
+
+        // Only show if their scheduled start time has passed
+        return currentTimeStr >= schedule.work_start_time;
+      }) as NotCheckedInEmployee[];
 
       setNotCheckedIn(filtered);
     } catch (error) {
@@ -125,6 +142,17 @@ export const NotCheckedInCard = () => {
       loadNotCheckedIn();
     }
   }, [currentOrg?.id, roleLoading, canView]);
+
+  // Refresh every minute to update as employees' start times pass
+  useEffect(() => {
+    if (!currentOrg?.id || !canView) return;
+    
+    const interval = setInterval(() => {
+      loadNotCheckedIn();
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [currentOrg?.id, canView]);
 
   // Realtime subscriptions
   useEffect(() => {
