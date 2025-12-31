@@ -2086,6 +2086,7 @@ export type Database = {
       employees: {
         Row: {
           bank_details: string | null
+          checkin_exempt: boolean
           city: string | null
           country: string | null
           created_at: string
@@ -2125,6 +2126,7 @@ export type Database = {
         }
         Insert: {
           bank_details?: string | null
+          checkin_exempt?: boolean
           city?: string | null
           country?: string | null
           created_at?: string
@@ -2164,6 +2166,7 @@ export type Database = {
         }
         Update: {
           bank_details?: string | null
+          checkin_exempt?: boolean
           city?: string | null
           country?: string | null
           created_at?: string

@@ -58,6 +58,7 @@ export const NotCheckedInCard = () => {
         .select(`
           id,
           position,
+          checkin_exempt,
           profiles:profiles!inner(full_name, avatar_url),
           employee_schedules!inner(
             work_start_time,
@@ -66,7 +67,8 @@ export const NotCheckedInCard = () => {
           )
         `)
         .eq('organization_id', currentOrg.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .eq('checkin_exempt', false);
 
       if (empError) {
         console.error('Error fetching employees with schedules:', empError);
