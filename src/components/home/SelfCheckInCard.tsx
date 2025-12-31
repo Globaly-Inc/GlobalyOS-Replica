@@ -39,6 +39,7 @@ export const SelfCheckInCard = () => {
           .from("employees")
           .select(`
             id,
+            checkin_exempt,
             employee_schedules(
               work_start_time,
               work_end_time,
@@ -51,6 +52,12 @@ export const SelfCheckInCard = () => {
           .maybeSingle();
 
         if (!employee) {
+          setLoading(false);
+          return;
+        }
+
+        // If employee is exempt from check-in, don't show the card
+        if (employee.checkin_exempt) {
           setLoading(false);
           return;
         }
