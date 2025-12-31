@@ -121,9 +121,12 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isDragging) {
-      const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.x));
-      const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.y));
-      setPosition({ x: newX, y: newY });
+      // Use requestAnimationFrame for smoother performance
+      requestAnimationFrame(() => {
+        const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.x));
+        const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.y));
+        setPosition({ x: newX, y: newY });
+      });
     }
   }, [isDragging, dragOffset, size]);
   
@@ -143,9 +146,11 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
     const startHeight = size.height;
     
     const handleResize = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(320, Math.min(window.innerWidth * 0.8, startWidth + (moveEvent.clientX - startX)));
-      const newHeight = Math.max(240, Math.min(window.innerHeight * 0.8, startHeight + (moveEvent.clientY - startY)));
-      setSize({ width: newWidth, height: newHeight });
+      requestAnimationFrame(() => {
+        const newWidth = Math.max(320, Math.min(window.innerWidth * 0.8, startWidth + (moveEvent.clientX - startX)));
+        const newHeight = Math.max(240, Math.min(window.innerHeight * 0.8, startHeight + (moveEvent.clientY - startY)));
+        setSize({ width: newWidth, height: newHeight });
+      });
     };
     
     const handleResizeEnd = () => {
@@ -296,15 +301,16 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
       ref={windowRef}
       className={cn(
         "fixed z-[150] rounded-xl shadow-2xl overflow-hidden border bg-card",
-        "animate-in slide-in-from-bottom-2 duration-300",
-        isDragging && "cursor-grabbing",
-        !isDragging && !isResizing && "cursor-grab"
+        "animate-in slide-in-from-bottom-2 duration-200",
+        isDragging && "cursor-grabbing select-none",
+        isResizing && "select-none",
+        !isDragging && !isResizing && "cursor-grab transition-shadow hover:shadow-xl"
       )}
       style={{
-        left: position.x,
-        top: position.y,
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
         width: size.width,
         height: size.height,
+        willChange: isDragging || isResizing ? 'transform' : 'auto',
       }}
       onMouseDown={handleMouseDown}
     >
