@@ -4,8 +4,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { 
   Bug, Lightbulb, Globe, Monitor, Calendar, Sparkles, Trash2, 
   Send, X, UserPlus, History, MessageSquare, Users, ChevronDown, ChevronUp,
-  Lock, Paperclip, Image as ImageIcon, Link2
+  Lock, Paperclip, Image as ImageIcon, Link2, ExternalLink
 } from 'lucide-react';
+import { generateLovableUrl } from '@/utils/generateLovablePrompt';
 import {
   Dialog,
   DialogContent,
@@ -232,6 +233,25 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
                 </Select>
                 
                 <Separator orientation="vertical" className="h-6" />
+                
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => {
+                    const attachmentUrls = comments
+                      ?.filter(c => c.attachment_url)
+                      .map(c => c.attachment_url!) || [];
+                    const lovableUrl = generateLovableUrl({ request, attachmentUrls });
+                    window.open(lovableUrl, '_blank', 'noopener,noreferrer');
+                    updateRequest.mutate({ id: request.id, status: 'in_progress' as SupportRequestStatus });
+                    toast.success('Opening in Lovable with full context');
+                  }}
+                  title="Start resolving in Lovable"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Start Resolving
+                </Button>
                 
                 <Button 
                   variant="ghost" 
