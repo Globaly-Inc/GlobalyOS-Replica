@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Phone, PhoneOff, Video, X } from 'lucide-react';
+import { Phone, PhoneOff, Video, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CallSession, CallParticipant } from '@/types/call';
@@ -30,10 +30,23 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   const isGroupCall = participants.length > 2;
   const otherParticipants = participants.filter(p => p.employee_id !== call.initiated_by);
   
-  // Play ringtone
+  // Play ringtone and vibrate
   useEffect(() => {
     play();
-    return () => stop();
+    
+    // Continuous vibration pattern
+    let vibrationInterval: NodeJS.Timeout | null = null;
+    if ('vibrate' in navigator) {
+      vibrationInterval = setInterval(() => {
+        navigator.vibrate([300, 100, 300, 100, 300]);
+      }, 2000);
+    }
+    
+    return () => {
+      stop();
+      if (vibrationInterval) clearInterval(vibrationInterval);
+      if ('vibrate' in navigator) navigator.vibrate(0);
+    };
   }, [play, stop]);
   
   // Auto-decline after 30 seconds
@@ -45,11 +58,17 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
     return () => clearTimeout(timeout);
   }, [onDecline]);
   
+  const handleDeclineWithBusy = () => {
+    // Could implement sending a "busy" message here
+    onDecline();
+  };
+  
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-sm mx-4 bg-card border rounded-2xl shadow-2xl overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-primary/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-green-500/10 to-transparent animate-pulse" />
         
         {/* Content */}
         <div className="relative p-8 flex flex-col items-center text-center">
@@ -63,12 +82,13 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
             <span>Incoming {call.call_type} call</span>
           </div>
           
-          {/* Caller avatar with pulse animation */}
+          {/* Caller avatar with multiple rings */}
           <div className="relative mb-4">
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-            <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+            <div className="absolute -inset-4 rounded-full border-2 border-green-500/30 animate-ping" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute -inset-2 rounded-full border border-green-500/20 animate-ping" style={{ animationDuration: '1.5s', animationDelay: '0.3s' }} />
+            <Avatar className="h-24 w-24 border-4 border-green-500/50 shadow-lg shadow-green-500/20 relative">
               <AvatarImage src={callerAvatar || undefined} alt={callerName} />
-              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+              <AvatarFallback className="text-2xl bg-green-600 text-white">
                 {callerInitials}
               </AvatarFallback>
             </Avatar>
@@ -102,49 +122,60 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           {/* Action buttons */}
           <div className="flex items-center gap-4 mt-4">
             {/* Decline */}
-            <Button
-              variant="destructive"
-              size="lg"
-              className="h-14 w-14 rounded-full p-0"
-              onClick={onDecline}
-            >
-              <PhoneOff className="h-6 w-6" />
-            </Button>
+            <div className="flex flex-col items-center">
+              <Button
+                variant="destructive"
+                size="lg"
+                className="h-14 w-14 rounded-full p-0 shadow-lg"
+                onClick={onDecline}
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+              <span className="text-xs text-muted-foreground mt-2">Decline</span>
+            </div>
+            
+            {/* Busy option */}
+            <div className="flex flex-col items-center">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 w-12 rounded-full p-0"
+                onClick={handleDeclineWithBusy}
+              >
+                <Clock className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-muted-foreground mt-2">Busy</span>
+            </div>
             
             {/* Accept audio only */}
-            <Button
-              variant="default"
-              size="lg"
-              className={cn(
-                "h-14 w-14 rounded-full p-0 bg-green-600 hover:bg-green-700",
-                call.call_type === 'video' && "h-12 w-12"
-              )}
-              onClick={() => onAccept(false)}
-            >
-              <Phone className="h-6 w-6" />
-            </Button>
-            
-            {/* Accept with video (only for video calls) */}
-            {call.call_type === 'video' && (
+            <div className="flex flex-col items-center">
               <Button
                 variant="default"
                 size="lg"
-                className="h-14 w-14 rounded-full p-0 bg-green-600 hover:bg-green-700"
-                onClick={() => onAccept(true)}
+                className={cn(
+                  "rounded-full p-0 bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30",
+                  call.call_type === 'video' ? "h-12 w-12" : "h-14 w-14"
+                )}
+                onClick={() => onAccept(false)}
               >
-                <Video className="h-6 w-6" />
+                <Phone className="h-6 w-6" />
               </Button>
-            )}
-          </div>
-          
-          {/* Button labels */}
-          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-            <span className="w-14 text-center">Decline</span>
-            <span className={cn("text-center", call.call_type === 'video' ? "w-12" : "w-14")}>
-              Audio
-            </span>
+              <span className="text-xs text-muted-foreground mt-2">Audio</span>
+            </div>
+            
+            {/* Accept with video (only for video calls) */}
             {call.call_type === 'video' && (
-              <span className="w-14 text-center">Video</span>
+              <div className="flex flex-col items-center">
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="h-14 w-14 rounded-full p-0 bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30"
+                  onClick={() => onAccept(true)}
+                >
+                  <Video className="h-6 w-6" />
+                </Button>
+                <span className="text-xs text-muted-foreground mt-2">Video</span>
+              </div>
             )}
           </div>
         </div>

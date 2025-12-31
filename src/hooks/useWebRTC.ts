@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSendSignal, useCurrentEmployee } from '@/services/useCall';
 import { CallParticipant, CallSignal } from '@/types/call';
+import { toast } from 'sonner';
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
@@ -16,9 +17,13 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const pendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const screenStream = useRef<MediaStream | null>(null);
+  const originalVideoTrack = useRef<MediaStreamTrack | null>(null);
+  
   const { data: currentEmployee } = useCurrentEmployee();
   const sendSignal = useSendSignal();
   
@@ -35,9 +40,16 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
       });
       setLocalStream(stream);
       setIsVideoOff(!video);
+      
+      // Store original video track for screen share restoration
+      if (video) {
+        originalVideoTrack.current = stream.getVideoTracks()[0] || null;
+      }
+      
       return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
+      toast.error('Failed to access camera/microphone');
       throw error;
     }
   }, []);
@@ -203,6 +215,7 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
           const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
           const videoTrack = newStream.getVideoTracks()[0];
           localStream.addTrack(videoTrack);
+          originalVideoTrack.current = videoTrack;
           
           // Update all peer connections
           peerConnections.current.forEach((pc) => {
@@ -217,21 +230,94 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
           setIsVideoOff(false);
         } catch (error) {
           console.error('Error adding video:', error);
+          toast.error('Failed to enable camera');
         }
       }
     }
   }, [localStream, isVideoOff]);
+  
+  // Start screen sharing
+  const startScreenShare = useCallback(async () => {
+    if (!localStream) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      
+      screenStream.current = stream;
+      const screenTrack = stream.getVideoTracks()[0];
+      
+      // Store original video track before replacing
+      const currentVideoTrack = localStream.getVideoTracks()[0];
+      if (currentVideoTrack) {
+        originalVideoTrack.current = currentVideoTrack;
+      }
+      
+      // Replace video track in all peer connections
+      peerConnections.current.forEach((pc) => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(screenTrack);
+        }
+      });
+      
+      // Handle browser's "Stop sharing" button
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+      
+      setIsScreenSharing(true);
+      toast.success('Screen sharing started');
+    } catch (error) {
+      console.error('Screen share failed:', error);
+      if ((error as Error).name === 'NotAllowedError') {
+        toast.error('Screen sharing was cancelled');
+      } else {
+        toast.error('Failed to share screen');
+      }
+    }
+  }, [localStream]);
+  
+  // Stop screen sharing
+  const stopScreenShare = useCallback(() => {
+    if (screenStream.current) {
+      screenStream.current.getTracks().forEach(track => track.stop());
+      screenStream.current = null;
+    }
+    
+    // Restore camera track
+    if (originalVideoTrack.current && !isVideoOff) {
+      peerConnections.current.forEach((pc) => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender && originalVideoTrack.current) {
+          sender.replaceTrack(originalVideoTrack.current);
+        }
+      });
+    }
+    
+    setIsScreenSharing(false);
+    toast.info('Screen sharing stopped');
+  }, [isVideoOff]);
   
   // Cleanup
   const cleanup = useCallback(() => {
     localStream?.getTracks().forEach(track => track.stop());
     setLocalStream(null);
     
+    if (screenStream.current) {
+      screenStream.current.getTracks().forEach(track => track.stop());
+      screenStream.current = null;
+    }
+    
     peerConnections.current.forEach(pc => pc.close());
     peerConnections.current.clear();
     
     setRemoteStreams(new Map());
     pendingCandidates.current.clear();
+    setIsScreenSharing(false);
+    originalVideoTrack.current = null;
   }, [localStream]);
   
   // Listen for signaling
@@ -280,10 +366,13 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
     remoteStreams,
     isMuted,
     isVideoOff,
+    isScreenSharing,
     initializeMedia,
     createOffer,
     toggleMute,
     toggleVideo,
+    startScreenShare,
+    stopScreenShare,
     cleanup,
   };
 };

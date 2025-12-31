@@ -2,14 +2,17 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { CallSession, CallParticipant } from '@/types/call';
-import { useCurrentEmployee, useCallParticipants, useInitiateCall, useJoinCall, useDeclineCall, useEndCall, useConversationParticipants, useSpaceParticipants } from '@/services/useCall';
+import { useCurrentEmployee, useCallParticipants, useInitiateCall, useJoinCall, useDeclineCall, useEndCall } from '@/services/useCall';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { IncomingCallDialog } from '@/components/call/IncomingCallDialog';
 import { ActiveCallWindow } from '@/components/call/ActiveCallWindow';
+import { OutgoingCallDialog } from '@/components/call/OutgoingCallDialog';
+import { toast } from 'sonner';
 
 interface CallContextType {
   activeCall: CallSession | null;
   incomingCall: CallSession | null;
+  outgoingCall: CallSession | null;
   isInCall: boolean;
   initiateCall: (params: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => Promise<void>;
 }
@@ -27,11 +30,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { data: currentEmployee } = useCurrentEmployee();
   const [activeCall, setActiveCall] = useState<CallSession | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
+  const [outgoingCall, setOutgoingCall] = useState<CallSession | null>(null);
   const [incomingParticipants, setIncomingParticipants] = useState<CallParticipant[]>([]);
+  const [outgoingRecipientName, setOutgoingRecipientName] = useState<string>('');
+  const [outgoingRecipientAvatar, setOutgoingRecipientAvatar] = useState<string | null>(null);
   
   const { data: callParticipants = [] } = useCallParticipants(activeCall?.id || null);
-  const { data: convParticipants } = useConversationParticipants(activeCall?.conversation_id || null);
-  const { data: spaceParticipants } = useSpaceParticipants(activeCall?.space_id || null);
   
   const initiateCallMutation = useInitiateCall();
   const joinCallMutation = useJoinCall();
@@ -43,9 +47,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     remoteStreams,
     isMuted,
     isVideoOff,
+    isScreenSharing,
     initializeMedia,
     toggleMute,
     toggleVideo,
+    startScreenShare,
+    stopScreenShare,
     cleanup,
   } = useWebRTC(activeCall?.id || null, callParticipants);
   
@@ -81,6 +88,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           setIncomingCall(call as CallSession);
           setIncomingParticipants(participants as CallParticipant[] || []);
+          
+          // Trigger mobile vibration if supported
+          if ('vibrate' in navigator) {
+            navigator.vibrate([300, 100, 300, 100, 300, 100, 300]);
+          }
         }
       })
       .subscribe();
@@ -88,7 +100,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { supabase.removeChannel(channel); };
   }, [currentEmployee, currentOrg, activeCall]);
   
-  // Listen for call status changes
+  // Listen for call status changes (for active calls)
   useEffect(() => {
     if (!activeCall) return;
     
@@ -104,6 +116,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updated.status === 'ended' || updated.status === 'declined' || updated.status === 'missed') {
           cleanup();
           setActiveCall(null);
+          setOutgoingCall(null);
+          toast.info('Call ended');
+        } else if (updated.status === 'active' && activeCall.status === 'ringing') {
+          setActiveCall(prev => prev ? { ...prev, ...updated } : null);
+          setOutgoingCall(null);
+          toast.success('Call connected');
         } else {
           setActiveCall(prev => prev ? { ...prev, ...updated } : null);
         }
@@ -113,35 +131,179 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { supabase.removeChannel(channel); };
   }, [activeCall, cleanup]);
   
+  // Listen for participant status changes (for outgoing calls)
+  useEffect(() => {
+    if (!outgoingCall || !currentEmployee) return;
+    
+    const channel = supabase
+      .channel(`outgoing-call-${outgoingCall.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_participants',
+        filter: `call_id=eq.${outgoingCall.id}`,
+      }, async (payload) => {
+        const updated = payload.new as any;
+        
+        // If someone joined, the call is active
+        if (updated.status === 'joined' && updated.employee_id !== currentEmployee.id) {
+          setOutgoingCall(null);
+        }
+        
+        // If all participants declined
+        if (updated.status === 'declined' || updated.status === 'missed') {
+          const { data: participants } = await supabase
+            .from('call_participants')
+            .select('status')
+            .eq('call_id', outgoingCall.id)
+            .neq('employee_id', currentEmployee.id);
+          
+          const allDeclined = participants?.every(p => p.status === 'declined' || p.status === 'missed');
+          if (allDeclined) {
+            cleanup();
+            setActiveCall(null);
+            setOutgoingCall(null);
+            toast.error('No answer');
+          }
+        }
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [outgoingCall, currentEmployee, cleanup]);
+  
+  // FIX: Fetch participants directly instead of using hooks that depend on activeCall
   const initiateCall = useCallback(async ({ conversationId, spaceId, callType }: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => {
-    if (!currentEmployee) return;
+    if (!currentEmployee || !currentOrg) return;
     
     let participantIds: string[] = [];
-    if (conversationId && convParticipants) {
-      participantIds = convParticipants.map(p => p.employee_id).filter(id => id !== currentEmployee.id);
-    } else if (spaceId && spaceParticipants) {
-      participantIds = spaceParticipants.map(p => p.employee_id).filter(id => id !== currentEmployee.id);
+    let recipientName = '';
+    let recipientAvatar: string | null = null;
+    
+    // Fetch participants directly from database
+    if (conversationId) {
+      const { data } = await supabase
+        .from('chat_participants')
+        .select('employee_id, employee:employees(id, profiles(full_name, avatar_url))')
+        .eq('conversation_id', conversationId);
+      
+      if (data) {
+        participantIds = data
+          .map(p => p.employee_id)
+          .filter(id => id !== currentEmployee.id);
+        
+        // Get recipient info for outgoing call UI
+        const recipient = data.find(p => p.employee_id !== currentEmployee.id);
+        if (recipient?.employee?.profiles) {
+          recipientName = recipient.employee.profiles.full_name || 'Unknown';
+          recipientAvatar = recipient.employee.profiles.avatar_url || null;
+        }
+      }
+    } else if (spaceId) {
+      const { data } = await supabase
+        .from('chat_space_members')
+        .select('employee_id, employee:employees(id, profiles(full_name, avatar_url))')
+        .eq('space_id', spaceId);
+      
+      if (data) {
+        participantIds = data
+          .map(p => p.employee_id)
+          .filter(id => id !== currentEmployee.id);
+        
+        recipientName = `Group call (${participantIds.length + 1} participants)`;
+      }
     }
     
-    const stream = await initializeMedia(callType === 'video');
-    const call = await initiateCallMutation.mutateAsync({ conversationId, spaceId, callType, participantIds });
-    setActiveCall(call);
-  }, [currentEmployee, convParticipants, spaceParticipants, initializeMedia, initiateCallMutation]);
+    if (participantIds.length === 0) {
+      toast.error('No participants to call');
+      return;
+    }
+    
+    try {
+      toast.loading(`Starting ${callType} call...`, { id: 'call-init' });
+      
+      const stream = await initializeMedia(callType === 'video');
+      const call = await initiateCallMutation.mutateAsync({ conversationId, spaceId, callType, participantIds });
+      
+      toast.dismiss('call-init');
+      toast.info(`Calling ${recipientName || 'participants'}...`);
+      
+      setActiveCall(call);
+      setOutgoingCall(call);
+      setOutgoingRecipientName(recipientName);
+      setOutgoingRecipientAvatar(recipientAvatar);
+      
+      // Send push notifications to all participants
+      for (const participantId of participantIds) {
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('user_id')
+          .eq('id', participantId)
+          .single();
+        
+        if (employee) {
+          // Call the push notification function
+          supabase.functions.invoke('send-call-notification', {
+            body: {
+              to_user_id: employee.user_id,
+              caller_name: currentEmployee.profiles?.full_name || 'Someone',
+              caller_avatar: currentEmployee.profiles?.avatar_url,
+              call_type: callType,
+              call_id: call.id,
+              organization_slug: currentOrg.slug
+            }
+          }).catch(console.error);
+        }
+      }
+    } catch (error) {
+      toast.dismiss('call-init');
+      toast.error('Failed to start call');
+      console.error('Error initiating call:', error);
+    }
+  }, [currentEmployee, currentOrg, initializeMedia, initiateCallMutation]);
   
   const handleAcceptCall = useCallback(async (withVideo: boolean) => {
     if (!incomingCall) return;
-    await initializeMedia(withVideo);
-    await joinCallMutation.mutateAsync({ callId: incomingCall.id, withVideo });
-    setActiveCall(incomingCall);
-    setIncomingCall(null);
-    setIncomingParticipants([]);
+    
+    // Stop vibration
+    if ('vibrate' in navigator) {
+      navigator.vibrate(0);
+    }
+    
+    try {
+      await initializeMedia(withVideo);
+      await joinCallMutation.mutateAsync({ callId: incomingCall.id, withVideo });
+      setActiveCall(incomingCall);
+      setIncomingCall(null);
+      setIncomingParticipants([]);
+      toast.success('Call connected');
+      
+      // Dismiss the push notification
+      supabase.functions.invoke('dismiss-call-notification', {
+        body: { call_id: incomingCall.id }
+      }).catch(console.error);
+    } catch (error) {
+      toast.error('Failed to join call');
+      console.error('Error accepting call:', error);
+    }
   }, [incomingCall, initializeMedia, joinCallMutation]);
   
   const handleDeclineCall = useCallback(async () => {
     if (!incomingCall) return;
+    
+    // Stop vibration
+    if ('vibrate' in navigator) {
+      navigator.vibrate(0);
+    }
+    
     await declineCallMutation.mutateAsync(incomingCall.id);
     setIncomingCall(null);
     setIncomingParticipants([]);
+    
+    // Dismiss the push notification
+    supabase.functions.invoke('dismiss-call-notification', {
+      body: { call_id: incomingCall.id }
+    }).catch(console.error);
   }, [incomingCall, declineCallMutation]);
   
   const handleEndCall = useCallback(async () => {
@@ -149,10 +311,29 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cleanup();
     await endCallMutation.mutateAsync(activeCall.id);
     setActiveCall(null);
+    setOutgoingCall(null);
+    toast.info('Call ended');
   }, [activeCall, cleanup, endCallMutation]);
   
+  const handleCancelOutgoing = useCallback(async () => {
+    if (!outgoingCall) return;
+    cleanup();
+    await endCallMutation.mutateAsync(outgoingCall.id);
+    setActiveCall(null);
+    setOutgoingCall(null);
+    toast.info('Call cancelled');
+  }, [outgoingCall, cleanup, endCallMutation]);
+  
+  const handleToggleScreenShare = useCallback(() => {
+    if (isScreenSharing) {
+      stopScreenShare();
+    } else {
+      startScreenShare();
+    }
+  }, [isScreenSharing, startScreenShare, stopScreenShare]);
+  
   return (
-    <CallContext.Provider value={{ activeCall, incomingCall, isInCall: !!activeCall, initiateCall }}>
+    <CallContext.Provider value={{ activeCall, incomingCall, outgoingCall, isInCall: !!activeCall, initiateCall }}>
       {children}
       
       {incomingCall && (
@@ -164,7 +345,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         />
       )}
       
-      {activeCall && currentEmployee && (
+      {outgoingCall && activeCall?.status === 'ringing' && (
+        <OutgoingCallDialog
+          call={outgoingCall}
+          recipientName={outgoingRecipientName}
+          recipientAvatar={outgoingRecipientAvatar}
+          onCancel={handleCancelOutgoing}
+        />
+      )}
+      
+      {activeCall && currentEmployee && activeCall.status === 'active' && (
         <ActiveCallWindow
           call={activeCall}
           participants={callParticipants}
@@ -173,8 +363,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           remoteStreams={remoteStreams}
           isMuted={isMuted}
           isVideoOff={isVideoOff}
+          isScreenSharing={isScreenSharing}
           onToggleMute={toggleMute}
           onToggleVideo={toggleVideo}
+          onToggleScreenShare={handleToggleScreenShare}
           onEndCall={handleEndCall}
         />
       )}

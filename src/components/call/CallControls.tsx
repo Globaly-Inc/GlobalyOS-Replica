@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Maximize2, Minimize2 } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Maximize2, Minimize2, Monitor, MonitorOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,13 @@ interface CallControlsProps {
   isMuted: boolean;
   isVideoOff: boolean;
   isExpanded?: boolean;
+  isScreenSharing?: boolean;
   onToggleMute: () => void;
   onToggleVideo: () => void;
   onEndCall: () => void;
   onToggleExpand?: () => void;
   onToggleParticipants?: () => void;
+  onToggleScreenShare?: () => void;
   showExpandButton?: boolean;
   className?: string;
 }
@@ -21,11 +23,13 @@ export const CallControls: React.FC<CallControlsProps> = ({
   isMuted,
   isVideoOff,
   isExpanded,
+  isScreenSharing,
   onToggleMute,
   onToggleVideo,
   onEndCall,
   onToggleExpand,
   onToggleParticipants,
+  onToggleScreenShare,
   showExpandButton = true,
   className,
 }) => {
@@ -61,6 +65,26 @@ export const CallControls: React.FC<CallControlsProps> = ({
           </TooltipTrigger>
           <TooltipContent>{isVideoOff ? 'Turn on camera' : 'Turn off camera'}</TooltipContent>
         </Tooltip>
+        
+        {/* Screen share toggle */}
+        {onToggleScreenShare && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isScreenSharing ? "default" : "secondary"}
+                size="icon"
+                className={cn(
+                  "h-10 w-10 rounded-full",
+                  isScreenSharing && "bg-primary text-primary-foreground"
+                )}
+                onClick={onToggleScreenShare}
+              >
+                {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isScreenSharing ? 'Stop sharing' : 'Share screen'}</TooltipContent>
+          </Tooltip>
+        )}
         
         {/* End call */}
         <Tooltip>

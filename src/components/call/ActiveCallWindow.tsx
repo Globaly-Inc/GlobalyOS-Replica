@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Video, GripHorizontal } from 'lucide-react';
+import { Phone, Video, GripHorizontal, Monitor } from 'lucide-react';
 import { CallSession, CallParticipant } from '@/types/call';
 import { CallControls } from './CallControls';
 import { VideoGrid } from './VideoGrid';
@@ -13,8 +13,10 @@ interface ActiveCallWindowProps {
   remoteStreams: Map<string, MediaStream>;
   isMuted: boolean;
   isVideoOff: boolean;
+  isScreenSharing: boolean;
   onToggleMute: () => void;
   onToggleVideo: () => void;
+  onToggleScreenShare: () => void;
   onEndCall: () => void;
 }
 
@@ -26,8 +28,10 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   remoteStreams,
   isMuted,
   isVideoOff,
+  isScreenSharing,
   onToggleMute,
   onToggleVideo,
+  onToggleScreenShare,
   onEndCall,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -64,7 +68,9 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
         {/* Header */}
         <div className="h-14 border-b flex items-center justify-between px-4 bg-card">
           <div className="flex items-center gap-3">
-            {call.call_type === 'video' ? (
+            {isScreenSharing ? (
+              <Monitor className="h-5 w-5 text-primary" />
+            ) : call.call_type === 'video' ? (
               <Video className="h-5 w-5 text-primary" />
             ) : (
               <Phone className="h-5 w-5 text-primary" />
@@ -73,6 +79,7 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
               <h2 className="font-semibold">{callName}</h2>
               <p className="text-xs text-muted-foreground">
                 {formatDuration(callDuration)} • {activeParticipants.length} participant{activeParticipants.length !== 1 ? 's' : ''}
+                {isScreenSharing && ' • Screen sharing'}
               </p>
             </div>
           </div>
@@ -96,8 +103,10 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
             isMuted={isMuted}
             isVideoOff={isVideoOff}
             isExpanded={isExpanded}
+            isScreenSharing={isScreenSharing}
             onToggleMute={onToggleMute}
             onToggleVideo={onToggleVideo}
+            onToggleScreenShare={onToggleScreenShare}
             onEndCall={onEndCall}
             onToggleExpand={() => setIsExpanded(false)}
           />
@@ -122,7 +131,7 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
       {/* Preview */}
       <div className="aspect-video bg-muted relative">
         {/* Show local video or avatar */}
-        {localStream && !isVideoOff ? (
+        {localStream && !isVideoOff && !isScreenSharing ? (
           <video
             autoPlay
             playsInline
@@ -135,12 +144,16 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <div className="text-center">
-              {call.call_type === 'video' ? (
+              {isScreenSharing ? (
+                <Monitor className="h-8 w-8 mx-auto mb-2 text-primary" />
+              ) : call.call_type === 'video' ? (
                 <Video className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
               ) : (
                 <Phone className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
               )}
-              <p className="text-sm font-medium">{callName}</p>
+              <p className="text-sm font-medium">
+                {isScreenSharing ? 'Sharing screen' : callName}
+              </p>
             </div>
           </div>
         )}
@@ -166,13 +179,23 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
           {formatDuration(callDuration)}
         </div>
         
+        {/* Screen share indicator */}
+        {isScreenSharing && (
+          <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-primary/80 text-xs text-white flex items-center gap-1">
+            <Monitor className="h-3 w-3" />
+            Sharing
+          </div>
+        )}
+        
         {/* Status indicators */}
-        <div className="absolute top-2 right-2 flex items-center gap-1">
-          <div className={cn(
-            "w-2 h-2 rounded-full",
-            call.status === 'active' ? "bg-green-500" : "bg-yellow-500 animate-pulse"
-          )} />
-        </div>
+        {!isScreenSharing && (
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              call.status === 'active' ? "bg-green-500" : "bg-yellow-500 animate-pulse"
+            )} />
+          </div>
+        )}
       </div>
       
       {/* Controls */}
@@ -181,8 +204,10 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
           isMuted={isMuted}
           isVideoOff={isVideoOff}
           isExpanded={isExpanded}
+          isScreenSharing={isScreenSharing}
           onToggleMute={onToggleMute}
           onToggleVideo={onToggleVideo}
+          onToggleScreenShare={onToggleScreenShare}
           onEndCall={onEndCall}
           onToggleExpand={() => setIsExpanded(true)}
           showExpandButton
