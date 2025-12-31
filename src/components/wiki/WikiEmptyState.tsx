@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 interface WikiEmptyStateProps {
   type: "folder" | "wiki" | "page";
   canEdit?: boolean;
+  disabled?: boolean;
   onCreateFolder?: () => void;
   onCreatePage?: () => void;
 }
@@ -11,6 +12,7 @@ interface WikiEmptyStateProps {
 export const WikiEmptyState = ({
   type,
   canEdit = false,
+  disabled = false,
   onCreateFolder,
   onCreatePage,
 }: WikiEmptyStateProps) => {
@@ -26,11 +28,11 @@ export const WikiEmptyState = ({
         </p>
         {canEdit && (
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={onCreateFolder} variant="outline" className="gap-2">
+            <Button onClick={onCreateFolder} variant="outline" className="gap-2" disabled={disabled}>
               <Folder className="h-4 w-4" />
               Create First Folder
             </Button>
-            <Button onClick={onCreatePage} className="gap-2">
+            <Button onClick={onCreatePage} className="gap-2" disabled={disabled}>
               <FileText className="h-4 w-4" />
               Create First Page
             </Button>
@@ -52,11 +54,11 @@ export const WikiEmptyState = ({
         </p>
         {canEdit && (
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={onCreateFolder} variant="outline" size="sm" className="gap-1.5">
+            <Button onClick={onCreateFolder} variant="outline" size="sm" className="gap-1.5" disabled={disabled}>
               <Plus className="h-4 w-4" />
               Add Folder
             </Button>
-            <Button onClick={onCreatePage} size="sm" className="gap-1.5">
+            <Button onClick={onCreatePage} size="sm" className="gap-1.5" disabled={disabled}>
               <Plus className="h-4 w-4" />
               Add Page
             </Button>

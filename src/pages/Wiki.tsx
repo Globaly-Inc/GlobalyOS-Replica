@@ -18,6 +18,7 @@ import { useWikiPermissions } from "@/hooks/useWikiPermissions";
 import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
 import { useWikiSharedAccess } from "@/hooks/useWikiSharedAccess";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -293,20 +294,8 @@ const Wiki = () => {
     enabled: !!selectedPageId,
   });
 
-  // Get current employee
-  const { data: currentEmployee } = useQuery({
-    queryKey: ["current-employee"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-      return data;
-    },
-  });
+  // Get current employee using centralized hook (properly scoped by org)
+  const { data: currentEmployee, isLoading: isLoadingEmployee } = useCurrentEmployee();
 
   // Track recently viewed pages
   useEffect(() => {
@@ -339,7 +328,10 @@ const Wiki = () => {
       queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
       toast.success("Folder created");
     },
-    onError: () => toast.error("Failed to create folder"),
+    onError: (error) => {
+      console.error("Failed to create folder:", error);
+      toast.error("Failed to create folder");
+    },
   });
 
   // Create page mutation
@@ -366,7 +358,10 @@ const Wiki = () => {
       // Navigate to edit page for new pages
       navigateOrg(`/wiki/edit/${data.id}`);
     },
-    onError: () => toast.error("Failed to create page"),
+    onError: (error) => {
+      console.error("Failed to create page:", error);
+      toast.error("Failed to create page");
+    },
   });
 
   // Rename folder mutation
@@ -751,6 +746,7 @@ const Wiki = () => {
                 hasGlobalEditAccess={hasGlobalEditAccess}
                 currentEmployeeId={currentEmployeeId}
                 organizationId={currentOrg?.id}
+                isCreatingDisabled={isLoadingEmployee || !currentEmployee?.id}
                 onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
                 onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
                 onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
