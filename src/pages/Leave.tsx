@@ -84,6 +84,7 @@ const Leave = () => {
         .maybeSingle();
       return data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!user?.id && !!currentOrg?.id,
   });
 
@@ -109,6 +110,7 @@ const Leave = () => {
       if (error) throw error;
       return (data || []) as LeaveTypeBalance[];
     },
+    staleTime: 30 * 1000, // 30 seconds - may change after approvals
     enabled: !!employee?.id,
   });
 
@@ -127,6 +129,7 @@ const Leave = () => {
       if (error && error.code !== "PGRST116") throw error;
       return data as HourBalance | null;
     },
+    staleTime: 60 * 1000, // 1 minute
     enabled: !!employee?.id,
   });
 
@@ -155,6 +158,7 @@ const Leave = () => {
       if (error) throw error;
       return (data || []) as LeaveRequest[];
     },
+    staleTime: 30 * 1000, // 30 seconds
     enabled: !!employee?.id,
   });
 

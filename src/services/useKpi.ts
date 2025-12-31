@@ -38,6 +38,7 @@ export const useEmployeeKpis = (employeeId: string | undefined, quarter?: number
 
       return filtered as unknown as Kpi[];
     },
+    staleTime: 60 * 1000, // 1 minute
     enabled: !!employeeId,
   });
 };
@@ -50,6 +51,7 @@ export const useTeamKpis = (quarter?: number, year?: number) => {
 
   return useQuery({
     queryKey: ['team-kpis', currentOrg?.id, currentQuarter, currentYear],
+    staleTime: 60 * 1000, // 1 minute
     queryFn: async (): Promise<KpiWithEmployee[]> => {
       if (!currentOrg?.id) return [];
 
@@ -120,6 +122,7 @@ export const useGroupKpis = (quarter?: number, year?: number) => {
 
   return useQuery({
     queryKey: ['group-kpis', currentOrg?.id, quarter, currentYear],
+    staleTime: 60 * 1000, // 1 minute
     queryFn: async (): Promise<GroupKpiWithScope[]> => {
       if (!currentOrg?.id) return [];
 
@@ -233,6 +236,7 @@ export const useOrganizationKpis = (quarter?: number, year?: number) => {
 
   return useQuery({
     queryKey: ['organization-kpis', currentOrg?.id, quarter, currentYear],
+    staleTime: 60 * 1000, // 1 minute
     queryFn: async (): Promise<OrganizationKpi[]> => {
       if (!currentOrg?.id) return [];
 
