@@ -19,6 +19,7 @@ import { OnboardingChecklist } from "@/components/onboarding";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
+import { AllPendingLeavesCard } from "@/components/home/AllPendingLeavesCard";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { UserHelpRequests } from "@/components/home/UserHelpRequests";
 import { DailyHoroscope } from "@/components/home/DailyHoroscope";
@@ -515,6 +516,7 @@ const Home = () => {
         {/* Mobile-only: Pending Leave & On Leave Today at top */}
         <div className="lg:hidden space-y-4 mb-6">
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+          <AllPendingLeavesCard />
           <PendingWfhApprovals />
           
           
@@ -641,6 +643,7 @@ const Home = () => {
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
           <div className="hidden lg:block space-y-6">
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
+            <AllPendingLeavesCard />
             <PendingWfhApprovals />
             <PendingKpiUpdates />
             <UserHelpRequests />
