@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Bug, Lightbulb, Search, Filter, Headphones, BookOpen } from 'lucide-react';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SupportRequestCard } from '@/components/super-admin/SupportRequestCard';
-import { SupportRequestDetailSheet } from '@/components/super-admin/SupportRequestDetailSheet';
+import { SupportRequestDetailDialog } from '@/components/super-admin/SupportRequestDetailDialog';
 import { useAllSupportRequests, useUpdateSupportRequest } from '@/services/useSupportRequests';
 import { useSupportRequestsListRealtime } from '@/hooks/useSupportRequestRealtime';
 import { 
@@ -26,19 +26,35 @@ import {
   SupportRequestPriority 
 } from '@/types/support';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const SuperAdminCustomerSuccess = () => {
+  const { requestId } = useParams();
+  const navigate = useNavigate();
+  
   const [typeFilter, setTypeFilter] = useState<'all' | SupportRequestType>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | SupportRequestPriority>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
-  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const { data: requests = [], isLoading } = useAllSupportRequests();
   const updateRequest = useUpdateSupportRequest();
   
   // Enable realtime updates for the list
   useSupportRequestsListRealtime();
+
+  // Find selected request from URL param
+  const selectedRequest = useMemo(() => {
+    if (!requestId) return null;
+    return requests.find(r => r.id === requestId) || null;
+  }, [requestId, requests]);
+
+  // Handle invalid requestId - redirect if request not found
+  useEffect(() => {
+    if (requestId && !isLoading && requests.length > 0 && !selectedRequest) {
+      toast.error('Support request not found');
+      navigate('/super-admin/customer-success', { replace: true });
+    }
+  }, [requestId, isLoading, requests.length, selectedRequest, navigate]);
 
   // Filter requests
   const filteredRequests = useMemo(() => {
@@ -81,8 +97,11 @@ const SuperAdminCustomerSuccess = () => {
   const featureCount = requests.filter(r => r.type === 'feature').length;
 
   const handleCardClick = (request: SupportRequest) => {
-    setSelectedRequest(request);
-    setDetailSheetOpen(true);
+    navigate(`/super-admin/customer-success/${request.id}`);
+  };
+
+  const handleDialogClose = () => {
+    navigate('/super-admin/customer-success');
   };
 
   const handleDragStart = (e: React.DragEvent, request: SupportRequest) => {
@@ -95,9 +114,9 @@ const SuperAdminCustomerSuccess = () => {
 
   const handleDrop = (e: React.DragEvent, status: SupportRequestStatus) => {
     e.preventDefault();
-    const requestId = e.dataTransfer.getData('requestId');
-    if (requestId) {
-      updateRequest.mutate({ id: requestId, status });
+    const reqId = e.dataTransfer.getData('requestId');
+    if (reqId) {
+      updateRequest.mutate({ id: reqId, status });
     }
   };
 
@@ -248,11 +267,11 @@ const SuperAdminCustomerSuccess = () => {
           </div>
       </div>
 
-      {/* Detail Sheet */}
-      <SupportRequestDetailSheet
+      {/* Detail Dialog */}
+      <SupportRequestDetailDialog
         request={selectedRequest}
-        open={detailSheetOpen}
-        onOpenChange={setDetailSheetOpen}
+        open={!!requestId && !!selectedRequest}
+        onClose={handleDialogClose}
       />
     </SuperAdminLayout>
   );
