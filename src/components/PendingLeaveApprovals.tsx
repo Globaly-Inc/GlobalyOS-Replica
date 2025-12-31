@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CardSkeleton } from "@/components/ui/card-skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -119,40 +120,73 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     }
   }, [currentOrg?.id]);
 
-  const fetchEmployeeBalance = async (employeeId: string, leaveTypeName: string): Promise<LeaveBalance | undefined> => {
-    if (!currentOrg) return undefined;
+  // Batch fetch all leave types for the organization (cached per load)
+  const fetchLeaveTypesMap = async (): Promise<Map<string, { id: string; name: string; max_negative_days: number }>> => {
+    if (!currentOrg) return new Map();
     
-    const currentYear = new Date().getFullYear();
-    
-    // Get leave type info
-    const { data: leaveType } = await supabase
+    const { data: leaveTypes } = await supabase
       .from("leave_types")
       .select("id, name, max_negative_days")
       .eq("organization_id", currentOrg.id)
-      .eq("is_active", true)
-      .ilike("name", leaveTypeName)
-      .maybeSingle();
+      .eq("is_active", true);
 
-    if (!leaveType) return undefined;
+    const map = new Map();
+    (leaveTypes || []).forEach(lt => {
+      map.set(lt.name.toLowerCase(), lt);
+    });
+    return map;
+  };
 
-    // Get balance
-    const { data: balanceData } = await supabase
+  // Batch fetch all balances for multiple employees at once
+  const fetchBalancesBatch = async (
+    employeeIds: string[],
+    leaveTypeNames: string[],
+    leaveTypesMap: Map<string, { id: string; name: string; max_negative_days: number }>
+  ): Promise<Map<string, LeaveBalance>> => {
+    if (!currentOrg || employeeIds.length === 0) return new Map();
+    
+    const currentYear = new Date().getFullYear();
+    
+    // Get unique leave type IDs we need
+    const leaveTypeIds = [...new Set(leaveTypeNames.map(name => 
+      leaveTypesMap.get(name.toLowerCase())?.id
+    ).filter(Boolean))] as string[];
+
+    if (leaveTypeIds.length === 0) return new Map();
+
+    // Single batch query for all balances
+    const { data: balances } = await supabase
       .from("leave_type_balances")
-      .select("balance")
-      .eq("employee_id", employeeId)
-      .eq("leave_type_id", leaveType.id)
-      .eq("year", currentYear)
-      .maybeSingle();
+      .select("employee_id, leave_type_id, balance")
+      .in("employee_id", employeeIds)
+      .in("leave_type_id", leaveTypeIds)
+      .eq("year", currentYear);
 
-    const currentBalance = balanceData?.balance || 0;
-    const maxNegative = leaveType.max_negative_days || 0;
+    // Create a map: "employeeId:leaveTypeName" -> LeaveBalance
+    const balanceMap = new Map<string, LeaveBalance>();
+    
+    employeeIds.forEach(empId => {
+      leaveTypeNames.forEach(ltName => {
+        const leaveType = leaveTypesMap.get(ltName.toLowerCase());
+        if (!leaveType) return;
+        
+        const balance = (balances || []).find(
+          b => b.employee_id === empId && b.leave_type_id === leaveType.id
+        );
+        
+        const currentBalance = balance?.balance || 0;
+        const maxNegative = leaveType.max_negative_days || 0;
+        
+        balanceMap.set(`${empId}:${ltName.toLowerCase()}`, {
+          leaveTypeName: leaveType.name,
+          currentBalance,
+          maxNegative,
+          availableBalance: currentBalance + maxNegative,
+        });
+      });
+    });
 
-    return {
-      leaveTypeName: leaveType.name,
-      currentBalance,
-      maxNegative,
-      availableBalance: currentBalance + maxNegative,
-    };
+    return balanceMap;
   };
 
   const loadPendingRequests = async () => {
@@ -209,6 +243,9 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       return;
     }
 
+    // Fetch leave types map once for batch processing
+    const leaveTypesMap = await fetchLeaveTypesMap();
+
     // Get pending requests - either as manager or HR
     let requests: PendingLeaveRequest[] = [];
     let hrBackupRequests: PendingLeaveRequest[] = [];
@@ -236,23 +273,32 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       .eq("status", "pending")
       .order("created_at", { ascending: true });
 
-    if (directReportRequests) {
-      // Filter to only direct reports (where current user is the manager)
-      const managerRequests = directReportRequests.filter((req: any) => 
-        req.employee?.manager_id === currentEmployee.id
-      );
-      
-      for (const req of managerRequests) {
-        // Fetch balance for this request
-        const balance = await fetchEmployeeBalance(req.employee.id, req.leave_type);
-        requests.push({
-          ...req,
-          balance,
-        } as PendingLeaveRequest);
-      }
+    // Filter to only direct reports (where current user is the manager)
+    const managerRequests = (directReportRequests || []).filter((req: any) => 
+      req.employee?.manager_id === currentEmployee.id
+    );
+
+    // Collect all employee IDs and leave type names for batch fetching
+    const employeeIdsForBalance = managerRequests.map((req: any) => req.employee.id);
+    const leaveTypeNamesForBalance = managerRequests.map((req: any) => req.leave_type);
+
+    // Batch fetch balances for manager requests
+    const balanceMap = await fetchBalancesBatch(
+      [...new Set(employeeIdsForBalance)],
+      [...new Set(leaveTypeNamesForBalance)],
+      leaveTypesMap
+    );
+
+    // Build requests with balances
+    for (const req of managerRequests) {
+      const balance = balanceMap.get(`${req.employee.id}:${req.leave_type.toLowerCase()}`);
+      requests.push({
+        ...req,
+        balance,
+      } as PendingLeaveRequest);
     }
 
-    // If user is Admin or HR, also check for requests where manager is on leave (HR/Admin backup)
+    // If user is Admin or HR, also check for requests where manager is on leave
     if (isAdminOrHR) {
       const { data: allPending } = await supabase
         .from("leave_requests")
@@ -279,38 +325,56 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       if (allPending) {
         const existingIds = new Set(requests.map(r => r.id));
         
-        for (const req of allPending) {
-          // Skip if already in manager requests
-          if (existingIds.has(req.id)) continue;
-          
+        // Filter out already-handled requests and own requests
+        const additionalRequests = allPending.filter((req: any) => 
+          !existingIds.has(req.id) && req.employee?.id !== currentEmployee.id
+        );
+
+        // Get all manager IDs to check if they're on leave
+        const managerIds = [...new Set(additionalRequests
+          .map((req: any) => req.employee?.manager_id)
+          .filter(Boolean))] as string[];
+
+        // Batch check which managers are on leave
+        const { data: managersOnLeave } = await supabase
+          .from("leave_requests")
+          .select("employee_id")
+          .in("employee_id", managerIds)
+          .eq("status", "approved")
+          .lte("start_date", today)
+          .gte("end_date", today);
+
+        const managersOnLeaveSet = new Set((managersOnLeave || []).map(m => m.employee_id));
+
+        // Batch fetch manager names
+        const { data: managerProfiles } = await supabase
+          .from("employees")
+          .select("id, profiles!inner(full_name)")
+          .in("id", managerIds);
+
+        const managerNamesMap = new Map(
+          (managerProfiles || []).map((m: any) => [m.id, m.profiles?.full_name || "Manager"])
+        );
+
+        // Collect additional employee IDs for balance fetching
+        const additionalEmployeeIds = additionalRequests.map((req: any) => req.employee.id);
+        const additionalLeaveTypes = additionalRequests.map((req: any) => req.leave_type);
+
+        // Batch fetch balances for additional requests
+        const additionalBalanceMap = await fetchBalancesBatch(
+          [...new Set(additionalEmployeeIds)],
+          [...new Set(additionalLeaveTypes)],
+          leaveTypesMap
+        );
+
+        for (const req of additionalRequests) {
           const emp = req.employee as any;
-          
-          // Skip if this is the current user's own request
-          if (emp.id === currentEmployee.id) continue;
-          
-          // Fetch balance for this request
-          const balance = await fetchEmployeeBalance(emp.id, req.leave_type);
+          const balance = additionalBalanceMap.get(`${emp.id}:${req.leave_type.toLowerCase()}`);
           
           if (emp.manager_id) {
             // Check if their manager is on leave
-            const { data: mgrOnLeave } = await supabase
-              .from("leave_requests")
-              .select("id")
-              .eq("employee_id", emp.manager_id)
-              .eq("status", "approved")
-              .lte("start_date", today)
-              .gte("end_date", today)
-              .maybeSingle();
-
-            if (mgrOnLeave) {
-              // Fetch manager name
-              const { data: managerData } = await supabase
-                .from("employees")
-                .select("profiles!inner(full_name)")
-                .eq("id", emp.manager_id)
-                .maybeSingle();
-              
-              const managerName = (managerData as any)?.profiles?.full_name || "Manager";
+            if (managersOnLeaveSet.has(emp.manager_id)) {
+              const managerName = managerNamesMap.get(emp.manager_id) || "Manager";
               
               const backupReq = {
                 ...req,
@@ -481,7 +545,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   };
 
   if (loading) {
-    return null;
+    return <CardSkeleton className="border-amber-200 bg-amber-50/50" lines={2} />;
   }
 
   if (pendingRequests.length === 0 && ownPendingRequests.length === 0) {
