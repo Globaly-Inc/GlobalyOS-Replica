@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
 import { OrganizationFeaturesManager } from "@/components/super-admin/OrganizationFeaturesManager";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface Organization {
   id: string;

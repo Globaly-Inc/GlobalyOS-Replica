@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useTeamFilters } from "@/hooks/useTeamFilters";
-
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
 import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphanedUsersDialog";
 import { cn } from "@/lib/utils";
@@ -281,26 +282,46 @@ const Team = () => {
     return employees.filter(e => !employeesWithProjects.has(e.id)).length;
   }, [employees, employeeProjects]);
 
-  const filteredEmployees = employees
-    .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)
-    .filter((employee) => {
-      if (onlineFilter === 'all') return true;
-      const isOnline = onlineStatuses[employee.id] ?? false;
-      return onlineFilter === 'online' ? isOnline : !isOnline;
-    })
-    .filter((employee) => {
-      if (projectFilter === 'all') return true;
-      if (projectFilter === 'none') {
-        return !employeeProjects.some(ep => ep.employee_id === employee.id);
-      }
-      return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
-    })
-    .filter((employee) =>
-      employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (employee.offices?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const filteredEmployees = useMemo(() => {
+    return employees
+      .filter((employee) => statusFilter === 'all' || employee.status === statusFilter)
+      .filter((employee) => {
+        if (onlineFilter === 'all') return true;
+        const isOnline = onlineStatuses[employee.id] ?? false;
+        return onlineFilter === 'online' ? isOnline : !isOnline;
+      })
+      .filter((employee) => {
+        if (projectFilter === 'all') return true;
+        if (projectFilter === 'none') {
+          return !employeeProjects.some(ep => ep.employee_id === employee.id);
+        }
+        return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
+      })
+      .filter((employee) =>
+        employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (employee.offices?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+      );
+  }, [employees, statusFilter, onlineFilter, onlineStatuses, projectFilter, employeeProjects, searchQuery]);
+
+  // Pagination for cards view
+  const pagination = usePagination({ pageKey: 'team-directory' });
+
+  // Update total count when filtered employees change
+  useEffect(() => {
+    pagination.setTotalCount(filteredEmployees.length);
+  }, [filteredEmployees.length]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [statusFilter, onlineFilter, projectFilter, searchQuery]);
+
+  // Paginated employees for cards view only
+  const paginatedEmployees = useMemo(() => {
+    return filteredEmployees.slice(pagination.from, pagination.from + pagination.pageSize);
+  }, [filteredEmployees, pagination.from, pagination.pageSize]);
 
   // Org chart helper functions
   const departmentColorMap = useMemo(() => {
@@ -652,7 +673,7 @@ const Team = () => {
               )}
             >
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredEmployees.map((employee) => (
+                {paginatedEmployees.map((employee) => (
                   <EmployeeCard
                     key={employee.id}
                     employee={{
@@ -678,10 +699,22 @@ const Team = () => {
                 ))}
               </div>
 
-              {filteredEmployees.length === 0 && (
+              {filteredEmployees.length === 0 ? (
                 <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
                   <p className="text-muted-foreground">No employees found matching your search.</p>
                 </div>
+              ) : (
+                <PaginationControls
+                  page={pagination.page}
+                  pageSize={pagination.pageSize}
+                  totalCount={pagination.totalCount}
+                  totalPages={pagination.totalPages}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                  onPageChange={pagination.setPage}
+                  onPageSizeChange={pagination.setPageSize}
+                  isLoading={loading}
+                />
               )}
             </div>
 
