@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -1382,5 +1383,45 @@ export const useStarredMessages = () => {
       }));
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
+  });
+};
+
+// Hook to get total unread count across all conversations and spaces
+export const useTotalUnreadCount = () => {
+  const { data: unreadCounts } = useUnreadCounts();
+
+  const total = useMemo(() => {
+    if (!unreadCounts) return 0;
+    
+    const convTotal = Object.values(unreadCounts.conversations || {}).reduce((a, b) => a + b, 0);
+    const spaceTotal = Object.values(unreadCounts.spaces || {}).reduce((a, b) => a + b, 0);
+    
+    return convTotal + spaceTotal;
+  }, [unreadCounts]);
+
+  return { data: total };
+};
+
+// Hook to get online presence for all users in the organization
+export const useOnlinePresence = () => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['online-presence', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+
+      const { data, error } = await supabase
+        .from('chat_presence')
+        .select('employee_id, is_online, last_seen_at')
+        .eq('organization_id', currentOrg.id)
+        .eq('is_online', true);
+
+      if (error) throw error;
+
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 };

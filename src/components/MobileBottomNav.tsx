@@ -1,4 +1,4 @@
-import { Home, CalendarDays, ScanLine, Sparkles } from 'lucide-react';
+import { Home, CalendarDays, ScanLine, MessageCircle } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -11,6 +11,7 @@ import { RemoteCheckInDialog } from './dialogs/RemoteCheckInDialog';
 import { MobileMoreMenu } from './MobileMoreMenu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from '@/services/useWfh';
+import { useTotalUnreadCount } from '@/services/useChat';
 
 interface NavItem {
   icon: React.ElementType | null;
@@ -23,7 +24,7 @@ const navItems: NavItem[] = [
   { icon: Home, label: 'Home', href: '/' },
   { icon: CalendarDays, label: 'Leave', action: 'leave' },
   { icon: ScanLine, label: 'Check In', action: 'scan' },
-  { icon: Sparkles, label: 'Ask AI', href: '/ask-ai' },
+  { icon: MessageCircle, label: 'Chat', href: '/chat' },
   { icon: null, label: 'Profile', action: 'more' },
 ];
 
@@ -48,6 +49,7 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
+  const { data: totalUnread = 0 } = useTotalUnreadCount();
 
   // Work location and WFH hooks for smart check-in
   const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
@@ -156,7 +158,7 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
                   !active && 'text-muted-foreground'
                 )}
               >
-                {isProfile ? (
+              {isProfile ? (
                   // Profile avatar with online status
                   <div className="relative">
                     <Avatar className="h-6 w-6 border border-border">
@@ -170,12 +172,18 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
                     )}
                   </div>
                 ) : item.icon ? (
-                  <item.icon className={cn(
-                    'h-5 w-5',
-                    active && 'scale-110',
-                    isScan && checkInTime && 'text-green-500',
-                    item.label === 'Ask AI' && 'text-ai'
-                  )} />
+                  <div className="relative">
+                    <item.icon className={cn(
+                      'h-5 w-5',
+                      active && 'scale-110',
+                      isScan && checkInTime && 'text-green-500'
+                    )} />
+                    {item.label === 'Chat' && totalUnread > 0 && (
+                      <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium flex items-center justify-center">
+                        {totalUnread > 99 ? "99+" : totalUnread}
+                      </span>
+                    )}
+                  </div>
                 ) : null}
                 <span className="text-[10px] font-medium">
                   {isScan && checkInTime ? 'Check Out' : item.label}

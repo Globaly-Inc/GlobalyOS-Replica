@@ -10,6 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
+import {
   ArrowLeft,
   Search,
   MoreVertical,
@@ -837,9 +841,9 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
         )}
         </div>
         
-        {/* Thread View Panel */}
-        {activeThreadMessage && (
-          <div className="w-[350px] h-full flex-shrink-0 hidden md:block">
+        {/* Thread View Panel - Desktop */}
+        {activeThreadMessage && !isMobile && (
+          <div className="w-[350px] h-full flex-shrink-0">
             <ThreadView
               parentMessage={activeThreadMessage}
               conversationId={conversationId}
@@ -848,6 +852,20 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
             />
           </div>
         )}
+        
+        {/* Thread View Sheet - Mobile */}
+        <Sheet open={!!activeThreadMessage && isMobile} onOpenChange={(open) => !open && setActiveThreadMessage(null)}>
+          <SheetContent side="right" className="w-full sm:max-w-full p-0 border-0">
+            {activeThreadMessage && (
+              <ThreadView
+                parentMessage={activeThreadMessage}
+                conversationId={conversationId}
+                spaceId={spaceId}
+                onClose={() => setActiveThreadMessage(null)}
+              />
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
     </ChatDropZone>
   );
