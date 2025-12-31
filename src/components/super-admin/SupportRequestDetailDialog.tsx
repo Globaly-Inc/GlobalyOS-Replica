@@ -6,7 +6,8 @@ import {
   Send, X, UserPlus, History, MessageSquare, Users, ChevronDown, ChevronUp,
   Lock, Paperclip, Image as ImageIcon, Link2, ExternalLink
 } from 'lucide-react';
-import { generateLovableUrl } from '@/utils/generateLovablePrompt';
+import { generateLovableContent } from '@/utils/generateLovablePrompt';
+import { LovablePromptPreviewDialog } from './LovablePromptPreviewDialog';
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,7 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
   const [subscriberPopoverOpen, setSubscriberPopoverOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [promptPreviewOpen, setPromptPreviewOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -238,15 +240,7 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
                   variant="default" 
                   size="sm"
                   className="h-8 gap-1.5 text-xs"
-                  onClick={() => {
-                    const attachmentUrls = comments
-                      ?.filter(c => c.attachment_url)
-                      .map(c => c.attachment_url!) || [];
-                    const lovableUrl = generateLovableUrl({ request, attachmentUrls });
-                    window.open(lovableUrl, '_blank', 'noopener,noreferrer');
-                    updateRequest.mutate({ id: request.id, status: 'in_progress' as SupportRequestStatus });
-                    toast.success('Opening in Lovable with full context');
-                  }}
+                  onClick={() => setPromptPreviewOpen(true)}
                   title="Start resolving in Lovable"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -626,6 +620,26 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Lovable Prompt Preview */}
+      <LovablePromptPreviewDialog
+        open={promptPreviewOpen}
+        onOpenChange={setPromptPreviewOpen}
+        request={request}
+        comments={comments}
+        onConfirm={async (finalPrompt) => {
+          try {
+            await navigator.clipboard.writeText(finalPrompt);
+            const content = generateLovableContent({ request, comments });
+            window.open(content.projectUrl, '_blank', 'noopener,noreferrer');
+            updateRequest.mutate({ id: request.id, status: 'in_progress' as SupportRequestStatus });
+            setPromptPreviewOpen(false);
+            toast.success('Prompt copied! Paste it in Lovable chat.');
+          } catch {
+            toast.error('Failed to copy prompt');
+          }
+        }}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
