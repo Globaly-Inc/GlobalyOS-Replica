@@ -1452,6 +1452,7 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          call_log_data: Json | null
           content: string
           content_type: string
           conversation_id: string | null
@@ -1465,6 +1466,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          call_log_data?: Json | null
           content: string
           content_type?: string
           conversation_id?: string | null
@@ -1478,6 +1480,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          call_log_data?: Json | null
           content?: string
           content_type?: string
           conversation_id?: string | null

@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin } from "lucide-react";
+import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin, Reply } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
@@ -34,6 +34,7 @@ interface MessageActionsToolbarProps {
   onEdit: () => void;
   onDelete: () => void;
   onReact: (emoji: string) => void;
+  onReply?: () => void;
   className?: string;
 }
 
@@ -80,6 +81,7 @@ const MessageActionsToolbar = ({
   onEdit,
   onDelete,
   onReact,
+  onReply,
   className,
 }: MessageActionsToolbarProps) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -123,6 +125,15 @@ const MessageActionsToolbar = ({
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Reply in thread */}
+        {onReply && (
+          <ToolbarButton
+            icon={Reply}
+            label="Reply in thread"
+            onClick={onReply}
+          />
+        )}
 
         {/* Bookmark/Pin */}
         <ToolbarButton

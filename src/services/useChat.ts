@@ -4,6 +4,40 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import type { ChatConversation, ChatSpace, ChatMessage, ChatSpaceMember, ChatParticipant } from '@/types/chat';
 
+// Hook to get reply counts for messages
+export const useMessageReplyCounts = (conversationId: string | null, spaceId: string | null) => {
+  return useQuery({
+    queryKey: ['message-reply-counts', conversationId, spaceId],
+    queryFn: async () => {
+      if (!conversationId && !spaceId) return {};
+
+      let query = supabase
+        .from('chat_messages')
+        .select('reply_to_id')
+        .not('reply_to_id', 'is', null);
+
+      if (conversationId) {
+        query = query.eq('conversation_id', conversationId);
+      } else if (spaceId) {
+        query = query.eq('space_id', spaceId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Count replies per parent message
+      const counts: Record<string, number> = {};
+      for (const msg of data || []) {
+        if (msg.reply_to_id) {
+          counts[msg.reply_to_id] = (counts[msg.reply_to_id] || 0) + 1;
+        }
+      }
+      return counts;
+    },
+    enabled: !!conversationId || !!spaceId,
+  });
+};
+
 export const useConversations = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -175,6 +209,7 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
             created_at
           )
         `)
+        .is('reply_to_id', null) // Only get top-level messages, not replies
         .order('created_at', { ascending: true });
 
       if (conversationId) {
@@ -191,12 +226,15 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
       return (data || []).map((msg: any) => ({
         ...msg,
         sender: msg.employees,
-        attachments: msg.chat_attachments || []
+        attachments: msg.chat_attachments || [],
+        // Parse call_log_data if it exists
+        call_log_data: msg.call_log_data || undefined,
       })) as ChatMessage[];
     },
     enabled: !!conversationId || !!spaceId,
   });
 };
+
 
 export const usePinnedMessages = (conversationId: string | null, spaceId: string | null) => {
   return useQuery({
@@ -743,6 +781,7 @@ export const useTypingUsers = (conversationId: string | null, spaceId: string | 
 // Update last_read_at when viewing a conversation
 export const useMarkAsRead = () => {
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -767,7 +806,32 @@ export const useMarkAsRead = () => {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    // Optimistic update for immediate UI feedback
+    onMutate: async ({ conversationId, spaceId }) => {
+      await queryClient.cancelQueries({ queryKey: ['unread-counts', currentOrg?.id] });
+      
+      const previousCounts = queryClient.getQueryData(['unread-counts', currentOrg?.id]);
+      
+      queryClient.setQueryData(['unread-counts', currentOrg?.id], (old: any) => {
+        if (!old) return old;
+        return {
+          conversations: conversationId 
+            ? { ...old.conversations, [conversationId]: 0 }
+            : old.conversations,
+          spaces: spaceId
+            ? { ...old.spaces, [spaceId]: 0 }
+            : old.spaces,
+        };
+      });
+      
+      return { previousCounts };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCounts) {
+        queryClient.setQueryData(['unread-counts', currentOrg?.id], context.previousCounts);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
       queryClient.invalidateQueries({ queryKey: ['unread-counts'] });

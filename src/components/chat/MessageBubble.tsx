@@ -34,6 +34,8 @@ interface MessageBubbleProps {
   onDelete: () => void;
   onPin: () => void;
   onReact: (emoji: string) => void;
+  onReply?: () => void;
+  replyCount?: number;
   isEditPending: boolean;
 }
 
@@ -51,6 +53,8 @@ const MessageBubble = ({
   onDelete,
   onPin,
   onReact,
+  onReply,
+  replyCount,
   isEditPending,
 }: MessageBubbleProps) => {
   const senderName = message.sender?.profiles?.full_name || "Unknown";
@@ -161,6 +165,16 @@ const MessageBubble = ({
                 />
               </div>
             )}
+            
+            {/* Reply count indicator */}
+            {replyCount && replyCount > 0 && (
+              <button
+                onClick={onReply}
+                className="mt-1.5 text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <span>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</span>
+              </button>
+            )}
           </>
         )}
       </div>
@@ -175,6 +189,7 @@ const MessageBubble = ({
           onEdit={onEdit}
           onDelete={onDelete}
           onReact={onReact}
+          onReply={onReply}
         />
       )}
     </div>
