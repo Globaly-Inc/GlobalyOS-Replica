@@ -117,13 +117,16 @@ const Home = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Main data loading - parallel execution
   useEffect(() => {
     if (currentOrg?.id) {
-      checkEmployeeProfile();
-      loadLeaveData();
-      loadUpcomingEvents();
-      loadUpcomingCalendarEvents();
-      loadWeather();
+      // Execute all data loading in parallel for faster initial load
+      Promise.all([
+        checkEmployeeProfile(),
+        loadLeaveData(),
+        loadUpcomingEvents(),
+        loadUpcomingCalendarEvents(),
+      ]);
 
       // Set up real-time subscription for leave
       const orgId = currentOrg.id;
@@ -139,6 +142,16 @@ const Home = () => {
       return () => {
         supabase.removeChannel(leaveChannel);
       };
+    }
+  }, [currentOrg?.id]);
+
+  // Defer weather loading - low priority, external API
+  useEffect(() => {
+    if (currentOrg?.id) {
+      const timer = setTimeout(() => {
+        loadWeather();
+      }, 1500); // Delay by 1.5 seconds to prioritize main content
+      return () => clearTimeout(timer);
     }
   }, [currentOrg?.id]);
 

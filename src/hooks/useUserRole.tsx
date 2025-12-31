@@ -1,77 +1,57 @@
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
 
 export type UserRole = 'owner' | 'admin' | 'hr' | 'user' | null;
 
+const fetchUserRole = async (orgId: string): Promise<UserRole> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
+    .order('role', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error checking role:', error);
+    return 'user';
+  }
+  
+  return (data?.role as UserRole) || 'user';
+};
+
 export const useUserRole = () => {
-  const [role, setRole] = useState<UserRole>(null);
-  const [loading, setLoading] = useState(true);
   const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (currentOrg?.id) {
-      checkUserRole();
-    } else {
-      // Reset loading state when no org is available
-      setLoading(false);
-    }
-  }, [currentOrg?.id]);
-
-  const checkUserRole = async () => {
-    if (!currentOrg?.id) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setRole(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('organization_id', currentOrg.id)
-        .order('role', { ascending: true }) // admin < hr < owner < user alphabetically
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking role:', error);
-        // Default to user role on error to prevent blocking access
-        setRole('user');
-      } else if (data) {
-        setRole(data.role as UserRole);
-      } else {
-        setRole('user'); // Default to user if no role assigned
-      }
-    } catch (error) {
-      console.error('Error in checkUserRole:', error);
-      // Default to user role on error to prevent blocking access
-      setRole('user');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: role = null, isLoading: loading } = useQuery({
+    queryKey: ['user-role', currentOrg?.id],
+    queryFn: () => fetchUserRole(currentOrg!.id),
+    enabled: !!currentOrg?.id,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes - role rarely changes
+    gcTime: 10 * 60 * 1000,
+  });
 
   // Role hierarchy: owner > admin > hr > user
   const isOwner = role === 'owner';
-  const isAdmin = role === 'admin' || role === 'owner'; // Owner has admin privileges
-  const isHR = role === 'hr' || role === 'admin' || role === 'owner'; // Owner and Admin have HR privileges
+  const isAdmin = role === 'admin' || role === 'owner';
+  const isHR = role === 'hr' || role === 'admin' || role === 'owner';
   
   const hasRole = (checkRole: UserRole) => {
     if (checkRole === 'owner') return role === 'owner';
     if (checkRole === 'admin') return role === 'admin' || role === 'owner';
     if (checkRole === 'hr') return role === 'hr' || role === 'admin' || role === 'owner';
-    return true; // Everyone is at least a user
+    return true;
   };
 
-  return { role, loading, isOwner, isAdmin, isHR, hasRole, refetch: checkUserRole };
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['user-role', currentOrg?.id] });
+  };
+
+  return { role, loading, isOwner, isAdmin, isHR, hasRole, refetch };
 };
