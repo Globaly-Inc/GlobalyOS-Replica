@@ -179,7 +179,7 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col h-full">
+        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col h-full overflow-x-hidden">
           {/* Sticky Header */}
           <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 space-y-2">
             {/* Row 1: Type + Status/Priority controls */}
@@ -289,29 +289,32 @@ export const SupportRequestDetailSheet = ({ request, open, onOpenChange }: Suppo
                     <img 
                       src={request.screenshot_url} 
                       alt="Screenshot" 
-                      className="max-h-32 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                      className="max-h-32 max-w-full rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
                     />
                   </a>
                 </div>
               )}
 
               {/* Technical Details - Compact */}
-              <div className="flex items-center gap-3 text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-2 min-w-0 overflow-hidden">
                 <a 
                   href={request.page_url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-foreground transition-colors truncate max-w-[120px]"
+                  className="flex items-center gap-1 hover:text-foreground transition-colors min-w-0 max-w-[120px]"
                   title={request.page_url}
                 >
                   <Globe className="h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{request.page_url.replace(/^https?:\/\/[^/]+/, '')}</span>
                 </a>
-                <span className="flex items-center gap-1" title={`${request.browser_info} • ${request.device_type}`}>
-                  <Monitor className="h-3 w-3" />
-                  {request.device_type.split('/')[0]?.trim()}
+                <span 
+                  className="flex items-center gap-1 min-w-0 max-w-[100px]" 
+                  title={`${request.browser_info} • ${request.device_type}`}
+                >
+                  <Monitor className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{request.device_type.split('/')[0]?.trim()}</span>
                 </span>
-                <span className="flex items-center gap-1 ml-auto">
+                <span className="flex items-center gap-1 flex-shrink-0 ml-auto">
                   <Calendar className="h-3 w-3" />
                   {format(new Date(request.created_at), 'MMM d, HH:mm')}
                 </span>
