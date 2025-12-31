@@ -1,0 +1,250 @@
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { UserMinus, Clock, MapPin } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/hooks/useOrganization";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
+import { OrgLink } from "@/components/OrgLink";
+import { cn } from "@/lib/utils";
+
+interface EmployeeSchedule {
+  work_start_time: string;
+  work_end_time: string;
+  work_location: string;
+}
+
+interface NotCheckedInEmployee {
+  id: string;
+  position: string;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+  employee_schedules: EmployeeSchedule | EmployeeSchedule[];
+}
+
+export const NotCheckedInCard = () => {
+  const [notCheckedIn, setNotCheckedIn] = useState<NotCheckedInEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { currentOrg } = useOrganization();
+  const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const isMobile = useIsMobile();
+
+  const canView = isOwner || isAdmin || isHR;
+
+  const loadNotCheckedIn = async () => {
+    if (!currentOrg?.id || !canView) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // Get active employees WITH a schedule (inner join)
+      const { data: employeesWithSchedule, error: empError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          position,
+          profiles:profiles!inner(full_name, avatar_url),
+          employee_schedules!inner(
+            work_start_time,
+            work_end_time,
+            work_location
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active');
+
+      if (empError) {
+        console.error('Error fetching employees with schedules:', empError);
+        setLoading(false);
+        return;
+      }
+
+      // Get employees on approved leave today
+      const { data: onLeaveToday } = await supabase
+        .from('leave_requests')
+        .select('employee_id')
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'approved')
+        .lte('start_date', today)
+        .gte('end_date', today);
+
+      // Get employees who checked in today
+      const { data: checkedInToday } = await supabase
+        .from('attendance_records')
+        .select('employee_id')
+        .eq('organization_id', currentOrg.id)
+        .eq('date', today)
+        .not('check_in_time', 'is', null);
+
+      const onLeaveIds = new Set(onLeaveToday?.map(l => l.employee_id) || []);
+      const checkedInIds = new Set(checkedInToday?.map(r => r.employee_id) || []);
+
+      // Filter to find not-checked-in employees
+      const filtered = (employeesWithSchedule || []).filter(emp =>
+        !onLeaveIds.has(emp.id) && !checkedInIds.has(emp.id)
+      ) as NotCheckedInEmployee[];
+
+      setNotCheckedIn(filtered);
+    } catch (error) {
+      console.error('Error loading not checked in employees:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!roleLoading && currentOrg?.id) {
+      loadNotCheckedIn();
+    }
+  }, [currentOrg?.id, roleLoading, canView]);
+
+  // Realtime subscriptions
+  useEffect(() => {
+    if (!currentOrg?.id || !canView) return;
+
+    const attendanceChannel = supabase
+      .channel('not-checked-in-attendance')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'attendance_records',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, loadNotCheckedIn)
+      .subscribe();
+
+    const leaveChannel = supabase
+      .channel('not-checked-in-leave')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'leave_requests',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, loadNotCheckedIn)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(attendanceChannel);
+      supabase.removeChannel(leaveChannel);
+    };
+  }, [currentOrg?.id, canView]);
+
+  if (roleLoading || !canView || loading || notCheckedIn.length === 0) {
+    return null;
+  }
+
+  const formatTime = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [hours, minutes] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes));
+    return format(date, 'h:mm a');
+  };
+
+  const maxVisible = isMobile ? 10 : 20;
+  const displayEmployees = notCheckedIn.slice(0, maxVisible);
+  const remainingCount = notCheckedIn.length - maxVisible;
+
+  return (
+    <Card className={cn("p-6", isMobile && "p-4")}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <UserMinus className="h-5 w-5 text-destructive" />
+          <h3 className={cn("font-semibold", isMobile ? "text-base" : "text-lg")}>
+            Not Checked In
+          </h3>
+        </div>
+        <Badge variant="secondary" className="text-xs">
+          {notCheckedIn.length} {notCheckedIn.length === 1 ? 'person' : 'people'}
+        </Badge>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {displayEmployees.map((employee) => {
+          const scheduleData = employee.employee_schedules;
+          const schedule = Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
+          const initials = employee.profiles.full_name
+            ?.split(' ')
+            .map(n => n[0])
+            .join('')
+            .toUpperCase() || '?';
+
+          const avatarContent = (
+            <Avatar className={cn("cursor-pointer border-2 border-destructive/30", isMobile ? "h-8 w-8" : "h-10 w-10")}>
+              <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
+              <AvatarFallback className="bg-destructive/10 text-destructive text-xs">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          );
+
+          if (isMobile) {
+            return (
+              <OrgLink key={employee.id} to={`/team/${employee.id}`}>
+                {avatarContent}
+              </OrgLink>
+            );
+          }
+
+          return (
+            <HoverCard key={employee.id} openDelay={200} closeDelay={100}>
+              <HoverCardTrigger asChild>
+                <OrgLink to={`/team/${employee.id}`}>
+                  {avatarContent}
+                </OrgLink>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64" side="top">
+                <div className="flex gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{employee.profiles.full_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{employee.position}</p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  <Badge variant="destructive" className="text-xs">
+                    Not checked in
+                  </Badge>
+                  {schedule && (
+                    <>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Expected: {formatTime(schedule.work_start_time)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="capitalize">{schedule.work_location}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          );
+        })}
+
+        {remainingCount > 0 && (
+          <OrgLink to="/attendance-history">
+            <div className={cn(
+              "flex items-center justify-center rounded-full bg-muted text-muted-foreground font-medium text-xs",
+              isMobile ? "h-8 w-8" : "h-10 w-10"
+            )}>
+              +{remainingCount}
+            </div>
+          </OrgLink>
+        )}
+      </div>
+    </Card>
+  );
+};
