@@ -20,6 +20,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { AllPendingLeavesCard } from "@/components/home/AllPendingLeavesCard";
+import { NotCheckedInCard } from "@/components/home/NotCheckedInCard";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { UserHelpRequests } from "@/components/home/UserHelpRequests";
 import { DailyHoroscope } from "@/components/home/DailyHoroscope";
@@ -646,6 +647,9 @@ const Home = () => {
             <AllPendingLeavesCard />
             <PendingWfhApprovals />
             <PendingKpiUpdates />
+
+            {/* Employees Not Checked In */}
+            <NotCheckedInCard />
 
             {/* People on Leave Today */}
             <Card className="p-6">
