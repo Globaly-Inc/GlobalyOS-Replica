@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { UserMinus, Clock, MapPin } from "lucide-react";
+import { UserMinus, Clock, MapPin, Send, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { OrgLink } from "@/components/OrgLink";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface EmployeeSchedule {
   work_start_time: string;
@@ -31,8 +34,11 @@ interface NotCheckedInEmployee {
 export const NotCheckedInCard = () => {
   const [notCheckedIn, setNotCheckedIn] = useState<NotCheckedInEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
+  const [sentReminders, setSentReminders] = useState<Set<string>>(new Set());
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { data: currentEmployee } = useCurrentEmployee();
   const isMobile = useIsMobile();
 
   const canView = isOwner || isAdmin || isHR;
@@ -85,8 +91,19 @@ export const NotCheckedInCard = () => {
         .eq('date', today)
         .not('check_in_time', 'is', null);
 
+      // Get reminders already sent today
+      const { data: remindersToday } = await supabase
+        .from('attendance_reminders')
+        .select('employee_id')
+        .eq('organization_id', currentOrg.id)
+        .eq('reminder_date', today)
+        .eq('reminder_type', 'checkin');
+
       const onLeaveIds = new Set(onLeaveToday?.map(l => l.employee_id) || []);
       const checkedInIds = new Set(checkedInToday?.map(r => r.employee_id) || []);
+      const reminderSentIds = new Set(remindersToday?.map(r => r.employee_id) || []);
+      
+      setSentReminders(reminderSentIds);
 
       // Filter to find not-checked-in employees
       const filtered = (employeesWithSchedule || []).filter(emp =>
@@ -137,6 +154,43 @@ export const NotCheckedInCard = () => {
     };
   }, [currentOrg?.id, canView]);
 
+  const handleSendReminder = async (employeeId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!currentOrg?.id || !currentEmployee?.id || sendingReminder) return;
+
+    setSendingReminder(employeeId);
+    try {
+      const response = await supabase.functions.invoke('send-checkin-reminder', {
+        body: {
+          employee_id: employeeId,
+          organization_id: currentOrg.id,
+          sender_employee_id: currentEmployee.id,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.already_sent) {
+        toast.info("Reminder already sent today");
+        setSentReminders(prev => new Set([...prev, employeeId]));
+      } else if (response.data?.success) {
+        toast.success("Reminder sent successfully");
+        setSentReminders(prev => new Set([...prev, employeeId]));
+      } else {
+        throw new Error(response.data?.error || "Failed to send reminder");
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      toast.error("Failed to send reminder");
+    } finally {
+      setSendingReminder(null);
+    }
+  };
+
   if (roleLoading || !canView || loading || notCheckedIn.length === 0) {
     return null;
   }
@@ -176,6 +230,8 @@ export const NotCheckedInCard = () => {
             .map(n => n[0])
             .join('')
             .toUpperCase() || '?';
+          const reminderSent = sentReminders.has(employee.id);
+          const isSending = sendingReminder === employee.id;
 
           const avatarContent = (
             <Avatar className={cn("cursor-pointer border-2 border-destructive/30", isMobile ? "h-8 w-8" : "h-10 w-10")}>
@@ -201,7 +257,7 @@ export const NotCheckedInCard = () => {
                   {avatarContent}
                 </OrgLink>
               </HoverCardTrigger>
-              <HoverCardContent className="w-64" side="top">
+              <HoverCardContent className="w-72" side="top">
                 <div className="flex gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
@@ -228,6 +284,32 @@ export const NotCheckedInCard = () => {
                       </div>
                     </>
                   )}
+                </div>
+                <div className="mt-3 pt-3 border-t">
+                  <Button
+                    size="sm"
+                    variant={reminderSent ? "secondary" : "outline"}
+                    className="w-full"
+                    disabled={reminderSent || isSending}
+                    onClick={(e) => handleSendReminder(employee.id, e)}
+                  >
+                    {isSending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        Sending...
+                      </>
+                    ) : reminderSent ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                        Reminder Sent
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5 mr-1.5" />
+                        Send Reminder
+                      </>
+                    )}
+                  </Button>
                 </div>
               </HoverCardContent>
             </HoverCard>

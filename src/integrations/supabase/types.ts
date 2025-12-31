@@ -482,6 +482,75 @@ export type Database = {
           },
         ]
       }
+      attendance_reminders: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          reminder_date: string
+          reminder_type: string
+          sent_at: string
+          sent_by_employee_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          reminder_date?: string
+          reminder_type?: string
+          sent_at?: string
+          sent_by_employee_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          reminder_date?: string
+          reminder_type?: string
+          sent_at?: string
+          sent_by_employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_reminders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_reminders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_reminders_sent_by_employee_id_fkey"
+            columns: ["sent_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_reminders_sent_by_employee_id_fkey"
+            columns: ["sent_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_report_schedules: {
         Row: {
           created_at: string | null

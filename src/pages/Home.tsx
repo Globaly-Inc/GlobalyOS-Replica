@@ -21,6 +21,7 @@ import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { AllPendingLeavesCard } from "@/components/home/AllPendingLeavesCard";
 import { NotCheckedInCard } from "@/components/home/NotCheckedInCard";
+import { SelfCheckInCard } from "@/components/home/SelfCheckInCard";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { UserHelpRequests } from "@/components/home/UserHelpRequests";
 import { DailyHoroscope } from "@/components/home/DailyHoroscope";
@@ -514,8 +515,9 @@ const Home = () => {
             </div>
           </Card>}
 
-        {/* Mobile-only: Pending Leave & On Leave Today at top */}
+        {/* Mobile-only: Self Check-In, Pending Leave & On Leave Today at top */}
         <div className="lg:hidden space-y-4 mb-6">
+          <SelfCheckInCard />
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
           <AllPendingLeavesCard />
           <PendingWfhApprovals />
@@ -560,6 +562,11 @@ const Home = () => {
           {/* Left Column - Feed (2/3) */}
           <div className="lg:col-span-2">
             <OnboardingChecklist userRole={role} variant="inline" />
+            
+            {/* Self Check-In Card for users who haven't checked in */}
+            <div className="mb-6">
+              <SelfCheckInCard />
+            </div>
             
             {hasEmployeeProfile && (
               <div className="mb-6">
