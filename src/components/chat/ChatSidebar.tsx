@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   MessageSquarePlus,
   AtSign,
@@ -70,7 +71,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
         const statusMap: Record<string, boolean> = {};
         const now = new Date();
         presences.forEach(p => {
-          // Consider offline if last_seen_at is older than 60 seconds
           const lastSeen = new Date(p.last_seen_at);
           const isStale = (now.getTime() - lastSeen.getTime()) > 60000;
           statusMap[p.employee_id] = p.is_online && !isStale;
@@ -196,7 +196,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
     if (conv.name) return conv.name;
     if (conv.is_group) return "Group Chat";
     
-    // For DMs, show the other person's name
     const otherParticipant = conv.participants?.find(
       p => p.employee_id !== currentEmployee?.id
     );
@@ -231,7 +230,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const handleStartDM = async (employeeId: string, name: string) => {
     if (!currentEmployee?.id || !currentOrg?.id) return;
 
-    // Check if conversation already exists
     const existingConv = conversations.find(conv => {
       if (conv.is_group) return false;
       return conv.participants?.some(p => p.employee_id === employeeId);
@@ -245,7 +243,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
         isGroup: false,
       });
     } else {
-      // Create new DM
       createConversation.mutate(
         {
           participantIds: [employeeId],
@@ -271,7 +268,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
       <div className="p-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             className="h-9 w-9 shrink-0"
             onClick={() => setSettingsOpen(true)}
@@ -292,7 +289,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
       <ChatSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* Global Search */}
-      <div className="p-3">
+      <div className="p-3 pb-0">
         <GlobalChatSearch
           onSelectResult={handleSearchResult}
           onStartDM={handleStartDM}
@@ -301,18 +298,18 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
 
       <ScrollArea className="flex-1">
         {/* Shortcuts */}
-        <div className="px-3 py-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+        <div className="px-3 py-3">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
             Shortcuts
           </p>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <button
               onClick={() => onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' })}
               className={cn(
-                "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
                 activeChat?.type === 'mentions'
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
+                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                  : "hover:bg-muted/60 text-foreground/80"
               )}
             >
               <AtSign className="h-4 w-4" />
@@ -321,10 +318,10 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             <button
               onClick={() => onSelectChat({ type: 'starred', id: 'starred', name: 'Starred' })}
               className={cn(
-                "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
                 activeChat?.type === 'starred'
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
+                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                  : "hover:bg-muted/60 text-foreground/80"
               )}
             >
               <Star className="h-4 w-4" />
@@ -333,10 +330,12 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           </div>
         </div>
 
+        <Separator className="mx-3" />
+
         {/* Direct Messages */}
-        <div className="px-3 py-2">
+        <div className="px-3 py-3">
           <button 
-            className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 hover:text-foreground"
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 hover:text-foreground transition-colors"
             onClick={() => setDmExpanded(!dmExpanded)}
           >
             {dmExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -344,7 +343,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           </button>
           
           {dmExpanded && (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {loadingConversations ? (
                 <p className="text-sm text-muted-foreground px-2">Loading...</p>
               ) : conversations.length === 0 ? (
@@ -354,6 +353,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                   const name = getConversationName(conv);
                   const avatar = getConversationAvatar(conv);
                   const isActive = activeChat?.type === 'conversation' && activeChat.id === conv.id;
+                  const hasUnread = (unreadCounts?.conversations[conv.id] || 0) > 0;
                   
                   return (
                     <button
@@ -366,26 +366,30 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         iconUrl: conv.is_group ? conv.icon_url : undefined
                       })}
                       className={cn(
-                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                        "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
                         isActive 
-                          ? "bg-primary text-primary-foreground" 
-                          : "hover:bg-muted"
+                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
+                          : "hover:bg-muted/60",
+                        hasUnread && !isActive && "font-semibold text-foreground"
                       )}
                     >
-                      <div className="relative">
+                      <div className="relative flex-shrink-0">
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={avatar || undefined} />
-                          <AvatarFallback className="text-[10px]">
+                          <AvatarFallback className="text-[10px] bg-muted">
                             {conv.is_group ? <Users className="h-3 w-3" /> : getInitials(name)}
                           </AvatarFallback>
                         </Avatar>
                         {!conv.is_group && onlineStatuses[getOtherParticipantId(conv) || ''] && (
-                          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
                         )}
                       </div>
                       <span className="truncate flex-1 text-left">{name}</span>
-                      {(unreadCounts?.conversations[conv.id] || 0) > 0 && (
-                        <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5">
+                      {hasUnread && (
+                        <Badge 
+                          variant="destructive" 
+                          className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                        >
                           {unreadCounts?.conversations[conv.id]}
                         </Badge>
                       )}
@@ -397,11 +401,13 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           )}
         </div>
 
+        <Separator className="mx-3" />
+
         {/* Spaces */}
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
+        <div className="px-3 py-3">
+          <div className="flex items-center justify-between mb-2 px-2">
             <button 
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground"
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
               onClick={() => setSpacesExpanded(!spacesExpanded)}
             >
               {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -418,7 +424,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           </div>
           
           {spacesExpanded && (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {loadingSpaces ? (
                 <p className="text-sm text-muted-foreground px-2">Loading...</p>
               ) : spaces.length === 0 ? (
@@ -426,6 +432,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
               ) : (
                 spaces.map((space) => {
                   const isActive = activeChat?.type === 'space' && activeChat.id === space.id;
+                  const hasUnread = (unreadCounts?.spaces[space.id] || 0) > 0;
                   
                   return (
                     <button
@@ -436,23 +443,20 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         name: space.name 
                       })}
                       className={cn(
-                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                        "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
                         isActive 
-                          ? "bg-primary text-primary-foreground" 
-                          : "hover:bg-muted"
+                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
+                          : "hover:bg-muted/60",
+                        hasUnread && !isActive && "font-semibold text-foreground"
                       )}
                     >
-                      <div className={cn(
-                        "flex items-center justify-center h-6 w-6 rounded text-[10px] font-semibold",
-                        isActive 
-                          ? "bg-primary-foreground/20 text-primary-foreground" 
-                          : "bg-primary/10 text-primary"
-                      )}>
-                        {space.name.charAt(0).toUpperCase()}
-                      </div>
+                      <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <span className="truncate flex-1 text-left">{space.name}</span>
-                      {(unreadCounts?.spaces[space.id] || 0) > 0 && (
-                        <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5">
+                      {hasUnread && (
+                        <Badge 
+                          variant="destructive" 
+                          className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                        >
                           {unreadCounts?.spaces[space.id]}
                         </Badge>
                       )}
@@ -464,10 +468,10 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="w-full justify-start gap-2 text-primary"
+                className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground mt-1"
                 onClick={onNewSpace}
               >
-                <Hash className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 Browse spaces
               </Button>
             </div>

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import {
   Popover,
   PopoverContent,
@@ -18,12 +19,11 @@ import {
   Smile,
   Bold,
   Italic,
-  Underline,
-  List,
-  ListOrdered,
+  Strikethrough,
+  Link,
+  Code,
   Paperclip,
   Image,
-  History,
   X,
   FileIcon,
   Upload,
@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import UploadProgress, { UploadingFile } from "./UploadProgress";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const EMOJI_LIST = ["👍", "❤️", "😊", "😂", "🎉", "👏", "🔥", "💯", "✨", "🙌", "👀", "🤔"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -73,7 +74,6 @@ interface MentionedMember {
 const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   ({ conversationId, spaceId }, ref) => {
   const [message, setMessage] = useState("");
-  const [showFormatting, setShowFormatting] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState<"file" | "image">("file");
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -123,12 +123,10 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const handleTyping = useCallback(() => {
     updateTypingStatus(conversationId, spaceId);
     
-    // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     
-    // Set timeout to clear typing status after 3 seconds of no typing
     typingTimeoutRef.current = setTimeout(() => {
       clearTypingStatus();
     }, 3000);
@@ -153,14 +151,12 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       handleTyping();
     }
 
-    // Detect @ mentions
     const cursorPosition = e.target.selectionStart;
     const textBeforeCursor = value.slice(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-      // Check if there's no space after @ (still typing mention)
       if (!textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
         setMentionSearch(textAfterAt);
         setShowMentions(true);
@@ -183,7 +179,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       const newMessage = message.slice(0, lastAtIndex) + `@${member.name} ` + textAfterCursor;
       setMessage(newMessage);
       
-      // Add to mentioned members if not already there
       if (!mentionedMembers.find(m => m.id === member.id)) {
         setMentionedMembers(prev => [...prev, { id: member.id, name: member.name }]);
       }
@@ -197,7 +192,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const handleSend = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
     
-    // Clear typing status immediately when sending
     clearTypingStatus();
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -206,7 +200,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     try {
       setIsUploading(true);
       
-      // Initialize uploading files state for progress tracking
       const uploadingFilesInit: UploadingFile[] = selectedFiles.map((sf, index) => ({
         id: `upload-${index}-${Date.now()}`,
         name: sf.file.name,
@@ -216,7 +209,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       }));
       setUploadingFiles(uploadingFilesInit);
       
-      // Upload files first if any
       const uploadedAttachments: { fileName: string; filePath: string; fileSize: number; fileType: string }[] = [];
       
       for (let i = 0; i < selectedFiles.length; i++) {
@@ -225,7 +217,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${currentOrg?.id}/${fileName}`;
         
-        // Update progress to simulate upload start
         setUploadingFiles(prev => prev.map((uf, idx) => 
           idx === i ? { ...uf, progress: 30 } : uf
         ));
@@ -241,7 +232,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           throw uploadError;
         }
         
-        // Update progress to complete
         setUploadingFiles(prev => prev.map((uf, idx) => 
           idx === i ? { ...uf, progress: 100, status: "complete" as const } : uf
         ));
@@ -261,7 +251,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
         attachments: uploadedAttachments,
       });
 
-      // Save mentions if any
       if (mentionedMembers.length > 0 && result?.id) {
         await saveMentions.mutateAsync({
           messageId: result.id,
@@ -309,8 +298,11 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       case 'italic':
         formattedText = `_${selectedText}_`;
         break;
-      case 'underline':
-        formattedText = `__${selectedText}__`;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        break;
+      case 'code':
+        formattedText = `\`${selectedText}\``;
         break;
     }
     
@@ -396,147 +388,171 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const canSend = message.trim() || selectedFiles.length > 0;
+
   return (
     <div className="border-t border-border bg-card flex-shrink-0">
       {/* Upload Progress */}
       <UploadProgress files={uploadingFiles} />
       
-      <div className="p-2 md:p-3">
-      {/* Selected files preview */}
-      {selectedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 p-2 bg-muted/50 rounded-lg">
-          {selectedFiles.map((sf, index) => (
-            <div key={index} className="relative group">
-              {sf.preview ? (
-                <img 
-                  src={sf.preview} 
-                  alt={sf.file.name} 
-                  className="h-12 w-12 md:h-16 md:w-16 object-cover rounded-md border border-border"
-                />
-              ) : (
-                <div className="h-12 w-12 md:h-16 md:w-16 flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1">
-                  <FileIcon className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground truncate w-full text-center">
-                    {sf.file.name.split('.').pop()?.toUpperCase()}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={() => removeFile(index)}
-                className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mx-3 md:mx-4 mb-3 md:mb-4 mt-3">
+        {/* Selected files preview - above the input box */}
+        {selectedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/30 rounded-lg border border-border/50">
+            {selectedFiles.map((sf, index) => (
+              <div key={index} className="relative group">
+                {sf.preview ? (
+                  <img 
+                    src={sf.preview} 
+                    alt={sf.file.name} 
+                    className="h-12 w-12 md:h-14 md:w-14 object-cover rounded-md border border-border"
+                  />
+                ) : (
+                  <div className="h-12 w-12 md:h-14 md:w-14 flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1">
+                    <FileIcon className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-0.5">
+                      {sf.file.name.split('.').pop()?.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={() => removeFile(index)}
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center shadow-sm"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {/* Formatting toolbar - hidden on mobile */}
-      {!isMobile && showFormatting && (
-        <div className="flex items-center gap-1 mb-2 pb-2 border-b border-border">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => applyFormatting('bold')}
-          >
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => applyFormatting('italic')}
-          >
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => applyFormatting('underline')}
-          >
-            <Underline className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-4 bg-border mx-1" />
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <List className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ListOrdered className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-
-      <div className="flex items-end gap-1.5 md:gap-2">
-        {/* Attachment button */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
-              <Plus className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-48 p-1">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-2"
-              onClick={() => openUploadDialog("file")}
-            >
-              <Paperclip className="h-4 w-4" />
-              Upload file
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-2"
-              onClick={() => openUploadDialog("image")}
-            >
-              <Image className="h-4 w-4" />
-              Upload image
-            </Button>
-          </PopoverContent>
-        </Popover>
-
-        {/* Message input */}
-        <div className="flex-1 relative">
-          {/* Mention Autocomplete */}
-          <MentionAutocomplete
-            isOpen={showMentions}
-            searchText={mentionSearch}
-            onSelect={handleMentionSelect}
-            onClose={() => setShowMentions(false)}
-          />
-          
-          <Textarea
-            ref={textareaRef}
-            placeholder={isMobile ? "Message" : "Type a message... Use @ to mention"}
-            value={message}
-            onChange={handleMessageChange}
-            onKeyDown={handleKeyDown}
-            className={`min-h-[40px] max-h-[120px] md:max-h-[200px] resize-none ${isMobile ? 'pr-20 text-base' : 'pr-24'}`}
-            rows={1}
-          />
-          
-          {/* Input actions - compact on mobile */}
-          <div className="absolute right-1.5 md:right-2 bottom-1.5 flex items-center gap-0.5 md:gap-1">
-            {/* Hide formatting toggle on mobile */}
-            {!isMobile && (
+        {/* Main composer container - Slack style */}
+        <div className="border border-border rounded-lg bg-background overflow-hidden">
+          {/* Formatting toolbar - subtle, always visible on desktop */}
+          {!isMobile && (
+            <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border/50 bg-muted/20">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7"
-                onClick={() => setShowFormatting(!showFormatting)}
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('bold')}
               >
-                <Bold className="h-4 w-4" />
+                <Bold className="h-3.5 w-3.5" />
               </Button>
-            )}
-            
-            {/* @ mention button on mobile */}
-            {isMobile && (
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('italic')}
+              >
+                <Italic className="h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('strikethrough')}
+              >
+                <Strikethrough className="h-3.5 w-3.5" />
+              </Button>
+              <Separator orientation="vertical" className="h-4 mx-1" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              >
+                <Link className="h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('code')}
+              >
+                <Code className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Message input area */}
+          <div className="relative">
+            <MentionAutocomplete
+              isOpen={showMentions}
+              searchText={mentionSearch}
+              onSelect={handleMentionSelect}
+              onClose={() => setShowMentions(false)}
+            />
+            
+            <Textarea
+              ref={textareaRef}
+              placeholder={isMobile ? "Message..." : "Type a message... Use @ to mention someone"}
+              value={message}
+              onChange={handleMessageChange}
+              onKeyDown={handleKeyDown}
+              className="border-0 resize-none min-h-[44px] max-h-[160px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none text-sm"
+              rows={1}
+            />
+          </div>
+
+          {/* Bottom action bar */}
+          <div className="flex items-center justify-between px-2 py-1.5 border-t border-border/50 bg-muted/20">
+            <div className="flex items-center gap-0.5">
+              {/* Attachments */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-48 p-1">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2 h-9"
+                    onClick={() => openUploadDialog("file")}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    Upload file
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2 h-9"
+                    onClick={() => openUploadDialog("image")}
+                  >
+                    <Image className="h-4 w-4" />
+                    Upload image
+                  </Button>
+                </PopoverContent>
+              </Popover>
+
+              {/* Emoji */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    <Smile className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-2">
+                  <div className="grid grid-cols-6 gap-1">
+                    {EMOJI_LIST.map((emoji) => (
+                      <Button
+                        key={emoji}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-lg hover:bg-muted"
+                        onClick={() => insertEmoji(emoji)}
+                      >
+                        {emoji}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Mention */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   const cursorPosition = textareaRef.current?.selectionStart || message.length;
                   setMessage(prev => prev.slice(0, cursorPosition) + '@' + prev.slice(cursorPosition));
@@ -546,51 +562,24 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               >
                 <AtSign className="h-4 w-4" />
               </Button>
-            )}
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Smile className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-2">
-                <div className="grid grid-cols-6 gap-1">
-                  {EMOJI_LIST.map((emoji) => (
-                    <Button
-                      key={emoji}
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-lg"
-                      onClick={() => insertEmoji(emoji)}
-                    >
-                      {emoji}
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            </div>
+
+            {/* Send button */}
+            <Button 
+              size="sm"
+              className={cn(
+                "h-8 px-3 gap-1.5 transition-colors",
+                !canSend && "opacity-50"
+              )}
+              onClick={handleSend}
+              disabled={!canSend || sendMessage.isPending || isUploading}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {!isMobile && <span>Send</span>}
+            </Button>
           </div>
         </div>
-
-        {/* Send button */}
-        <Button 
-          size="icon" 
-          className="h-9 w-9 flex-shrink-0 rounded-full"
-          onClick={handleSend}
-          disabled={(!message.trim() && selectedFiles.length === 0) || sendMessage.isPending || isUploading}
-        >
-          <Send className="h-4 w-4" />
-        </Button>
       </div>
-
-      {/* History indicator - hidden on mobile */}
-      {!isMobile && (
-        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-          <History className="h-3 w-3" />
-          <span>History is on</span>
-        </div>
-      )}
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
@@ -602,11 +591,12 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           </DialogHeader>
           
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            className={cn(
+              "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
               isDragging 
                 ? "border-primary bg-primary/5" 
                 : "border-border hover:border-primary/50"
-            }`}
+            )}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -687,7 +677,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           </div>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 });
