@@ -25,6 +25,32 @@ export const SelfCheckInCard = () => {
   const [isOnLeave, setIsOnLeave] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [scheduleStarted, setScheduleStarted] = useState(false);
+
+  // Check if schedule has started (only show card after work_start_time)
+  useEffect(() => {
+    if (!schedule?.work_start_time) {
+      setScheduleStarted(false);
+      return;
+    }
+
+    const checkScheduleStarted = () => {
+      const now = new Date();
+      const [hours, minutes] = schedule.work_start_time.split(":").map(Number);
+      const startTime = new Date();
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      setScheduleStarted(now >= startTime);
+    };
+
+    // Check immediately
+    checkScheduleStarted();
+    
+    // Re-check every minute
+    const interval = setInterval(checkScheduleStarted, 60000);
+    
+    return () => clearInterval(interval);
+  }, [schedule?.work_start_time]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -102,7 +128,7 @@ export const SelfCheckInCard = () => {
     return null;
   }
 
-  if (!schedule || isOnLeave || checkInStatus?.isCheckedIn) {
+  if (!schedule || isOnLeave || checkInStatus?.isCheckedIn || !scheduleStarted) {
     return null;
   }
 
