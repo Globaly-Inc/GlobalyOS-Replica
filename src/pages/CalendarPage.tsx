@@ -328,6 +328,7 @@ const CalendarPage = () => {
     },
     staleTime: 60 * 1000, // 1 minute
     enabled: !!currentOrg?.id && !roleLoading,
+  });
 
   // Fetch performance reviews
   const { data: reviews = [] } = useQuery({
