@@ -23,7 +23,7 @@ const mainNavItems: NavItem[] = [
   { name: 'Home', href: '/', icon: Home, adminOnly: false },
   { name: 'Team', href: '/team', icon: Users, adminOnly: false },
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
-  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, ownerOnly: true, featureFlag: 'chat' },
+  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
   { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'crm' },
 ];

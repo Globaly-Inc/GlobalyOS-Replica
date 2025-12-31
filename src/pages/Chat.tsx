@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ConversationView from "@/components/chat/ConversationView";
 import ChatRightPanel from "@/components/chat/ChatRightPanel";
@@ -10,8 +10,6 @@ import StarredView from "@/components/chat/StarredView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import type { ActiveChat } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 
 const Chat = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
@@ -20,15 +18,6 @@ const Chat = () => {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { isAdmin, loading: roleLoading } = useUserRole();
-  const { navigateOrg } = useOrgNavigation();
-
-  // Redirect non-admin users
-  useEffect(() => {
-    if (!roleLoading && !isAdmin) {
-      navigateOrg('/');
-    }
-  }, [isAdmin, roleLoading, navigateOrg]);
 
   const handleSelectChat = (chat: ActiveChat, messageId?: string) => {
     setActiveChat(chat);
@@ -81,19 +70,6 @@ const Chat = () => {
     activeChat.type !== 'starred' && 
     showRightPanel && 
     !isMobile;
-
-  // Show loading or redirect for non-admin
-  if (roleLoading) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return null; // Will redirect via useEffect
-  }
 
   // Mobile view
   if (isMobile) {
