@@ -42,24 +42,47 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       }, 2000);
     }
     
+    // Also stop on navigation
+    const handlePopState = () => {
+      stop();
+      if ('vibrate' in navigator) navigator.vibrate(0);
+    };
+    window.addEventListener('popstate', handlePopState);
+    
     return () => {
       stop();
       if (vibrationInterval) clearInterval(vibrationInterval);
       if ('vibrate' in navigator) navigator.vibrate(0);
+      window.removeEventListener('popstate', handlePopState);
     };
   }, [play, stop]);
   
   // Auto-decline after 30 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
+      stop(); // Stop ringtone before declining
       onDecline();
     }, 30000);
     
     return () => clearTimeout(timeout);
-  }, [onDecline]);
+  }, [onDecline, stop]);
+  
+  // Wrapped handlers to ensure ringtone stops FIRST
+  const handleAccept = (withVideo: boolean) => {
+    stop();
+    if ('vibrate' in navigator) navigator.vibrate(0);
+    onAccept(withVideo);
+  };
+  
+  const handleDecline = () => {
+    stop();
+    if ('vibrate' in navigator) navigator.vibrate(0);
+    onDecline();
+  };
   
   const handleDeclineWithBusy = () => {
-    // Could implement sending a "busy" message here
+    stop();
+    if ('vibrate' in navigator) navigator.vibrate(0);
     onDecline();
   };
   
@@ -127,7 +150,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
                 variant="destructive"
                 size="lg"
                 className="h-14 w-14 rounded-full p-0 shadow-lg"
-                onClick={onDecline}
+                onClick={handleDecline}
               >
                 <PhoneOff className="h-6 w-6" />
               </Button>
@@ -156,7 +179,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
                   "rounded-full p-0 bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30",
                   call.call_type === 'video' ? "h-12 w-12" : "h-14 w-14"
                 )}
-                onClick={() => onAccept(false)}
+                onClick={() => handleAccept(false)}
               >
                 <Phone className="h-6 w-6" />
               </Button>
@@ -170,7 +193,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
                   variant="default"
                   size="lg"
                   className="h-14 w-14 rounded-full p-0 bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30"
-                  onClick={() => onAccept(true)}
+                  onClick={() => handleAccept(true)}
                 >
                   <Video className="h-6 w-6" />
                 </Button>

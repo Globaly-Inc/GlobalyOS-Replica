@@ -273,7 +273,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await initializeMedia(withVideo);
       await joinCallMutation.mutateAsync({ callId: incomingCall.id, withVideo });
-      setActiveCall(incomingCall);
+      
+      // FIX: Set activeCall with 'active' status immediately so ActiveCallWindow renders
+      setActiveCall({
+        ...incomingCall,
+        status: 'active',
+        started_at: new Date().toISOString(),
+      });
       setIncomingCall(null);
       setIncomingParticipants([]);
       toast.success('Call connected');
