@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { CallSession, CallParticipant } from '@/types/call';
@@ -101,8 +101,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentEmployee, currentOrg, activeCall]);
   
   // Listen for call status changes (for active calls)
+  // Use a ref to track the current status to avoid stale closure issues
+  const activeCallStatusRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    activeCallStatusRef.current = activeCall?.status || null;
+  }, [activeCall?.status]);
+  
   useEffect(() => {
     if (!activeCall) return;
+    
+    console.log('[CallContext] Setting up call status listener for:', activeCall.id, 'status:', activeCall.status);
     
     const channel = supabase
       .channel(`call-status-${activeCall.id}`)
@@ -113,15 +122,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         filter: `id=eq.${activeCall.id}`,
       }, (payload) => {
         const updated = payload.new as any;
+        console.log('[CallContext] Call status update received:', updated.status, 'previous:', activeCallStatusRef.current);
+        
         if (updated.status === 'ended' || updated.status === 'declined' || updated.status === 'missed') {
           cleanup();
           setActiveCall(null);
           setOutgoingCall(null);
           toast.info('Call ended');
-        } else if (updated.status === 'active' && activeCall.status === 'ringing') {
+        } else if (updated.status === 'active') {
+          // Always update to active, regardless of previous state
+          console.log('[CallContext] Call is now active');
           setActiveCall(prev => prev ? { ...prev, ...updated } : null);
           setOutgoingCall(null);
-          toast.success('Call connected');
+          if (activeCallStatusRef.current === 'ringing') {
+            toast.success('Call connected');
+          }
         } else {
           setActiveCall(prev => prev ? { ...prev, ...updated } : null);
         }
@@ -129,7 +144,36 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
-  }, [activeCall, cleanup]);
+  }, [activeCall?.id, cleanup]);
+  
+  // Polling fallback: ensure activeCall status is synced with DB
+  useEffect(() => {
+    if (!activeCall || activeCall.status === 'active') return;
+    
+    console.log('[CallContext] Starting poll for call status, current:', activeCall.status);
+    
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('id', activeCall.id)
+        .single();
+      
+      if (data && data.status !== activeCall.status) {
+        console.log('[CallContext] Poll detected status change:', data.status);
+        if (data.status === 'active') {
+          setActiveCall({ ...activeCall, ...data } as CallSession);
+          setOutgoingCall(null);
+        } else if (data.status === 'ended' || data.status === 'declined') {
+          cleanup();
+          setActiveCall(null);
+          setOutgoingCall(null);
+        }
+      }
+    }, 1000);
+    
+    return () => clearInterval(pollInterval);
+  }, [activeCall?.id, activeCall?.status, cleanup]);
   
   // Listen for participant status changes (for outgoing calls)
   useEffect(() => {

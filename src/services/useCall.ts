@@ -170,6 +170,8 @@ export const useJoinCall = () => {
     mutationFn: async ({ callId, withVideo }: { callId: string; withVideo: boolean }) => {
       if (!currentEmployee) throw new Error('Not authenticated');
       
+      console.log('[useJoinCall] Joining call:', callId, 'withVideo:', withVideo);
+      
       // Update participant status
       const { error: participantError } = await supabase
         .from('call_participants')
@@ -183,22 +185,30 @@ export const useJoinCall = () => {
       
       if (participantError) throw participantError;
       
-      // Check if this is the first person joining after initiator
-      const { data: participants } = await supabase
-        .from('call_participants')
-        .select('status')
-        .eq('call_id', callId)
-        .eq('status', 'joined');
+      // For 1:1 calls (conversation-based), immediately set to active when receiver joins
+      // This is more reliable than checking participant count
+      const { data: callSession } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('id', callId)
+        .single();
       
-      // If more than one person has joined, set call to active
-      if (participants && participants.length >= 2) {
-        await supabase
+      if (callSession) {
+        // Always activate the call when someone accepts
+        // The initiator is already 'joined', so when receiver joins, call should be active
+        console.log('[useJoinCall] Activating call session');
+        const { error: updateError } = await supabase
           .from('call_sessions')
           .update({
             status: 'active',
             started_at: new Date().toISOString(),
           })
-          .eq('id', callId);
+          .eq('id', callId)
+          .eq('status', 'ringing'); // Only update if still ringing
+        
+        if (updateError) {
+          console.error('[useJoinCall] Error updating call status:', updateError);
+        }
       }
       
       return { callId, withVideo };
