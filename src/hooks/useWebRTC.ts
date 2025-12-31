@@ -534,14 +534,20 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
     originalVideoTrack.current = null;
   }, []);
   
-  // Listen for signaling
+  // Listen for signaling - CRITICAL: include localStream in deps to re-subscribe when stream is ready
   useEffect(() => {
-    if (!callId || !currentEmployee || !localStreamRef.current) return;
+    if (!callId || !currentEmployee) return;
     
-    console.log('[WebRTC] Setting up signaling listener for call:', callId);
+    // Wait until local stream is available
+    if (!localStream && !localStreamRef.current) {
+      console.log('[WebRTC] Waiting for local stream before setting up signaling');
+      return;
+    }
+    
+    console.log('[WebRTC] Setting up signaling listener for call:', callId, 'stream ready:', !!localStreamRef.current);
     
     const channel = supabase
-      .channel(`call-signaling-${callId}`)
+      .channel(`call-signaling-${callId}-${Date.now()}`) // Unique channel name to avoid conflicts
       .on(
         'postgres_changes',
         {
@@ -552,39 +558,54 @@ export const useWebRTC = (callId: string | null, participants: CallParticipant[]
         },
         (payload) => {
           const signal = payload.new as unknown as CallSignal;
+          console.log('[WebRTC] Received signal:', signal.signal_type, 'from:', signal.from_employee_id);
           if (localStreamRef.current) {
             handleSignal(signal, localStreamRef.current);
+          } else {
+            console.warn('[WebRTC] No local stream when receiving signal');
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[WebRTC] Signaling channel status:', status);
+      });
     
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [callId, currentEmployee, handleSignal]);
+  }, [callId, currentEmployee, localStream, handleSignal]); // Added localStream to deps
   
-  // Create offers to all participants when joining
+  // Create offers to all participants when joining - with retry logic
   useEffect(() => {
-    if (!callId || !currentEmployee || !localStreamRef.current || participants.length === 0) return;
+    if (!callId || !currentEmployee || participants.length === 0) return;
+    if (!localStream && !localStreamRef.current) return;
     
-    const otherParticipants = participants.filter(
-      p => p.employee_id !== currentEmployee.id && p.status === 'joined'
-    );
+    const createOffersForParticipants = () => {
+      const otherParticipants = participants.filter(
+        p => p.employee_id !== currentEmployee.id && p.status === 'joined'
+      );
+      
+      console.log('[WebRTC] Creating offers for participants:', otherParticipants.map(p => p.employee_id));
+      
+      otherParticipants.forEach(participant => {
+        if (!peerConnections.current.has(participant.employee_id) && localStreamRef.current) {
+          createOffer(participant.employee_id, localStreamRef.current);
+        }
+      });
+    };
     
-    console.log('[WebRTC] Creating offers for participants:', otherParticipants.map(p => p.employee_id));
+    // Create offers immediately
+    createOffersForParticipants();
     
-    otherParticipants.forEach(participant => {
-      if (!peerConnections.current.has(participant.employee_id) && localStreamRef.current) {
-        // Add a small delay to ensure everything is ready
-        setTimeout(() => {
-          if (localStreamRef.current) {
-            createOffer(participant.employee_id, localStreamRef.current);
-          }
-        }, 100);
-      }
-    });
-  }, [callId, currentEmployee, participants, createOffer]);
+    // Retry after delays to handle race conditions
+    const retry1 = setTimeout(createOffersForParticipants, 500);
+    const retry2 = setTimeout(createOffersForParticipants, 1500);
+    
+    return () => {
+      clearTimeout(retry1);
+      clearTimeout(retry2);
+    };
+  }, [callId, currentEmployee, participants, localStream, createOffer]);
   
   return {
     localStream,
