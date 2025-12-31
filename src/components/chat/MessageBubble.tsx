@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import AttachmentRenderer from "./AttachmentRenderer";
-import MessageActions from "./MessageActions";
+import MessageActionsToolbar from "./MessageActionsToolbar";
 import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
 import RichTextMessage from "./RichTextMessage";
@@ -63,31 +63,50 @@ const MessageBubble = ({
       .slice(0, 2);
   };
 
+  const formattedTime = format(new Date(message.created_at), "h:mm a");
+
   return (
     <div
       id={`message-${message.id}`}
       className={cn(
-        "flex gap-3 group transition-all duration-300",
-        isOwn && "flex-row-reverse",
-        isGrouped && !isOwn && "pl-11" // Indent grouped messages (avatar width + gap)
+        "group relative flex gap-3 px-4 py-1 transition-colors duration-150",
+        "hover:bg-muted/40",
+        message.is_pinned && "bg-amber-500/5 hover:bg-amber-500/10",
+        isGrouped && "py-0.5"
       )}
     >
-      {/* Avatar - only show for first message in group or own messages */}
-      {!isOwn && !isGrouped && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
-          <AvatarFallback className="text-xs">
-            {getInitials(senderName)}
-          </AvatarFallback>
-        </Avatar>
-      )}
+      {/* Avatar - always show placeholder space, only render avatar for first in group */}
+      <div className="w-9 flex-shrink-0">
+        {!isGrouped && (
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
+            <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+              {getInitials(senderName)}
+            </AvatarFallback>
+          </Avatar>
+        )}
+      </div>
 
-      <div className={cn("flex flex-col max-w-[85%] md:max-w-[70%]", isOwn && "items-end")}>
-        {/* Sender name - only show for first message in group */}
-        {!isOwn && !isGrouped && (
-          <span className="text-xs font-medium text-muted-foreground mb-1">
-            {senderName}
-          </span>
+      {/* Message content */}
+      <div className="flex-1 min-w-0">
+        {/* Sender name and timestamp - only for first message in group */}
+        {!isGrouped && (
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <span className={cn(
+              "font-semibold text-sm",
+              isOwn ? "text-primary" : "text-foreground"
+            )}>
+              {senderName}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formattedTime}
+            </span>
+            {message.is_pinned && (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Pinned
+              </span>
+            )}
+          </div>
         )}
 
         {isEditing ? (
@@ -99,60 +118,53 @@ const MessageBubble = ({
           />
         ) : (
           <>
-            <div className="flex items-start gap-1">
-              <div
-                className={cn(
-                  "px-3 py-2 rounded-2xl text-sm",
-                  isOwn
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-muted rounded-bl-md",
-                  message.is_pinned && "ring-2 ring-yellow-400"
-                )}
-              >
-                {message.content && (
-                  <RichTextMessage content={message.content} />
-                )}
-                {message.attachments && message.attachments.length > 0 && (
-                  <AttachmentRenderer
-                    attachments={message.attachments}
-                    isOwn={isOwn}
-                  />
-                )}
+            {/* Message text */}
+            {message.content && (
+              <div className="text-sm text-foreground leading-relaxed">
+                <RichTextMessage content={message.content} />
                 {message.updated_at !== message.created_at && (
-                  <span className="text-[10px] opacity-70 ml-1">(edited)</span>
+                  <span className="text-xs text-muted-foreground ml-1">(edited)</span>
                 )}
               </div>
+            )}
 
-              <MessageActions
-                messageId={message.id}
-                isPinned={message.is_pinned}
-                isOwn={isOwn}
-                onPin={onPin}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onReact={onReact}
-              />
-            </div>
-
-            {/* Time - show for last message in group */}
-            {isLastInGroup && (
-              <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                {format(new Date(message.created_at), "h:mm a")}
-              </span>
+            {/* Attachments */}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mt-2">
+                <AttachmentRenderer
+                  attachments={message.attachments}
+                  isOwn={isOwn}
+                />
+              </div>
             )}
 
             {/* Reactions */}
             {Object.keys(reactions).length > 0 && (
-              <MessageReactions
-                reactions={reactions}
-                currentEmployeeId={currentEmployeeId || ''}
-                onToggleReaction={onReact}
-                isOwn={isOwn}
-              />
+              <div className="mt-1.5">
+                <MessageReactions
+                  reactions={reactions}
+                  currentEmployeeId={currentEmployeeId || ''}
+                  onToggleReaction={onReact}
+                  isOwn={isOwn}
+                />
+              </div>
             )}
           </>
         )}
       </div>
+
+      {/* Floating action toolbar - appears on hover */}
+      {!isEditing && (
+        <MessageActionsToolbar
+          messageId={message.id}
+          isPinned={message.is_pinned}
+          isOwn={isOwn}
+          onPin={onPin}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onReact={onReact}
+        />
+      )}
     </div>
   );
 };
