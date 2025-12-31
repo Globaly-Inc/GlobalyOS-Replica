@@ -75,6 +75,23 @@ export interface ChatSpaceMember {
   };
 }
 
+export interface CallLogData {
+  call_id: string;
+  call_type: 'audio' | 'video';
+  status: 'ended' | 'missed' | 'declined';
+  duration_seconds?: number;
+  initiated_by: string;
+  initiator_name: string;
+  initiator_avatar?: string;
+  participants: Array<{
+    name: string;
+    avatar?: string;
+  }>;
+  recording_url?: string;
+  has_transcript?: boolean;
+  ai_summary?: string;
+}
+
 export interface ChatMessage {
   id: string;
   organization_id: string;
@@ -82,7 +99,8 @@ export interface ChatMessage {
   space_id: string | null;
   sender_id: string;
   content: string;
-  content_type: 'text' | 'file' | 'image';
+  content_type: 'text' | 'file' | 'image' | 'call_log';
+  call_log_data?: CallLogData;
   is_pinned: boolean;
   reply_to_id: string | null;
   created_at: string;

@@ -5,6 +5,7 @@ import MessageActionsToolbar from "./MessageActionsToolbar";
 import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
 import RichTextMessage from "./RichTextMessage";
+import CallLogMessage from "./CallLogMessage";
 import type { ChatMessage } from "@/types/chat";
 import { format } from "date-fns";
 
@@ -64,6 +65,17 @@ const MessageBubble = ({
   };
 
   const formattedTime = format(new Date(message.created_at), "h:mm a");
+
+  // Render call log message differently
+  if (message.content_type === 'call_log' && message.call_log_data) {
+    return (
+      <CallLogMessage
+        data={message.call_log_data}
+        timestamp={message.created_at}
+        isOwn={isOwn}
+      />
+    );
+  }
 
   return (
     <div

@@ -3,6 +3,8 @@ import { Phone, Video, GripHorizontal, Monitor, Maximize2, Minimize2, X, Circle 
 import { CallSession, CallParticipant } from '@/types/call';
 import { CallControls } from './CallControls';
 import { VideoGrid } from './VideoGrid';
+import { RecordingControls } from './RecordingControls';
+import { useCallRecording } from '@/hooks/useCallRecording';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +58,22 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   
   const windowRef = useRef<HTMLDivElement>(null);
+  
+  // Recording hook
+  const recording = useCallRecording(call.id);
+  
+  // Create combined stream for recording (local + remote)
+  const getCombinedStream = useCallback(() => {
+    // For now, just use local stream - in production you'd combine audio tracks
+    return localStream;
+  }, [localStream]);
+  
+  const handleStartRecording = useCallback(() => {
+    const stream = getCombinedStream();
+    if (stream) {
+      recording.startRecording(stream);
+    }
+  }, [getCombinedStream, recording]);
   
   // Track call duration
   useEffect(() => {
@@ -205,18 +223,34 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
         </div>
         
         {/* Controls - floating at bottom */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-lg rounded-full shadow-2xl border px-6 py-3">
-          <CallControls
-            isMuted={isMuted}
-            isVideoOff={isVideoOff}
-            isExpanded={true}
-            isScreenSharing={isScreenSharing}
-            onToggleMute={onToggleMute}
-            onToggleVideo={onToggleVideo}
-            onToggleScreenShare={onToggleScreenShare}
-            onEndCall={onEndCall}
-            onToggleExpand={() => setWindowMode('floating')}
-          />
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
+          {/* Recording controls */}
+          <div className="bg-card/90 backdrop-blur-lg rounded-full shadow-2xl border px-4 py-2">
+            <RecordingControls
+              isRecording={recording.isRecording}
+              isPaused={recording.isPaused}
+              duration={recording.duration}
+              onStartRecording={handleStartRecording}
+              onPauseRecording={recording.pauseRecording}
+              onResumeRecording={recording.resumeRecording}
+              onStopRecording={recording.stopRecording}
+            />
+          </div>
+          
+          {/* Main call controls */}
+          <div className="bg-card/90 backdrop-blur-lg rounded-full shadow-2xl border px-6 py-3">
+            <CallControls
+              isMuted={isMuted}
+              isVideoOff={isVideoOff}
+              isExpanded={true}
+              isScreenSharing={isScreenSharing}
+              onToggleMute={onToggleMute}
+              onToggleVideo={onToggleVideo}
+              onToggleScreenShare={onToggleScreenShare}
+              onEndCall={onEndCall}
+              onToggleExpand={() => setWindowMode('floating')}
+            />
+          </div>
         </div>
       </div>
     );
@@ -320,7 +354,19 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
       </div>
       
       {/* Controls */}
-      <div className="h-[60px] border-t flex items-center justify-center bg-card/95">
+      <div className="h-[60px] border-t flex items-center justify-center gap-2 bg-card/95 px-2">
+        {/* Recording indicator/controls */}
+        <RecordingControls
+          isRecording={recording.isRecording}
+          isPaused={recording.isPaused}
+          duration={recording.duration}
+          onStartRecording={handleStartRecording}
+          onPauseRecording={recording.pauseRecording}
+          onResumeRecording={recording.resumeRecording}
+          onStopRecording={recording.stopRecording}
+          className="scale-75"
+        />
+        
         <CallControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}
