@@ -83,10 +83,14 @@ const formatDays = (days: number, showSign: boolean = true) => {
 // Format balance with color
 const formatBalance = (balance: number | undefined) => {
   if (balance === undefined) return <span className="text-muted-foreground">-</span>;
-  if (balance < 0) {
-    return <span className="text-destructive font-medium">({Math.abs(balance)})</span>;
+  
+  // Round to 1 decimal place to avoid floating point precision issues
+  const roundedBalance = Math.round(balance * 10) / 10;
+  
+  if (roundedBalance < 0) {
+    return <span className="text-destructive font-medium">({Math.abs(roundedBalance)})</span>;
   }
-  return <span className={balance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{balance}</span>;
+  return <span className={roundedBalance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{roundedBalance}</span>;
 };
 
 const OrgLeaveHistory = () => {
