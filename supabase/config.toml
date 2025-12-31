@@ -1,5 +1,11 @@
 project_id = "rygowmzkvxgnxagqlyxf"
 
+[functions.transcribe-call]
+verify_jwt = false
+
+[functions.summarize-call]
+verify_jwt = false
+
 [functions.invite-team-member]
 verify_jwt = false
 
