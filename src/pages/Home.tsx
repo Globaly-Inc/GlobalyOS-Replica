@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
 import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
@@ -19,14 +19,17 @@ import { OnboardingChecklist } from "@/components/onboarding";
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
-import { AllPendingLeavesCard } from "@/components/home/AllPendingLeavesCard";
-import { NotCheckedInCard } from "@/components/home/NotCheckedInCard";
 import { SelfCheckInCard } from "@/components/home/SelfCheckInCard";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
-import { UserHelpRequests } from "@/components/home/UserHelpRequests";
-import { DailyHoroscope } from "@/components/home/DailyHoroscope";
+import { CardSkeleton } from "@/components/ui/card-skeleton";
 import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
+
+// Lazy load non-critical sidebar components for faster initial load
+const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeavesCard").then(m => ({ default: m.AllPendingLeavesCard })));
+const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard").then(m => ({ default: m.NotCheckedInCard })));
+const UserHelpRequests = lazy(() => import("@/components/home/UserHelpRequests").then(m => ({ default: m.UserHelpRequests })));
+const DailyHoroscope = lazy(() => import("@/components/home/DailyHoroscope").then(m => ({ default: m.DailyHoroscope })));
 
 type DateFilter = "all" | "today" | "week" | "month";
 
@@ -532,8 +535,9 @@ const Home = () => {
         <div className="lg:hidden space-y-4 mb-6">
           <SelfCheckInCard />
           <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
-          <AllPendingLeavesCard />
-          <PendingWfhApprovals />
+          <Suspense fallback={<CardSkeleton />}>
+            <AllPendingLeavesCard />
+          </Suspense>
           
           
           <Card className="p-4">
@@ -668,10 +672,14 @@ const Home = () => {
             <PendingKpiUpdates />
 
             {/* Employees Not Checked In */}
-            <NotCheckedInCard />
+            <Suspense fallback={<CardSkeleton />}>
+              <NotCheckedInCard />
+            </Suspense>
 
             {/* All Pending Leaves */}
-            <AllPendingLeavesCard />
+            <Suspense fallback={<CardSkeleton />}>
+              <AllPendingLeavesCard />
+            </Suspense>
 
             {/* People on Leave Today */}
             <Card className="p-6">
@@ -850,7 +858,9 @@ const Home = () => {
                 </div> : <p className="text-sm text-muted-foreground">No upcoming anniversaries</p>}
             </Card>
 
-            <UserHelpRequests />
+            <Suspense fallback={<CardSkeleton />}>
+              <UserHelpRequests />
+            </Suspense>
           </div>
         </div>
       </div>

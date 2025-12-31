@@ -44,6 +44,7 @@ export const useNotifications = (type?: NotificationType | 'all') => {
 
       return data as NotificationWithActor[];
     },
+    staleTime: 30 * 1000, // 30 seconds - notifications need freshness
     enabled: !!user?.id && !!currentOrg?.id,
   });
 };
@@ -69,6 +70,7 @@ export const useUnreadNotificationCount = () => {
 
       return count || 0;
     },
+    staleTime: 15 * 1000, // 15 seconds
     enabled: !!user?.id && !!currentOrg?.id,
     refetchInterval: 30000, // Poll every 30 seconds
   });

@@ -30,6 +30,7 @@ export const useWikiFolders = () => {
 
       return data as WikiFolder[];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!currentOrg?.id,
   });
 };
@@ -61,6 +62,7 @@ export const useWikiPages = (folderId?: string | null) => {
 
       return data as WikiPage[];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!currentOrg?.id,
   });
 };
@@ -92,6 +94,7 @@ export const useWikiPage = (pageId: string | undefined) => {
 
       return data as unknown as WikiPageWithRelations;
     },
+    staleTime: 60 * 1000, // 1 minute
     enabled: !!pageId,
   });
 };

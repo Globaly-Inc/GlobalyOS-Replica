@@ -190,6 +190,7 @@ const CalendarPage = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!user?.id,
   });
 
@@ -219,6 +220,7 @@ const CalendarPage = () => {
         full_name: profileData?.find(p => p.id === emp.user_id)?.full_name || "Employee"
       }));
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!currentOrg?.id,
   });
 
@@ -245,6 +247,7 @@ const CalendarPage = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 60 * 1000, // 1 minute
     enabled: !!currentOrg?.id,
   });
 
@@ -260,6 +263,7 @@ const CalendarPage = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - offices rarely change
     enabled: !!currentOrg?.id,
   });
 
@@ -322,8 +326,8 @@ const CalendarPage = () => {
         return event.officeIds.includes(currentEmployee.office_id);
       });
     },
+    staleTime: 60 * 1000, // 1 minute
     enabled: !!currentOrg?.id && !roleLoading,
-  });
 
   // Fetch performance reviews
   const { data: reviews = [] } = useQuery({
@@ -338,6 +342,7 @@ const CalendarPage = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!currentOrg?.id,
   });
 

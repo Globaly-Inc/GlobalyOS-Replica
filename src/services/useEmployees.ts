@@ -46,6 +46,8 @@ export const useEmployees = (options: UseEmployeesOptions = {}) => {
 
       return data || [];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes - employee list changes infrequently
+    gcTime: 10 * 60 * 1000,
     enabled: !!currentOrg?.id,
   });
 };
@@ -65,6 +67,7 @@ export const useEmployee = (employeeId: string | undefined) => {
 
       return data?.[0] || null;
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!employeeId && !!currentOrg?.id,
   });
 };
@@ -72,6 +75,7 @@ export const useEmployee = (employeeId: string | undefined) => {
 export const useEmployeeProfile = (employeeId: string | undefined) => {
   return useQuery({
     queryKey: ['employee-profile', employeeId],
+    staleTime: 2 * 60 * 1000, // 2 minutes
     queryFn: async () => {
       if (!employeeId) return null;
 
@@ -207,6 +211,7 @@ export const useDirectReports = (managerId: string | undefined) => {
 
       return data || [];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: !!managerId && !!currentOrg?.id,
   });
 };

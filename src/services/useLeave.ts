@@ -41,6 +41,7 @@ export const useLeaveTypes = (activeOnly = true) => {
 
       return data as LeaveType[];
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - leave types rarely change
     enabled: !!currentOrg?.id,
   });
 };
@@ -87,6 +88,7 @@ export const useLeaveBalances = (employeeId: string | undefined, year?: number) 
 
       return data as LeaveTypeBalanceWithType[];
     },
+    staleTime: 30 * 1000, // 30 seconds - may change after approvals
     enabled: !!employeeId,
   });
 };
@@ -148,6 +150,7 @@ export const useLeaveRequests = (options: UseLeaveRequestsOptions = {}) => {
 
       return data as LeaveRequestWithEmployee[];
     },
+    staleTime: 30 * 1000, // 30 seconds - active updates
     enabled: !!currentOrg?.id,
   });
 };
@@ -183,6 +186,7 @@ export const usePendingLeaveApprovals = () => {
 
       return data as LeaveRequestWithEmployee[];
     },
+    staleTime: 30 * 1000, // 30 seconds - needs freshness
     enabled: !!currentOrg?.id,
   });
 };
