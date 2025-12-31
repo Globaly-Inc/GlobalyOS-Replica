@@ -997,15 +997,94 @@ export type Database = {
           },
         ]
       }
+      call_recordings: {
+        Row: {
+          ai_summary: string | null
+          call_id: string
+          consent_given_by: string[] | null
+          created_at: string
+          duration_seconds: number | null
+          file_size_bytes: number | null
+          id: string
+          organization_id: string
+          recorded_by: string
+          status: string
+          storage_path: string
+          transcript: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          call_id: string
+          consent_given_by?: string[] | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_size_bytes?: number | null
+          id?: string
+          organization_id: string
+          recorded_by: string
+          status?: string
+          storage_path: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          call_id?: string
+          consent_given_by?: string[] | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_size_bytes?: number | null
+          id?: string
+          organization_id?: string
+          recorded_by?: string
+          status?: string
+          storage_path?: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_recordings_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_recordings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_sessions: {
         Row: {
           call_type: string
           conversation_id: string | null
           created_at: string | null
+          duration_seconds: number | null
           ended_at: string | null
           id: string
           initiated_by: string
           organization_id: string
+          recording_id: string | null
           space_id: string | null
           started_at: string | null
           status: string
@@ -1014,10 +1093,12 @@ export type Database = {
           call_type: string
           conversation_id?: string | null
           created_at?: string | null
+          duration_seconds?: number | null
           ended_at?: string | null
           id?: string
           initiated_by: string
           organization_id: string
+          recording_id?: string | null
           space_id?: string | null
           started_at?: string | null
           status?: string
@@ -1026,10 +1107,12 @@ export type Database = {
           call_type?: string
           conversation_id?: string | null
           created_at?: string | null
+          duration_seconds?: number | null
           ended_at?: string | null
           id?: string
           initiated_by?: string
           organization_id?: string
+          recording_id?: string | null
           space_id?: string | null
           started_at?: string | null
           status?: string
@@ -1061,6 +1144,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "call_recordings"
             referencedColumns: ["id"]
           },
           {

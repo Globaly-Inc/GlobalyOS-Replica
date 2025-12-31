@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Phone, Video, GripHorizontal, Monitor } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Phone, Video, GripHorizontal, Monitor, Maximize2, Minimize2, X, Circle } from 'lucide-react';
 import { CallSession, CallParticipant } from '@/types/call';
 import { CallControls } from './CallControls';
 import { VideoGrid } from './VideoGrid';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+type WindowMode = 'minimized' | 'floating' | 'fullscreen';
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface Size {
+  width: number;
+  height: number;
+}
 
 interface ActiveCallWindowProps {
   call: CallSession;
@@ -34,12 +47,19 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   onToggleScreenShare,
   onEndCall,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [windowMode, setWindowMode] = useState<WindowMode>('floating');
   const [callDuration, setCallDuration] = useState(0);
+  const [position, setPosition] = useState<Position>({ x: 20, y: 20 });
+  const [size, setSize] = useState<Size>({ width: 400, height: 300 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  
+  const windowRef = useRef<HTMLDivElement>(null);
   
   // Track call duration
   useEffect(() => {
-    if (call.status !== 'active') return;
+    if (call.status !== 'active' && call.status !== 'ringing') return;
     
     const startTime = call.started_at ? new Date(call.started_at).getTime() : Date.now();
     
@@ -52,8 +72,13 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   
   // Format duration
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
@@ -62,11 +87,77 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   const callName = otherParticipant?.employee?.profiles?.full_name || 
     (activeParticipants.length > 2 ? `Group call (${activeParticipants.length})` : 'Call');
   
-  if (isExpanded) {
+  // Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (windowMode !== 'floating' || isResizing) return;
+    
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('.resize-handle')) return;
+    
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  }, [windowMode, position, isResizing]);
+  
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.x));
+      const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.y));
+      setPosition({ x: newX, y: newY });
+    }
+  }, [isDragging, dragOffset, size]);
+  
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setIsResizing(false);
+  }, []);
+  
+  // Resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsResizing(true);
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = size.width;
+    const startHeight = size.height;
+    
+    const handleResize = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(320, Math.min(window.innerWidth * 0.8, startWidth + (moveEvent.clientX - startX)));
+      const newHeight = Math.max(240, Math.min(window.innerHeight * 0.8, startHeight + (moveEvent.clientY - startY)));
+      setSize({ width: newWidth, height: newHeight });
+    };
+    
+    const handleResizeEnd = () => {
+      setIsResizing(false);
+      window.removeEventListener('mousemove', handleResize);
+      window.removeEventListener('mouseup', handleResizeEnd);
+    };
+    
+    window.addEventListener('mousemove', handleResize);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }, [size]);
+  
+  // Global mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+  
+  // Fullscreen mode
+  if (windowMode === 'fullscreen') {
     return (
       <div className="fixed inset-0 z-[150] bg-background flex flex-col">
         {/* Header */}
-        <div className="h-14 border-b flex items-center justify-between px-4 bg-card">
+        <div className="h-14 border-b flex items-center justify-between px-4 bg-card/95 backdrop-blur">
           <div className="flex items-center gap-3">
             {isScreenSharing ? (
               <Monitor className="h-5 w-5 text-primary" />
@@ -77,16 +168,31 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
             )}
             <div>
               <h2 className="font-semibold">{callName}</h2>
-              <p className="text-xs text-muted-foreground">
-                {formatDuration(callDuration)} • {activeParticipants.length} participant{activeParticipants.length !== 1 ? 's' : ''}
-                {isScreenSharing && ' • Screen sharing'}
-              </p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{formatDuration(callDuration)}</span>
+                <span>•</span>
+                <span>{activeParticipants.length} participant{activeParticipants.length !== 1 ? 's' : ''}</span>
+                {isScreenSharing && (
+                  <>
+                    <span>•</span>
+                    <span className="text-primary">Screen sharing</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setWindowMode('floating')}
+            className="hover:bg-muted"
+          >
+            <Minimize2 className="h-5 w-5" />
+          </Button>
         </div>
         
         {/* Video grid */}
-        <div className="flex-1 bg-muted/50">
+        <div className="flex-1 bg-muted/30">
           <VideoGrid
             localStream={localStream}
             remoteStreams={remoteStreams}
@@ -94,125 +200,155 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
             currentEmployeeId={currentEmployeeId}
             isMuted={isMuted}
             isVideoOff={isVideoOff}
+            isScreenSharing={isScreenSharing}
           />
         </div>
         
-        {/* Controls */}
-        <div className="h-20 border-t bg-card flex items-center justify-center">
+        {/* Controls - floating at bottom */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-lg rounded-full shadow-2xl border px-6 py-3">
           <CallControls
             isMuted={isMuted}
             isVideoOff={isVideoOff}
-            isExpanded={isExpanded}
+            isExpanded={true}
             isScreenSharing={isScreenSharing}
             onToggleMute={onToggleMute}
             onToggleVideo={onToggleVideo}
             onToggleScreenShare={onToggleScreenShare}
             onEndCall={onEndCall}
-            onToggleExpand={() => setIsExpanded(false)}
+            onToggleExpand={() => setWindowMode('floating')}
           />
         </div>
       </div>
     );
   }
   
-  // Minimized floating window
+  // Minimized mode - small pill
+  if (windowMode === 'minimized') {
+    return (
+      <div 
+        className="fixed bottom-4 right-4 z-[150] bg-card rounded-full shadow-2xl border px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-card/90 transition-colors"
+        onClick={() => setWindowMode('floating')}
+      >
+        <div className="flex items-center gap-2">
+          {call.call_type === 'video' ? (
+            <Video className="h-4 w-4 text-primary" />
+          ) : (
+            <Phone className="h-4 w-4 text-primary" />
+          )}
+          <span className="text-sm font-medium">{callName}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Circle className="h-2 w-2 fill-green-500 text-green-500 animate-pulse" />
+          <span className="text-sm text-muted-foreground">{formatDuration(callDuration)}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-full hover:bg-destructive hover:text-destructive-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEndCall();
+          }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+  
+  // Floating/resizable mode
   return (
     <div 
+      ref={windowRef}
       className={cn(
-        "fixed top-4 right-4 z-[150] w-72 rounded-xl shadow-2xl overflow-hidden",
-        "border bg-card animate-in slide-in-from-top-2 duration-300"
+        "fixed z-[150] rounded-xl shadow-2xl overflow-hidden border bg-card",
+        "animate-in slide-in-from-bottom-2 duration-300",
+        isDragging && "cursor-grabbing",
+        !isDragging && !isResizing && "cursor-grab"
       )}
+      style={{
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        height: size.height,
+      }}
+      onMouseDown={handleMouseDown}
     >
-      {/* Drag handle */}
-      <div className="h-8 bg-muted/50 flex items-center justify-center cursor-move">
-        <GripHorizontal className="h-4 w-4 text-muted-foreground" />
+      {/* Header / Drag handle */}
+      <div className="h-10 bg-muted/50 flex items-center justify-between px-3 cursor-grab">
+        <div className="flex items-center gap-2">
+          <GripHorizontal className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium truncate">{callName}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground bg-background/80 px-2 py-0.5 rounded-full">
+            {formatDuration(callDuration)}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full"
+            onClick={() => setWindowMode('minimized')}
+          >
+            <Minimize2 className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full"
+            onClick={() => setWindowMode('fullscreen')}
+          >
+            <Maximize2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
       
-      {/* Preview */}
-      <div className="aspect-video bg-muted relative">
-        {/* Show local video or avatar */}
-        {localStream && !isVideoOff && !isScreenSharing ? (
-          <video
-            autoPlay
-            playsInline
-            muted
-            ref={(el) => {
-              if (el) el.srcObject = localStream;
-            }}
-            className="w-full h-full object-cover scale-x-[-1]"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center">
-              {isScreenSharing ? (
-                <Monitor className="h-8 w-8 mx-auto mb-2 text-primary" />
-              ) : call.call_type === 'video' ? (
-                <Video className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              ) : (
-                <Phone className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              )}
-              <p className="text-sm font-medium">
-                {isScreenSharing ? 'Sharing screen' : callName}
-              </p>
-            </div>
-          </div>
-        )}
-        
-        {/* Remote participant PiP */}
-        {remoteStreams.size > 0 && (
-          <div className="absolute bottom-2 right-2 w-16 h-12 rounded-lg overflow-hidden border-2 border-background shadow-lg bg-muted">
-            {Array.from(remoteStreams.values())[0] ? (
-              <video
-                autoPlay
-                playsInline
-                ref={(el) => {
-                  if (el) el.srcObject = Array.from(remoteStreams.values())[0];
-                }}
-                className="w-full h-full object-cover"
-              />
-            ) : null}
-          </div>
-        )}
-        
-        {/* Duration overlay */}
-        <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/60 text-xs text-white">
-          {formatDuration(callDuration)}
-        </div>
-        
-        {/* Screen share indicator */}
-        {isScreenSharing && (
-          <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-primary/80 text-xs text-white flex items-center gap-1">
-            <Monitor className="h-3 w-3" />
-            Sharing
-          </div>
-        )}
-        
-        {/* Status indicators */}
-        {!isScreenSharing && (
-          <div className="absolute top-2 right-2 flex items-center gap-1">
-            <div className={cn(
-              "w-2 h-2 rounded-full",
-              call.status === 'active' ? "bg-green-500" : "bg-yellow-500 animate-pulse"
-            )} />
-          </div>
-        )}
+      {/* Video area */}
+      <div 
+        className="bg-muted/30"
+        style={{ height: `calc(100% - 100px)` }}
+      >
+        <VideoGrid
+          localStream={localStream}
+          remoteStreams={remoteStreams}
+          participants={participants}
+          currentEmployeeId={currentEmployeeId}
+          isMuted={isMuted}
+          isVideoOff={isVideoOff}
+          isScreenSharing={isScreenSharing}
+        />
       </div>
       
       {/* Controls */}
-      <div className="p-3 flex items-center justify-center gap-2">
+      <div className="h-[60px] border-t flex items-center justify-center bg-card/95">
         <CallControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}
-          isExpanded={isExpanded}
+          isExpanded={false}
           isScreenSharing={isScreenSharing}
           onToggleMute={onToggleMute}
           onToggleVideo={onToggleVideo}
           onToggleScreenShare={onToggleScreenShare}
           onEndCall={onEndCall}
-          onToggleExpand={() => setIsExpanded(true)}
-          showExpandButton
+          showExpandButton={false}
           className="scale-90"
         />
+      </div>
+      
+      {/* Resize handle */}
+      <div 
+        className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+        onMouseDown={handleResizeStart}
+      >
+        <svg 
+          className="absolute bottom-1 right-1 h-3 w-3 text-muted-foreground/50"
+          viewBox="0 0 24 24"
+        >
+          <path 
+            fill="currentColor" 
+            d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z"
+          />
+        </svg>
       </div>
     </div>
   );
