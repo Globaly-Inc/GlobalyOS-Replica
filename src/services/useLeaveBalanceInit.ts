@@ -169,9 +169,9 @@ export const useInitializeYearBalances = () => {
             continue;
           }
 
-          // Employment type check
+          // Employment type check - only check if employee has a type set
           const empTypes = leaveType.applies_to_employment_types;
-          if (empTypes && empTypes.length > 0 && !empTypes.includes(employee.employment_type)) {
+          if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) {
             continue;
           }
 
@@ -369,8 +369,9 @@ export const useInitializeEmployeeBalances = () => {
         const genderRestriction = leaveType.applies_to_gender || 'all';
         if (genderRestriction !== 'all' && employee.gender !== genderRestriction) continue;
 
+        // Employment type check - only check if employee has a type set
         const empTypes = leaveType.applies_to_employment_types;
-        if (empTypes && empTypes.length > 0 && !empTypes.includes(employee.employment_type)) continue;
+        if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) continue;
 
         if (!leaveType.applies_to_all_offices && employee.office_id) {
           const officeSet = officeMappingsByType.get(leaveType.id);

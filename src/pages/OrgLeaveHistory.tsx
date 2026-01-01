@@ -47,6 +47,7 @@ import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearB
 interface LeaveTransaction {
   id: string;
   type: 'leave_taken' | 'adjustment';
+  adjustmentSource?: 'auto' | 'manual';
   leave_type: string;
   days: number;
   effective_date: string;
@@ -376,7 +377,7 @@ const OrgLeaveHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg.id)
-        .eq("action", "manual_adjustment") // Filter at DB level to avoid 1000 row limit
+        .in("action", ["manual_adjustment", "year_init"])
         .gte("effective_date", startOfYear)
         .lte("effective_date", endOfYear)
         .order("effective_date", { ascending: false });
@@ -431,10 +432,11 @@ const OrgLeaveHistory = () => {
         employee: r.employee
       }));
 
-      // logsData now only contains manual_adjustment entries (filtered at DB level)
+      // logsData now contains both manual_adjustment and year_init entries
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => ({
         id: l.id,
         type: 'adjustment' as const,
+        adjustmentSource: l.action === 'year_init' ? 'auto' : 'manual',
         leave_type: normalizeLeaveType(l.leave_type),
         days: l.change_amount,
         effective_date: l.effective_date || l.created_at.split('T')[0],
@@ -491,7 +493,10 @@ const OrgLeaveHistory = () => {
       selectedEmployees.includes(t.employee?.id || '');
     const matchesStatus = statusFilter === "all" || t.status === statusFilter || t.type === 'adjustment';
     const matchesType = leaveTypeFilter === "all" || t.leave_type === leaveTypeFilter;
-    const matchesTransType = transactionTypeFilter === "all" || t.type === transactionTypeFilter;
+    const matchesTransType = transactionTypeFilter === "all" || 
+      t.type === transactionTypeFilter ||
+      (transactionTypeFilter === "auto_adjust" && t.type === 'adjustment' && t.adjustmentSource === 'auto') ||
+      (transactionTypeFilter === "manual_adjust" && t.type === 'adjustment' && t.adjustmentSource === 'manual');
     
     // Date range filter - parse date string as local date to avoid timezone issues
     const [year, month, day] = t.effective_date.split('-').map(Number);
@@ -1001,9 +1006,10 @@ const OrgLeaveHistory = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="all">All Transactions</SelectItem>
                 <SelectItem value="leave_taken">Leave Taken</SelectItem>
-                <SelectItem value="adjustment">Adjustments</SelectItem>
+                <SelectItem value="auto_adjust">Auto Adjust</SelectItem>
+                <SelectItem value="manual_adjust">Manual Adjust</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1428,10 +1434,21 @@ const OrgLeaveHistory = () => {
                             Taken
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
-                            <TrendingUp className="h-3 w-3" />
-                            Adjust
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              Adjust
+                            </Badge>
+                            {t.adjustmentSource === 'auto' ? (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-700 border-blue-200">
+                                Auto
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
+                                Manual
+                              </Badge>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
