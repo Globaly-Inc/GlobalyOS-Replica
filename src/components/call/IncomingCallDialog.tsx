@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CallSession, CallParticipant } from '@/types/call';
 import { useRingtone } from '@/hooks/useRingtone';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { cn } from '@/lib/utils';
 
 interface IncomingCallDialogProps {
@@ -20,6 +21,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onDecline,
 }) => {
   const { play, stop } = useRingtone();
+  const { vibrateLoop, stop: stopVibration, vibrate } = useHapticFeedback();
   
   // Get caller info
   const caller = participants.find(p => p.employee_id === call.initiated_by);
@@ -34,28 +36,23 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   useEffect(() => {
     play();
     
-    // Continuous vibration pattern
-    let vibrationInterval: NodeJS.Timeout | null = null;
-    if ('vibrate' in navigator) {
-      vibrationInterval = setInterval(() => {
-        navigator.vibrate([300, 100, 300, 100, 300]);
-      }, 2000);
-    }
+    // Continuous vibration pattern using haptic feedback hook
+    const vibrationInterval = vibrateLoop('incomingCall', 2000);
     
     // Also stop on navigation
     const handlePopState = () => {
       stop();
-      if ('vibrate' in navigator) navigator.vibrate(0);
+      stopVibration();
     };
     window.addEventListener('popstate', handlePopState);
     
     return () => {
       stop();
+      stopVibration();
       if (vibrationInterval) clearInterval(vibrationInterval);
-      if ('vibrate' in navigator) navigator.vibrate(0);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [play, stop]);
+  }, [play, stop, vibrateLoop, stopVibration]);
   
   // Auto-decline after 30 seconds
   useEffect(() => {
@@ -70,19 +67,20 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   // Wrapped handlers to ensure ringtone stops FIRST
   const handleAccept = (withVideo: boolean) => {
     stop();
-    if ('vibrate' in navigator) navigator.vibrate(0);
+    stopVibration();
+    vibrate('callConnected');
     onAccept(withVideo);
   };
   
   const handleDecline = () => {
     stop();
-    if ('vibrate' in navigator) navigator.vibrate(0);
+    stopVibration();
     onDecline();
   };
   
   const handleDeclineWithBusy = () => {
     stop();
-    if ('vibrate' in navigator) navigator.vibrate(0);
+    stopVibration();
     onDecline();
   };
   

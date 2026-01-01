@@ -36,7 +36,23 @@ registerRoute(
 self.addEventListener('push', (event) => {
   console.log('Push notification received:', event);
 
-  let data = {
+  let data: {
+    title: string;
+    body: string;
+    icon: string;
+    badge: string;
+    url: string;
+    tag: string;
+    data?: {
+      type?: string;
+      call_id?: string;
+      caller_name?: string;
+      call_type?: string;
+      organization_slug?: string;
+      [key: string]: unknown;
+    };
+    requireInteraction?: boolean;
+  } = {
     title: 'GlobalyOS Notification',
     body: 'You have a new notification',
     icon: '/favicon.png',
@@ -53,19 +69,32 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean } = {
+  // Check if this is an incoming call notification
+  const isIncomingCall = data.data?.type === 'incoming_call';
+
+  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; actions?: Array<{ action: string; title: string }> } = {
     body: data.body,
     icon: data.icon || '/favicon.png',
     badge: data.badge || '/favicon.png',
-    vibrate: [200, 100, 200],
+    vibrate: isIncomingCall ? [300, 100, 300, 100, 300, 100, 300] : [200, 100, 200],
     data: {
+      ...data.data,
       url: data.url || '/',
       dateOfArrival: Date.now(),
     },
     tag: data.tag || 'default',
     renotify: true,
     silent: false,
+    requireInteraction: isIncomingCall || data.requireInteraction,
   };
+
+  // Add action buttons for incoming calls
+  if (isIncomingCall) {
+    options.actions = [
+      { action: 'answer', title: 'Answer' },
+      { action: 'decline', title: 'Decline' },
+    ];
+  }
 
   event.waitUntil(
     self.registration.showNotification(data.title, options)
@@ -74,9 +103,31 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event);
+  
+  const notificationData = event.notification.data || {};
+  const isIncomingCall = notificationData.type === 'incoming_call';
+  const action = (event as any).action;
+  
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  // Handle call notification actions
+  if (isIncomingCall && action === 'decline') {
+    // Decline the call via edge function
+    const callId = notificationData.call_id;
+    if (callId) {
+      event.waitUntil(
+        fetch(`https://rygowmzkvxgnxagqlyxf.supabase.co/functions/v1/decline-call-from-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ call_id: callId }),
+        }).catch(err => console.error('Failed to decline call:', err))
+      );
+    }
+    return;
+  }
+
+  // For answer action or regular click, open the app
+  const urlToOpen = notificationData.url || '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
