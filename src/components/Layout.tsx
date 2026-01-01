@@ -34,7 +34,8 @@ import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
-import { CallProvider } from "@/contexts/CallContext";
+import { CallProvider, useCall } from "@/contexts/CallContext";
+import { ActiveCallIndicator } from "./call/ActiveCallIndicator";
 
 interface UserProfile {
   fullName: string;
@@ -53,6 +54,25 @@ const getRoleConfig = (role?: string | null) => {
     default:
       return { label: 'User', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
   }
+};
+
+// Wrapper component that can safely use useCall since it's inside CallProvider
+const ActiveCallIndicatorWrapper = () => {
+  const { activeCall, isInCall, callDuration, bringCallToFront, callUiState } = useCall();
+  
+  // Only show when there's an active call and it's minimized or hidden
+  if (!isInCall || !activeCall) return null;
+  
+  // Don't show indicator if call UI is open and visible
+  if (callUiState.isOpen && callUiState.windowMode !== 'minimized') return null;
+  
+  return (
+    <ActiveCallIndicator
+      callType={activeCall.call_type as 'audio' | 'video'}
+      duration={callDuration}
+      onClick={bringCallToFront}
+    />
+  );
 };
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -487,6 +507,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           <div className="hidden md:flex md:items-center md:gap-2 tour-quick-actions">
+            {/* Active Call Indicator */}
+            <ActiveCallIndicatorWrapper />
+            
             {elapsedTime && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium">
                 <Clock className="h-4 w-4" />

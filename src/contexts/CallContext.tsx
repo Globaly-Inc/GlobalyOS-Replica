@@ -8,14 +8,29 @@ import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { IncomingCallDialog } from '@/components/call/IncomingCallDialog';
 import { ActiveCallWindow } from '@/components/call/ActiveCallWindow';
 import { OutgoingCallDialog } from '@/components/call/OutgoingCallDialog';
+import { CallOverlayPortal } from '@/components/call/CallOverlayPortal';
 import { toast } from 'sonner';
+
+type CallWindowMode = 'minimized' | 'floating' | 'fullscreen';
+
+interface CallUiState {
+  isOpen: boolean;
+  windowMode: CallWindowMode;
+  focusNonce: number;
+}
 
 interface CallContextType {
   activeCall: CallSession | null;
   incomingCall: CallSession | null;
   outgoingCall: CallSession | null;
   isInCall: boolean;
+  callDuration: number;
+  callUiState: CallUiState;
   initiateCall: (params: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => Promise<void>;
+  openCallUI: () => void;
+  minimizeCallUI: () => void;
+  setCallWindowMode: (mode: CallWindowMode) => void;
+  bringCallToFront: () => void;
 }
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -35,7 +50,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [incomingParticipants, setIncomingParticipants] = useState<CallParticipant[]>([]);
   const [outgoingRecipientName, setOutgoingRecipientName] = useState<string>('');
   const [outgoingRecipientAvatar, setOutgoingRecipientAvatar] = useState<string | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
   const { vibrate } = useHapticFeedback();
+  
+  // Call UI state - separate from call existence
+  const [callUiState, setCallUiState] = useState<CallUiState>({
+    isOpen: true,
+    windowMode: 'floating',
+    focusNonce: 0,
+  });
   
   const { data: callParticipants = [] } = useCallParticipants(activeCall?.id || null);
   
@@ -58,6 +81,55 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopScreenShare,
     cleanup,
   } = useWebRTC(activeCall?.id || null, callParticipants);
+  
+  // Call UI control functions
+  const openCallUI = useCallback(() => {
+    console.log('[CallContext] openCallUI called');
+    setCallUiState(prev => ({ ...prev, isOpen: true, windowMode: 'floating' }));
+  }, []);
+  
+  const minimizeCallUI = useCallback(() => {
+    console.log('[CallContext] minimizeCallUI called');
+    setCallUiState(prev => ({ ...prev, windowMode: 'minimized' }));
+  }, []);
+  
+  const setCallWindowMode = useCallback((mode: CallWindowMode) => {
+    console.log('[CallContext] setCallWindowMode:', mode);
+    setCallUiState(prev => ({ ...prev, windowMode: mode, isOpen: true }));
+  }, []);
+  
+  const bringCallToFront = useCallback(() => {
+    console.log('[CallContext] bringCallToFront called');
+    setCallUiState(prev => ({ 
+      ...prev, 
+      isOpen: true, 
+      windowMode: prev.windowMode === 'minimized' ? 'floating' : prev.windowMode,
+      focusNonce: prev.focusNonce + 1 
+    }));
+  }, []);
+  
+  // Track call duration
+  useEffect(() => {
+    if (!activeCall || (activeCall.status !== 'active' && activeCall.status !== 'ringing')) {
+      setCallDuration(0);
+      return;
+    }
+    
+    const startTime = activeCall.started_at ? new Date(activeCall.started_at).getTime() : Date.now();
+    
+    const interval = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [activeCall?.id, activeCall?.status, activeCall?.started_at]);
+  
+  // Reset UI state when call ends
+  useEffect(() => {
+    if (!activeCall) {
+      setCallUiState({ isOpen: true, windowMode: 'floating', focusNonce: 0 });
+    }
+  }, [activeCall]);
   
   // Listen for incoming calls
   useEffect(() => {
@@ -104,7 +176,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentEmployee, currentOrg, activeCall]);
   
   // Listen for call status changes (for active calls)
-  // Use a ref to track the current status to avoid stale closure issues
   const activeCallStatusRef = useRef<string | null>(null);
   
   useEffect(() => {
@@ -134,11 +205,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setOutgoingCall(null);
           toast.info('Call ended');
         } else if (updated.status === 'active') {
-          // Always update to active, regardless of previous state
           console.log('[CallContext] Call is now active');
           vibrate('callConnected');
           setActiveCall(prev => prev ? { ...prev, ...updated } : null);
           setOutgoingCall(null);
+          // Ensure UI is open when call becomes active
+          setCallUiState(prev => ({ ...prev, isOpen: true }));
           if (activeCallStatusRef.current === 'ringing') {
             toast.success('Call connected');
           }
@@ -149,7 +221,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
-  }, [activeCall?.id, cleanup]);
+  }, [activeCall?.id, cleanup, vibrate]);
   
   // Aggressive polling fallback: detect when receiver joins even if realtime fails
   useEffect(() => {
@@ -181,6 +253,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setActiveCall(activeCallData);
         setOutgoingCall(null);
+        // Ensure UI is open
+        setCallUiState(prev => ({ ...prev, isOpen: true, windowMode: 'floating' }));
         toast.success('Call connected');
       }
       
@@ -197,7 +271,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveCall(null);
         setOutgoingCall(null);
       }
-    }, 500); // Poll every 500ms for faster response
+    }, 500);
     
     return () => clearInterval(pollInterval);
   }, [outgoingCall?.id, currentEmployee?.id, cleanup, vibrate]);
@@ -220,6 +294,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.status === 'active') {
           setActiveCall({ ...activeCall, ...data } as CallSession);
           setOutgoingCall(null);
+          setCallUiState(prev => ({ ...prev, isOpen: true }));
         } else if (data.status === 'ended' || data.status === 'declined') {
           cleanup();
           setActiveCall(null);
@@ -253,8 +328,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('[CallContext] Receiver joined call, setting active immediately');
           vibrate('callConnected');
           
-          // FIX: Use outgoingCall directly instead of relying on prev state
-          // This ensures we always have the call data even if activeCall wasn't set correctly
           const activeCallData: CallSession = {
             ...outgoingCall,
             status: 'active',
@@ -263,6 +336,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           setActiveCall(activeCallData);
           setOutgoingCall(null);
+          // Ensure UI is open
+          setCallUiState(prev => ({ ...prev, isOpen: true, windowMode: 'floating' }));
           toast.success('Call connected');
         }
         
@@ -276,7 +351,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           const allDeclined = participants?.every(p => p.status === 'declined' || p.status === 'missed');
           if (allDeclined) {
-            // Create declined call log before cleanup
             try {
               await createCallLogMessage.mutateAsync({
                 callId: outgoingCall.id,
@@ -305,7 +379,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { supabase.removeChannel(channel); };
   }, [outgoingCall, currentEmployee, cleanup, createCallLogMessage, vibrate]);
   
-  // FIX: Fetch participants directly instead of using hooks that depend on activeCall
   const initiateCall = useCallback(async ({ conversationId, spaceId, callType }: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => {
     if (!currentEmployee || !currentOrg) return;
     
@@ -313,7 +386,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let recipientName = '';
     let recipientAvatar: string | null = null;
     
-    // Fetch participants directly from database
     if (conversationId) {
       const { data } = await supabase
         .from('chat_participants')
@@ -325,7 +397,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .map(p => p.employee_id)
           .filter(id => id !== currentEmployee.id);
         
-        // Get recipient info for outgoing call UI
         const recipient = data.find(p => p.employee_id !== currentEmployee.id);
         if (recipient?.employee?.profiles) {
           recipientName = recipient.employee.profiles.full_name || 'Unknown';
@@ -365,6 +436,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOutgoingCall(call);
       setOutgoingRecipientName(recipientName);
       setOutgoingRecipientAvatar(recipientAvatar);
+      // Ensure UI is open for outgoing call
+      setCallUiState({ isOpen: true, windowMode: 'floating', focusNonce: 0 });
       
       // Send push notifications to all participants
       for (const participantId of participantIds) {
@@ -375,7 +448,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
         
         if (employee) {
-          // Call the push notification function
           supabase.functions.invoke('send-call-notification', {
             body: {
               to_user_id: employee.user_id,
@@ -398,7 +470,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleAcceptCall = useCallback(async (withVideo: boolean) => {
     if (!incomingCall) return;
     
-    // Stop vibration
     if ('vibrate' in navigator) {
       navigator.vibrate(0);
     }
@@ -407,7 +478,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await initializeMedia(withVideo);
       await joinCallMutation.mutateAsync({ callId: incomingCall.id, withVideo });
       
-      // FIX: Set activeCall with 'active' status immediately so ActiveCallWindow renders
       setActiveCall({
         ...incomingCall,
         status: 'active',
@@ -415,9 +485,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setIncomingCall(null);
       setIncomingParticipants([]);
+      // Ensure UI is open
+      setCallUiState({ isOpen: true, windowMode: 'floating', focusNonce: 0 });
       toast.success('Call connected');
       
-      // Dismiss the push notification
       supabase.functions.invoke('dismiss-call-notification', {
         body: { call_id: incomingCall.id }
       }).catch(console.error);
@@ -430,7 +501,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleDeclineCall = useCallback(async () => {
     if (!incomingCall) return;
     
-    // Stop vibration
     if ('vibrate' in navigator) {
       navigator.vibrate(0);
     }
@@ -439,7 +509,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIncomingCall(null);
     setIncomingParticipants([]);
     
-    // Dismiss the push notification
     supabase.functions.invoke('dismiss-call-notification', {
       body: { call_id: incomingCall.id }
     }).catch(console.error);
@@ -448,19 +517,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleEndCall = useCallback(async () => {
     if (!activeCall) return;
     
-    // Calculate duration only if call was active
     const wasActive = activeCall.status === 'active' && activeCall.started_at;
     const durationSeconds = wasActive 
       ? Math.floor((Date.now() - new Date(activeCall.started_at!).getTime()) / 1000)
       : undefined;
     
-    // Get participant names for the call log
     const participantNames = callParticipants.map(p => ({
       name: p.employee?.profiles?.full_name || 'Unknown',
       avatar: p.employee?.profiles?.avatar_url || null,
     }));
     
-    // Create call log message BEFORE cleanup (so we have all the data)
     try {
       await createCallLogMessage.mutateAsync({
         callId: activeCall.id,
@@ -486,9 +552,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleCancelOutgoing = useCallback(async () => {
     if (!outgoingCall) return;
     
-    // Create missed call log before cleanup
     try {
-      // Fetch recipients for the log
       const { data: participants } = await supabase
         .from('call_participants')
         .select('employee:employees(profiles(full_name, avatar_url))')
@@ -525,47 +589,87 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isScreenSharing, startScreenShare, stopScreenShare]);
   
+  // Determine if we should show the active call window
+  const shouldShowActiveCallWindow = activeCall && 
+    currentEmployee && 
+    callUiState.isOpen &&
+    (activeCall.status === 'active' || 
+      (activeCall.status === 'ringing' && callParticipants.some(p => 
+        p.employee_id !== currentEmployee.id && p.status === 'joined'
+      )));
+  
+  // Get participant name for the indicator
+  const activeParticipants = callParticipants.filter(p => p.status === 'joined');
+  const otherParticipant = activeParticipants.find(p => p.employee_id !== currentEmployee?.id);
+  const participantName = otherParticipant?.employee?.profiles?.full_name || 
+    (activeParticipants.length > 2 ? `Group call (${activeParticipants.length})` : undefined);
+  
+  console.log('[CallContext] Render state:', {
+    activeCall: activeCall?.id,
+    activeCallStatus: activeCall?.status,
+    currentEmployee: currentEmployee?.id,
+    callUiState,
+    shouldShowActiveCallWindow,
+    outgoingCall: outgoingCall?.id,
+    incomingCall: incomingCall?.id,
+  });
+  
   return (
-    <CallContext.Provider value={{ activeCall, incomingCall, outgoingCall, isInCall: !!activeCall, initiateCall }}>
+    <CallContext.Provider value={{ 
+      activeCall, 
+      incomingCall, 
+      outgoingCall, 
+      isInCall: !!activeCall,
+      callDuration,
+      callUiState,
+      initiateCall,
+      openCallUI,
+      minimizeCallUI,
+      setCallWindowMode,
+      bringCallToFront,
+    }}>
       {children}
       
-      {incomingCall && (
-        <IncomingCallDialog
-          call={incomingCall}
-          participants={incomingParticipants}
-          onAccept={handleAcceptCall}
-          onDecline={handleDeclineCall}
-        />
-      )}
-      
-      {outgoingCall && activeCall?.status === 'ringing' && (
-        <OutgoingCallDialog
-          call={outgoingCall}
-          recipientName={outgoingRecipientName}
-          recipientAvatar={outgoingRecipientAvatar}
-          onCancel={handleCancelOutgoing}
-        />
-      )}
-      
-      {activeCall && currentEmployee && (activeCall.status === 'active' || 
-        (activeCall.status === 'ringing' && callParticipants.some(p => 
-          p.employee_id !== currentEmployee.id && p.status === 'joined'
-        ))) && (
-        <ActiveCallWindow
-          call={activeCall}
-          participants={callParticipants}
-          currentEmployeeId={currentEmployee.id}
-          localStream={localStream}
-          remoteStreams={remoteStreams}
-          isMuted={isMuted}
-          isVideoOff={isVideoOff}
-          isScreenSharing={isScreenSharing}
-          onToggleMute={toggleMute}
-          onToggleVideo={toggleVideo}
-          onToggleScreenShare={handleToggleScreenShare}
-          onEndCall={handleEndCall}
-        />
-      )}
+      {/* Use Portal to render call UI at document.body level */}
+      <CallOverlayPortal>
+        {incomingCall && (
+          <IncomingCallDialog
+            call={incomingCall}
+            participants={incomingParticipants}
+            onAccept={handleAcceptCall}
+            onDecline={handleDeclineCall}
+          />
+        )}
+        
+        {outgoingCall && activeCall?.status === 'ringing' && (
+          <OutgoingCallDialog
+            call={outgoingCall}
+            recipientName={outgoingRecipientName}
+            recipientAvatar={outgoingRecipientAvatar}
+            onCancel={handleCancelOutgoing}
+          />
+        )}
+        
+        {shouldShowActiveCallWindow && currentEmployee && (
+          <ActiveCallWindow
+            call={activeCall}
+            participants={callParticipants}
+            currentEmployeeId={currentEmployee.id}
+            localStream={localStream}
+            remoteStreams={remoteStreams}
+            isMuted={isMuted}
+            isVideoOff={isVideoOff}
+            isScreenSharing={isScreenSharing}
+            onToggleMute={toggleMute}
+            onToggleVideo={toggleVideo}
+            onToggleScreenShare={handleToggleScreenShare}
+            onEndCall={handleEndCall}
+            windowMode={callUiState.windowMode}
+            onWindowModeChange={setCallWindowMode}
+            focusNonce={callUiState.focusNonce}
+          />
+        )}
+      </CallOverlayPortal>
     </CallContext.Provider>
   );
 };
