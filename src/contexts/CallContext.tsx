@@ -4,6 +4,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { CallSession, CallParticipant } from '@/types/call';
 import { useCurrentEmployee, useCallParticipants, useInitiateCall, useJoinCall, useDeclineCall, useEndCall, useCreateCallLogMessage } from '@/services/useCall';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { IncomingCallDialog } from '@/components/call/IncomingCallDialog';
 import { ActiveCallWindow } from '@/components/call/ActiveCallWindow';
 import { OutgoingCallDialog } from '@/components/call/OutgoingCallDialog';
@@ -34,6 +35,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [incomingParticipants, setIncomingParticipants] = useState<CallParticipant[]>([]);
   const [outgoingRecipientName, setOutgoingRecipientName] = useState<string>('');
   const [outgoingRecipientAvatar, setOutgoingRecipientAvatar] = useState<string | null>(null);
+  const { vibrate } = useHapticFeedback();
   
   const { data: callParticipants = [] } = useCallParticipants(activeCall?.id || null);
   
@@ -126,6 +128,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[CallContext] Call status update received:', updated.status, 'previous:', activeCallStatusRef.current);
         
         if (updated.status === 'ended' || updated.status === 'declined' || updated.status === 'missed') {
+          vibrate('callEnded');
           cleanup();
           setActiveCall(null);
           setOutgoingCall(null);
@@ -133,6 +136,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (updated.status === 'active') {
           // Always update to active, regardless of previous state
           console.log('[CallContext] Call is now active');
+          vibrate('callConnected');
           setActiveCall(prev => prev ? { ...prev, ...updated } : null);
           setOutgoingCall(null);
           if (activeCallStatusRef.current === 'ringing') {
@@ -193,6 +197,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // If someone joined, the call is active - update local state immediately
         if (updated.status === 'joined' && updated.employee_id !== currentEmployee.id) {
           console.log('[CallContext] Receiver joined call, setting active');
+          vibrate('callConnected');
           setActiveCall(prev => prev ? { 
             ...prev, 
             status: 'active', 

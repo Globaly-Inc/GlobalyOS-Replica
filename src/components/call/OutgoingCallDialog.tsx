@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CallSession } from '@/types/call';
 import { cn } from '@/lib/utils';
+import { useRingbackTone } from '@/hooks/useRingbackTone';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 
 interface OutgoingCallDialogProps {
   call: CallSession;
@@ -20,12 +22,30 @@ export const OutgoingCallDialog: React.FC<OutgoingCallDialogProps> = ({
 }) => {
   const [callDuration, setCallDuration] = useState(0);
   const [dots, setDots] = useState('');
+  const { play: playRingback, stop: stopRingback } = useRingbackTone();
+  const { vibrate, stop: stopVibration } = useHapticFeedback();
   
   const recipientInitials = recipientName
     .split(' ')
     .map(n => n[0])
     .join('')
     .slice(0, 2);
+  
+  // Play ringback tone and haptic pulse
+  useEffect(() => {
+    playRingback();
+    
+    // Subtle vibration pulse every 3 seconds while calling
+    const vibrationInterval = setInterval(() => {
+      vibrate('outgoingPulse');
+    }, 3000);
+    
+    return () => {
+      stopRingback();
+      stopVibration();
+      clearInterval(vibrationInterval);
+    };
+  }, [playRingback, stopRingback, vibrate, stopVibration]);
   
   // Animate dots
   useEffect(() => {
@@ -46,10 +66,18 @@ export const OutgoingCallDialog: React.FC<OutgoingCallDialogProps> = ({
   // Auto-cancel after 30 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
+      stopRingback();
+      stopVibration();
       onCancel();
     }, 30000);
     return () => clearTimeout(timeout);
-  }, [onCancel]);
+  }, [onCancel, stopRingback, stopVibration]);
+  
+  const handleCancel = () => {
+    stopRingback();
+    stopVibration();
+    onCancel();
+  };
   
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -108,7 +136,7 @@ export const OutgoingCallDialog: React.FC<OutgoingCallDialogProps> = ({
             variant="destructive"
             size="lg"
             className="h-16 w-16 rounded-full p-0 shadow-lg"
-            onClick={onCancel}
+            onClick={handleCancel}
           >
             <PhoneOff className="h-7 w-7" />
           </Button>

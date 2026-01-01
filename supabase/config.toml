@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.send-call-notification]
 verify_jwt = false
+
+[functions.decline-call-from-notification]
+verify_jwt = false
