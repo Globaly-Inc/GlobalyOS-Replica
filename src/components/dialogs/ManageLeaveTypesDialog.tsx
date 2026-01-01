@@ -29,7 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Settings2, Trash2, Plus, Loader2, AlertTriangle } from "lucide-react";
+import { Settings2, Trash2, Plus, Loader2, AlertTriangle, History, Sparkles } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -60,6 +61,13 @@ interface DeleteConfirmation {
   requestCount: number;
 }
 
+interface PreviousYearBalance {
+  leave_type_id: string;
+  leave_type_name: string;
+  category: string;
+  balance: number;
+}
+
 export const ManageLeaveTypesDialog = ({
   employeeId,
   onSuccess,
@@ -68,14 +76,17 @@ export const ManageLeaveTypesDialog = ({
   const [loading, setLoading] = useState(false);
   const [assignedTypes, setAssignedTypes] = useState<AssignedLeaveType[]>([]);
   const [availableTypes, setAvailableTypes] = useState<LeaveType[]>([]);
+  const [previousYearBalances, setPreviousYearBalances] = useState<PreviousYearBalance[]>([]);
   const [selectedType, setSelectedType] = useState<string>("");
   const [initialBalance, setInitialBalance] = useState<string>("0");
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingType, setAddingType] = useState(false);
+  const [copyingFromPrevious, setCopyingFromPrevious] = useState(false);
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
 
   useEffect(() => {
     if (open && currentOrg) {
@@ -86,10 +97,43 @@ export const ManageLeaveTypesDialog = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadAssignedTypes(), loadAllLeaveTypes()]);
+      await Promise.all([loadAssignedTypes(), loadAllLeaveTypes(), loadPreviousYearBalances()]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadPreviousYearBalances = async () => {
+    if (!currentOrg) return;
+
+    const { data, error } = await supabase
+      .from("leave_type_balances")
+      .select(`
+        leave_type_id,
+        balance,
+        leave_type:leave_types!inner(
+          id,
+          name,
+          category
+        )
+      `)
+      .eq("employee_id", employeeId)
+      .eq("organization_id", currentOrg.id)
+      .eq("year", previousYear);
+
+    if (error) {
+      console.error("Error loading previous year balances:", error);
+      return;
+    }
+
+    const mapped = (data || []).map((item: any) => ({
+      leave_type_id: item.leave_type_id,
+      leave_type_name: item.leave_type.name,
+      category: item.leave_type.category,
+      balance: item.balance,
+    }));
+
+    setPreviousYearBalances(mapped);
   };
 
   const loadAssignedTypes = async () => {
@@ -293,6 +337,126 @@ export const ManageLeaveTypesDialog = ({
     queryClient.invalidateQueries({ queryKey: ["leave-balances", employeeId] });
   };
 
+  // Copy balances from previous year with carry-forward
+  const handleCopyFromPreviousYear = async () => {
+    if (!currentOrg || previousYearBalances.length === 0) return;
+
+    setCopyingFromPrevious(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let creatorEmployeeId: string | null = null;
+
+      if (user?.id) {
+        const { data: currentEmployee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", currentOrg.id)
+          .maybeSingle();
+        creatorEmployeeId = currentEmployee?.id || null;
+      }
+
+      // Get leave type details for carry-forward rules
+      const leaveTypeIds = previousYearBalances.map(b => b.leave_type_id);
+      const { data: leaveTypes } = await supabase
+        .from("leave_types")
+        .select("id, name, default_days, carry_forward_mode")
+        .in("id", leaveTypeIds)
+        .eq("is_active", true);
+
+      const leaveTypeMap = new Map((leaveTypes || []).map(lt => [lt.id, lt]));
+      
+      let created = 0;
+      let skipped = 0;
+
+      for (const prevBalance of previousYearBalances) {
+        // Check if already exists for current year
+        const alreadyExists = assignedTypes.some(at => at.leave_type_id === prevBalance.leave_type_id);
+        if (alreadyExists) {
+          skipped++;
+          continue;
+        }
+
+        const leaveType = leaveTypeMap.get(prevBalance.leave_type_id);
+        if (!leaveType) continue;
+
+        // Calculate new balance with carry-forward
+        const defaultDays = leaveType.default_days || 0;
+        const mode = leaveType.carry_forward_mode || 'none';
+        let carriedForward = 0;
+
+        if (mode === 'all') {
+          carriedForward = prevBalance.balance;
+        } else if (mode === 'positive_only' && prevBalance.balance > 0) {
+          carriedForward = prevBalance.balance;
+        } else if (mode === 'negative_only' && prevBalance.balance < 0) {
+          carriedForward = prevBalance.balance;
+        }
+
+        const newBalance = defaultDays + carriedForward;
+
+        // Insert balance
+        const { error: insertError } = await supabase
+          .from("leave_type_balances")
+          .insert({
+            employee_id: employeeId,
+            leave_type_id: prevBalance.leave_type_id,
+            organization_id: currentOrg.id,
+            year: currentYear,
+            balance: newBalance,
+          });
+
+        if (insertError) {
+          console.error("Error copying balance:", insertError);
+          continue;
+        }
+
+        created++;
+
+        // Log the copy
+        if (creatorEmployeeId) {
+          let reason = `Copied from ${previousYear}: ${defaultDays} default days`;
+          if (carriedForward !== 0) {
+            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried forward`;
+          }
+
+          await supabase.from("leave_balance_logs").insert({
+            employee_id: employeeId,
+            organization_id: currentOrg.id,
+            leave_type: prevBalance.leave_type_name,
+            leave_type_id: prevBalance.leave_type_id,
+            change_amount: newBalance,
+            previous_balance: 0,
+            new_balance: newBalance,
+            reason: reason,
+            created_by: creatorEmployeeId,
+            effective_date: `${currentYear}-01-01`,
+            action: "year_init",
+          });
+        }
+      }
+
+      if (created > 0) {
+        toast.success(`Copied ${created} leave types from ${previousYear}${skipped > 0 ? ` (${skipped} already existed)` : ''}`);
+        await loadAssignedTypes();
+        invalidateQueries();
+        onSuccess?.();
+      } else if (skipped > 0) {
+        toast.info(`All ${skipped} leave types already exist for ${currentYear}`);
+      }
+    } catch (error: any) {
+      console.error("Error copying from previous year:", error);
+      toast.error(error.message || "Failed to copy balances");
+    } finally {
+      setCopyingFromPrevious(false);
+    }
+  };
+
+  // Check if there are previous year balances that can be copied
+  const canCopyFromPrevious = previousYearBalances.some(
+    prev => !assignedTypes.some(at => at.leave_type_id === prev.leave_type_id)
+  );
+
   // Sort: paid first, then alphabetically
   const sortedAssignedTypes = [...assignedTypes].sort((a, b) => {
     if (a.category === "paid" && b.category !== "paid") return -1;
@@ -319,16 +483,67 @@ export const ManageLeaveTypesDialog = ({
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {/* Quick Actions - Show when no assigned types but previous year has data */}
+            {!loading && sortedAssignedTypes.length === 0 && canCopyFromPrevious && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Quick Actions
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This employee had {previousYearBalances.length} leave types in {previousYear}. 
+                  You can quickly copy them with carry-forward rules applied.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleCopyFromPreviousYear}
+                  disabled={copyingFromPrevious}
+                  className="gap-1.5"
+                >
+                  {copyingFromPrevious ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <History className="h-3.5 w-3.5" />
+                  )}
+                  Copy from {previousYear}
+                </Button>
+              </div>
+            )}
+
+            {/* Quick Copy Button - Show inline when some types exist but more can be copied */}
+            {!loading && sortedAssignedTypes.length > 0 && canCopyFromPrevious && (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-dashed bg-muted/30">
+                <div className="text-xs text-muted-foreground">
+                  <History className="h-3.5 w-3.5 inline mr-1.5" />
+                  {previousYearBalances.filter(p => !assignedTypes.some(a => a.leave_type_id === p.leave_type_id)).length} more leave types from {previousYear}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyFromPreviousYear}
+                  disabled={copyingFromPrevious}
+                  className="h-7 text-xs gap-1"
+                >
+                  {copyingFromPrevious ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                  Copy Remaining
+                </Button>
+              </div>
+            )}
+
             {/* Current Leave Types */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Current Leave Types</Label>
+              <Label className="text-sm font-medium">Current Leave Types ({currentYear})</Label>
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : sortedAssignedTypes.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  No leave types assigned
+                  No leave types assigned for {currentYear}
                 </p>
               ) : (
                 <div className="space-y-2">
