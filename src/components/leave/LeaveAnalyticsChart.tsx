@@ -85,7 +85,7 @@ const getGranularity = (dateRangeFilter: DateRangeOption, startDate: Date, endDa
   if (dateRangeFilter === 'last30days' || dateRangeFilter === 'thisMonth' || dateRangeFilter === 'lastMonth') {
     return 'weekly';
   }
-  if (dateRangeFilter === 'thisYear') {
+  if (dateRangeFilter === 'thisYear' || dateRangeFilter === 'lastYear') {
     return 'monthly';
   }
   // Custom: determine by range
@@ -281,11 +281,11 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
 
   const granularityLabels = getGranularityLabel(granularity);
 
-  // Format date range header
+  // Format date range header - use actual year from date range for year-based filters
   const dateRangeHeader = useMemo(() => {
     const { startDate, endDate } = dateRange;
-    if (dateRangeFilter === 'thisYear') {
-      return yearFilter;
+    if (dateRangeFilter === 'thisYear' || dateRangeFilter === 'lastYear') {
+      return startDate.getFullYear().toString();
     }
     if (isSameDay(startDate, endDate)) {
       return format(startDate, 'MMM d, yyyy');
@@ -294,7 +294,7 @@ export function LeaveAnalyticsChart({ transactions, yearFilter, dateRangeFilter,
       return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
     }
     return `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`;
-  }, [dateRange, dateRangeFilter, yearFilter]);
+  }, [dateRange, dateRangeFilter]);
 
   // Check if we have enough data
   const hasEnoughData = trendData.some(p => p.total > 0 || p.adjustments > 0);

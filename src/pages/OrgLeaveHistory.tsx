@@ -40,7 +40,7 @@ import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDia
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
-import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel } from "@/hooks/useLeaveHistoryFilters";
+import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel, getDateRangeDisplayLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
 import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearBalancesButton";
 
@@ -285,7 +285,9 @@ const OrgLeaveHistory = () => {
       // Store all active leave types for stats cards
       setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
       
-      // Check how many employees are missing balances for this year (for admin banner)
+      // Check how many employees are missing balances for CURRENT calendar year (for admin banner)
+      // This should always check the current year, not the selected yearFilter
+      const currentCalendarYear = new Date().getFullYear();
       if (canEditAll && leaveTypesData?.length) {
         const { count: activeEmployeeCount } = await supabase
           .from("employees")
@@ -297,7 +299,7 @@ const OrgLeaveHistory = () => {
           .from("leave_type_balances")
           .select("id", { count: "exact", head: true })
           .eq("organization_id", currentOrg.id)
-          .eq("year", currentYear);
+          .eq("year", currentCalendarYear);
         
         const expectedBalances = (activeEmployeeCount || 0) * leaveTypesData.length;
         const missing = Math.max(0, expectedBalances - (balanceCount || 0));
@@ -845,7 +847,7 @@ const OrgLeaveHistory = () => {
       {/* Year Balance Initialization Banner (for admins) */}
       {canEditAll && (
         <InitializeYearBalancesButton
-          year={parseInt(yearFilter)}
+          year={new Date().getFullYear()}
           missingCount={missingBalanceCount}
           onComplete={loadData}
         />
@@ -1048,12 +1050,14 @@ const OrgLeaveHistory = () => {
             >
               <SelectTrigger className="h-9 flex-1 bg-background">
                 <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
-                <SelectValue placeholder="Date Range" />
+                <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
               </SelectTrigger>
               <SelectContent>
                 {DATE_RANGE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {option.value === "thisYear" || option.value === "lastYear" 
+                      ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                      : option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1087,14 +1091,16 @@ const OrgLeaveHistory = () => {
                   }
                 }}
               >
-                <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                <SelectTrigger className="h-9 w-auto min-w-[150px] bg-background">
                   <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="Date Range" />
+                  <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {DATE_RANGE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {option.value === "thisYear" || option.value === "lastYear" 
+                        ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                        : option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
