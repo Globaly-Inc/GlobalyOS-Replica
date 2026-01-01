@@ -54,7 +54,7 @@ interface LeaveType {
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
   applies_to_employment_types: EmploymentType[];
-  carry_forward: boolean;
+  carry_forward_mode: 'none' | 'positive_only' | 'negative_only' | 'all';
 }
 
 interface Office {
@@ -82,7 +82,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [formMaxNegativeDays, setFormMaxNegativeDays] = useState("0");
   const [formAppliesToGender, setFormAppliesToGender] = useState<'all' | 'male' | 'female'>('all');
   const [formAppliesToEmploymentTypes, setFormAppliesToEmploymentTypes] = useState<EmploymentType[]>([]);
-  const [formCarryForward, setFormCarryForward] = useState(false);
+  const [formCarryForwardMode, setFormCarryForwardMode] = useState<'none' | 'positive_only' | 'negative_only' | 'all'>('none');
   
   const { currentOrg } = useOrganization();
   const { isAdmin } = useUserRole();
@@ -128,30 +128,30 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     // Load office mappings for each leave type
     const typesWithOffices = await Promise.all(
       (types || []).map(async (type) => {
-        if (!type.applies_to_all_offices) {
-          const { data: officeData } = await supabase
-            .from("leave_type_offices")
-            .select("office_id")
-            .eq("leave_type_id", type.id);
-          
-          return {
-            ...type,
-            office_ids: officeData?.map((o) => o.office_id) || [],
+          if (!type.applies_to_all_offices) {
+            const { data: officeData } = await supabase
+              .from("leave_type_offices")
+              .select("office_id")
+              .eq("leave_type_id", type.id);
+            
+            return {
+              ...type,
+              office_ids: officeData?.map((o) => o.office_id) || [],
+              applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+              max_negative_days: type.max_negative_days || 0,
+              applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
+              carry_forward_mode: (type.carry_forward_mode || 'none') as 'none' | 'positive_only' | 'negative_only' | 'all',
+            };
+          }
+          return { 
+            ...type, 
+            office_ids: [],
             applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
             max_negative_days: type.max_negative_days || 0,
             applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
-            carry_forward: type.carry_forward || false,
+            carry_forward_mode: (type.carry_forward_mode || 'none') as 'none' | 'positive_only' | 'negative_only' | 'all',
           };
-        }
-        return { 
-          ...type, 
-          office_ids: [],
-          applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
-          max_negative_days: type.max_negative_days || 0,
-          applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
-          carry_forward: type.carry_forward || false,
-        };
-      })
+        })
     );
 
     setLeaveTypes(typesWithOffices as LeaveType[]);
@@ -169,7 +169,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMaxNegativeDays("0");
     setFormAppliesToGender('all');
     setFormAppliesToEmploymentTypes(employmentTypesData.map(t => t.name));
-    setFormCarryForward(false);
+    setFormCarryForwardMode('none');
     setEditingType(null);
   };
 
@@ -185,7 +185,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMaxNegativeDays(String(leaveType.max_negative_days || 0));
     setFormAppliesToGender(leaveType.applies_to_gender || 'all');
     setFormAppliesToEmploymentTypes(leaveType.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee']);
-    setFormCarryForward(leaveType.carry_forward || false);
+    setFormCarryForwardMode(leaveType.carry_forward_mode || 'none');
     setDialogOpen(true);
   };
 
@@ -214,7 +214,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
         max_negative_days: parseFloat(formMaxNegativeDays) || 0,
         applies_to_gender: formAppliesToGender,
         applies_to_employment_types: formAppliesToEmploymentTypes,
-        carry_forward: formCarryForward,
+        carry_forward_mode: formCarryForwardMode,
       };
 
       let leaveTypeId: string;
@@ -477,18 +477,26 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             </div>
           </div>
           
-          {/* Carry Forward Toggle */}
-          <div className="flex items-center justify-between pt-2 border-t">
-            <div className="space-y-0.5">
-              <Label>Carry Forward to Next Year</Label>
-              <p className="text-xs text-muted-foreground">
-                Unused balance (including negative) carries over to the next year
-              </p>
-            </div>
-            <Switch
-              checked={formCarryForward}
-              onCheckedChange={setFormCarryForward}
-            />
+          {/* Carry Forward Mode Selector */}
+          <div className="space-y-2 pt-2 border-t">
+            <Label>Carry Forward to Next Year</Label>
+            <Select value={formCarryForwardMode} onValueChange={(v) => setFormCarryForwardMode(v as 'none' | 'positive_only' | 'negative_only' | 'all')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (reset each year)</SelectItem>
+                <SelectItem value="positive_only">Positive Only (unused days)</SelectItem>
+                <SelectItem value="negative_only">Negative Only (debt only)</SelectItem>
+                <SelectItem value="all">All (positive + negative)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {formCarryForwardMode === 'none' && 'Balance resets to default at start of each year'}
+              {formCarryForwardMode === 'positive_only' && 'Only unused positive balance carries forward'}
+              {formCarryForwardMode === 'negative_only' && 'Only negative balance (debt) carries forward'}
+              {formCarryForwardMode === 'all' && 'Both positive and negative balance carry forward'}
+            </p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
@@ -618,12 +626,14 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 <TableCell>{leaveType.default_days}</TableCell>
                 <TableCell>{leaveType.max_negative_days || 0}</TableCell>
                 <TableCell>
-                  {leaveType.carry_forward ? (
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
-                      Yes
-                    </Badge>
-                  ) : (
+                  {leaveType.carry_forward_mode === 'none' ? (
                     <span className="text-muted-foreground text-sm">No</span>
+                  ) : (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 text-xs">
+                      {leaveType.carry_forward_mode === 'all' && 'All'}
+                      {leaveType.carry_forward_mode === 'positive_only' && 'Positive'}
+                      {leaveType.carry_forward_mode === 'negative_only' && 'Negative'}
+                    </Badge>
                   )}
                 </TableCell>
                 <TableCell>
