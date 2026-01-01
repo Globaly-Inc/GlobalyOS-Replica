@@ -8,7 +8,7 @@ import { useCallRecording } from '@/hooks/useCallRecording';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type WindowMode = 'minimized' | 'floating' | 'fullscreen';
+export type WindowMode = 'minimized' | 'floating' | 'fullscreen';
 
 interface Position {
   x: number;
@@ -33,6 +33,10 @@ interface ActiveCallWindowProps {
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
   onEndCall: () => void;
+  // Controlled props from parent
+  windowMode?: WindowMode;
+  onWindowModeChange?: (mode: WindowMode) => void;
+  focusNonce?: number;
 }
 
 export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
@@ -48,8 +52,15 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   onToggleVideo,
   onToggleScreenShare,
   onEndCall,
+  windowMode: controlledWindowMode,
+  onWindowModeChange,
+  focusNonce,
 }) => {
-  const [windowMode, setWindowMode] = useState<WindowMode>('floating');
+  // Use controlled or internal state for window mode
+  const [internalWindowMode, setInternalWindowMode] = useState<WindowMode>('floating');
+  const windowMode = controlledWindowMode ?? internalWindowMode;
+  const setWindowMode = onWindowModeChange ?? setInternalWindowMode;
+  
   const [callDuration, setCallDuration] = useState(0);
   const [position, setPosition] = useState<Position>({ x: 20, y: 20 });
   const [size, setSize] = useState<Size>({ width: 400, height: 300 });
@@ -58,6 +69,29 @@ export const ActiveCallWindow: React.FC<ActiveCallWindowProps> = ({
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   
   const windowRef = useRef<HTMLDivElement>(null);
+  const prevFocusNonce = useRef(focusNonce);
+  
+  // Log mount/unmount for debugging
+  useEffect(() => {
+    console.log('[ActiveCallWindow] Mounted, call:', call.id, 'status:', call.status);
+    return () => {
+      console.log('[ActiveCallWindow] Unmounted');
+    };
+  }, [call.id, call.status]);
+  
+  // Handle focus nonce changes - bring window to front
+  useEffect(() => {
+    if (focusNonce !== undefined && focusNonce !== prevFocusNonce.current) {
+      console.log('[ActiveCallWindow] Focus nonce changed, bringing to front');
+      prevFocusNonce.current = focusNonce;
+      
+      // Clamp position to be visible on screen
+      setPosition(prev => ({
+        x: Math.max(0, Math.min(window.innerWidth - size.width, prev.x)),
+        y: Math.max(0, Math.min(window.innerHeight - size.height, prev.y)),
+      }));
+    }
+  }, [focusNonce, size.width, size.height]);
   
   // Recording hook
   const recording = useCallRecording(call.id);
