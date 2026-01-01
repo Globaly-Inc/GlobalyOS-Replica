@@ -42,6 +42,7 @@ import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
+import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearBalancesButton";
 
 interface LeaveTransaction {
   id: string;
@@ -190,6 +191,7 @@ const OrgLeaveHistory = () => {
   const [editRequest, setEditRequest] = useState<any>(null);
   const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
+  const [missingBalanceCount, setMissingBalanceCount] = useState(0);
   
   // Bulk selection state
   const [selectedTransactions, setSelectedTransactions] = useState<SelectedTransaction[]>([]);
@@ -282,6 +284,25 @@ const OrgLeaveHistory = () => {
       
       // Store all active leave types for stats cards
       setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
+      
+      // Check how many employees are missing balances for this year (for admin banner)
+      if (canEditAll && leaveTypesData?.length) {
+        const { count: activeEmployeeCount } = await supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", currentOrg.id)
+          .eq("status", "active");
+        
+        const { count: balanceCount } = await supabase
+          .from("leave_type_balances")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", currentOrg.id)
+          .eq("year", currentYear);
+        
+        const expectedBalances = (activeEmployeeCount || 0) * leaveTypesData.length;
+        const missing = Math.max(0, expectedBalances - (balanceCount || 0));
+        setMissingBalanceCount(missing > 0 ? activeEmployeeCount || 0 : 0);
+      }
       
       // Build a lookup map to normalize leave type names to official casing
       const leaveTypeNameMap: Record<string, string> = {};
@@ -821,6 +842,15 @@ const OrgLeaveHistory = () => {
 
   return (
     <div className="space-y-6 pt-4 md:pt-6">
+      {/* Year Balance Initialization Banner (for admins) */}
+      {canEditAll && (
+        <InitializeYearBalancesButton
+          year={parseInt(yearFilter)}
+          missingCount={missingBalanceCount}
+          onComplete={loadData}
+        />
+      )}
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

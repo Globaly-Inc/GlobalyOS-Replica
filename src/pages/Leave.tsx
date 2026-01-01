@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
+import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
 import { 
   CalendarDays, 
   Plus, 
@@ -70,6 +71,7 @@ const Leave = () => {
   const [canceling, setCanceling] = useState(false);
   const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
+  const initBalances = useInitializeEmployeeBalances();
 
   // Fetch employee ID
   const { data: employee } = useQuery({
@@ -113,6 +115,13 @@ const Leave = () => {
     staleTime: 30 * 1000, // 30 seconds - may change after approvals
     enabled: !!employee?.id,
   });
+
+  // Auto-initialize balances if employee has none for current year
+  useEffect(() => {
+    if (employee?.id && !balancesLoading && balances.length === 0) {
+      initBalances.mutate(employee.id);
+    }
+  }, [employee?.id, balancesLoading, balances.length]);
 
   // Fetch hour balance
   const { data: hourBalance } = useQuery({
