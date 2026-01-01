@@ -190,21 +190,45 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }, async (payload) => {
         const updated = payload.new as any;
         
-        // If someone joined, the call is active
+        // If someone joined, the call is active - update local state immediately
         if (updated.status === 'joined' && updated.employee_id !== currentEmployee.id) {
+          console.log('[CallContext] Receiver joined call, setting active');
+          setActiveCall(prev => prev ? { 
+            ...prev, 
+            status: 'active', 
+            started_at: new Date().toISOString() 
+          } : null);
           setOutgoingCall(null);
+          toast.success('Call connected');
         }
         
         // If all participants declined
         if (updated.status === 'declined' || updated.status === 'missed') {
           const { data: participants } = await supabase
             .from('call_participants')
-            .select('status')
+            .select('status, employee:employees(profiles(full_name, avatar_url))')
             .eq('call_id', outgoingCall.id)
             .neq('employee_id', currentEmployee.id);
           
           const allDeclined = participants?.every(p => p.status === 'declined' || p.status === 'missed');
           if (allDeclined) {
+            // Create declined call log before cleanup
+            try {
+              await createCallLogMessage.mutateAsync({
+                callId: outgoingCall.id,
+                conversationId: outgoingCall.conversation_id,
+                spaceId: outgoingCall.space_id,
+                callType: outgoingCall.call_type as 'audio' | 'video',
+                status: 'declined',
+                participants: participants?.map(p => ({
+                  name: p.employee?.profiles?.full_name || 'Unknown',
+                  avatar: p.employee?.profiles?.avatar_url || null,
+                })) || [],
+              });
+            } catch (error) {
+              console.error('Failed to create declined call log:', error);
+            }
+            
             cleanup();
             setActiveCall(null);
             setOutgoingCall(null);
@@ -215,7 +239,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
-  }, [outgoingCall, currentEmployee, cleanup]);
+  }, [outgoingCall, currentEmployee, cleanup, createCallLogMessage]);
   
   // FIX: Fetch participants directly instead of using hooks that depend on activeCall
   const initiateCall = useCallback(async ({ conversationId, spaceId, callType }: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => {
@@ -360,9 +384,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleEndCall = useCallback(async () => {
     if (!activeCall) return;
     
-    // Calculate duration
-    const durationSeconds = activeCall.started_at 
-      ? Math.floor((Date.now() - new Date(activeCall.started_at).getTime()) / 1000)
+    // Calculate duration only if call was active
+    const wasActive = activeCall.status === 'active' && activeCall.started_at;
+    const durationSeconds = wasActive 
+      ? Math.floor((Date.now() - new Date(activeCall.started_at!).getTime()) / 1000)
       : undefined;
     
     // Get participant names for the call log
@@ -371,23 +396,23 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       avatar: p.employee?.profiles?.avatar_url || null,
     }));
     
-    cleanup();
-    await endCallMutation.mutateAsync(activeCall.id);
-    
-    // Create call log message in the chat
+    // Create call log message BEFORE cleanup (so we have all the data)
     try {
       await createCallLogMessage.mutateAsync({
         callId: activeCall.id,
         conversationId: activeCall.conversation_id,
         spaceId: activeCall.space_id,
         callType: activeCall.call_type as 'audio' | 'video',
-        status: 'ended',
+        status: wasActive ? 'ended' : 'missed',
         durationSeconds,
         participants: participantNames,
       });
     } catch (error) {
       console.error('Failed to create call log message:', error);
     }
+    
+    cleanup();
+    await endCallMutation.mutateAsync(activeCall.id);
     
     setActiveCall(null);
     setOutgoingCall(null);
@@ -396,12 +421,37 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const handleCancelOutgoing = useCallback(async () => {
     if (!outgoingCall) return;
+    
+    // Create missed call log before cleanup
+    try {
+      // Fetch recipients for the log
+      const { data: participants } = await supabase
+        .from('call_participants')
+        .select('employee:employees(profiles(full_name, avatar_url))')
+        .eq('call_id', outgoingCall.id)
+        .neq('employee_id', currentEmployee?.id);
+      
+      await createCallLogMessage.mutateAsync({
+        callId: outgoingCall.id,
+        conversationId: outgoingCall.conversation_id,
+        spaceId: outgoingCall.space_id,
+        callType: outgoingCall.call_type as 'audio' | 'video',
+        status: 'missed',
+        participants: participants?.map(p => ({
+          name: p.employee?.profiles?.full_name || 'Unknown',
+          avatar: p.employee?.profiles?.avatar_url || null,
+        })) || [],
+      });
+    } catch (error) {
+      console.error('Failed to create missed call log:', error);
+    }
+    
     cleanup();
     await endCallMutation.mutateAsync(outgoingCall.id);
     setActiveCall(null);
     setOutgoingCall(null);
     toast.info('Call cancelled');
-  }, [outgoingCall, cleanup, endCallMutation]);
+  }, [outgoingCall, currentEmployee, cleanup, endCallMutation, createCallLogMessage]);
   
   const handleToggleScreenShare = useCallback(() => {
     if (isScreenSharing) {

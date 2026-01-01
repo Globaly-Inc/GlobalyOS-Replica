@@ -471,6 +471,13 @@ export const useCreateCallLogMessage = () => {
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
+      // Get call session to find initiator
+      const { data: callSession } = await supabase
+        .from('call_sessions')
+        .select('initiated_by, initiator:employees!call_sessions_initiated_by_fkey(id, profiles(full_name, avatar_url))')
+        .eq('id', callId)
+        .single();
+
       // Get recording if exists
       const { data: recording } = await supabase
         .from('call_recordings')
@@ -483,6 +490,9 @@ export const useCreateCallLogMessage = () => {
         call_type: callType,
         status,
         duration_seconds: durationSeconds,
+        initiated_by: callSession?.initiated_by || currentEmployee.id,
+        initiator_name: (callSession?.initiator as any)?.profiles?.full_name || currentEmployee.profiles?.full_name || 'Unknown',
+        initiator_avatar: (callSession?.initiator as any)?.profiles?.avatar_url || currentEmployee.profiles?.avatar_url || null,
         participants,
         recording_url: recording?.storage_path || null,
         ai_summary: recording?.ai_summary || null,
