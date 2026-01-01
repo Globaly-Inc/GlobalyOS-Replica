@@ -9,6 +9,7 @@ export type DateRangeOption =
   | "thisMonth" 
   | "lastMonth" 
   | "thisYear" 
+  | "lastYear"
   | "custom";
 
 interface LeaveHistoryFilters {
@@ -58,6 +59,13 @@ export const getDateRangeFromFilter = (
     }
     case "thisYear":
       return { startDate: new Date(today.getFullYear(), 0, 1), endDate: now };
+    case "lastYear": {
+      const lastYear = today.getFullYear() - 1;
+      return { 
+        startDate: new Date(lastYear, 0, 1), 
+        endDate: new Date(lastYear, 11, 31, 23, 59, 59) 
+      };
+    }
     case "custom":
       return {
         startDate: customStartDate ? new Date(customStartDate) : subDays(today, 6),
@@ -104,6 +112,8 @@ export const getComparisonLabel = (dateRangeFilter: DateRangeOption): string => 
       return "2 months ago";
     case "thisYear":
       return "last year";
+    case "lastYear":
+      return "year before last";
     case "custom":
       return "previous period";
     default:
@@ -119,8 +129,22 @@ export const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
   { value: "thisMonth", label: "This Month" },
   { value: "lastMonth", label: "Last Month" },
   { value: "thisYear", label: "This Year" },
+  { value: "lastYear", label: "Last Year" },
   { value: "custom", label: "Custom" },
 ];
+
+// Get display label for date range filter with dynamic year
+export const getDateRangeDisplayLabel = (option: DateRangeOption): string => {
+  const currentYear = new Date().getFullYear();
+  switch (option) {
+    case "thisYear":
+      return `This Year (${currentYear})`;
+    case "lastYear":
+      return `Last Year (${currentYear - 1})`;
+    default:
+      return DATE_RANGE_OPTIONS.find(o => o.value === option)?.label || option;
+  }
+};
 
 export const useLeaveHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
