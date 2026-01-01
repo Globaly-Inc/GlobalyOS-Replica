@@ -54,6 +54,7 @@ interface LeaveType {
   max_negative_days: number;
   applies_to_gender: 'all' | 'male' | 'female';
   applies_to_employment_types: EmploymentType[];
+  carry_forward: boolean;
 }
 
 interface Office {
@@ -81,6 +82,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
   const [formMaxNegativeDays, setFormMaxNegativeDays] = useState("0");
   const [formAppliesToGender, setFormAppliesToGender] = useState<'all' | 'male' | 'female'>('all');
   const [formAppliesToEmploymentTypes, setFormAppliesToEmploymentTypes] = useState<EmploymentType[]>([]);
+  const [formCarryForward, setFormCarryForward] = useState(false);
   
   const { currentOrg } = useOrganization();
   const { isAdmin } = useUserRole();
@@ -138,6 +140,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
             applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
             max_negative_days: type.max_negative_days || 0,
             applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
+            carry_forward: type.carry_forward || false,
           };
         }
         return { 
@@ -146,6 +149,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
           applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
           max_negative_days: type.max_negative_days || 0,
           applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
+          carry_forward: type.carry_forward || false,
         };
       })
     );
@@ -165,6 +169,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMaxNegativeDays("0");
     setFormAppliesToGender('all');
     setFormAppliesToEmploymentTypes(employmentTypesData.map(t => t.name));
+    setFormCarryForward(false);
     setEditingType(null);
   };
 
@@ -180,6 +185,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
     setFormMaxNegativeDays(String(leaveType.max_negative_days || 0));
     setFormAppliesToGender(leaveType.applies_to_gender || 'all');
     setFormAppliesToEmploymentTypes(leaveType.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee']);
+    setFormCarryForward(leaveType.carry_forward || false);
     setDialogOpen(true);
   };
 
@@ -208,6 +214,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
         max_negative_days: parseFloat(formMaxNegativeDays) || 0,
         applies_to_gender: formAppliesToGender,
         applies_to_employment_types: formAppliesToEmploymentTypes,
+        carry_forward: formCarryForward,
       };
 
       let leaveTypeId: string;
@@ -469,6 +476,20 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               />
             </div>
           </div>
+          
+          {/* Carry Forward Toggle */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="space-y-0.5">
+              <Label>Carry Forward to Next Year</Label>
+              <p className="text-xs text-muted-foreground">
+                Unused balance (including negative) carries over to the next year
+              </p>
+            </div>
+            <Switch
+              checked={formCarryForward}
+              onCheckedChange={setFormCarryForward}
+            />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -566,6 +587,7 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
               <TableHead>Category</TableHead>
               <TableHead>Annual Days</TableHead>
               <TableHead>Max Negative</TableHead>
+              <TableHead>Carry Forward</TableHead>
               <TableHead>Gender</TableHead>
               <TableHead>Employment Types</TableHead>
               <TableHead>Applies To</TableHead>
@@ -595,6 +617,15 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
                 </TableCell>
                 <TableCell>{leaveType.default_days}</TableCell>
                 <TableCell>{leaveType.max_negative_days || 0}</TableCell>
+                <TableCell>
+                  {leaveType.carry_forward ? (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
+                      Yes
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   {leaveType.applies_to_gender === 'all' ? (
                     <span className="text-muted-foreground text-sm">All</span>
