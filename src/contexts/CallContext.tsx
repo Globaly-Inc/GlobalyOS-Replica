@@ -151,7 +151,58 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { supabase.removeChannel(channel); };
   }, [activeCall?.id, cleanup]);
   
-  // Polling fallback: ensure activeCall status is synced with DB
+  // Aggressive polling fallback: detect when receiver joins even if realtime fails
+  useEffect(() => {
+    if (!outgoingCall || !currentEmployee) return;
+    
+    console.log('[CallContext] Starting aggressive poll for outgoing call:', outgoingCall.id);
+    
+    const pollInterval = setInterval(async () => {
+      // Check if any participant has joined
+      const { data: participants } = await supabase
+        .from('call_participants')
+        .select('status, employee_id')
+        .eq('call_id', outgoingCall.id);
+      
+      const otherJoined = participants?.some(
+        p => p.employee_id !== currentEmployee.id && p.status === 'joined'
+      );
+      
+      if (otherJoined) {
+        console.log('[CallContext] Poll detected participant joined!');
+        vibrate('callConnected');
+        
+        // Force transition to active
+        const activeCallData: CallSession = {
+          ...outgoingCall,
+          status: 'active',
+          started_at: new Date().toISOString(),
+        };
+        
+        setActiveCall(activeCallData);
+        setOutgoingCall(null);
+        toast.success('Call connected');
+      }
+      
+      // Also check if call was ended/declined
+      const { data: callData } = await supabase
+        .from('call_sessions')
+        .select('status')
+        .eq('id', outgoingCall.id)
+        .single();
+      
+      if (callData?.status === 'ended' || callData?.status === 'declined') {
+        console.log('[CallContext] Poll detected call ended');
+        cleanup();
+        setActiveCall(null);
+        setOutgoingCall(null);
+      }
+    }, 500); // Poll every 500ms for faster response
+    
+    return () => clearInterval(pollInterval);
+  }, [outgoingCall?.id, currentEmployee?.id, cleanup, vibrate]);
+  
+  // Also poll for activeCall status changes (as fallback)
   useEffect(() => {
     if (!activeCall || activeCall.status === 'active') return;
     
@@ -184,6 +235,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!outgoingCall || !currentEmployee) return;
     
+    console.log('[CallContext] Setting up outgoing call listener for:', outgoingCall.id);
+    
     const channel = supabase
       .channel(`outgoing-call-${outgoingCall.id}`)
       .on('postgres_changes', {
@@ -193,16 +246,22 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         filter: `call_id=eq.${outgoingCall.id}`,
       }, async (payload) => {
         const updated = payload.new as any;
+        console.log('[CallContext] Participant update:', updated.status, 'employee:', updated.employee_id);
         
         // If someone joined, the call is active - update local state immediately
         if (updated.status === 'joined' && updated.employee_id !== currentEmployee.id) {
-          console.log('[CallContext] Receiver joined call, setting active');
+          console.log('[CallContext] Receiver joined call, setting active immediately');
           vibrate('callConnected');
-          setActiveCall(prev => prev ? { 
-            ...prev, 
-            status: 'active', 
-            started_at: new Date().toISOString() 
-          } : null);
+          
+          // FIX: Use outgoingCall directly instead of relying on prev state
+          // This ensures we always have the call data even if activeCall wasn't set correctly
+          const activeCallData: CallSession = {
+            ...outgoingCall,
+            status: 'active',
+            started_at: new Date().toISOString(),
+          };
+          
+          setActiveCall(activeCallData);
           setOutgoingCall(null);
           toast.success('Call connected');
         }
@@ -244,7 +303,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
-  }, [outgoingCall, currentEmployee, cleanup, createCallLogMessage]);
+  }, [outgoingCall, currentEmployee, cleanup, createCallLogMessage, vibrate]);
   
   // FIX: Fetch participants directly instead of using hooks that depend on activeCall
   const initiateCall = useCallback(async ({ conversationId, spaceId, callType }: { conversationId?: string; spaceId?: string; callType: 'audio' | 'video' }) => {
@@ -488,7 +547,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         />
       )}
       
-      {activeCall && currentEmployee && activeCall.status === 'active' && (
+      {activeCall && currentEmployee && (activeCall.status === 'active' || 
+        (activeCall.status === 'ringing' && callParticipants.some(p => 
+          p.employee_id !== currentEmployee.id && p.status === 'joined'
+        ))) && (
         <ActiveCallWindow
           call={activeCall}
           participants={callParticipants}
