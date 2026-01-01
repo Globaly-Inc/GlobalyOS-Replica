@@ -138,9 +138,20 @@ export const useInitializeYearBalances = () => {
         action: string;
       }> = [];
 
-      // Get current user for logging
+      // Get current user's employee ID for logging
       const { data: { user } } = await supabase.auth.getUser();
-      const creatorId = user?.id || "system";
+      let creatorEmployeeId: string | null = null;
+
+      if (user?.id) {
+        const { data: creatorEmployee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", currentOrg.id)
+          .single();
+        
+        creatorEmployeeId = creatorEmployee?.id || null;
+      }
 
       for (const employee of employees) {
         result.employeesProcessed++;
@@ -203,18 +214,21 @@ export const useInitializeYearBalances = () => {
             reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
           }
 
-          logsToInsert.push({
-            employee_id: employee.id,
-            organization_id: currentOrg.id,
-            leave_type: leaveType.name,
-            change_amount: newBalance,
-            previous_balance: 0,
-            new_balance: newBalance,
-            reason: reason,
-            created_by: creatorId,
-            effective_date: `${year}-01-01`,
-            action: "year_init",
-          });
+          // Only add log if we have a valid creator employee ID
+          if (creatorEmployeeId) {
+            logsToInsert.push({
+              employee_id: employee.id,
+              organization_id: currentOrg.id,
+              leave_type: leaveType.name,
+              change_amount: newBalance,
+              previous_balance: 0,
+              new_balance: newBalance,
+              reason: reason,
+              created_by: creatorEmployeeId,
+              effective_date: `${year}-01-01`,
+              action: "year_init",
+            });
+          }
 
           result.balancesCreated++;
         }
@@ -333,9 +347,20 @@ export const useInitializeEmployeeBalances = () => {
         officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
       });
 
-      // Get current user
+      // Get current user's employee ID for logging
       const { data: { user } } = await supabase.auth.getUser();
-      const creatorId = user?.id || "system";
+      let creatorEmployeeId: string | null = null;
+
+      if (user?.id) {
+        const { data: creatorEmployee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", currentOrg.id)
+          .single();
+        
+        creatorEmployeeId = creatorEmployee?.id || null;
+      }
 
       for (const leaveType of leaveTypes) {
         if (existingSet.has(leaveType.id)) continue;
@@ -379,24 +404,26 @@ export const useInitializeEmployeeBalances = () => {
         if (!insertError) {
           balancesCreated++;
 
-          // Log the initialization
-          let reason = `Year ${currentYear} auto-initialization: ${leaveType.default_days || 0} default days`;
-          if (carriedForward !== 0) {
-            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
-          }
+          // Log the initialization (only if we have a valid creator employee ID)
+          if (creatorEmployeeId) {
+            let reason = `Year ${currentYear} auto-initialization: ${leaveType.default_days || 0} default days`;
+            if (carriedForward !== 0) {
+              reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
+            }
 
-          await supabase.from("leave_balance_logs").insert({
-            employee_id: employeeId,
-            organization_id: currentOrg.id,
-            leave_type: leaveType.name,
-            change_amount: newBalance,
-            previous_balance: 0,
-            new_balance: newBalance,
-            reason: reason,
-            created_by: creatorId,
-            effective_date: `${currentYear}-01-01`,
-            action: "year_init",
-          });
+            await supabase.from("leave_balance_logs").insert({
+              employee_id: employeeId,
+              organization_id: currentOrg.id,
+              leave_type: leaveType.name,
+              change_amount: newBalance,
+              previous_balance: 0,
+              new_balance: newBalance,
+              reason: reason,
+              created_by: creatorEmployeeId,
+              effective_date: `${currentYear}-01-01`,
+              action: "year_init",
+            });
+          }
         }
       }
 
