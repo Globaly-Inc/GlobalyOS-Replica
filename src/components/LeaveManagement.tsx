@@ -1,7 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane, CalendarX, Loader2, RefreshCw, History } from "lucide-react";
+import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
+import { toast } from "sonner";
 
 interface LeaveManagementProps {
   employeeId: string;
@@ -32,9 +37,13 @@ const getLeaveTypeIcon = (leaveType: string) => {
 
 export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+  const [initializing, setInitializing] = useState(false);
+  const initBalances = useInitializeEmployeeBalances();
+  const queryClient = useQueryClient();
 
   // Fetch leave balances directly from leave_type_balances (the authoritative source)
-  const { data: balances = [] } = useQuery({
+  const { data: balances = [], refetch: refetchBalances } = useQuery({
     queryKey: ["leave-type-balances-profile", employeeId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,6 +68,33 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
     },
   });
 
+  // Fetch previous year balances (only when current year is empty)
+  const { data: previousYearBalances = [] } = useQuery({
+    queryKey: ["leave-type-balances-profile", employeeId, previousYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leave_type_balances")
+        .select(`
+          balance,
+          leave_type:leave_types!inner(
+            name,
+            category
+          )
+        `)
+        .eq("employee_id", employeeId)
+        .eq("year", previousYear);
+
+      if (error) throw error;
+      
+      return (data || []).map((item: any) => ({
+        leave_type_name: item.leave_type.name,
+        category: item.leave_type.category,
+        balance: item.balance,
+      })) as LeaveBalance[];
+    },
+    enabled: balances.length === 0,
+  });
+
   const { data: hourBalance } = useQuery({
     queryKey: ["attendance-hour-balance", employeeId, currentYear],
     queryFn: async () => {
@@ -73,6 +109,24 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
       return data as HourBalance | null;
     },
   });
+
+  const handleInitialize = async () => {
+    setInitializing(true);
+    try {
+      const count = await initBalances.mutateAsync(employeeId);
+      if (count > 0) {
+        toast.success(`Initialized ${count} leave balances for ${currentYear}`);
+        await refetchBalances();
+        queryClient.invalidateQueries({ queryKey: ["leave-type-balances-profile", employeeId] });
+      } else {
+        toast.info("No eligible leave types to initialize");
+      }
+    } catch (error) {
+      console.error("Failed to initialize balances:", error);
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   // Sort: paid first, then alphabetically
   const sortedBalances = [...balances].sort((a, b) => {
@@ -90,6 +144,13 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   };
 
   const hasHourBalance = hourBalance && (hourBalance.overtime_minutes > 0 || hourBalance.undertime_minutes > 0);
+
+  // Format previous year summary
+  const previousYearSummary = previousYearBalances
+    .slice(0, 3)
+    .map(b => `${b.leave_type_name}: ${b.balance}`)
+    .join(", ");
+  const hasMorePrevious = previousYearBalances.length > 3;
 
   return (
     <div className="space-y-4">
@@ -128,9 +189,38 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
           
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">
-          No leave balance available
-        </p>
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardContent className="py-6 text-center">
+            <CalendarX className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-foreground mb-1">No {currentYear} leave balances</p>
+            
+            {previousYearBalances.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <History className="h-3 w-3" />
+                  <span>Had {previousYearBalances.length} leave types in {previousYear}</span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">
+                  {previousYearSummary}{hasMorePrevious && "..."}
+                </p>
+              </div>
+            )}
+            
+            <Button 
+              size="sm" 
+              onClick={handleInitialize}
+              disabled={initializing}
+              className="gap-1.5"
+            >
+              {initializing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Initialize {currentYear} Balances
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {hasHourBalance && (
