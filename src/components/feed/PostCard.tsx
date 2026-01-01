@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { RichTextContent } from '@/components/ui/rich-text-editor';
+import { TruncatedRichText } from '@/components/ui/TruncatedRichText';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -261,8 +261,9 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
 
       {/* Content */}
       <div className="px-4 py-3">
-        <RichTextContent 
+        <TruncatedRichText 
           content={post.content || ''} 
+          maxLines={6}
           className="text-foreground"
         />
 
