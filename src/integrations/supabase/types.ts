@@ -4026,7 +4026,7 @@ export type Database = {
           applies_to_all_offices: boolean
           applies_to_employment_types: string[] | null
           applies_to_gender: string | null
-          carry_forward: boolean
+          carry_forward_mode: string
           category: string
           created_at: string
           default_days: number | null
@@ -4044,7 +4044,7 @@ export type Database = {
           applies_to_all_offices?: boolean
           applies_to_employment_types?: string[] | null
           applies_to_gender?: string | null
-          carry_forward?: boolean
+          carry_forward_mode?: string
           category?: string
           created_at?: string
           default_days?: number | null
@@ -4062,7 +4062,7 @@ export type Database = {
           applies_to_all_offices?: boolean
           applies_to_employment_types?: string[] | null
           applies_to_gender?: string | null
-          carry_forward?: boolean
+          carry_forward_mode?: string
           category?: string
           created_at?: string
           default_days?: number | null

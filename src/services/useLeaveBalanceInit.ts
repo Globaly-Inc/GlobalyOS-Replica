@@ -7,6 +7,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
 
+/**
+ * Calculate carried forward amount based on mode
+ */
+const getCarriedForwardAmount = (
+  mode: string,
+  previousBalance: number
+): number => {
+  switch (mode) {
+    case 'positive_only':
+      return Math.max(0, previousBalance);
+    case 'negative_only':
+      return Math.min(0, previousBalance);
+    case 'all':
+      return previousBalance;
+    case 'none':
+    default:
+      return 0;
+  }
+};
+
 interface InitResult {
   employeesProcessed: number;
   balancesCreated: number;
@@ -47,10 +67,10 @@ export const useInitializeYearBalances = () => {
         return result;
       }
 
-      // 2. Get all active leave types with carry_forward setting
+      // 2. Get all active leave types with carry_forward_mode setting
       const { data: leaveTypes, error: ltError } = await supabase
         .from("leave_types")
-        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward")
+        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
         .eq("organization_id", currentOrg.id)
         .eq("is_active", true);
 
@@ -156,13 +176,16 @@ export const useInitializeYearBalances = () => {
           let newBalance = leaveType.default_days || 0;
           let carriedForward = 0;
 
-          // Check for carry forward
-          if (leaveType.carry_forward) {
-            const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id)) || 0;
-            carriedForward = prevBalance; // Include negatives as requested
-            newBalance += carriedForward;
-            if (carriedForward !== 0) {
-              result.balancesCarriedForward++;
+          // Check for carry forward based on mode
+          const carryMode = leaveType.carry_forward_mode || 'none';
+          if (carryMode !== 'none') {
+            const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
+            if (prevBalance !== undefined) {
+              carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+              newBalance += carriedForward;
+              if (carriedForward !== 0) {
+                result.balancesCarriedForward++;
+              }
             }
           }
 
@@ -271,7 +294,7 @@ export const useInitializeEmployeeBalances = () => {
       // Get active leave types
       const { data: leaveTypes, error: ltError } = await supabase
         .from("leave_types")
-        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward")
+        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
         .eq("organization_id", currentOrg.id)
         .eq("is_active", true);
 
@@ -333,9 +356,13 @@ export const useInitializeEmployeeBalances = () => {
         let newBalance = leaveType.default_days || 0;
         let carriedForward = 0;
 
-        if (leaveType.carry_forward) {
-          carriedForward = prevBalanceMap.get(leaveType.id) || 0;
-          newBalance += carriedForward;
+        const carryMode = leaveType.carry_forward_mode || 'none';
+        if (carryMode !== 'none') {
+          const prevBalance = prevBalanceMap.get(leaveType.id);
+          if (prevBalance !== undefined) {
+            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+            newBalance += carriedForward;
+          }
         }
 
         // Insert balance
