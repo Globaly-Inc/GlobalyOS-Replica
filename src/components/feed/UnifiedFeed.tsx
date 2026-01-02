@@ -58,8 +58,33 @@ export const UnifiedFeed = ({
     });
   };
 
-  // Filtered posts
-  const filteredPosts = useMemo(() => filterByDate(posts), [posts, dateFilter]);
+  // Filtered and sorted posts
+  const filteredPosts = useMemo(() => {
+    const dateFiltered = filterByDate(posts);
+    
+    // Sort: unacknowledged posts requiring ack > pinned > by date
+    return [...dateFiltered].sort((a, b) => {
+      // Priority 1: Unacknowledged posts requiring acknowledgment
+      const aRequiresAck = a.requires_acknowledgment && !a.user_has_acknowledged;
+      const bRequiresAck = b.requires_acknowledgment && !b.user_has_acknowledged;
+      if (aRequiresAck && !bRequiresAck) return -1;
+      if (!aRequiresAck && bRequiresAck) return 1;
+      
+      // Within unacknowledged, sort by deadline (soonest first)
+      if (aRequiresAck && bRequiresAck) {
+        const aDeadline = a.acknowledgment_deadline ? new Date(a.acknowledgment_deadline).getTime() : Infinity;
+        const bDeadline = b.acknowledgment_deadline ? new Date(b.acknowledgment_deadline).getTime() : Infinity;
+        if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+      }
+      
+      // Priority 2: Pinned posts
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      
+      // Priority 3: By date (newest first)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [posts, dateFilter]);
 
   if (isLoading) {
     return (

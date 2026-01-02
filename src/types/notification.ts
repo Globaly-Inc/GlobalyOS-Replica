@@ -24,6 +24,8 @@ export type NotificationType =
   | 'reaction'
   | 'announcement'
   | 'kpi_assigned'
+  | 'acknowledgment_required'
+  | 'acknowledgment_reminder'
   | 'system';
 
 export type NotificationReferenceType = 
@@ -31,7 +33,8 @@ export type NotificationReferenceType =
   | 'update' 
   | 'leave_request' 
   | 'employee'
-  | 'kpi';
+  | 'kpi'
+  | 'post';
 
 export interface NotificationWithActor extends Notification {
   actor?: {
