@@ -176,3 +176,6 @@ verify_jwt = false
 
 [functions.decline-call-from-notification]
 verify_jwt = false
+
+[functions.post-acknowledgment-reminders]
+verify_jwt = false

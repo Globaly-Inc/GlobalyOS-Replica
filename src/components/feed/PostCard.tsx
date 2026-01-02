@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Trophy,
   Heart,
@@ -29,10 +40,14 @@ import {
   Pencil,
   Bookmark,
   Users,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Eye,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isPast, differenceInHours, format } from 'date-fns';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { Post, useDeletePost, useTogglePinPost } from '@/services/useSocialFeed';
+import { Post, useDeletePost, useTogglePinPost, useAcknowledgePost, useTargetEmployeesCount } from '@/services/useSocialFeed';
 import { PostMedia } from './PostMedia';
 import { PostPoll } from './PostPoll';
 import { PostReactions } from './PostReactions';
@@ -44,6 +59,7 @@ import { cn } from '@/lib/utils';
 import { useCommentCount } from '@/services/usePostStats';
 import { useReactionsRealtime, useCommentsRealtime } from '@/services/useSocialFeedRealtime';
 import { DeletePostDialog } from '@/components/dialogs/DeletePostDialog';
+import { AcknowledgmentStatusModal } from './AcknowledgmentStatusModal';
 
 interface PostCardProps {
   post: Post;
@@ -98,11 +114,15 @@ const POST_TYPE_CONFIG = {
 export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const [showComments, setShowComments] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [acknowledgeDialogOpen, setAcknowledgeDialogOpen] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
   const { isOwner, isAdmin, isHR } = useUserRole();
   const { data: currentEmployee } = useCurrentEmployee();
   const deletePost = useDeletePost();
   const togglePin = useTogglePinPost();
+  const acknowledgePost = useAcknowledgePost();
   const { data: commentCount = 0 } = useCommentCount(post.id);
+  const { data: targetCount = 0 } = useTargetEmployeesCount(post.id);
   
   // Subscribe to real-time updates
   useReactionsRealtime(post.id);
@@ -114,9 +134,20 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
   const canEdit = isOwnPost || isOwner || isAdmin || isHR;
   const canDelete = isOwnPost || isOwner || isAdmin || isHR;
   const canPin = isOwner || isAdmin;
+  const canViewAckStatus = isOwnPost || isOwner || isAdmin || isHR;
   
   // Online status for the post author
   const { isOnline } = useOnlineStatus(post.employee_id);
+
+  // Acknowledgment status
+  const requiresAck = post.requires_acknowledgment;
+  const hasAcknowledged = post.user_has_acknowledged;
+  const deadline = post.acknowledgment_deadline ? new Date(post.acknowledgment_deadline) : null;
+  const isOverdue = deadline ? isPast(deadline) : false;
+  const hoursUntilDeadline = deadline ? differenceInHours(deadline, new Date()) : null;
+  const isApproaching = hoursUntilDeadline !== null && hoursUntilDeadline > 0 && hoursUntilDeadline <= 48;
+  const ackCount = post.acknowledgment_count || 0;
+  const ackProgress = targetCount > 0 ? Math.round((ackCount / targetCount) * 100) : 0;
 
   const handleDelete = () => {
     deletePost.mutate(post.id, {
@@ -126,6 +157,26 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
 
   const handleTogglePin = () => {
     togglePin.mutate({ postId: post.id, isPinned: !post.is_pinned });
+  };
+
+  const handleAcknowledge = () => {
+    acknowledgePost.mutate(post.id, {
+      onSuccess: () => setAcknowledgeDialogOpen(false),
+    });
+  };
+
+  const getAckBannerStyle = () => {
+    if (hasAcknowledged) return 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400';
+    if (isOverdue) return 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400';
+    if (isApproaching) return 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400';
+    return 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400';
+  };
+
+  const getAckIcon = () => {
+    if (hasAcknowledged) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    if (isOverdue) return <AlertTriangle className="h-4 w-4 text-red-500" />;
+    if (isApproaching) return <Clock className="h-4 w-4 text-amber-500" />;
+    return <Eye className="h-4 w-4 text-blue-500" />;
   };
 
   const renderKudosRecipients = () => {
@@ -259,6 +310,66 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
         </div>
       </div>
 
+      {/* Acknowledgment Banner */}
+      {requiresAck && (
+        <div className={cn("mx-4 mt-3 p-3 rounded-lg border", getAckBannerStyle())}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              {getAckIcon()}
+              <div className="text-sm">
+                {hasAcknowledged ? (
+                  <span className="font-medium">You acknowledged this post</span>
+                ) : isOverdue ? (
+                  <span className="font-medium">Overdue: Acknowledgment required</span>
+                ) : isApproaching ? (
+                  <span className="font-medium">Due soon: Acknowledgment required</span>
+                ) : (
+                  <span className="font-medium">Acknowledgment required</span>
+                )}
+                {deadline && !hasAcknowledged && (
+                  <span className="text-muted-foreground ml-1">
+                    · {isOverdue ? 'Was due ' : 'Due '}
+                    {format(deadline, 'MMM d, yyyy')}
+                  </span>
+                )}
+              </div>
+            </div>
+            {!hasAcknowledged && (
+              <Button
+                size="sm"
+                variant={isOverdue ? "destructive" : isApproaching ? "default" : "outline"}
+                onClick={() => setAcknowledgeDialogOpen(true)}
+                disabled={acknowledgePost.isPending}
+                className="shrink-0"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Acknowledge
+              </Button>
+            )}
+          </div>
+          
+          {/* Progress for authors */}
+          {canViewAckStatus && targetCount > 0 && (
+            <div className="mt-3 pt-3 border-t border-current/10">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span>{ackCount} of {targetCount} acknowledged</span>
+                <span>{ackProgress}%</span>
+              </div>
+              <Progress value={ackProgress} className="h-1.5" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 h-7 text-xs px-2"
+                onClick={() => setStatusModalOpen(true)}
+              >
+                <Eye className="h-3 w-3 mr-1" />
+                View Status
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Content */}
       <div className="px-4 py-3">
         <TruncatedRichText 
@@ -338,6 +449,33 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDelete}
         isLoading={deletePost.isPending}
+      />
+
+      {/* Acknowledge Confirmation Dialog */}
+      <AlertDialog open={acknowledgeDialogOpen} onOpenChange={setAcknowledgeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Acknowledge Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              By acknowledging this post, you confirm that you have read and understood its content.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAcknowledge} disabled={acknowledgePost.isPending}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              I Acknowledge
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Acknowledgment Status Modal */}
+      <AcknowledgmentStatusModal
+        postId={post.id}
+        open={statusModalOpen}
+        onOpenChange={setStatusModalOpen}
       />
     </Card>
   );
