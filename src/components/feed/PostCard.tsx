@@ -310,47 +310,56 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
         </div>
       </div>
 
-      {/* Acknowledgment Banner */}
+      {/* Acknowledgment Banner - Different view for author vs non-author */}
       {requiresAck && (
-        <div className={cn("mx-4 mt-3 p-3 rounded-lg border", getAckBannerStyle())}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              {getAckIcon()}
-              <div className="text-sm">
-                {hasAcknowledged ? (
-                  <span className="font-medium">You acknowledged this post</span>
-                ) : isOverdue ? (
-                  <span className="font-medium">Overdue: Acknowledgment required</span>
-                ) : isApproaching ? (
-                  <span className="font-medium">Due soon: Acknowledgment required</span>
-                ) : (
-                  <span className="font-medium">Acknowledgment required</span>
-                )}
-                {deadline && !hasAcknowledged && (
-                  <span className="text-muted-foreground ml-1">
-                    · {isOverdue ? 'Was due ' : 'Due '}
-                    {format(deadline, 'MMM d, yyyy')}
-                  </span>
+        <>
+          {/* For non-authors: Show acknowledgment request banner */}
+          {!isOwnPost && (
+            <div className={cn("mx-4 mt-3 p-3 rounded-lg border", getAckBannerStyle())}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  {getAckIcon()}
+                  <div className="text-sm">
+                    {hasAcknowledged ? (
+                      <span className="font-medium">You acknowledged this post</span>
+                    ) : isOverdue ? (
+                      <span className="font-medium">Overdue: Acknowledgment required</span>
+                    ) : isApproaching ? (
+                      <span className="font-medium">Due soon: Acknowledgment required</span>
+                    ) : (
+                      <span className="font-medium">Acknowledgment required</span>
+                    )}
+                    {deadline && !hasAcknowledged && (
+                      <span className="text-muted-foreground ml-1">
+                        · {isOverdue ? 'Was due ' : 'Due '}
+                        {format(deadline, 'MMM d, yyyy')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!hasAcknowledged && (
+                  <Button
+                    size="sm"
+                    variant={isOverdue ? "destructive" : isApproaching ? "default" : "outline"}
+                    onClick={() => setAcknowledgeDialogOpen(true)}
+                    disabled={acknowledgePost.isPending}
+                    className="shrink-0"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    Acknowledge
+                  </Button>
                 )}
               </div>
             </div>
-            {!hasAcknowledged && (
-              <Button
-                size="sm"
-                variant={isOverdue ? "destructive" : isApproaching ? "default" : "outline"}
-                onClick={() => setAcknowledgeDialogOpen(true)}
-                disabled={acknowledgePost.isPending}
-                className="shrink-0"
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                Acknowledge
-              </Button>
-            )}
-          </div>
+          )}
           
-          {/* Progress for authors */}
-          {canViewAckStatus && targetCount > 0 && (
-            <div className="mt-3 pt-3 border-t border-current/10">
+          {/* For authors (post owner): Show stats section only */}
+          {isOwnPost && canViewAckStatus && targetCount > 0 && (
+            <div className="mx-4 mt-3 p-3 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Acknowledgment Progress</span>
+              </div>
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span>{ackCount} of {targetCount} acknowledged</span>
                 <span>{ackProgress}%</span>
@@ -367,7 +376,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
               </Button>
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Content */}
@@ -474,6 +483,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
       {/* Acknowledgment Status Modal */}
       <AcknowledgmentStatusModal
         postId={post.id}
+        authorId={post.employee_id}
         open={statusModalOpen}
         onOpenChange={setStatusModalOpen}
       />
