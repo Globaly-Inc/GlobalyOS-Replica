@@ -232,6 +232,7 @@ const OrgLeaveHistory = () => {
   const [deletingLeave, setDeletingLeave] = useState(false);
   const [addLeaveOpen, setAddLeaveOpen] = useState(false);
   const [repairingAuditTrail, setRepairingAuditTrail] = useState(false);
+  const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -240,27 +241,42 @@ const OrgLeaveHistory = () => {
     if (!currentOrg?.id || !currentEmployee?.id) return;
     
     setRepairingAuditTrail(true);
+    setRepairConfirmOpen(false);
     try {
       const { data, error } = await supabase.functions.invoke('backfill-leave-init-logs', {
         body: {
           organization_id: currentOrg.id,
           year: new Date().getFullYear(),
           created_by: currentEmployee.id,
+          mode: "clean_reinit",
         },
       });
 
       if (error) throw error;
       
+      const messages: string[] = [];
+      if (data.balancesDeleted > 0) {
+        messages.push(`${data.balancesDeleted} ineligible balances removed`);
+      }
+      if (data.balancesCreated > 0) {
+        messages.push(`${data.balancesCreated} balances created`);
+      }
       if (data.logsCreated > 0) {
-        toast.success(`Created ${data.logsCreated} audit logs for ${data.employeesProcessed} employees`);
+        messages.push(`${data.logsCreated} audit logs created`);
+      }
+      
+      if (messages.length > 0) {
+        toast.success(`Repair complete: ${messages.join(', ')}`);
         loadData();
         queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+        queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       } else {
-        toast.info("All balances already have audit logs");
+        toast.info("All balances already have proper audit logs");
       }
       
       if (data.errors?.length > 0) {
         console.warn("Backfill errors:", data.errors);
+        toast.warning(`Completed with ${data.errors.length} warnings`);
       }
     } catch (error) {
       console.error("Repair audit trail error:", error);
@@ -943,7 +959,7 @@ const OrgLeaveHistory = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handleRepairAuditTrail} 
+              onClick={() => setRepairConfirmOpen(true)} 
               disabled={repairingAuditTrail}
               className="gap-2"
             >
@@ -2242,6 +2258,35 @@ const OrgLeaveHistory = () => {
               className="bg-destructive hover:bg-destructive/90"
             >
               {deletingLeave ? "Deleting..." : "Delete Leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Repair Audit Trail Confirmation Dialog */}
+      <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Repair {new Date().getFullYear()} Leave Audit Trail
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>This will verify and repair all {new Date().getFullYear()} leave balances:</p>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <li><span className="text-destructive font-medium">Remove ineligible balances</span> — Employees with leave types that don't match their employment type (e.g., interns with Annual Leave) will have those balances deleted</li>
+                  <li><span className="text-green-600 font-medium">Create missing balances</span> — Eligible employees without {new Date().getFullYear()} balances will have them initialized</li>
+                  <li><span className="text-blue-600 font-medium">Generate audit logs</span> — Year Allocation and Carry Forward transactions will be logged for full traceability</li>
+                </ul>
+                <p className="text-muted-foreground">Existing leave requests and manual adjustments will be preserved.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRepairAuditTrail}>
+              Repair Audit Trail
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
