@@ -310,8 +310,8 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
         </div>
       </div>
 
-      {/* Acknowledgment Banner */}
-      {requiresAck && (
+      {/* Acknowledgment Banner - hide for post author */}
+      {requiresAck && !isOwnPost && (
         <div className={cn("mx-4 mt-3 p-3 rounded-lg border", getAckBannerStyle())}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -474,6 +474,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
       {/* Acknowledgment Status Modal */}
       <AcknowledgmentStatusModal
         postId={post.id}
+        postAuthorId={post.employee_id}
         open={statusModalOpen}
         onOpenChange={setStatusModalOpen}
       />
