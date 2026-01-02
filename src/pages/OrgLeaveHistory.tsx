@@ -982,269 +982,235 @@ const OrgLeaveHistory = () => {
         <LeaveHistoryPendingTab onApprovalChange={loadData} />
       )}
 
-      {/* Analytics & Records Tab Content */}
-      {activeTab !== 'pending' && (
+      {/* ==================== ANALYTICS TAB CONTENT ==================== */}
+      {activeTab === 'analytics' && (
         <>
-      {/* Sticky Filter Bar - Light Purple Background */}
-      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
-        <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
-          {/* Employee Multi-Select Dropdown - Read-only for regular users, interactive for Owner/Admin/HR/Manager - Hidden on mobile */}
-          <div className="hidden md:block">
-            {isRegularUser ? (
-              // Read-only version for regular users - shows their name, not interactive
-              <Button
-                variant="outline"
-                className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
-                disabled
-              >
-                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate text-sm">
-                  {currentEmployee?.profiles?.full_name || "My Leave"}
-                </span>
-              </Button>
-            ) : (
-              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-                <PopoverTrigger asChild>
+          {/* Analytics Filter Bar - Simplified */}
+          <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
+            <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+              {/* Employee Multi-Select Dropdown */}
+              <div className="hidden md:block">
+                {isRegularUser ? (
                   <Button
                     variant="outline"
-                    role="combobox"
-                    aria-expanded={employeePopoverOpen}
-                    className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                    className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
+                    disabled
                   >
                     <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="truncate text-sm">
-                      {selectedEmployees.length === 0
-                        ? "All Employees"
-                        : selectedEmployees.length === 1
-                          ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
-                          : `${selectedEmployees.length} selected`}
+                      {currentEmployee?.profiles?.full_name || "My Leave"}
                     </span>
-                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[280px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search employees..." />
-                    <CommandList>
-                      <CommandEmpty>No employees found.</CommandEmpty>
-                      <CommandGroup>
-                        {/* Select All / Clear All */}
-                        <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setSelectedEmployees([])}
-                          >
-                            Clear All
-                          </Button>
-                        </div>
-                        {visibleEmployees.map((employee) => (
-                          <CommandItem
-                            key={employee.id}
-                            value={employee.profiles?.full_name || employee.id}
-                            onSelect={() => {
-                              const isSelected = selectedEmployees.includes(employee.id);
-                              if (isSelected) {
-                                setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
-                              } else {
-                                setSelectedEmployees([...selectedEmployees, employee.id]);
-                              }
-                            }}
-                          >
-                            <div className={cn(
-                              "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                              selectedEmployees.includes(employee.id)
-                                ? "bg-primary text-primary-foreground"
-                                : "opacity-50 [&_svg]:invisible"
-                            )}>
-                              <Check className="h-3 w-3" />
+                ) : (
+                  <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={employeePopoverOpen}
+                        className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                      >
+                        <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-sm">
+                          {selectedEmployees.length === 0
+                            ? "All Employees"
+                            : selectedEmployees.length === 1
+                              ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
+                              : `${selectedEmployees.length} selected`}
+                        </span>
+                        <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search employees..." />
+                        <CommandList>
+                          <CommandEmpty>No employees found.</CommandEmpty>
+                          <CommandGroup>
+                            <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setSelectedEmployees([])}
+                              >
+                                Clear All
+                              </Button>
                             </div>
-                            <Avatar className="h-6 w-6 mr-2">
-                              <AvatarImage src={employee.profiles?.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="truncate">{employee.profiles?.full_name}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
+                            {visibleEmployees.map((employee) => (
+                              <CommandItem
+                                key={employee.id}
+                                value={employee.profiles?.full_name || employee.id}
+                                onSelect={() => {
+                                  const isSelected = selectedEmployees.includes(employee.id);
+                                  if (isSelected) {
+                                    setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                                  } else {
+                                    setSelectedEmployees([...selectedEmployees, employee.id]);
+                                  }
+                                }}
+                              >
+                                <div className={cn(
+                                  "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                  selectedEmployees.includes(employee.id)
+                                    ? "bg-primary text-primary-foreground"
+                                    : "opacity-50 [&_svg]:invisible"
+                                )}>
+                                  <Check className="h-3 w-3" />
+                                </div>
+                                <Avatar className="h-6 w-6 mr-2">
+                                  <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{employee.profiles?.full_name}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+
+              {/* Mobile: Full-width filters */}
+              <div className="flex md:hidden w-full gap-2">
+                <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                  <SelectTrigger className="h-9 flex-1 bg-background">
+                    <SelectValue placeholder="Leave Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Leave Types</SelectItem>
+                    {leaveTypes.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={dateRangeFilter} 
+                  onValueChange={(value: DateRangeOption) => {
+                    setDateRangeFilter(value);
+                    if (value === "custom") {
+                      setCustomDatePopoverOpen(true);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9 flex-1 bg-background">
+                    <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                    <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_RANGE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.value === "thisYear" || option.value === "lastYear" 
+                          ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                          : option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: Leave Type Filter */}
+              <div className="hidden md:block">
+                <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                  <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                    <SelectValue placeholder="Leave Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Leave Types</SelectItem>
+                    {leaveTypes.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: Date Range Filter */}
+              <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
+                <div className="hidden md:block">
+                  <Select 
+                    value={dateRangeFilter} 
+                    onValueChange={(value: DateRangeOption) => {
+                      setDateRangeFilter(value);
+                      if (value === "custom") {
+                        setCustomDatePopoverOpen(true);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-auto min-w-[150px] bg-background">
+                      <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                      <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DATE_RANGE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.value === "thisYear" || option.value === "lastYear" 
+                            ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                            : option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <PopoverTrigger asChild>
+                  <span />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4" align="start">
+                  <div className="space-y-4">
+                    <div className="text-sm font-medium">Select Date Range</div>
+                    <div className="flex gap-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Start Date</div>
+                        <CalendarComponent
+                          mode="single"
+                          selected={customStartDate ? new Date(customStartDate) : undefined}
+                          onSelect={(date) => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)}
+                          className="rounded-md border pointer-events-auto"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">End Date</div>
+                        <CalendarComponent
+                          mode="single"
+                          selected={customEndDate ? new Date(customEndDate) : undefined}
+                          onSelect={(date) => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)}
+                          className="rounded-md border pointer-events-auto"
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => setCustomDatePopoverOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
                 </PopoverContent>
               </Popover>
-            )}
-          </div>
 
-          {/* Transaction Type Filter - Hidden on mobile */}
-          <div className="hidden md:block">
-            <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-              <SelectTrigger className="h-9 w-auto min-w-[120px] bg-background">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Transactions</SelectItem>
-                <SelectItem value="leave_taken">Leave Taken</SelectItem>
-                <SelectItem value="auto_adjust">Auto Adjust</SelectItem>
-                <SelectItem value="manual_adjust">Manual Adjust</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status Filter - Hidden on mobile */}
-          <div className="hidden md:block">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-auto min-w-[110px] bg-background">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Mobile: Full-width filters */}
-          <div className="flex md:hidden w-full gap-2">
-            {/* Leave Type Filter - Mobile */}
-            <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-              <SelectTrigger className="h-9 flex-1 bg-background">
-                <SelectValue placeholder="Leave Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Leave Types</SelectItem>
-                {leaveTypes.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Date Range Filter - Mobile */}
-            <Select 
-              value={dateRangeFilter} 
-              onValueChange={(value: DateRangeOption) => {
-                setDateRangeFilter(value);
-                if (value === "custom") {
-                  setCustomDatePopoverOpen(true);
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 flex-1 bg-background">
-                <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
-                <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_RANGE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.value === "thisYear" || option.value === "lastYear" 
-                      ? getDateRangeDisplayLabel(option.value as DateRangeOption)
-                      : option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Desktop: Leave Type Filter */}
-          <div className="hidden md:block">
-            <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-              <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
-                <SelectValue placeholder="Leave Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Leave Types</SelectItem>
-                {leaveTypes.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Desktop: Date Range Filter */}
-          <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
-            <div className="hidden md:block">
-              <Select 
-                value={dateRangeFilter} 
-                onValueChange={(value: DateRangeOption) => {
-                  setDateRangeFilter(value);
-                  if (value === "custom") {
-                    setCustomDatePopoverOpen(true);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-9 w-auto min-w-[150px] bg-background">
-                  <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {DATE_RANGE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.value === "thisYear" || option.value === "lastYear" 
-                        ? getDateRangeDisplayLabel(option.value as DateRangeOption)
-                        : option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <PopoverTrigger asChild>
-              <span />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="start">
-              <div className="space-y-4">
-                <div className="text-sm font-medium">Select Date Range</div>
-                <div className="flex gap-4">
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">Start Date</div>
-                    <CalendarComponent
-                      mode="single"
-                      selected={customStartDate ? new Date(customStartDate) : undefined}
-                      onSelect={(date) => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)}
-                      className="rounded-md border pointer-events-auto"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">End Date</div>
-                    <CalendarComponent
-                      mode="single"
-                      selected={customEndDate ? new Date(customEndDate) : undefined}
-                      onSelect={(date) => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)}
-                      className="rounded-md border pointer-events-auto"
-                    />
-                  </div>
-                </div>
-                <Button size="sm" onClick={() => setCustomDatePopoverOpen(false)}>
-                  Apply
+              {/* Clear Filters */}
+              {(selectedEmployees.length > 0 || leaveTypeFilter !== "all" || dateRangeFilter !== "last30days") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
                 </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {/* Clear Filters - Hidden on mobile */}
-          {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last30days") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
+              )}
+            </div>
+          </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
@@ -1390,9 +1356,271 @@ const OrgLeaveHistory = () => {
           dateRange={dateRange}
         />
       </div>
+        </>
+      )}
 
-      {/* Table */}
-      <Card className="relative">
+      {/* ==================== RECORDS TAB CONTENT ==================== */}
+      {activeTab === 'records' && (
+        <>
+          {/* Records Filter Bar - Full version */}
+          <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
+            <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+              {/* Employee Multi-Select Dropdown */}
+              <div className="hidden md:block">
+                {isRegularUser ? (
+                  <Button
+                    variant="outline"
+                    className="h-9 gap-1 bg-background cursor-default min-w-[140px]"
+                    disabled
+                  >
+                    <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
+                      {currentEmployee?.profiles?.full_name || "My Leave"}
+                    </span>
+                  </Button>
+                ) : (
+                  <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={employeePopoverOpen}
+                        className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                      >
+                        <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-sm">
+                          {selectedEmployees.length === 0
+                            ? "All Employees"
+                            : selectedEmployees.length === 1
+                              ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
+                              : `${selectedEmployees.length} selected`}
+                        </span>
+                        <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search employees..." />
+                        <CommandList>
+                          <CommandEmpty>No employees found.</CommandEmpty>
+                          <CommandGroup>
+                            <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setSelectedEmployees([])}
+                              >
+                                Clear All
+                              </Button>
+                            </div>
+                            {visibleEmployees.map((employee) => (
+                              <CommandItem
+                                key={employee.id}
+                                value={employee.profiles?.full_name || employee.id}
+                                onSelect={() => {
+                                  const isSelected = selectedEmployees.includes(employee.id);
+                                  if (isSelected) {
+                                    setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
+                                  } else {
+                                    setSelectedEmployees([...selectedEmployees, employee.id]);
+                                  }
+                                }}
+                              >
+                                <div className={cn(
+                                  "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                  selectedEmployees.includes(employee.id)
+                                    ? "bg-primary text-primary-foreground"
+                                    : "opacity-50 [&_svg]:invisible"
+                                )}>
+                                  <Check className="h-3 w-3" />
+                                </div>
+                                <Avatar className="h-6 w-6 mr-2">
+                                  <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {(employee.profiles?.full_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{employee.profiles?.full_name}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+
+              {/* Transaction Type Filter */}
+              <div className="hidden md:block">
+                <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+                  <SelectTrigger className="h-9 w-auto min-w-[120px] bg-background">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Transactions</SelectItem>
+                    <SelectItem value="leave_taken">Leave Taken</SelectItem>
+                    <SelectItem value="auto_adjust">Auto Adjust</SelectItem>
+                    <SelectItem value="manual_adjust">Manual Adjust</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="hidden md:block">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-auto min-w-[110px] bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Mobile: Full-width filters */}
+              <div className="flex md:hidden w-full gap-2">
+                <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                  <SelectTrigger className="h-9 flex-1 bg-background">
+                    <SelectValue placeholder="Leave Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Leave Types</SelectItem>
+                    {leaveTypes.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={dateRangeFilter} 
+                  onValueChange={(value: DateRangeOption) => {
+                    setDateRangeFilter(value);
+                    if (value === "custom") {
+                      setCustomDatePopoverOpen(true);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9 flex-1 bg-background">
+                    <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                    <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_RANGE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.value === "thisYear" || option.value === "lastYear" 
+                          ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                          : option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: Leave Type Filter */}
+              <div className="hidden md:block">
+                <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                  <SelectTrigger className="h-9 w-auto min-w-[130px] bg-background">
+                    <SelectValue placeholder="Leave Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Leave Types</SelectItem>
+                    {leaveTypes.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: Date Range Filter */}
+              <Popover open={customDatePopoverOpen && dateRangeFilter === "custom"} onOpenChange={setCustomDatePopoverOpen}>
+                <div className="hidden md:block">
+                  <Select 
+                    value={dateRangeFilter} 
+                    onValueChange={(value: DateRangeOption) => {
+                      setDateRangeFilter(value);
+                      if (value === "custom") {
+                        setCustomDatePopoverOpen(true);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-auto min-w-[150px] bg-background">
+                      <CalendarDays className="h-4 w-4 mr-1 text-muted-foreground" />
+                      <span className="truncate">{getDateRangeDisplayLabel(dateRangeFilter)}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DATE_RANGE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.value === "thisYear" || option.value === "lastYear" 
+                            ? getDateRangeDisplayLabel(option.value as DateRangeOption)
+                            : option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <PopoverTrigger asChild>
+                  <span />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4" align="start">
+                  <div className="space-y-4">
+                    <div className="text-sm font-medium">Select Date Range</div>
+                    <div className="flex gap-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Start Date</div>
+                        <CalendarComponent
+                          mode="single"
+                          selected={customStartDate ? new Date(customStartDate) : undefined}
+                          onSelect={(date) => setCustomDateRange(date ? format(date, "yyyy-MM-dd") : null, customEndDate)}
+                          className="rounded-md border pointer-events-auto"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">End Date</div>
+                        <CalendarComponent
+                          mode="single"
+                          selected={customEndDate ? new Date(customEndDate) : undefined}
+                          onSelect={(date) => setCustomDateRange(customStartDate, date ? format(date, "yyyy-MM-dd") : null)}
+                          className="rounded-md border pointer-events-auto"
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => setCustomDatePopoverOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Clear Filters */}
+              {(selectedEmployees.length > 0 || statusFilter !== "all" || leaveTypeFilter !== "all" || transactionTypeFilter !== "all" || dateRangeFilter !== "last30days") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <Card className="relative">
         <CardContent className="p-0">
           {/* Overlay spinner for refresh - keeps table visible */}
           {loading && transactions.length > 0 && showSpinner && (
