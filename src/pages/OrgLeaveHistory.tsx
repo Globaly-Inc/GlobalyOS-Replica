@@ -1086,11 +1086,6 @@ const OrgLeaveHistory = () => {
                   Clear
                 </Button>
               )}
-
-              {/* Results count - pushed to end */}
-              <div className="text-sm text-muted-foreground ml-auto">
-                {totalPendingCount} pending
-              </div>
             </div>
           </div>
           <LeaveHistoryPendingTab 
