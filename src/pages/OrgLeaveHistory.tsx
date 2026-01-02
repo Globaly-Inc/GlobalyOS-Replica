@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase, BarChart3, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -39,10 +39,13 @@ import { EditLeaveAdjustmentDialog } from "@/components/dialogs/EditLeaveAdjustm
 import { EditLeaveRequestDialog } from "@/components/dialogs/EditLeaveRequestDialog";
 import { LeaveBulkActionsBar } from "@/components/leave/LeaveBulkActionsBar";
 import { LeaveAnalyticsChart } from "@/components/leave/LeaveAnalyticsChart";
+import { LeaveHistoryPendingTab } from "@/components/leave/LeaveHistoryPendingTab";
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel, getDateRangeDisplayLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
 import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearBalancesButton";
+
+type LeaveHistoryTab = 'analytics' | 'records' | 'pending';
 
 interface LeaveTransaction {
   id: string;
@@ -139,8 +142,24 @@ const OrgLeaveHistory = () => {
     isLoaded,
   } = useLeaveHistoryFilters();
   
-  // Handle URL query parameters for deep linking
+  // Tab state with URL persistence
   const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as LeaveHistoryTab | null;
+  const [activeTab, setActiveTab] = useState<LeaveHistoryTab>(
+    tabParam && ['analytics', 'records', 'pending'].includes(tabParam) ? tabParam : 'records'
+  );
+  
+  // Total pending count for tab badge (across entire org)
+  const [totalPendingCount, setTotalPendingCount] = useState(0);
+  
+  const handleTabChange = (tab: LeaveHistoryTab) => {
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams, { replace: true });
+  };
+  
+  // Handle URL query parameters for deep linking (employee, dateRange)
   const employeeParam = searchParams.get('employee');
   const dateRangeParam = searchParams.get('dateRange') as DateRangeOption | null;
   
@@ -260,6 +279,27 @@ const OrgLeaveHistory = () => {
     if (!currentEmployee?.id) return;
 
     loadData();
+    
+    // Fetch total pending count for tab badge
+    const fetchPendingCount = async () => {
+      if (!canEditAll && !isManager) return;
+      
+      let query = supabase
+        .from("leave_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "pending");
+      
+      if (!canEditAll && isManager) {
+        // Manager only sees direct reports
+        query = query.in("employee_id", directReportIds);
+      }
+      
+      const { count } = await query;
+      setTotalPendingCount(count || 0);
+    };
+    
+    fetchPendingCount();
   }, [currentOrg?.id, yearFilter, roleLoading, employeeLoading, currentEmployee?.id, isOwner, isAdmin, isHR, isManager, directReportIds, dateRangeFilter, format(dateRange.startDate, 'yyyy-MM-dd'), format(dateRange.endDate, 'yyyy-MM-dd'), selectedEmployees]);
 
   const loadData = async () => {
@@ -891,6 +931,44 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
+      {/* Tab Toggle */}
+      <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/30 w-fit">
+        <Button
+          variant={activeTab === 'analytics' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleTabChange('analytics')}
+          className="gap-1.5 h-8"
+        >
+          <BarChart3 className="h-4 w-4" />
+          <span className="hidden sm:inline">Analytics</span>
+        </Button>
+        <Button
+          variant={activeTab === 'records' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleTabChange('records')}
+          className="gap-1.5 h-8"
+        >
+          <FileText className="h-4 w-4" />
+          <span className="hidden sm:inline">Records</span>
+        </Button>
+        {(canEditAll || isManager) && (
+          <Button
+            variant={activeTab === 'pending' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => handleTabChange('pending')}
+            className="gap-1.5 h-8"
+          >
+            <Clock className="h-4 w-4" />
+            <span className="hidden sm:inline">Pending</span>
+            {totalPendingCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                {totalPendingCount}
+              </Badge>
+            )}
+          </Button>
+        )}
+      </div>
+
       {/* Mobile Request Leave Button */}
       <div className="md:hidden mb-2">
         <Button onClick={() => navigateOrg('/leave')} className="w-full gap-2">
@@ -899,6 +977,14 @@ const OrgLeaveHistory = () => {
         </Button>
       </div>
 
+      {/* Pending Tab Content */}
+      {activeTab === 'pending' && (canEditAll || isManager) && (
+        <LeaveHistoryPendingTab onApprovalChange={loadData} />
+      )}
+
+      {/* Analytics & Records Tab Content */}
+      {activeTab !== 'pending' && (
+        <>
       {/* Sticky Filter Bar - Light Purple Background */}
       <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
