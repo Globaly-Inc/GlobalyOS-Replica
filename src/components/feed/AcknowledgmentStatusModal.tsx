@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 interface AcknowledgmentStatusModalProps {
   postId: string;
+  authorId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -40,6 +41,7 @@ interface Employee {
 
 export const AcknowledgmentStatusModal = ({
   postId,
+  authorId,
   open,
   onOpenChange,
 }: AcknowledgmentStatusModalProps) => {
@@ -48,7 +50,7 @@ export const AcknowledgmentStatusModal = ({
   
   const { currentOrg } = useOrganization();
   const { data: acknowledgments = [], isLoading: loadingAcks } = usePostAcknowledgments(postId);
-  const { data: targetCount = 0 } = useTargetEmployeesCount(postId);
+  const { data: targetCount = 0 } = useTargetEmployeesCount(postId, authorId);
   
   // Fetch all employees for comparison
   const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery({
@@ -81,9 +83,15 @@ export const AcknowledgmentStatusModal = ({
     [acknowledgments]
   );
 
+  // Filter out the post author from all employees (they don't need to acknowledge their own post)
+  const targetEmployees = useMemo(
+    () => allEmployees.filter(emp => emp.id !== authorId),
+    [allEmployees, authorId]
+  );
+
   const pendingEmployees = useMemo(
-    () => allEmployees.filter(emp => !acknowledgedIds.has(emp.id)),
-    [allEmployees, acknowledgedIds]
+    () => targetEmployees.filter(emp => !acknowledgedIds.has(emp.id)),
+    [targetEmployees, acknowledgedIds]
   );
 
   const displayedEmployees = useMemo(() => {
@@ -110,7 +118,7 @@ export const AcknowledgmentStatusModal = ({
   }, [filter, acknowledgedEmployees, pendingEmployees, searchQuery]);
 
   const acknowledgedCount = acknowledgments.length;
-  const totalCount = allEmployees.length;
+  const totalCount = targetEmployees.length;
   const progressPercent = totalCount > 0 ? Math.round((acknowledgedCount / totalCount) * 100) : 0;
 
   const isLoading = loadingAcks || loadingEmployees;
