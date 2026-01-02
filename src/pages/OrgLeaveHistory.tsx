@@ -158,6 +158,11 @@ const OrgLeaveHistory = () => {
     newParams.set('tab', tab);
     setSearchParams(newParams, { replace: true });
   };
+
+  // Helper variables for tab button variants (avoids TypeScript narrowing issues)
+  const isAnalyticsTab = activeTab === 'analytics';
+  const isRecordsTab = activeTab === 'records';
+  const isPendingTab = activeTab === 'pending';
   
   // Handle URL query parameters for deep linking (employee, dateRange)
   const employeeParam = searchParams.get('employee');
@@ -931,44 +936,6 @@ const OrgLeaveHistory = () => {
         )}
       </div>
 
-      {/* Tab Toggle */}
-      <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/30 w-fit">
-        <Button
-          variant={activeTab === 'analytics' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleTabChange('analytics')}
-          className="gap-1.5 h-8"
-        >
-          <BarChart3 className="h-4 w-4" />
-          <span className="hidden sm:inline">Analytics</span>
-        </Button>
-        <Button
-          variant={activeTab === 'records' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleTabChange('records')}
-          className="gap-1.5 h-8"
-        >
-          <FileText className="h-4 w-4" />
-          <span className="hidden sm:inline">Records</span>
-        </Button>
-        {(canEditAll || isManager) && (
-          <Button
-            variant={activeTab === 'pending' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => handleTabChange('pending')}
-            className="gap-1.5 h-8"
-          >
-            <Clock className="h-4 w-4" />
-            <span className="hidden sm:inline">Pending</span>
-            {totalPendingCount > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
-                {totalPendingCount}
-              </Badge>
-            )}
-          </Button>
-        )}
-      </div>
-
       {/* Mobile Request Leave Button */}
       <div className="md:hidden mb-2">
         <Button onClick={() => navigateOrg('/leave')} className="w-full gap-2">
@@ -979,7 +946,51 @@ const OrgLeaveHistory = () => {
 
       {/* Pending Tab Content */}
       {activeTab === 'pending' && (canEditAll || isManager) && (
-        <LeaveHistoryPendingTab onApprovalChange={loadData} />
+        <>
+          {/* Pending Tab Filter Bar - Tabs only */}
+          <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
+            <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+              {/* Tab Toggle - Inline with filters */}
+              <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+                <Button
+                  variant={isAnalyticsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('analytics')}
+                  className="gap-1.5 h-7"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </Button>
+                <Button
+                  variant={isRecordsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('records')}
+                  className="gap-1.5 h-7"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Records</span>
+                </Button>
+                {(canEditAll || isManager) && (
+                  <Button
+                    variant={isPendingTab ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleTabChange('pending')}
+                    className="gap-1.5 h-7"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Pending</span>
+                    {totalPendingCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                        {totalPendingCount}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <LeaveHistoryPendingTab onApprovalChange={loadData} />
+        </>
       )}
 
       {/* ==================== ANALYTICS TAB CONTENT ==================== */}
@@ -988,6 +999,46 @@ const OrgLeaveHistory = () => {
           {/* Analytics Filter Bar - Simplified */}
           <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
             <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+              {/* Tab Toggle - Inline with filters */}
+              <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+                <Button
+                  variant={isAnalyticsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('analytics')}
+                  className="gap-1.5 h-7"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </Button>
+                <Button
+                  variant={isRecordsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('records')}
+                  className="gap-1.5 h-7"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Records</span>
+                </Button>
+                {(canEditAll || isManager) && (
+                  <Button
+                    variant={isPendingTab ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleTabChange('pending')}
+                    className="gap-1.5 h-7"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Pending</span>
+                    {totalPendingCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                        {totalPendingCount}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              <div className="w-px h-6 bg-border hidden md:block" />
+
               {/* Employee Multi-Select Dropdown */}
               <div className="hidden md:block">
                 {isRegularUser ? (
@@ -1365,6 +1416,46 @@ const OrgLeaveHistory = () => {
           {/* Records Filter Bar - Full version */}
           <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
             <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+              {/* Tab Toggle - Inline with filters */}
+              <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+                <Button
+                  variant={isAnalyticsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('analytics')}
+                  className="gap-1.5 h-7"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </Button>
+                <Button
+                  variant={isRecordsTab ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('records')}
+                  className="gap-1.5 h-7"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Records</span>
+                </Button>
+                {(canEditAll || isManager) && (
+                  <Button
+                    variant={isPendingTab ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleTabChange('pending')}
+                    className="gap-1.5 h-7"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Pending</span>
+                    {totalPendingCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                        {totalPendingCount}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              <div className="w-px h-6 bg-border hidden md:block" />
+
               {/* Employee Multi-Select Dropdown */}
               <div className="hidden md:block">
                 {isRegularUser ? (
