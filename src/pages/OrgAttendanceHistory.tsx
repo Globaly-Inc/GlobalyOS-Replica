@@ -1720,7 +1720,7 @@ const OrgAttendanceHistory = () => {
                 </div>
               )}
             </Card>}
-        </div>
+        </div>}
 
       {/* Edit Attendance Dialog */}
       <EditAttendanceDialog open={!!editRecord} onOpenChange={open => !open && setEditRecord(null)} record={editRecord} employeeId={editRecord?.employee_id || ""} organizationId={currentOrg?.id || ""} />
