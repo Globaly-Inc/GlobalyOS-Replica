@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -8,9 +8,19 @@ import globalyosFullLogo from "@/assets/globalyos-full-logo.png";
 
 export const WebsiteHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user } = useAuth();
-  const { currentOrg } = useOrganization();
+  const { user, loading: authLoading } = useAuth();
+  const { currentOrg, organizations, loading: orgLoading } = useOrganization();
   const navigate = useNavigate();
+
+  // Show loading state while checking auth or loading orgs for authenticated user
+  const isAuthenticating = authLoading || (user && orgLoading);
+  
+  // Determine the dashboard path - use currentOrg, fallback to first org, or pending approval
+  const getDashboardPath = () => {
+    if (currentOrg) return `/org/${currentOrg.slug}`;
+    if (organizations.length > 0) return `/org/${organizations[0].slug}`;
+    return '/pending-approval';
+  };
 
   const navLinks = [
     { name: "Features", href: "/features" },
@@ -44,8 +54,13 @@ export const WebsiteHeader = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {user && currentOrg ? (
-              <Button onClick={() => navigate(`/org/${currentOrg.slug}`)}>
+            {isAuthenticating ? (
+              <Button disabled>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Loading...
+              </Button>
+            ) : user ? (
+              <Button onClick={() => navigate(getDashboardPath())}>
                 Go to Dashboard
               </Button>
             ) : (
@@ -88,16 +103,21 @@ export const WebsiteHeader = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                {user && currentOrg ? (
-                  <Button onClick={() => navigate(`/org/${currentOrg.slug}`)}>
+                {isAuthenticating ? (
+                  <Button disabled>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </Button>
+                ) : user ? (
+                  <Button onClick={() => { navigate(getDashboardPath()); setMobileMenuOpen(false); }}>
                     Go to Dashboard
                   </Button>
                 ) : (
                   <>
-                    <Button variant="ghost" onClick={() => navigate("/auth")}>
+                    <Button variant="ghost" onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}>
                       Sign In
                     </Button>
-                    <Button onClick={() => navigate("/auth")}>
+                    <Button onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}>
                       Get Started Free
                     </Button>
                   </>
