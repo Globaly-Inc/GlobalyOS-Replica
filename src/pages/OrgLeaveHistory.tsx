@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase, BarChart3, FileText } from "lucide-react";
+import { History, Search, Download, Pencil, TrendingUp, TrendingDown, Calendar, Trash2, AlertTriangle, Award, Upload, X, CalendarDays, Plus, Users, Check, ChevronsUpDown, Sun, Heart, Moon, Clock, Baby, Plane, Briefcase, BarChart3, FileText, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -231,8 +231,44 @@ const OrgLeaveHistory = () => {
   const [deleteLeaveDialog, setDeleteLeaveDialog] = useState<{ open: boolean; request: LeaveTransaction | null }>({ open: false, request: null });
   const [deletingLeave, setDeletingLeave] = useState(false);
   const [addLeaveOpen, setAddLeaveOpen] = useState(false);
+  const [repairingAuditTrail, setRepairingAuditTrail] = useState(false);
   
   const queryClient = useQueryClient();
+
+  // Handler for Repair Audit Trail
+  const handleRepairAuditTrail = async () => {
+    if (!currentOrg?.id || !currentEmployee?.id) return;
+    
+    setRepairingAuditTrail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-leave-init-logs', {
+        body: {
+          organization_id: currentOrg.id,
+          year: new Date().getFullYear(),
+          created_by: currentEmployee.id,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data.logsCreated > 0) {
+        toast.success(`Created ${data.logsCreated} audit logs for ${data.employeesProcessed} employees`);
+        loadData();
+        queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      } else {
+        toast.info("All balances already have audit logs");
+      }
+      
+      if (data.errors?.length > 0) {
+        console.warn("Backfill errors:", data.errors);
+      }
+    } catch (error) {
+      console.error("Repair audit trail error:", error);
+      toast.error("Failed to repair audit trail");
+    } finally {
+      setRepairingAuditTrail(false);
+    }
+  };
 
   // Check if current user has direct reports (is a manager)
   useEffect(() => {
@@ -904,6 +940,16 @@ const OrgLeaveHistory = () => {
         </div>
       {canEditAll && (
           <div className="hidden md:flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRepairAuditTrail} 
+              disabled={repairingAuditTrail}
+              className="gap-2"
+            >
+              <Wrench className="h-4 w-4" />
+              {repairingAuditTrail ? "Repairing..." : "Repair Audit Trail"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigateOrg('/leave/import')} className="gap-2">
               <Upload className="h-4 w-4" />
               Import

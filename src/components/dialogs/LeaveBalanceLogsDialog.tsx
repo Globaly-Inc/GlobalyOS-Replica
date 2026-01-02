@@ -78,6 +78,9 @@ interface LeaveRequest {
 interface LeaveBalanceLogsDialogProps {
   employeeId: string;
   isOwnProfile?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  triggerButton?: React.ReactNode;
 }
 
 // Get action type display info
@@ -147,8 +150,16 @@ const getActionBadge = (action: string | null, changeAmount: number) => {
 export const LeaveBalanceLogsDialog = ({
   employeeId,
   isOwnProfile = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  triggerButton,
 }: LeaveBalanceLogsDialogProps) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Support both controlled and uncontrolled mode
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? (controlledOnOpenChange || (() => {})) : setInternalOpen;
   const [logs, setLogs] = useState<LeaveBalanceLog[]>([]);
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -322,12 +333,16 @@ export const LeaveBalanceLogsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="ghost">
-          <History className="h-4 w-4 mr-1" />
-          Leave Logs
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {triggerButton || (
+            <Button size="sm" variant="ghost">
+              <History className="h-4 w-4 mr-1" />
+              Leave Logs
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
