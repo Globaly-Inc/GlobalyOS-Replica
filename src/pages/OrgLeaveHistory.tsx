@@ -220,7 +220,7 @@ const OrgLeaveHistory = () => {
   const [editRequest, setEditRequest] = useState<any>(null);
   const [deleteAdjustmentDialog, setDeleteAdjustmentDialog] = useState<{ open: boolean; adjustment: LeaveTransaction | null }>({ open: false, adjustment: null });
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
-  const [missingBalanceCount, setMissingBalanceCount] = useState(0);
+  
   
   // Bulk selection state
   const [selectedTransactions, setSelectedTransactions] = useState<SelectedTransaction[]>([]);
@@ -335,26 +335,7 @@ const OrgLeaveHistory = () => {
       // Store all active leave types for stats cards
       setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
       
-      // Check how many employees are missing balances for CURRENT calendar year (for admin banner)
-      // This should always check the current year, not the selected yearFilter
-      const currentCalendarYear = new Date().getFullYear();
-      if (canEditAll && leaveTypesData?.length) {
-        const { count: activeEmployeeCount } = await supabase
-          .from("employees")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", currentOrg.id)
-          .eq("status", "active");
-        
-        const { count: balanceCount } = await supabase
-          .from("leave_type_balances")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", currentOrg.id)
-          .eq("year", currentCalendarYear);
-        
-        const expectedBalances = (activeEmployeeCount || 0) * leaveTypesData.length;
-        const missing = Math.max(0, expectedBalances - (balanceCount || 0));
-        setMissingBalanceCount(missing > 0 ? activeEmployeeCount || 0 : 0);
-      }
+      // Note: Missing balance count is now handled by useMissingBalances hook in InitializeYearBalancesButton
       
       // Build a lookup map to normalize leave type names to official casing
       const leaveTypeNameMap: Record<string, string> = {};
@@ -902,7 +883,6 @@ const OrgLeaveHistory = () => {
       {canEditAll && (
         <InitializeYearBalancesButton
           year={new Date().getFullYear()}
-          missingCount={missingBalanceCount}
           onComplete={loadData}
         />
       )}

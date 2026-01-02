@@ -1,51 +1,63 @@
 /**
- * Admin button to initialize leave balances for a new year
+ * Admin button/banner to initialize leave balances for a new year
+ * Uses accurate eligibility filtering and supports selective initialization
  */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
-import { useInitializeYearBalances } from "@/services/useLeaveBalanceInit";
+import { RefreshCw, AlertTriangle, Users } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useMissingBalances } from "@/services/useLeaveBalanceMissing";
+import { useInitializeSelectedEmployeesBalances } from "@/services/useLeaveBalanceInit";
+import { InitializeYearBalancesDialog } from "./InitializeYearBalancesDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface InitializeYearBalancesButtonProps {
   year: number;
-  missingCount?: number;
   onComplete?: () => void;
 }
 
 export const InitializeYearBalancesButton = ({
   year,
-  missingCount,
   onComplete,
 }: InitializeYearBalancesButtonProps) => {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { isOwner, isAdmin, isHR } = useUserRole();
-  const initMutation = useInitializeYearBalances();
+  
+  // Use the new accurate missing balance detection
+  const { data: missingEmployees = [], isLoading } = useMissingBalances(year);
+  const initMutation = useInitializeSelectedEmployeesBalances();
 
   // Only show for admin roles
   if (!isOwner && !isAdmin && !isHR) {
     return null;
   }
 
-  const handleInitialize = async () => {
-    await initMutation.mutateAsync(year);
-    setConfirmOpen(false);
+  const handleInitialize = async (employeeIds: string[]) => {
+    await initMutation.mutateAsync({ employeeIds, year });
     onComplete?.();
+    // Close dialog only if all selected were initialized successfully
+    if (!initMutation.isError) {
+      setDialogOpen(false);
+    }
   };
 
-  const showBanner = missingCount !== undefined && missingCount > 0;
+  const missingCount = missingEmployees.length;
+  const showBanner = missingCount > 0;
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Alert className="mb-4 border-muted bg-muted/30">
+        <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+        <AlertTitle className="text-muted-foreground">Checking {year} Leave Balances...</AlertTitle>
+        <AlertDescription>
+          <Skeleton className="h-4 w-48 mt-2" />
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <>
@@ -56,81 +68,45 @@ export const InitializeYearBalancesButton = ({
             {year} Leave Balances Not Initialized
           </AlertTitle>
           <AlertDescription className="text-amber-700 dark:text-amber-300">
-            <p className="mb-2">
-              {missingCount} employee{missingCount > 1 ? "s don't" : " doesn't"} have leave balances for {year} yet.
-              Click the button below to initialize balances with default days and carry forward from {year - 1}.
+            <p className="mb-3">
+              <strong>{missingCount}</strong> employee{missingCount > 1 ? "s are" : " is"} missing eligible leave balances for {year}.
+              Click below to review and initialize balances with default days and carry forward from {year - 1}.
             </p>
             <Button
               size="sm"
               variant="outline"
               className="border-amber-300 bg-white dark:bg-amber-900 hover:bg-amber-100 dark:hover:bg-amber-800"
-              onClick={() => setConfirmOpen(true)}
-              disabled={initMutation.isPending}
+              onClick={() => setDialogOpen(true)}
             >
-              {initMutation.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Initializing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Initialize {year} Balances
-                </>
-              )}
+              <Users className="h-4 w-4 mr-2" />
+              Initialize {year} Balances
             </Button>
           </AlertDescription>
         </Alert>
       )}
 
+      {/* Re-initialize button for when all balances are set */}
       {!showBanner && (
         <Button
           size="sm"
           variant="outline"
-          onClick={() => setConfirmOpen(true)}
-          disabled={initMutation.isPending}
+          onClick={() => setDialogOpen(true)}
+          className="gap-2"
         >
-          {initMutation.isPending ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Initializing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Re-initialize {year} Balances
-            </>
-          )}
+          <RefreshCw className="h-4 w-4" />
+          Re-check {year} Balances
         </Button>
       )}
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Initialize {year} Leave Balances?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>This will create leave balances for all active employees who don't have them yet for {year}.</p>
-              <p className="font-medium">For each leave type:</p>
-              <ul className="list-disc ml-4 space-y-1">
-                <li>Credits the configured "Annual Leave Days" as default balance</li>
-                <li>Carries forward remaining balance from {year - 1} if "Carry Forward" is enabled (including negative balances)</li>
-              </ul>
-              <p className="text-amber-600 dark:text-amber-400 mt-2">
-                <strong>Note:</strong> Existing balances will not be modified.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={initMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleInitialize}
-              disabled={initMutation.isPending}
-            >
-              {initMutation.isPending ? "Initializing..." : "Initialize Balances"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <InitializeYearBalancesDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        year={year}
+        missingEmployees={missingEmployees}
+        isLoading={isLoading}
+        onInitialize={handleInitialize}
+        isPending={initMutation.isPending}
+      />
     </>
   );
 };
