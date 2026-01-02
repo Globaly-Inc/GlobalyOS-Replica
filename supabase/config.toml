@@ -179,6 +179,3 @@ verify_jwt = false
 
 [functions.post-acknowledgment-reminders]
 verify_jwt = false
-
-[functions.backfill-leave-init-logs]
-verify_jwt = false

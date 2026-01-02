@@ -13,7 +13,6 @@ export interface MissingLeaveType {
   default_days: number | null;
   carry_forward_mode: string;
   previous_balance: number | null;
-  carry_forward_amount: number;
   projected_balance: number;
 }
 
@@ -28,7 +27,6 @@ export interface EmployeeMissingBalance {
   office_id: string | null;
   missing_leave_types: MissingLeaveType[];
   total_carry_forward: number;
-  total_allocation: number;
 }
 
 /**
@@ -135,7 +133,6 @@ export const useMissingBalances = (year: number) => {
         const employeeProfile = employee.profiles as { full_name: string; avatar_url: string | null };
         const missingTypes: MissingLeaveType[] = [];
         let totalCarryForward = 0;
-        let totalAllocation = 0;
 
         for (const leaveType of leaveTypes) {
           // Skip if balance already exists
@@ -168,14 +165,13 @@ export const useMissingBalances = (year: number) => {
           const carryMode = leaveType.carry_forward_mode || 'none';
           const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id)) ?? null;
           
-          let carryForwardAmount = 0;
+          let carriedForward = 0;
           if (carryMode !== 'none' && prevBalance !== null) {
-            carryForwardAmount = getCarriedForwardAmount(carryMode, prevBalance);
+            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
           }
 
-          const projectedBalance = defaultDays + carryForwardAmount;
-          totalCarryForward += carryForwardAmount;
-          totalAllocation += defaultDays;
+          const projectedBalance = defaultDays + carriedForward;
+          totalCarryForward += carriedForward;
 
           missingTypes.push({
             leave_type_id: leaveType.id,
@@ -183,7 +179,6 @@ export const useMissingBalances = (year: number) => {
             default_days: leaveType.default_days,
             carry_forward_mode: carryMode,
             previous_balance: prevBalance,
-            carry_forward_amount: carryForwardAmount,
             projected_balance: projectedBalance,
           });
         }
@@ -201,7 +196,6 @@ export const useMissingBalances = (year: number) => {
             office_id: employee.office_id,
             missing_leave_types: missingTypes,
             total_carry_forward: totalCarryForward,
-            total_allocation: totalAllocation,
           });
         }
       }

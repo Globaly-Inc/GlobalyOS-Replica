@@ -4,11 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane, CalendarX, Loader2, RefreshCw, History, Info } from "lucide-react";
+import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane, CalendarX, Loader2, RefreshCw, History } from "lucide-react";
 import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
 import { toast } from "sonner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LeaveBalanceLogsDialog } from "@/components/dialogs/LeaveBalanceLogsDialog";
 
 interface LeaveManagementProps {
   employeeId: string;
@@ -41,7 +39,6 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
   const [initializing, setInitializing] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const initBalances = useInitializeEmployeeBalances();
   const queryClient = useQueryClient();
 
@@ -156,62 +153,42 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const hasMorePrevious = previousYearBalances.length > 3;
 
   return (
-    <TooltipProvider>
-      <div className="space-y-4">
-        {sortedBalances.length > 0 ? (
-          <div className="space-y-4">
-            {/* Leave Type Balances */}
-            <div 
-              className="grid gap-3"
-              style={{ 
-                gridTemplateColumns: `repeat(auto-fit, minmax(${sortedBalances.length <= 2 ? '45%' : sortedBalances.length === 3 ? '30%' : '140px'}, 1fr))` 
-              }}
-            >
-              {sortedBalances.map((item) => (
-                <Tooltip key={item.leave_type_name}>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className={`text-center p-4 rounded-xl border transition-colors cursor-help ${
-                        item.balance < 0 
-                          ? 'bg-destructive/5 border-destructive/20' 
-                          : 'bg-primary/5 border-primary/10 hover:border-primary/20'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center mb-2">
-                        <div className={`p-2 rounded-full ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                          <span className={item.balance < 0 ? 'text-destructive' : 'text-primary'}>
-                            {getLeaveTypeIcon(item.leave_type_name)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={`text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
-                        {item.balance < 0 ? `(${Math.abs(item.balance)})` : item.balance}
-                      </div>
-                      <div className="text-xs font-medium text-muted-foreground mt-1.5 truncate">{item.leave_type_name}</div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    <p className="font-medium">{item.leave_type_name} Balance</p>
-                    <p className="text-muted-foreground">{item.balance} days remaining for {currentYear}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-            
-            {/* View History Button */}
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground hover:text-foreground"
-                onClick={() => setHistoryOpen(true)}
+    <div className="space-y-4">
+      {sortedBalances.length > 0 ? (
+        <div className="space-y-4">
+          {/* Leave Type Balances */}
+          <div 
+            className="grid gap-3"
+            style={{ 
+              gridTemplateColumns: `repeat(auto-fit, minmax(${sortedBalances.length <= 2 ? '45%' : sortedBalances.length === 3 ? '30%' : '140px'}, 1fr))` 
+            }}
+          >
+            {sortedBalances.map((item) => (
+              <div 
+                key={item.leave_type_name} 
+                className={`text-center p-4 rounded-xl border transition-colors ${
+                  item.balance < 0 
+                    ? 'bg-destructive/5 border-destructive/20' 
+                    : 'bg-primary/5 border-primary/10 hover:border-primary/20'
+                }`}
               >
-                <History className="h-3.5 w-3.5" />
-                View History
-              </Button>
-            </div>
+                <div className="flex items-center justify-center mb-2">
+                  <div className={`p-2 rounded-full ${item.balance < 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                    <span className={item.balance < 0 ? 'text-destructive' : 'text-primary'}>
+                      {getLeaveTypeIcon(item.leave_type_name)}
+                    </span>
+                  </div>
+                </div>
+                <div className={`text-2xl font-bold ${item.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
+                  {item.balance < 0 ? `(${Math.abs(item.balance)})` : item.balance}
+                </div>
+                <div className="text-xs font-medium text-muted-foreground mt-1.5 truncate">{item.leave_type_name}</div>
+              </div>
+            ))}
           </div>
-        ) : (
+          
+        </div>
+      ) : (
         <Card className="border-dashed border-muted-foreground/30">
           <CardContent className="py-6 text-center">
             <CalendarX className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
@@ -266,16 +243,8 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
               </Badge>
             )}
           </div>
-          </div>
-        )}
-
-        {/* Leave Balance Logs Dialog */}
-        <LeaveBalanceLogsDialog
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          employeeId={employeeId}
-        />
-      </div>
-    </TooltipProvider>
+        </div>
+      )}
+    </div>
   );
 };
