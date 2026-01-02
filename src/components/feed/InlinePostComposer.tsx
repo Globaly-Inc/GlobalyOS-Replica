@@ -20,8 +20,9 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2,
-  BarChart3, Users, Globe, Video, Loader2, Smile
+  BarChart3, Users, Globe, Video, Loader2, Smile, Calendar
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { GifPicker } from './GifPicker';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -96,6 +97,10 @@ export const InlinePostComposer = ({
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  
+  // Acknowledgment
+  const [requiresAcknowledgment, setRequiresAcknowledgment] = useState(false);
+  const [acknowledgmentDeadline, setAcknowledgmentDeadline] = useState<string | null>(null);
   
   // Upload progress
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
@@ -247,6 +252,8 @@ export const InlinePostComposer = ({
           options: pollOptions.filter(o => o.trim()),
           allow_multiple: pollAllowMultiple,
         } : undefined,
+        requires_acknowledgment: requiresAcknowledgment,
+        acknowledgment_deadline: acknowledgmentDeadline,
         onUploadProgress: ({ current, total, fileIndex }) => {
           setUploadingFiles(prev => prev.map((f, idx) => 
             idx === fileIndex 
@@ -282,6 +289,8 @@ export const InlinePostComposer = ({
     setPollOptions(['', '']);
     setPollAllowMultiple(false);
     setUploadingFiles([]);
+    setRequiresAcknowledgment(false);
+    setAcknowledgmentDeadline(null);
   };
 
   const postTypes = [
@@ -601,6 +610,41 @@ export const InlinePostComposer = ({
               {/* Upload Progress */}
               {uploadingFiles.length > 0 && (
                 <UploadProgress files={uploadingFiles} />
+              )}
+
+              {/* Acknowledgment Section - for update/announcement/executive posts */}
+              {(selectedType === 'update' || selectedType === 'announcement' || selectedType === 'executive_message') && 
+               (canPostAnnouncement || canPostExecutive) && (
+                <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="require-acknowledgment"
+                      checked={requiresAcknowledgment}
+                      onCheckedChange={(checked) => setRequiresAcknowledgment(checked === true)}
+                    />
+                    <Label htmlFor="require-acknowledgment" className="text-sm font-medium cursor-pointer text-amber-800 dark:text-amber-200">
+                      Require team members to acknowledge this post
+                    </Label>
+                  </div>
+                  
+                  {requiresAcknowledgment && (
+                    <div className="pl-6 space-y-2">
+                      <Label className="text-xs text-amber-700 dark:text-amber-300">
+                        Optional deadline:
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={acknowledgmentDeadline || ''}
+                        onChange={(e) => setAcknowledgmentDeadline(e.target.value || null)}
+                        min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                        className="w-full max-w-xs h-9 text-sm"
+                      />
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Team members will be reminded to acknowledge this post
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Visibility Row - dedicated section */}
