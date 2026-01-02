@@ -407,7 +407,7 @@ const OrgLeaveHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg.id)
-        .in("action", ["manual_adjustment", "year_init"])
+        .in("action", ["manual_adjustment", "year_init", "year_allocation", "carry_forward_in", "carry_forward_out"])
         .gte("effective_date", startOfYear)
         .lte("effective_date", endOfYear)
         .order("effective_date", { ascending: false });

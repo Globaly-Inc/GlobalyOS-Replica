@@ -1,5 +1,6 @@
 /**
  * Service for initializing yearly leave balances with carry forward logic
+ * Uses the 3-transaction audit model: year_allocation, carry_forward_out, carry_forward_in
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,10 +35,25 @@ interface InitResult {
   errors: string[];
 }
 
+interface LogEntry {
+  employee_id: string;
+  organization_id: string;
+  leave_type: string;
+  leave_type_id: string;
+  change_amount: number;
+  previous_balance: number;
+  new_balance: number;
+  reason: string;
+  created_by: string;
+  effective_date: string;
+  action: string;
+  year?: number;
+}
+
 /**
  * Initialize leave balances for a specific year for all active employees
- * - Credits default_days for each leave type
- * - Carries forward previous year balance if carry_forward is enabled (including negatives)
+ * - Credits default_days for each leave type (year_allocation)
+ * - Carries forward previous year balance with separate logs (carry_forward_out, carry_forward_in)
  */
 export const useInitializeYearBalances = () => {
   const { currentOrg } = useOrganization();
@@ -125,18 +141,7 @@ export const useInitializeYearBalances = () => {
         year: number;
       }> = [];
 
-      const logsToInsert: Array<{
-        employee_id: string;
-        organization_id: string;
-        leave_type: string;
-        change_amount: number;
-        previous_balance: number;
-        new_balance: number;
-        reason: string;
-        created_by: string;
-        effective_date: string;
-        action: string;
-      }> = [];
+      const logsToInsert: LogEntry[] = [];
 
       // Get current user's employee ID for logging
       const { data: { user } } = await supabase.auth.getUser();
@@ -184,21 +189,21 @@ export const useInitializeYearBalances = () => {
           }
 
           // Calculate new balance
-          let newBalance = leaveType.default_days || 0;
+          const defaultDays = leaveType.default_days || 0;
           let carriedForward = 0;
 
           // Check for carry forward based on mode
           const carryMode = leaveType.carry_forward_mode || 'none';
-          if (carryMode !== 'none') {
-            const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
-            if (prevBalance !== undefined) {
-              carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-              newBalance += carriedForward;
-              if (carriedForward !== 0) {
-                result.balancesCarriedForward++;
-              }
+          const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
+          
+          if (carryMode !== 'none' && prevBalance !== undefined) {
+            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+            if (carriedForward !== 0) {
+              result.balancesCarriedForward++;
             }
           }
+
+          const newBalance = defaultDays + carriedForward;
 
           balancesToInsert.push({
             employee_id: employee.id,
@@ -208,26 +213,58 @@ export const useInitializeYearBalances = () => {
             year: year,
           });
 
-          // Create log entry
-          let reason = `Year ${year} initialization: ${leaveType.default_days || 0} default days`;
-          if (carriedForward !== 0) {
-            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
-          }
-
-          // Only add log if we have a valid creator employee ID
+          // Create audit trail logs (3-transaction model)
           if (creatorEmployeeId) {
+            // Log 1: Year allocation (default days)
             logsToInsert.push({
               employee_id: employee.id,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
-              change_amount: newBalance,
+              leave_type_id: leaveType.id,
+              change_amount: defaultDays,
               previous_balance: 0,
-              new_balance: newBalance,
-              reason: reason,
+              new_balance: defaultDays,
+              reason: `${year} annual allocation`,
               created_by: creatorEmployeeId,
               effective_date: `${year}-01-01`,
-              action: "year_init",
+              action: "year_allocation",
+              year: year,
             });
+
+            // Log 2 & 3: Carry forward (if applicable)
+            if (carriedForward !== 0 && prevBalance !== undefined) {
+              // carry_forward_out: Deduction from previous year
+              logsToInsert.push({
+                employee_id: employee.id,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: -carriedForward,
+                previous_balance: prevBalance,
+                new_balance: prevBalance - carriedForward,
+                reason: `Carried forward to ${year}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${year}-01-01`,
+                action: "carry_forward_out",
+                year: previousYear,
+              });
+
+              // carry_forward_in: Addition to new year
+              logsToInsert.push({
+                employee_id: employee.id,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: carriedForward,
+                previous_balance: defaultDays,
+                new_balance: defaultDays + carriedForward,
+                reason: `Carried from ${previousYear}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${year}-01-01`,
+                action: "carry_forward_in",
+                year: year,
+              });
+            }
           }
 
           result.balancesCreated++;
@@ -394,18 +431,7 @@ export const useInitializeSelectedEmployeesBalances = () => {
         year: number;
       }> = [];
 
-      const logsToInsert: Array<{
-        employee_id: string;
-        organization_id: string;
-        leave_type: string;
-        change_amount: number;
-        previous_balance: number;
-        new_balance: number;
-        reason: string;
-        created_by: string;
-        effective_date: string;
-        action: string;
-      }> = [];
+      const logsToInsert: LogEntry[] = [];
 
       for (const employee of employees) {
         result.employeesProcessed++;
@@ -437,20 +463,20 @@ export const useInitializeSelectedEmployeesBalances = () => {
           }
 
           // Calculate new balance
-          let newBalance = leaveType.default_days || 0;
+          const defaultDays = leaveType.default_days || 0;
           let carriedForward = 0;
 
           const carryMode = leaveType.carry_forward_mode || 'none';
-          if (carryMode !== 'none') {
-            const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
-            if (prevBalance !== undefined) {
-              carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-              newBalance += carriedForward;
-              if (carriedForward !== 0) {
-                result.balancesCarriedForward++;
-              }
+          const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
+          
+          if (carryMode !== 'none' && prevBalance !== undefined) {
+            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+            if (carriedForward !== 0) {
+              result.balancesCarriedForward++;
             }
           }
+
+          const newBalance = defaultDays + carriedForward;
 
           balancesToInsert.push({
             employee_id: employee.id,
@@ -460,25 +486,58 @@ export const useInitializeSelectedEmployeesBalances = () => {
             year: year,
           });
 
-          // Create log entry
-          let reason = `Year ${year} initialization: ${leaveType.default_days || 0} default days`;
-          if (carriedForward !== 0) {
-            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
-          }
-
+          // Create audit trail logs (3-transaction model)
           if (creatorEmployeeId) {
+            // Log 1: Year allocation (default days)
             logsToInsert.push({
               employee_id: employee.id,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
-              change_amount: newBalance,
+              leave_type_id: leaveType.id,
+              change_amount: defaultDays,
               previous_balance: 0,
-              new_balance: newBalance,
-              reason: reason,
+              new_balance: defaultDays,
+              reason: `${year} annual allocation`,
               created_by: creatorEmployeeId,
               effective_date: `${year}-01-01`,
-              action: "year_init",
+              action: "year_allocation",
+              year: year,
             });
+
+            // Log 2 & 3: Carry forward (if applicable)
+            if (carriedForward !== 0 && prevBalance !== undefined) {
+              // carry_forward_out: Deduction from previous year
+              logsToInsert.push({
+                employee_id: employee.id,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: -carriedForward,
+                previous_balance: prevBalance,
+                new_balance: prevBalance - carriedForward,
+                reason: `Carried forward to ${year}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${year}-01-01`,
+                action: "carry_forward_out",
+                year: previousYear,
+              });
+
+              // carry_forward_in: Addition to new year
+              logsToInsert.push({
+                employee_id: employee.id,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: carriedForward,
+                previous_balance: defaultDays,
+                new_balance: defaultDays + carriedForward,
+                reason: `Carried from ${previousYear}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${year}-01-01`,
+                action: "carry_forward_in",
+                year: year,
+              });
+            }
           }
 
           result.balancesCreated++;
@@ -631,17 +690,17 @@ export const useInitializeEmployeeBalances = () => {
         }
 
         // Calculate balance
-        let newBalance = leaveType.default_days || 0;
+        const defaultDays = leaveType.default_days || 0;
         let carriedForward = 0;
 
         const carryMode = leaveType.carry_forward_mode || 'none';
-        if (carryMode !== 'none') {
-          const prevBalance = prevBalanceMap.get(leaveType.id);
-          if (prevBalance !== undefined) {
-            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-            newBalance += carriedForward;
-          }
+        const prevBalance = prevBalanceMap.get(leaveType.id);
+        
+        if (carryMode !== 'none' && prevBalance !== undefined) {
+          carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
         }
+
+        const newBalance = defaultDays + carriedForward;
 
         // Insert balance
         const { error: insertError } = await supabase
@@ -657,25 +716,58 @@ export const useInitializeEmployeeBalances = () => {
         if (!insertError) {
           balancesCreated++;
 
-          // Log the initialization (only if we have a valid creator employee ID)
+          // Create audit trail logs (3-transaction model)
           if (creatorEmployeeId) {
-            let reason = `Year ${currentYear} auto-initialization: ${leaveType.default_days || 0} default days`;
-            if (carriedForward !== 0) {
-              reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
-            }
-
+            // Log 1: Year allocation (default days)
             await supabase.from("leave_balance_logs").insert({
               employee_id: employeeId,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
-              change_amount: newBalance,
+              leave_type_id: leaveType.id,
+              change_amount: defaultDays,
               previous_balance: 0,
-              new_balance: newBalance,
-              reason: reason,
+              new_balance: defaultDays,
+              reason: `${currentYear} annual allocation (auto)`,
               created_by: creatorEmployeeId,
               effective_date: `${currentYear}-01-01`,
-              action: "year_init",
+              action: "year_allocation",
+              year: currentYear,
             });
+
+            // Log 2 & 3: Carry forward (if applicable)
+            if (carriedForward !== 0 && prevBalance !== undefined) {
+              // carry_forward_out: Deduction from previous year
+              await supabase.from("leave_balance_logs").insert({
+                employee_id: employeeId,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: -carriedForward,
+                previous_balance: prevBalance,
+                new_balance: prevBalance - carriedForward,
+                reason: `Carried forward to ${currentYear}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${currentYear}-01-01`,
+                action: "carry_forward_out",
+                year: previousYear,
+              });
+
+              // carry_forward_in: Addition to new year
+              await supabase.from("leave_balance_logs").insert({
+                employee_id: employeeId,
+                organization_id: currentOrg.id,
+                leave_type: leaveType.name,
+                leave_type_id: leaveType.id,
+                change_amount: carriedForward,
+                previous_balance: defaultDays,
+                new_balance: defaultDays + carriedForward,
+                reason: `Carried from ${previousYear}`,
+                created_by: creatorEmployeeId,
+                effective_date: `${currentYear}-01-01`,
+                action: "carry_forward_in",
+                year: currentYear,
+              });
+            }
           }
         }
       }

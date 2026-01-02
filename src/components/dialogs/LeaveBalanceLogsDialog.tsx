@@ -20,7 +20,19 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, TrendingUp, TrendingDown, Calendar, Clock, X } from "lucide-react";
+import { 
+  History, 
+  TrendingUp, 
+  TrendingDown, 
+  Calendar, 
+  Clock, 
+  X, 
+  ArrowDownCircle, 
+  ArrowUpCircle,
+  CalendarPlus,
+  Edit,
+  Trash2
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime, formatDate, formatDateRange } from "@/lib/utils";
 import { toast } from "sonner";
@@ -34,6 +46,7 @@ interface LeaveBalanceLog {
   new_balance: number;
   reason: string | null;
   created_at: string;
+  action?: string;
   created_by_employee: {
     profiles: {
       full_name: string;
@@ -64,6 +77,63 @@ interface LeaveBalanceLogsDialogProps {
   isOwnProfile?: boolean;
 }
 
+// Action badge component
+const ActionBadge = ({ action }: { action?: string }) => {
+  switch (action) {
+    case "year_allocation":
+      return (
+        <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50 dark:bg-blue-950">
+          <CalendarPlus className="h-3 w-3 mr-1" />
+          Year Allocation
+        </Badge>
+      );
+    case "carry_forward_in":
+      return (
+        <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50 dark:bg-green-950">
+          <ArrowDownCircle className="h-3 w-3 mr-1" />
+          Carry Forward In
+        </Badge>
+      );
+    case "carry_forward_out":
+      return (
+        <Badge variant="outline" className="text-orange-600 border-orange-600 bg-orange-50 dark:bg-orange-950">
+          <ArrowUpCircle className="h-3 w-3 mr-1" />
+          Carry Forward Out
+        </Badge>
+      );
+    case "manual_adjustment":
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-600 bg-amber-50 dark:bg-amber-950">
+          <Edit className="h-3 w-3 mr-1" />
+          Manual Adjust
+        </Badge>
+      );
+    case "leave_deduct":
+      return (
+        <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-950">
+          <TrendingDown className="h-3 w-3 mr-1" />
+          Leave Taken
+        </Badge>
+      );
+    case "balance_deleted":
+      return (
+        <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-950">
+          <Trash2 className="h-3 w-3 mr-1" />
+          Balance Deleted
+        </Badge>
+      );
+    case "year_init":
+      return (
+        <Badge variant="outline" className="text-muted-foreground border-muted bg-muted/50">
+          <Clock className="h-3 w-3 mr-1" />
+          Legacy Init
+        </Badge>
+      );
+    default:
+      return null;
+  }
+};
+
 export const LeaveBalanceLogsDialog = ({
   employeeId,
   isOwnProfile = false,
@@ -90,6 +160,7 @@ export const LeaveBalanceLogsDialog = ({
           new_balance,
           reason,
           created_at,
+          action,
           created_by_employee:employees!leave_balance_logs_created_by_fkey(
             profiles!inner(full_name)
           )
@@ -309,11 +380,12 @@ export const LeaveBalanceLogsDialog = ({
                       key={log.id}
                       className="border rounded-lg p-4 space-y-2"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
                             {getLeaveTypeLabel(log.leave_type)}
                           </Badge>
+                          <ActionBadge action={log.action} />
                           {log.change_amount > 0 ? (
                             <Badge
                               variant="outline"

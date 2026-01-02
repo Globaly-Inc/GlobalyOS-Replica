@@ -420,19 +420,39 @@ export const ManageLeaveTypesDialog = ({
             reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried forward`;
           }
 
+          // Log 1: Year allocation (default days)
           await supabase.from("leave_balance_logs").insert({
             employee_id: employeeId,
             organization_id: currentOrg.id,
             leave_type: prevBalance.leave_type_name,
             leave_type_id: prevBalance.leave_type_id,
-            change_amount: newBalance,
+            change_amount: defaultDays,
             previous_balance: 0,
-            new_balance: newBalance,
-            reason: reason,
+            new_balance: defaultDays,
+            reason: `${currentYear} annual allocation`,
             created_by: creatorEmployeeId,
             effective_date: `${currentYear}-01-01`,
-            action: "year_init",
+            action: "year_allocation",
+            year: currentYear,
           });
+
+          // Log 2 & 3: Carry forward (if applicable)
+          if (carriedForward !== 0) {
+            await supabase.from("leave_balance_logs").insert({
+              employee_id: employeeId,
+              organization_id: currentOrg.id,
+              leave_type: prevBalance.leave_type_name,
+              leave_type_id: prevBalance.leave_type_id,
+              change_amount: carriedForward,
+              previous_balance: defaultDays,
+              new_balance: newBalance,
+              reason: `Carried from ${previousYear}`,
+              created_by: creatorEmployeeId,
+              effective_date: `${currentYear}-01-01`,
+              action: "carry_forward_in",
+              year: currentYear,
+            });
+          }
         }
       }
 
