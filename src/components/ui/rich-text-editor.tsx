@@ -26,6 +26,7 @@ interface RichTextEditorProps {
   minHeight?: string;
   onMentionStateChange?: (state: MentionState) => void;
   onMentionInsert?: (memberId: string, memberName: string) => void;
+  renderToolbarRight?: () => React.ReactNode;
 }
 
 export const RichTextEditor = ({ 
@@ -36,6 +37,7 @@ export const RichTextEditor = ({
   minHeight = "100px",
   onMentionStateChange,
   onMentionInsert,
+  renderToolbarRight,
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -227,6 +229,14 @@ export const RichTextEditor = ({
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
+        
+        {/* Right side slot for additional toolbar content */}
+        {renderToolbarRight && (
+          <>
+            <div className="flex-1" />
+            {renderToolbarRight()}
+          </>
+        )}
       </div>
 
       {/* Editor */}

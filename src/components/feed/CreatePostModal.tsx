@@ -639,14 +639,7 @@ export const CreatePostModal = ({
 
               {/* Content */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Content *</Label>
-                  <AIWritingAssist
-                    type={selectedType === 'announcement' ? 'announcement' : 'win'}
-                    currentText={content}
-                    onTextGenerated={setContent}
-                  />
-                </div>
+                <Label>Content *</Label>
                 <RichTextEditor
                   value={content}
                   onChange={setContent}
@@ -657,6 +650,13 @@ export const CreatePostModal = ({
                     'What\'s on your mind?'
                   }
                   minHeight="100px"
+                  renderToolbarRight={() => (
+                    <AIWritingAssist
+                      type={selectedType === 'announcement' ? 'announcement' : 'win'}
+                      currentText={content}
+                      onTextGenerated={setContent}
+                    />
+                  )}
                 />
                 {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
               </div>
