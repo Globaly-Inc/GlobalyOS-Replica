@@ -280,6 +280,258 @@ export const useInitializeYearBalances = () => {
 };
 
 /**
+ * Initialize leave balances for a specific set of employees for a given year
+ * Used by the selective initialization dialog
+ */
+export const useInitializeSelectedEmployeesBalances = () => {
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      employeeIds,
+      year,
+    }: {
+      employeeIds: string[];
+      year: number;
+    }): Promise<InitResult> => {
+      if (!currentOrg?.id) throw new Error("No organization");
+      if (!employeeIds.length) throw new Error("No employees selected");
+
+      const previousYear = year - 1;
+      const result: InitResult = {
+        employeesProcessed: 0,
+        balancesCreated: 0,
+        balancesCarriedForward: 0,
+        errors: [],
+      };
+
+      // 1. Get selected employees with their attributes
+      const { data: employees, error: empError } = await supabase
+        .from("employees")
+        .select("id, office_id, gender, employment_type")
+        .eq("organization_id", currentOrg.id)
+        .in("id", employeeIds)
+        .eq("status", "active");
+
+      if (empError) throw empError;
+      if (!employees?.length) {
+        return result;
+      }
+
+      // 2. Get all active leave types
+      const { data: leaveTypes, error: ltError } = await supabase
+        .from("leave_types")
+        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
+        .eq("organization_id", currentOrg.id)
+        .eq("is_active", true);
+
+      if (ltError) throw ltError;
+      if (!leaveTypes?.length) {
+        return result;
+      }
+
+      // 3. Get existing balances for target year (to skip)
+      const { data: existingBalances } = await supabase
+        .from("leave_type_balances")
+        .select("employee_id, leave_type_id")
+        .eq("organization_id", currentOrg.id)
+        .eq("year", year)
+        .in("employee_id", employeeIds);
+
+      const existingKey = (empId: string, ltId: string) => `${empId}-${ltId}`;
+      const existingSet = new Set(
+        existingBalances?.map((b) => existingKey(b.employee_id, b.leave_type_id)) || []
+      );
+
+      // 4. Get previous year balances for carry forward
+      const { data: prevBalances } = await supabase
+        .from("leave_type_balances")
+        .select("employee_id, leave_type_id, balance")
+        .eq("organization_id", currentOrg.id)
+        .eq("year", previousYear)
+        .in("employee_id", employeeIds);
+
+      const prevBalanceMap = new Map<string, number>();
+      prevBalances?.forEach((b) => {
+        prevBalanceMap.set(existingKey(b.employee_id, b.leave_type_id), b.balance);
+      });
+
+      // 5. Get leave type office mappings
+      const { data: officeMappings } = await supabase
+        .from("leave_type_offices")
+        .select("leave_type_id, office_id");
+
+      const officeMappingsByType = new Map<string, Set<string>>();
+      officeMappings?.forEach((m) => {
+        if (!officeMappingsByType.has(m.leave_type_id)) {
+          officeMappingsByType.set(m.leave_type_id, new Set());
+        }
+        officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
+      });
+
+      // 6. Get current user's employee ID for logging
+      const { data: { user } } = await supabase.auth.getUser();
+      let creatorEmployeeId: string | null = null;
+
+      if (user?.id) {
+        const { data: creatorEmployee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", currentOrg.id)
+          .single();
+        
+        creatorEmployeeId = creatorEmployee?.id || null;
+      }
+
+      // 7. Process each employee
+      const balancesToInsert: Array<{
+        employee_id: string;
+        leave_type_id: string;
+        organization_id: string;
+        balance: number;
+        year: number;
+      }> = [];
+
+      const logsToInsert: Array<{
+        employee_id: string;
+        organization_id: string;
+        leave_type: string;
+        change_amount: number;
+        previous_balance: number;
+        new_balance: number;
+        reason: string;
+        created_by: string;
+        effective_date: string;
+        action: string;
+      }> = [];
+
+      for (const employee of employees) {
+        result.employeesProcessed++;
+
+        for (const leaveType of leaveTypes) {
+          // Skip if balance already exists
+          if (existingSet.has(existingKey(employee.id, leaveType.id))) {
+            continue;
+          }
+
+          // Check eligibility - Gender
+          const genderRestriction = leaveType.applies_to_gender || 'all';
+          if (genderRestriction !== 'all' && employee.gender !== genderRestriction) {
+            continue;
+          }
+
+          // Check eligibility - Employment type
+          const empTypes = leaveType.applies_to_employment_types;
+          if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) {
+            continue;
+          }
+
+          // Check eligibility - Office
+          if (!leaveType.applies_to_all_offices && employee.office_id) {
+            const officeSet = officeMappingsByType.get(leaveType.id);
+            if (!officeSet || !officeSet.has(employee.office_id)) {
+              continue;
+            }
+          }
+
+          // Calculate new balance
+          let newBalance = leaveType.default_days || 0;
+          let carriedForward = 0;
+
+          const carryMode = leaveType.carry_forward_mode || 'none';
+          if (carryMode !== 'none') {
+            const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
+            if (prevBalance !== undefined) {
+              carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+              newBalance += carriedForward;
+              if (carriedForward !== 0) {
+                result.balancesCarriedForward++;
+              }
+            }
+          }
+
+          balancesToInsert.push({
+            employee_id: employee.id,
+            leave_type_id: leaveType.id,
+            organization_id: currentOrg.id,
+            balance: newBalance,
+            year: year,
+          });
+
+          // Create log entry
+          let reason = `Year ${year} initialization: ${leaveType.default_days || 0} default days`;
+          if (carriedForward !== 0) {
+            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried from ${previousYear}`;
+          }
+
+          if (creatorEmployeeId) {
+            logsToInsert.push({
+              employee_id: employee.id,
+              organization_id: currentOrg.id,
+              leave_type: leaveType.name,
+              change_amount: newBalance,
+              previous_balance: 0,
+              new_balance: newBalance,
+              reason: reason,
+              created_by: creatorEmployeeId,
+              effective_date: `${year}-01-01`,
+              action: "year_init",
+            });
+          }
+
+          result.balancesCreated++;
+        }
+      }
+
+      // 8. Batch insert balances
+      if (balancesToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("leave_type_balances")
+          .insert(balancesToInsert);
+
+        if (insertError) {
+          result.errors.push(`Failed to insert balances: ${insertError.message}`);
+        }
+      }
+
+      // 9. Batch insert logs
+      if (logsToInsert.length > 0) {
+        const { error: logError } = await supabase
+          .from("leave_balance_logs")
+          .insert(logsToInsert);
+
+        if (logError) {
+          result.errors.push(`Failed to insert logs: ${logError.message}`);
+        }
+      }
+
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["missing-leave-balances"] });
+      
+      if (result.errors.length > 0) {
+        toast.error(`Initialization completed with errors: ${result.errors.join(", ")}`);
+      } else {
+        toast.success(
+          `Initialized ${result.balancesCreated} balances for ${result.employeesProcessed} employees` +
+            (result.balancesCarriedForward > 0
+              ? ` (${result.balancesCarriedForward} carried forward)`
+              : "")
+        );
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to initialize balances");
+    },
+  });
+};
+
+/**
  * Initialize balances for a single employee for the current year (auto-fallback)
  * Called when an employee views their leave page or tries to apply for leave
  */
