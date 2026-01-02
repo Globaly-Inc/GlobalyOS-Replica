@@ -473,6 +473,16 @@ export const InlinePostComposer = ({
                       setMentionIds(prev => [...prev, memberId]);
                     }
                   }}
+                  renderToolbarRight={() => (
+                    <AIWritingAssist
+                      type={getAIType(selectedType)}
+                      currentText={content}
+                      onTextGenerated={setContent}
+                      context={selectedType === 'kudos' && kudosRecipients.length > 0 
+                        ? `Giving kudos to ${kudosRecipients.length} team member(s)` 
+                        : undefined}
+                    />
+                  )}
                 />
                 <MentionAutocomplete
                   isOpen={mentionState.isOpen}
@@ -486,18 +496,6 @@ export const InlinePostComposer = ({
                 />
               </div>
               {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
-
-              {/* AI Writing Assist */}
-              <div className="flex justify-end -mt-1">
-                <AIWritingAssist
-                  type={getAIType(selectedType)}
-                  currentText={content}
-                  onTextGenerated={setContent}
-                  context={selectedType === 'kudos' && kudosRecipients.length > 0 
-                    ? `Giving kudos to ${kudosRecipients.length} team member(s)` 
-                    : undefined}
-                />
-              </div>
 
               {/* Media Previews */}
               {mediaPreviews.length > 0 && (
