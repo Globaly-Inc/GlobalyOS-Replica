@@ -190,9 +190,12 @@ export const usePosts = (filter?: PostType | 'all') => {
           ? acks.find(a => a.employee_id === currentEmployee.id)
           : null;
         
+        // Author is always considered as having acknowledged their own post
+        const isAuthor = post.employee_id === currentEmployee?.id;
+        
         return {
           ...post,
-          user_has_acknowledged: !!userAck,
+          user_has_acknowledged: isAuthor || !!userAck,
           acknowledgment_count: acks.length,
           post_acknowledgments: undefined, // Remove raw data from output
         };
@@ -1634,34 +1637,36 @@ export const useTargetEmployeesCount = (postId: string) => {
     queryFn: async (): Promise<number> => {
       if (!currentOrg?.id || !postId) return 0;
 
-      // Get the post's access scope
+      // Get the post's access scope and author
       const { data: post, error: postError } = await supabase
         .from('posts')
-        .select('access_scope')
+        .select('access_scope, employee_id')
         .eq('id', postId)
         .single();
 
       if (postError) throw postError;
 
-      // For company-wide scope, count all active employees
+      // For company-wide scope, count all active employees except the author
       if (post.access_scope === 'company') {
         const { count, error } = await supabase
           .from('employees')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', currentOrg.id)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .neq('id', post.employee_id); // Exclude author
 
         if (error) throw error;
         return count || 0;
       }
 
       // For scoped posts, this would need more complex logic
-      // For now, return a rough count
+      // For now, return a rough count excluding author
       const { count, error } = await supabase
         .from('employees')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', currentOrg.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .neq('id', post.employee_id); // Exclude author
 
       if (error) throw error;
       return count || 0;
