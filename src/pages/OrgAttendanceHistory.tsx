@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { OrgLink } from "@/components/OrgLink";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -19,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings, Check } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings, Check, BarChart3 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -33,11 +34,13 @@ import { AttendancePDFExport } from "@/components/attendance/AttendancePDFExport
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttendanceBulkActionsBar } from "@/components/attendance/AttendanceBulkActionsBar";
 import AttendanceAnalyticsChart from "@/components/attendance/AttendanceAnalyticsChart";
+import { AttendanceNotCheckedInTab } from "@/components/attendance/AttendanceNotCheckedInTab";
 import { AttendanceQRButton } from "@/components/AttendanceQRButton";
 import { AttendanceSettingsDialog } from "@/components/dialogs/AttendanceSettingsDialog";
-import { useAttendanceHistoryFilters } from "@/hooks/useAttendanceHistoryFilters";
+import { useAttendanceHistoryFilters, type AttendanceHistoryTab } from "@/hooks/useAttendanceHistoryFilters";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+
 interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -88,7 +91,14 @@ const OrgAttendanceHistory = () => {
     }
     return ids.length > 0 ? ids : null;
   }, [canViewAll, isManager, currentEmployee?.id, directReports]);
+
+  // URL-based tab state
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as AttendanceHistoryTab | null;
+  
   const {
+    activeTab,
+    setActiveTab,
     dateRangeFilter,
     setDateRangeFilter,
     statusFilter,
@@ -102,8 +112,26 @@ const OrgAttendanceHistory = () => {
     projectFilter,
     setProjectFilter,
     selectedEmployees,
-    setSelectedEmployees
+    setSelectedEmployees,
+    notCheckedInSelectedEmployees,
+    setNotCheckedInSelectedEmployees
   } = useAttendanceHistoryFilters();
+
+  // Sync URL param with active tab
+  useEffect(() => {
+    if (tabParam && ['analytics', 'records', 'not-checked-in'].includes(tabParam)) {
+      if (tabParam !== activeTab) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: AttendanceHistoryTab) => {
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams, { replace: true });
+  };
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -1112,8 +1140,44 @@ const OrgAttendanceHistory = () => {
 
         {/* Sticky Filter Bar - Light Purple Background */}
         <div className="px-4 md:px-0 sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
-          <div className="flex items-center gap-2 flex-wrap bg-slate-300 px-[5px] py-[5px] rounded-lg">
-            {/* Employee Multi-Select Dropdown */}
+          <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
+            {/* Tab Toggle */}
+            <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+              <Button 
+                variant={activeTab === 'analytics' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => handleTabChange('analytics')}
+                className="h-8"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1.5">Analytics</span>
+              </Button>
+              <Button 
+                variant={activeTab === 'records' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => handleTabChange('records')}
+                className="h-8"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1.5">Records</span>
+              </Button>
+              {canViewAll && (
+                <Button 
+                  variant={activeTab === 'not-checked-in' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleTabChange('not-checked-in')}
+                  className="h-8"
+                >
+                  <UserMinus className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">Not Checked In</span>
+                </Button>
+              )}
+            </div>
+
+            {/* Tab-specific filters */}
+            {activeTab !== 'not-checked-in' && (
+              <>
+                {/* Employee Multi-Select Dropdown */}
             <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="w-[180px] h-10 justify-between bg-background">
@@ -1162,76 +1226,82 @@ const OrgAttendanceHistory = () => {
               </PopoverContent>
             </Popover>
 
-            {/* Status Selector (Work Schedule type + WFH) */}
-            <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
-              <SelectTrigger className="w-[140px] h-10 bg-background">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="office">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-primary" />
-                    Office
-                  </div>
-                </SelectItem>
-                <SelectItem value="remote">
-                  <div className="flex items-center gap-1.5">
-                    <Home className="h-3.5 w-3.5 text-purple-600" />
-                    Remote
-                  </div>
-                </SelectItem>
-                <SelectItem value="hybrid">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-blue-600" />
-                    Hybrid
-                  </div>
-                </SelectItem>
-                <SelectItem value="wfh">
-                  <div className="flex items-center gap-1.5">
-                    <Home className="h-3.5 w-3.5 text-green-600" />
-                    WFH
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Status Selector - Records tab only */}
+            {activeTab === 'records' && (
+              <>
+                <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
+                  <SelectTrigger className="w-[140px] h-10 bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="office">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-primary" />
+                        Office
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="remote">
+                      <div className="flex items-center gap-1.5">
+                        <Home className="h-3.5 w-3.5 text-purple-600" />
+                        Remote
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="hybrid">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                        Hybrid
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="wfh">
+                      <div className="flex items-center gap-1.5">
+                        <Home className="h-3.5 w-3.5 text-green-600" />
+                        WFH
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
 
-            {/* Office Selector */}
-            <Select value={officeFilter} onValueChange={setOfficeFilter}>
-              <SelectTrigger className="w-[140px] h-10 bg-background">
-                <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                <SelectValue placeholder="Office" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Offices</SelectItem>
-                {offices.map(office => <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+                {/* Office Selector */}
+                <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                  <SelectTrigger className="w-[140px] h-10 bg-background">
+                    <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <SelectValue placeholder="Office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Offices</SelectItem>
+                    {offices.map(office => <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
 
-            {/* Department Selector */}
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-[160px] h-10 bg-background">
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-              </SelectContent>
-            </Select>
+                {/* Department Selector */}
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-[160px] h-10 bg-background">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                  </SelectContent>
+                </Select>
 
-            {/* Projects Selector */}
-            {projects.length > 0 && <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-[150px] h-10 bg-background">
-                  <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <SelectValue placeholder="Project" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
-                </SelectContent>
-              </Select>}
+                {/* Projects Selector */}
+                {projects.length > 0 && (
+                  <Select value={projectFilter} onValueChange={setProjectFilter}>
+                    <SelectTrigger className="w-[150px] h-10 bg-background">
+                      <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <SelectValue placeholder="Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </>
+            )}
 
-            {/* Date Range Selector - Now Last */}
+            {/* Date Range Selector */}
             <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
               <SelectTrigger className="w-[145px] h-10 bg-background">
                 <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -1245,7 +1315,8 @@ const OrgAttendanceHistory = () => {
             </Select>
 
             {/* Custom Date Range Picker */}
-            {dateRangeFilter === 'custom' && <Popover>
+            {dateRangeFilter === 'custom' && (
+              <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-10 px-3 gap-1.5 bg-background">
                     <CalendarIcon className="h-4 w-4" />
@@ -1256,24 +1327,29 @@ const OrgAttendanceHistory = () => {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar mode="range" selected={{
-              from: customDateRange.from,
-              to: customDateRange.to
-            }} onSelect={range => setCustomDateRange({
-              from: range?.from,
-              to: range?.to
-            })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
+                    from: customDateRange.from,
+                    to: customDateRange.to
+                  }} onSelect={range => setCustomDateRange({
+                    from: range?.from,
+                    to: range?.to
+                  })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
                 </PopoverContent>
-              </Popover>}
+              </Popover>
+            )}
+              </>
+            )}
 
             {/* Mobile Export */}
-            <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 bg-background">
-              <Download className="h-4 w-4" />
-            </Button>
+            {activeTab !== 'not-checked-in' && (
+              <Button onClick={exportCSV} variant="outline" size="icon" className="sm:hidden h-10 w-10 bg-background">
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Enhanced Stats Cards - 8 Metrics with Trend Indicators */}
-        {stats && <div className="px-4 md:px-0">
+        {/* Analytics Tab Content */}
+        {activeTab === 'analytics' && stats && <div className="px-4 md:px-0">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
               {/* Total Records */}
               <Card className="p-3 md:p-4">
@@ -1406,13 +1482,22 @@ const OrgAttendanceHistory = () => {
           </div>}
 
         {/* Attendance Analytics Chart */}
-        {records && records.length > 0 && dateRangeFilter !== 'today' && <div className="px-4 md:px-0">
+        {activeTab === 'analytics' && records && records.length > 0 && dateRangeFilter !== 'today' && <div className="px-4 md:px-0">
             <AttendanceAnalyticsChart records={records} dateRange={dateRange} dateRangeLabel={dateRangeLabel} getSchedule={getSchedule} isLateArrival={isLateArrival} isEarlyDeparture={isEarlyDeparture} getNetHours={getNetHours} getTimeVariance={getTimeVariance} />
           </div>}
 
+        {/* Not Checked In Tab Content */}
+        {activeTab === 'not-checked-in' && canViewAll && (
+          <div className="px-4 md:px-0">
+            <AttendanceNotCheckedInTab
+              selectedEmployees={notCheckedInSelectedEmployees}
+              onSelectedEmployeesChange={setNotCheckedInSelectedEmployees}
+            />
+          </div>
+        )}
 
-        {/* Records - Mobile Cards or Desktop Table */}
-        <div className="px-4 md:px-0">
+        {/* Records Tab - Mobile Cards or Desktop Table */}
+        {activeTab === 'records' && <div className="px-4 md:px-0">
           {isLoading ? <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div> : filteredRecords.length === 0 ? <Card className="flex flex-col items-center justify-center py-12">
