@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,21 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, TrendingUp, TrendingDown, Calendar, Clock, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  History, 
+  TrendingUp, 
+  TrendingDown, 
+  Calendar, 
+  Clock, 
+  X, 
+  ArrowRightLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Edit,
+  Minus,
+  RefreshCw
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime, formatDate, formatDateRange } from "@/lib/utils";
 import { toast } from "sonner";
@@ -34,6 +48,8 @@ interface LeaveBalanceLog {
   new_balance: number;
   reason: string | null;
   created_at: string;
+  effective_date: string | null;
+  action: string | null;
   created_by_employee: {
     profiles: {
       full_name: string;
@@ -64,6 +80,70 @@ interface LeaveBalanceLogsDialogProps {
   isOwnProfile?: boolean;
 }
 
+// Get action type display info
+const getActionBadge = (action: string | null, changeAmount: number) => {
+  switch (action) {
+    case 'year_allocation':
+      return (
+        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs">
+          <Calendar className="h-3 w-3 mr-1" />
+          Year Allocation
+        </Badge>
+      );
+    case 'carry_forward_in':
+      return (
+        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs">
+          <ArrowDownLeft className="h-3 w-3 mr-1" />
+          Carry Forward In
+        </Badge>
+      );
+    case 'carry_forward_out':
+      return (
+        <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 text-xs">
+          <ArrowUpRight className="h-3 w-3 mr-1" />
+          Carry Forward Out
+        </Badge>
+      );
+    case 'year_init':
+      return (
+        <Badge variant="secondary" className="text-xs">
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Legacy Init
+        </Badge>
+      );
+    case 'manual_adjustment':
+      return (
+        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs">
+          <Edit className="h-3 w-3 mr-1" />
+          Manual Adjust
+        </Badge>
+      );
+    case 'leave_deduct':
+      return (
+        <Badge variant="destructive" className="text-xs">
+          <Minus className="h-3 w-3 mr-1" />
+          Leave Taken
+        </Badge>
+      );
+    default:
+      // Fallback based on amount
+      if (changeAmount > 0) {
+        return (
+          <Badge variant="outline" className="text-xs">
+            <TrendingUp className="h-3 w-3 mr-1" />
+            Adjustment
+          </Badge>
+        );
+      }
+      return (
+        <Badge variant="outline" className="text-xs">
+          <TrendingDown className="h-3 w-3 mr-1" />
+          Adjustment
+        </Badge>
+      );
+  }
+};
+
 export const LeaveBalanceLogsDialog = ({
   employeeId,
   isOwnProfile = false,
@@ -74,7 +154,12 @@ export const LeaveBalanceLogsDialog = ({
   const [loading, setLoading] = useState(false);
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveRequest | null }>({ open: false, request: null });
   const [canceling, setCanceling] = useState(false);
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
   const queryClient = useQueryClient();
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   const loadData = async () => {
     setLoading(true);
@@ -90,11 +175,14 @@ export const LeaveBalanceLogsDialog = ({
           new_balance,
           reason,
           created_at,
+          effective_date,
+          action,
           created_by_employee:employees!leave_balance_logs_created_by_fkey(
             profiles!inner(full_name)
           )
         `)
         .eq("employee_id", employeeId)
+        .order("effective_date", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (logsError) throw logsError;
@@ -160,6 +248,45 @@ export const LeaveBalanceLogsDialog = ({
     setCancelDialog({ open: false, request: null });
   };
 
+  // Get unique leave types from logs
+  const leaveTypes = useMemo(() => {
+    const types = new Set<string>();
+    logs.forEach(log => types.add(log.leave_type));
+    return Array.from(types).sort();
+  }, [logs]);
+
+  // Filter logs
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      // Year filter
+      if (yearFilter !== "all") {
+        const logYear = log.effective_date 
+          ? new Date(log.effective_date).getFullYear().toString()
+          : new Date(log.created_at).getFullYear().toString();
+        if (logYear !== yearFilter) return false;
+      }
+      
+      // Leave type filter
+      if (leaveTypeFilter !== "all" && log.leave_type !== leaveTypeFilter) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [logs, yearFilter, leaveTypeFilter]);
+
+  // Group logs by leave type for summary
+  const groupedByType = useMemo(() => {
+    const grouped: Record<string, LeaveBalanceLog[]> = {};
+    filteredLogs.forEach(log => {
+      if (!grouped[log.leave_type]) {
+        grouped[log.leave_type] = [];
+      }
+      grouped[log.leave_type].push(log);
+    });
+    return grouped;
+  }, [filteredLogs]);
+
   const getLeaveTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       vacation: "Vacation",
@@ -201,7 +328,7 @@ export const LeaveBalanceLogsDialog = ({
           Leave Logs
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
@@ -209,17 +336,126 @@ export const LeaveBalanceLogsDialog = ({
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="requests" className="w-full">
+        <Tabs defaultValue="balance" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="requests" className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              Leave Requests
-            </TabsTrigger>
             <TabsTrigger value="balance" className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               Balance Changes
             </TabsTrigger>
+            <TabsTrigger value="requests" className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              Leave Requests
+            </TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="balance">
+            {/* Filters */}
+            <div className="flex gap-2 mb-4">
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {years.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Leave Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {leaveTypes.map(type => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <ScrollArea className="h-[400px] pr-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : filteredLogs.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground">No balance changes recorded</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(groupedByType).map(([leaveType, typeLogs]) => (
+                    <div key={leaveType} className="space-y-2">
+                      <div className="flex items-center gap-2 sticky top-0 bg-background py-1">
+                        <Badge variant={getLeaveTypeBadgeVariant(leaveType)}>
+                          {getLeaveTypeLabel(leaveType)}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {typeLogs.length} transaction{typeLogs.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {typeLogs.map((log) => (
+                          <div
+                            key={log.id}
+                            className="border rounded-lg p-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {getActionBadge(log.action, log.change_amount)}
+                                {log.change_amount > 0 ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-green-600 border-green-600"
+                                  >
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                    +{log.change_amount}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-red-600 border-red-600"
+                                  >
+                                    <TrendingDown className="h-3 w-3 mr-1" />
+                                    {log.change_amount}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {log.effective_date ? formatDate(log.effective_date) : formatDateTime(log.created_at)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-muted-foreground">Balance:</span>
+                              <span className="text-muted-foreground line-through">
+                                {log.previous_balance}
+                              </span>
+                              <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-medium">{log.new_balance}</span>
+                            </div>
+                            {log.reason && (
+                              <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                                {log.reason}
+                              </p>
+                            )}
+                            {log.created_by_employee?.profiles && (
+                              <p className="text-xs text-muted-foreground">
+                                By {log.created_by_employee.profiles.full_name}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
           
           <TabsContent value="requests">
             <ScrollArea className="h-[400px] pr-4">
@@ -284,75 +520,6 @@ export const LeaveBalanceLogsDialog = ({
                           <X className="h-4 w-4 mr-1" />
                           Cancel Request
                         </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-          
-          <TabsContent value="balance">
-            <ScrollArea className="h-[400px] pr-4">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <p className="text-muted-foreground">Loading...</p>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <p className="text-muted-foreground">No balance changes recorded</p>
-                </div>
-              ) : (
-                <div className="space-y-4 pt-4">
-                  {logs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="border rounded-lg p-4 space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getLeaveTypeBadgeVariant(log.leave_type)}>
-                            {getLeaveTypeLabel(log.leave_type)}
-                          </Badge>
-                          {log.change_amount > 0 ? (
-                            <Badge
-                              variant="outline"
-                              className="text-green-600 border-green-600"
-                            >
-                              <TrendingUp className="h-3 w-3 mr-1" />
-                              +{log.change_amount}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-red-600 border-red-600"
-                            >
-                              <TrendingDown className="h-3 w-3 mr-1" />
-                              {log.change_amount}
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateTime(log.created_at)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">Balance:</span>
-                        <span className="text-muted-foreground line-through">
-                          {log.previous_balance}
-                        </span>
-                        <span className="text-foreground">→</span>
-                        <span className="font-medium">{log.new_balance}</span>
-                      </div>
-                      {log.reason && (
-                        <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
-                          {log.reason}
-                        </p>
-                      )}
-                      {log.created_by_employee?.profiles && (
-                        <p className="text-xs text-muted-foreground">
-                          Updated by {log.created_by_employee.profiles.full_name}
-                        </p>
                       )}
                     </div>
                   ))}

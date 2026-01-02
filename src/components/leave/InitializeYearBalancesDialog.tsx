@@ -1,5 +1,6 @@
 /**
  * Dialog for initializing leave balances for selected employees
+ * Shows detailed breakdown of year allocation and carry forward amounts
  */
 
 import { useState, useMemo } from "react";
@@ -29,6 +30,8 @@ import {
   Minus,
   Users,
   CheckCircle2,
+  Calendar,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeMissingBalance, MissingLeaveType } from "@/services/useLeaveBalanceMissing";
@@ -66,7 +69,7 @@ const CarryForwardBadge = ({ amount }: { amount: number }) => {
     return (
       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs font-normal">
         <TrendingUp className="h-3 w-3 mr-1" />
-        +{amount} days
+        +{amount} CF
       </Badge>
     );
   }
@@ -74,39 +77,64 @@ const CarryForwardBadge = ({ amount }: { amount: number }) => {
   return (
     <Badge variant="destructive" className="text-xs font-normal">
       <TrendingDown className="h-3 w-3 mr-1" />
-      {amount} days
+      {amount} CF
     </Badge>
   );
 };
 
-const LeaveTypeBreakdown = ({ types }: { types: MissingLeaveType[] }) => {
+const AllocationBadge = ({ amount }: { amount: number }) => {
+  if (amount === 0) return null;
+  
+  return (
+    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-normal">
+      <Calendar className="h-3 w-3 mr-1" />
+      {amount} alloc
+    </Badge>
+  );
+};
+
+const LeaveTypeBreakdown = ({ types, year }: { types: MissingLeaveType[]; year: number }) => {
   return (
     <div className="space-y-2 pt-2 pl-12 pb-2">
       {types.map((lt) => (
         <div
           key={lt.leave_type_id}
-          className="flex items-center justify-between text-sm py-1.5 px-3 rounded-md bg-muted/50"
+          className="flex flex-col gap-1 text-sm py-2 px-3 rounded-md bg-muted/50"
         >
-          <span className="text-muted-foreground">{lt.leave_type_name}</span>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              {lt.default_days || 0} base
-              {lt.previous_balance !== null && lt.carry_forward_mode !== 'none' && (
-                <span className={cn(
-                  "ml-1",
-                  lt.previous_balance > 0 ? "text-green-600" : lt.previous_balance < 0 ? "text-destructive" : ""
-                )}>
-                  {lt.previous_balance >= 0 ? "+" : ""}{
-                    lt.carry_forward_mode === 'positive_only' ? Math.max(0, lt.previous_balance) :
-                    lt.carry_forward_mode === 'negative_only' ? Math.min(0, lt.previous_balance) :
-                    lt.previous_balance
-                  } CF
-                </span>
-              )}
-            </span>
-            <span className="font-medium min-w-[60px] text-right">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-foreground">{lt.leave_type_name}</span>
+            <span className="font-bold text-primary">
               = {lt.projected_balance} days
             </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {(lt.default_days || 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3 text-blue-500" />
+                <span className="text-blue-600 dark:text-blue-400">+{lt.default_days} allocation</span>
+              </span>
+            )}
+            {lt.carry_forward_amount !== 0 && (
+              <>
+                {(lt.default_days || 0) > 0 && <span>•</span>}
+                <span className="flex items-center gap-1">
+                  <ArrowRight className="h-3 w-3 text-green-500" />
+                  <span className={cn(
+                    lt.carry_forward_amount > 0 ? "text-green-600 dark:text-green-400" : "text-destructive"
+                  )}>
+                    {lt.carry_forward_amount > 0 ? '+' : ''}{lt.carry_forward_amount} from {year - 1}
+                  </span>
+                </span>
+              </>
+            )}
+            {lt.previous_balance !== null && lt.carry_forward_mode !== 'none' && lt.carry_forward_amount === 0 && (
+              <>
+                {(lt.default_days || 0) > 0 && <span>•</span>}
+                <span className="text-muted-foreground/70">
+                  (prev: {lt.previous_balance}, mode: {lt.carry_forward_mode})
+                </span>
+              </>
+            )}
           </div>
         </div>
       ))}
@@ -191,7 +219,7 @@ export const InitializeYearBalancesDialog = ({
           </DialogTitle>
           <DialogDescription>
             {missingEmployees.length} employee{missingEmployees.length !== 1 ? "s are" : " is"} missing leave balances for {year}.
-            Select employees to initialize their balances with default days and carry forward from {year - 1}.
+            Each employee will receive their year allocation and any carry forward from {year - 1}.
           </DialogDescription>
         </DialogHeader>
 
@@ -287,10 +315,11 @@ export const InitializeYearBalancesDialog = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         <Badge variant="outline" className="text-xs">
                           {employee.missing_leave_types.length} type{employee.missing_leave_types.length !== 1 ? "s" : ""}
                         </Badge>
+                        <AllocationBadge amount={employee.total_allocation} />
                         <CarryForwardBadge amount={employee.total_carry_forward} />
                         <CollapsibleTrigger asChild>
                           <Button
@@ -310,7 +339,7 @@ export const InitializeYearBalancesDialog = ({
                     </div>
 
                     <CollapsibleContent>
-                      <LeaveTypeBreakdown types={employee.missing_leave_types} />
+                      <LeaveTypeBreakdown types={employee.missing_leave_types} year={year} />
                     </CollapsibleContent>
                   </Collapsible>
                 );
