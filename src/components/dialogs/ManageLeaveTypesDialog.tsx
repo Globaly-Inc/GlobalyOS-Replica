@@ -204,44 +204,36 @@ export const ManageLeaveTypesDialog = ({
 
       if (!selectedLeaveType) throw new Error("Leave type not found");
 
-      // Insert leave_type_balance
-      const { error: insertError } = await supabase
-        .from("leave_type_balances")
-        .insert({
-          employee_id: employeeId,
-          leave_type_id: selectedType,
-          organization_id: currentOrg.id,
-          year: currentYear,
-          balance: balance,
-        });
-
-      if (insertError) throw insertError;
-
-      // Log the addition
+      // Get current user for logging
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: currentEmployee } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("organization_id", currentOrg.id)
-          .maybeSingle();
+      if (!user) throw new Error("Not authenticated");
 
-        if (currentEmployee) {
-          await supabase.from("leave_balance_logs").insert({
-            employee_id: employeeId,
-            organization_id: currentOrg.id,
-            leave_type: selectedLeaveType.name,
-            leave_type_id: selectedType,
-            change_amount: balance,
-            previous_balance: 0,
-            new_balance: balance,
-            reason: "Leave type added to employee",
-            created_by: currentEmployee.id,
-            effective_date: new Date().toISOString().split("T")[0],
-          });
-        }
-      }
+      const { data: currentEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id)
+        .maybeSingle();
+
+      if (!currentEmployee) throw new Error("Employee not found");
+
+      // Insert log only - trigger will create balance automatically
+      const { error: logError } = await supabase.from("leave_balance_logs").insert({
+        employee_id: employeeId,
+        organization_id: currentOrg.id,
+        leave_type: selectedLeaveType.name,
+        leave_type_id: selectedType,
+        change_amount: balance,
+        previous_balance: 0,
+        new_balance: balance,
+        reason: "Leave type added to employee",
+        created_by: currentEmployee.id,
+        effective_date: new Date().toISOString().split("T")[0],
+        action: "manual_adjustment",
+        year: currentYear,
+      });
+
+      if (logError) throw logError;
 
       toast.success(`${selectedLeaveType.name} added successfully`);
       setSelectedType("");
@@ -344,17 +336,17 @@ export const ManageLeaveTypesDialog = ({
     setCopyingFromPrevious(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      let creatorEmployeeId: string | null = null;
+      if (!user) throw new Error("Not authenticated");
 
-      if (user?.id) {
-        const { data: currentEmployee } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("organization_id", currentOrg.id)
-          .maybeSingle();
-        creatorEmployeeId = currentEmployee?.id || null;
-      }
+      const { data: currentEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id)
+        .maybeSingle();
+        
+      if (!currentEmployee) throw new Error("Employee not found");
+      const creatorEmployeeId = currentEmployee.id;
 
       // Get leave type details for carry-forward rules
       const leaveTypeIds = previousYearBalances.map(b => b.leave_type_id);
@@ -393,66 +385,46 @@ export const ManageLeaveTypesDialog = ({
           carriedForward = prevBalance.balance;
         }
 
-        const newBalance = defaultDays + carriedForward;
+        // Insert logs only - trigger will create balance automatically
+        // Log 1: Year allocation (default days)
+        const { error: allocationError } = await supabase.from("leave_balance_logs").insert({
+          employee_id: employeeId,
+          organization_id: currentOrg.id,
+          leave_type: prevBalance.leave_type_name,
+          leave_type_id: prevBalance.leave_type_id,
+          change_amount: defaultDays,
+          previous_balance: 0,
+          new_balance: defaultDays,
+          reason: `${currentYear} annual allocation`,
+          created_by: creatorEmployeeId,
+          effective_date: `${currentYear}-01-01`,
+          action: "year_allocation",
+          year: currentYear,
+        });
 
-        // Insert balance
-        const { error: insertError } = await supabase
-          .from("leave_type_balances")
-          .insert({
-            employee_id: employeeId,
-            leave_type_id: prevBalance.leave_type_id,
-            organization_id: currentOrg.id,
-            year: currentYear,
-            balance: newBalance,
-          });
-
-        if (insertError) {
-          console.error("Error copying balance:", insertError);
+        if (allocationError) {
+          console.error("Error inserting allocation log:", allocationError);
           continue;
         }
 
         created++;
 
-        // Log the copy
-        if (creatorEmployeeId) {
-          let reason = `Copied from ${previousYear}: ${defaultDays} default days`;
-          if (carriedForward !== 0) {
-            reason += `, ${carriedForward > 0 ? '+' : ''}${carriedForward} carried forward`;
-          }
-
-          // Log 1: Year allocation (default days)
+        // Log 2: Carry forward (if applicable)
+        if (carriedForward !== 0) {
           await supabase.from("leave_balance_logs").insert({
             employee_id: employeeId,
             organization_id: currentOrg.id,
             leave_type: prevBalance.leave_type_name,
             leave_type_id: prevBalance.leave_type_id,
-            change_amount: defaultDays,
-            previous_balance: 0,
-            new_balance: defaultDays,
-            reason: `${currentYear} annual allocation`,
+            change_amount: carriedForward,
+            previous_balance: defaultDays,
+            new_balance: defaultDays + carriedForward,
+            reason: `Carried from ${previousYear}`,
             created_by: creatorEmployeeId,
             effective_date: `${currentYear}-01-01`,
-            action: "year_allocation",
+            action: "carry_forward_in",
             year: currentYear,
           });
-
-          // Log 2 & 3: Carry forward (if applicable)
-          if (carriedForward !== 0) {
-            await supabase.from("leave_balance_logs").insert({
-              employee_id: employeeId,
-              organization_id: currentOrg.id,
-              leave_type: prevBalance.leave_type_name,
-              leave_type_id: prevBalance.leave_type_id,
-              change_amount: carriedForward,
-              previous_balance: defaultDays,
-              new_balance: newBalance,
-              reason: `Carried from ${previousYear}`,
-              created_by: creatorEmployeeId,
-              effective_date: `${currentYear}-01-01`,
-              action: "carry_forward_in",
-              year: currentYear,
-            });
-          }
         }
       }
 
