@@ -4546,6 +4546,7 @@ export type Database = {
           rejected_at: string | null
           rejection_reason: string | null
           slug: string
+          timezone: string | null
           trial_ends_at: string | null
           updated_at: string
           workday_hours: number
@@ -4572,6 +4573,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           slug: string
+          timezone?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           workday_hours?: number
@@ -4598,6 +4600,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           slug?: string
+          timezone?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           workday_hours?: number
