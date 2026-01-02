@@ -127,6 +127,10 @@ export const CreatePostModal = ({
   // Scheduling (for executive messages)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   
+  // Acknowledgment
+  const [requiresAcknowledgment, setRequiresAcknowledgment] = useState(false);
+  const [acknowledgmentDeadline, setAcknowledgmentDeadline] = useState<string | null>(null);
+  
   // Upload progress
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
 
@@ -233,6 +237,10 @@ export const CreatePostModal = ({
       if (editPost.post_mentions?.length) {
         setMentionIds(editPost.post_mentions.map(m => m.employee_id));
       }
+      
+      // Pre-populate acknowledgment settings
+      setRequiresAcknowledgment(editPost.requires_acknowledgment || false);
+      setAcknowledgmentDeadline(editPost.acknowledgment_deadline || null);
     } else {
       // New post mode
       setSelectedType(initialPostType);
@@ -375,6 +383,8 @@ export const CreatePostModal = ({
           allow_multiple: pollAllowMultiple,
         } : undefined,
         removedOptionIds: removedOptionIds.filter(id => !optionsWithVotes.has(id)),
+        requires_acknowledgment: requiresAcknowledgment,
+        acknowledgment_deadline: acknowledgmentDeadline,
       });
     } else {
       // Create new post - initialize upload progress if there are media files
@@ -405,6 +415,8 @@ export const CreatePostModal = ({
             options: pollOptions.filter(o => o.text.trim()).map(o => o.text),
             allow_multiple: pollAllowMultiple,
           } : undefined,
+          requires_acknowledgment: requiresAcknowledgment,
+          acknowledgment_deadline: acknowledgmentDeadline,
           onUploadProgress: ({ current, total, fileIndex }) => {
             setUploadingFiles(prev => prev.map((f, idx) => 
               idx === fileIndex 
@@ -449,6 +461,8 @@ export const CreatePostModal = ({
     setOptionsWithVotes(new Set());
     setScheduledAt(null);
     setUploadingFiles([]);
+    setRequiresAcknowledgment(false);
+    setAcknowledgmentDeadline(null);
   };
 
   const handleClose = (open: boolean) => {
@@ -894,6 +908,43 @@ export const CreatePostModal = ({
                 selectedProjectIds={selectedProjectIds}
                 onProjectIdsChange={setSelectedProjectIds}
               />
+
+              {/* Acknowledgment Required (for update/announcement/executive - Owner/Admin/HR only) */}
+              {(selectedType === 'update' || selectedType === 'announcement' || selectedType === 'executive_message') && 
+               (canPostAnnouncement || canPostExecutive) && (
+                <div className="space-y-3 p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="requires-ack"
+                      checked={requiresAcknowledgment}
+                      onCheckedChange={(checked) => setRequiresAcknowledgment(checked as boolean)}
+                    />
+                    <Label htmlFor="requires-ack" className="text-sm font-medium cursor-pointer">
+                      Require team members to acknowledge this post
+                    </Label>
+                  </div>
+                  
+                  {requiresAcknowledgment && (
+                    <div className="space-y-2 pl-6">
+                      <Label className="text-xs text-muted-foreground">
+                        Optional deadline
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={acknowledgmentDeadline || ''}
+                        onChange={(e) => setAcknowledgmentDeadline(e.target.value || null)}
+                        min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                        className="text-sm"
+                      />
+                      {acknowledgmentDeadline && (
+                        <p className="text-xs text-muted-foreground">
+                          Team members should acknowledge by {format(new Date(acknowledgmentDeadline), 'PPpp')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Scheduling (Executive only, create mode only) */}
               {selectedType === 'executive_message' && !isEditMode && (

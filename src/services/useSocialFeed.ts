@@ -27,6 +27,12 @@ export interface Post {
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  // Acknowledgment fields
+  requires_acknowledgment?: boolean;
+  acknowledgment_deadline?: string | null;
+  user_has_acknowledged?: boolean;
+  acknowledgment_count?: number;
+  total_target_count?: number;
   employee: {
     id: string;
     profiles: {
@@ -93,14 +99,18 @@ export interface CreatePostInput {
     ends_at?: string | null;
     is_anonymous?: boolean;
   };
+  // Acknowledgment fields
+  requires_acknowledgment?: boolean;
+  acknowledgment_deadline?: string | null;
   onUploadProgress?: (progress: { current: number; total: number; fileName: string; fileIndex: number }) => void;
 }
 
 export const usePosts = (filter?: PostType | 'all') => {
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['social-feed-posts', currentOrg?.id, filter],
+    queryKey: ['social-feed-posts', currentOrg?.id, filter, currentEmployee?.id],
     queryFn: async (): Promise<Post[]> => {
       if (!currentOrg?.id) return [];
 
@@ -131,7 +141,8 @@ export const usePosts = (filter?: PostType | 'all') => {
             ends_at,
             is_anonymous,
             poll_options(id, option_text, sort_order)
-          )
+          ),
+          post_acknowledgments(id, employee_id, acknowledged_at)
         `)
         .eq('organization_id', currentOrg.id)
         .eq('is_deleted', false)
@@ -148,7 +159,7 @@ export const usePosts = (filter?: PostType | 'all') => {
       if (error) throw error;
 
       // Fetch kudos recipients if there are any kudos posts
-      const posts = data as Post[];
+      const posts = data as (Post & { post_acknowledgments?: { id: string; employee_id: string; acknowledged_at: string }[] })[];
       const kudosPosts = posts.filter(p => p.post_type === 'kudos' && p.kudos_recipient_ids?.length > 0);
       
       if (kudosPosts.length > 0) {
@@ -172,7 +183,22 @@ export const usePosts = (filter?: PostType | 'all') => {
         }
       }
 
-      return posts;
+      // Process acknowledgment data for current user
+      const processedPosts = posts.map(post => {
+        const acks = post.post_acknowledgments || [];
+        const userAck = currentEmployee?.id 
+          ? acks.find(a => a.employee_id === currentEmployee.id)
+          : null;
+        
+        return {
+          ...post,
+          user_has_acknowledged: !!userAck,
+          acknowledgment_count: acks.length,
+          post_acknowledgments: undefined, // Remove raw data from output
+        };
+      });
+
+      return processedPosts as Post[];
     },
     enabled: !!currentOrg?.id,
     staleTime: 30 * 1000,
@@ -248,11 +274,22 @@ export const useCreatePost = () => {
 
       const post = { id: postId as string };
 
-      // Handle kudos_recipient_ids separately since RPC doesn't handle it
+      // Handle kudos_recipient_ids and acknowledgment fields separately since RPC doesn't handle it
       if (input.post_type === 'kudos' && input.kudos_recipient_ids?.length) {
         await supabase
           .from('posts')
           .update({ kudos_recipient_ids: input.kudos_recipient_ids })
+          .eq('id', post.id);
+      }
+
+      // Update acknowledgment fields if provided
+      if (input.requires_acknowledgment !== undefined) {
+        await supabase
+          .from('posts')
+          .update({
+            requires_acknowledgment: input.requires_acknowledgment,
+            acknowledgment_deadline: input.acknowledgment_deadline || null,
+          })
           .eq('id', post.id);
       }
 
@@ -594,6 +631,9 @@ export interface UpdatePostInput {
   };
   existingPollId?: string | null;
   removedOptionIds?: string[];
+  // Acknowledgment fields
+  requires_acknowledgment?: boolean;
+  acknowledgment_deadline?: string | null;
 }
 
 export const useUpdatePost = () => {
@@ -617,6 +657,8 @@ export const useUpdatePost = () => {
           content: input.content,
           access_scope: input.access_scope || 'company',
           kudos_recipient_ids: input.kudos_recipient_ids || [],
+          requires_acknowledgment: input.requires_acknowledgment ?? false,
+          acknowledgment_deadline: input.acknowledgment_deadline ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', input.postId);
@@ -1451,5 +1493,179 @@ export const useEmployeeFeed = (employeeId: string | undefined) => {
     },
     enabled: !!currentOrg?.id && !!employeeId,
     staleTime: 30 * 1000,
+  });
+};
+
+// ============================================
+// POST ACKNOWLEDGMENT HOOKS
+// ============================================
+
+export interface PostAcknowledgment {
+  id: string;
+  post_id: string;
+  employee_id: string;
+  organization_id: string;
+  acknowledged_at: string;
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+}
+
+export const useAcknowledgePost = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      if (!currentOrg?.id || !currentEmployee?.id) {
+        throw new Error('Must be logged in');
+      }
+
+      const { error } = await supabase
+        .from('post_acknowledgments')
+        .insert({
+          post_id: postId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          // Already acknowledged - this is fine
+          return;
+        }
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['social-feed-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post-acknowledgments'] });
+      toast({
+        title: 'Post acknowledged',
+        description: 'You have confirmed reading this post',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const usePostAcknowledgments = (postId: string) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['post-acknowledgments', postId],
+    queryFn: async (): Promise<PostAcknowledgment[]> => {
+      if (!currentOrg?.id || !postId) return [];
+
+      const { data, error } = await supabase
+        .from('post_acknowledgments')
+        .select(`
+          *,
+          employee:employees!post_acknowledgments_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq('post_id', postId)
+        .eq('organization_id', currentOrg.id)
+        .order('acknowledged_at', { ascending: false });
+
+      if (error) throw error;
+      return data as PostAcknowledgment[];
+    },
+    enabled: !!currentOrg?.id && !!postId,
+  });
+};
+
+export const useUnacknowledgedPostsCount = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['unacknowledged-posts-count', currentOrg?.id, currentEmployee?.id],
+    queryFn: async (): Promise<number> => {
+      if (!currentOrg?.id || !currentEmployee?.id) return 0;
+
+      // Get all posts requiring acknowledgment
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .eq('requires_acknowledgment', true)
+        .eq('is_deleted', false)
+        .eq('is_published', true);
+
+      if (postsError) throw postsError;
+      if (!posts?.length) return 0;
+
+      // Get user's acknowledgments
+      const { data: acks, error: acksError } = await supabase
+        .from('post_acknowledgments')
+        .select('post_id')
+        .eq('employee_id', currentEmployee.id)
+        .in('post_id', posts.map(p => p.id));
+
+      if (acksError) throw acksError;
+
+      const acknowledgedPostIds = new Set(acks?.map(a => a.post_id) || []);
+      return posts.filter(p => !acknowledgedPostIds.has(p.id)).length;
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+  });
+};
+
+export const useTargetEmployeesCount = (postId: string) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['post-target-employees-count', postId],
+    queryFn: async (): Promise<number> => {
+      if (!currentOrg?.id || !postId) return 0;
+
+      // Get the post's access scope
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .select('access_scope')
+        .eq('id', postId)
+        .single();
+
+      if (postError) throw postError;
+
+      // For company-wide scope, count all active employees
+      if (post.access_scope === 'company') {
+        const { count, error } = await supabase
+          .from('employees')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', currentOrg.id)
+          .eq('status', 'active');
+
+        if (error) throw error;
+        return count || 0;
+      }
+
+      // For scoped posts, this would need more complex logic
+      // For now, return a rough count
+      const { count, error } = await supabase
+        .from('employees')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active');
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!currentOrg?.id && !!postId,
   });
 };

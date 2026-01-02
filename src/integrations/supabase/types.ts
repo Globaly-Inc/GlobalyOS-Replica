@@ -5525,6 +5525,62 @@ export type Database = {
           },
         ]
       }
+      post_acknowledgments: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          post_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          post_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_acknowledgments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_acknowledgments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_acknowledgments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_acknowledgments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_comments: {
         Row: {
           content: string
@@ -6002,6 +6058,8 @@ export type Database = {
       posts: {
         Row: {
           access_scope: string | null
+          ack_reminder_count: number | null
+          acknowledgment_deadline: string | null
           content: string
           created_at: string | null
           employee_id: string
@@ -6010,15 +6068,19 @@ export type Database = {
           is_pinned: boolean | null
           is_published: boolean | null
           kudos_recipient_ids: string[] | null
+          last_ack_reminder_sent_at: string | null
           organization_id: string
           pinned_at: string | null
           pinned_by: string | null
           post_type: string
+          requires_acknowledgment: boolean | null
           scheduled_at: string | null
           updated_at: string | null
         }
         Insert: {
           access_scope?: string | null
+          ack_reminder_count?: number | null
+          acknowledgment_deadline?: string | null
           content: string
           created_at?: string | null
           employee_id: string
@@ -6027,15 +6089,19 @@ export type Database = {
           is_pinned?: boolean | null
           is_published?: boolean | null
           kudos_recipient_ids?: string[] | null
+          last_ack_reminder_sent_at?: string | null
           organization_id: string
           pinned_at?: string | null
           pinned_by?: string | null
           post_type: string
+          requires_acknowledgment?: boolean | null
           scheduled_at?: string | null
           updated_at?: string | null
         }
         Update: {
           access_scope?: string | null
+          ack_reminder_count?: number | null
+          acknowledgment_deadline?: string | null
           content?: string
           created_at?: string | null
           employee_id?: string
@@ -6044,10 +6110,12 @@ export type Database = {
           is_pinned?: boolean | null
           is_published?: boolean | null
           kudos_recipient_ids?: string[] | null
+          last_ack_reminder_sent_at?: string | null
           organization_id?: string
           pinned_at?: string | null
           pinned_by?: string | null
           post_type?: string
+          requires_acknowledgment?: boolean | null
           scheduled_at?: string | null
           updated_at?: string | null
         }
