@@ -141,11 +141,10 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const fetchBalancesBatch = async (
     employeeIds: string[],
     leaveTypeNames: string[],
-    leaveTypesMap: Map<string, { id: string; name: string; max_negative_days: number }>
+    leaveTypesMap: Map<string, { id: string; name: string; max_negative_days: number }>,
+    requestYear: number
   ): Promise<Map<string, LeaveBalance>> => {
     if (!currentOrg || employeeIds.length === 0) return new Map();
-    
-    const currentYear = new Date().getFullYear();
     
     // Get unique leave type IDs we need
     const leaveTypeIds = [...new Set(leaveTypeNames.map(name => 
@@ -154,13 +153,13 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
     if (leaveTypeIds.length === 0) return new Map();
 
-    // Single batch query for all balances
+    // Single batch query for all balances using request year
     const { data: balances } = await supabase
       .from("leave_type_balances")
       .select("employee_id, leave_type_id, balance")
       .in("employee_id", employeeIds)
       .in("leave_type_id", leaveTypeIds)
-      .eq("year", currentYear);
+      .eq("year", requestYear);
 
     // Create a map: "employeeId:leaveTypeName" -> LeaveBalance
     const balanceMap = new Map<string, LeaveBalance>();
@@ -282,11 +281,17 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     const employeeIdsForBalance = managerRequests.map((req: any) => req.employee.id);
     const leaveTypeNamesForBalance = managerRequests.map((req: any) => req.leave_type);
 
+    // Get the year from first request (all requests in batch should be from same year context)
+    const requestYear = managerRequests.length > 0 
+      ? new Date(managerRequests[0].start_date).getFullYear() 
+      : new Date().getFullYear();
+
     // Batch fetch balances for manager requests
     const balanceMap = await fetchBalancesBatch(
       [...new Set(employeeIdsForBalance)],
       [...new Set(leaveTypeNamesForBalance)],
-      leaveTypesMap
+      leaveTypesMap,
+      requestYear
     );
 
     // Build requests with balances
@@ -360,11 +365,17 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         const additionalEmployeeIds = additionalRequests.map((req: any) => req.employee.id);
         const additionalLeaveTypes = additionalRequests.map((req: any) => req.leave_type);
 
+        // Get the year from first additional request
+        const additionalRequestYear = additionalRequests.length > 0 
+          ? new Date(additionalRequests[0].start_date).getFullYear() 
+          : new Date().getFullYear();
+
         // Batch fetch balances for additional requests
         const additionalBalanceMap = await fetchBalancesBatch(
           [...new Set(additionalEmployeeIds)],
           [...new Set(additionalLeaveTypes)],
-          leaveTypesMap
+          leaveTypesMap,
+          additionalRequestYear
         );
 
         for (const req of additionalRequests) {

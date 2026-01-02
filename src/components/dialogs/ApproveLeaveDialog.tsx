@@ -38,6 +38,7 @@ interface ApproveLeaveDialogProps {
     id: string;
     leave_type: string;
     days_count: number;
+    start_date?: string;
     employee: {
       id: string;
       profiles: {
@@ -68,13 +69,16 @@ export const ApproveLeaveDialog = ({
     }
   }, [open]);
 
+  // Calculate the year from the leave request's start_date
+  const requestYear = request?.start_date 
+    ? new Date(request.start_date).getFullYear() 
+    : new Date().getFullYear();
+
   // Fetch employee's leave balances
   const { data: balances = [], isLoading: balancesLoading } = useQuery({
-    queryKey: ["employee-leave-balances-for-approval", request?.employee?.id, currentOrg?.id],
+    queryKey: ["employee-leave-balances-for-approval", request?.employee?.id, currentOrg?.id, requestYear],
     queryFn: async () => {
       if (!request?.employee?.id || !currentOrg?.id) return [];
-      
-      const currentYear = new Date().getFullYear();
       
       // Get all leave types for the org
       const { data: leaveTypes } = await supabase
@@ -85,12 +89,12 @@ export const ApproveLeaveDialog = ({
 
       if (!leaveTypes) return [];
 
-      // Get balances for this employee
+      // Get balances for this employee using request year
       const { data: balanceData } = await supabase
         .from("leave_type_balances")
         .select("leave_type_id, balance")
         .eq("employee_id", request.employee.id)
-        .eq("year", currentYear);
+        .eq("year", requestYear);
 
       const balanceMap = new Map(balanceData?.map(b => [b.leave_type_id, b.balance]) || []);
 
