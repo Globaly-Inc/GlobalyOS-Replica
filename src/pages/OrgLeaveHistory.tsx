@@ -1659,6 +1659,8 @@ const OrgLeaveHistory = () => {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
 
       {/* Delete Adjustment Confirmation Dialog */}
       <AlertDialog 
