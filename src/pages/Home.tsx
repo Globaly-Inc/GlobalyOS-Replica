@@ -574,10 +574,10 @@ const Home = () => {
           </Card>
         </div>
 
-        {/* Two Column Layout - Independent Scrolling */}
-        <div className="grid gap-6 lg:grid-cols-3 lg:h-[calc(100vh-280px)]">
+        {/* Two Column Layout */}
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Feed (2/3) */}
-          <div className="lg:col-span-2 lg:overflow-y-auto lg:pr-2">
+          <div className="lg:col-span-2 lg:pr-2">
             {/* Self Check-In Card for users who haven't checked in - TOP PRIORITY */}
             <div className="mb-6 hidden lg:block">
               <SelfCheckInCard />
@@ -666,7 +666,7 @@ const Home = () => {
           </div>
 
           {/* Right Column - Leave Sidebar (1/3) - hidden on mobile */}
-          <div className="hidden lg:block space-y-6 lg:overflow-y-auto lg:pl-2">
+          <div className="hidden lg:block space-y-6 lg:pl-2">
             <PendingLeaveApprovals onApprovalChange={loadLeaveData} />
             <PendingWfhApprovals />
             <PendingKpiUpdates />
