@@ -316,9 +316,9 @@ const OrgLeaveHistory = () => {
     setLoading(true);
     
     try {
-      const currentYear = parseInt(yearFilter);
-      const startOfYear = `${yearFilter}-01-01`;
-      const endOfYear = `${yearFilter}-12-31`;
+      // Use the dateRange from the filter hook for proper date filtering
+      const startOfRange = format(dateRange.startDate, 'yyyy-MM-dd');
+      const endOfRange = format(dateRange.endDate, 'yyyy-MM-dd');
 
       // Calculate previous period range based on current date filter
       const prevPeriod = getPreviousPeriodRange(dateRange);
@@ -373,8 +373,8 @@ const OrgLeaveHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg.id)
-        .gte("start_date", startOfYear)
-        .lte("start_date", endOfYear)
+        .gte("start_date", startOfRange)
+        .lte("start_date", endOfRange)
         .order("start_date", { ascending: false });
 
       // Filter by allowed employee IDs if not admin/HR/owner
@@ -408,8 +408,8 @@ const OrgLeaveHistory = () => {
         `)
         .eq("organization_id", currentOrg.id)
         .in("action", ["manual_adjustment", "year_init", "year_allocation", "carry_forward_in", "carry_forward_out"])
-        .gte("effective_date", startOfYear)
-        .lte("effective_date", endOfYear)
+        .gte("effective_date", startOfRange)
+        .lte("effective_date", endOfRange)
         .order("effective_date", { ascending: false });
 
       // Filter by allowed employee IDs if not admin/HR/owner
