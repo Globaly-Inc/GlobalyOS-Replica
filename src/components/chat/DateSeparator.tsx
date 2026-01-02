@@ -1,16 +1,20 @@
-import { format, isToday, isYesterday } from "date-fns";
+import { isToday, isYesterday } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+import { useTimezone } from "@/hooks/useTimezone";
 
 interface DateSeparatorProps {
   date: string;
 }
 
 const DateSeparator = ({ date }: DateSeparatorProps) => {
+  const { timezone } = useTimezone();
   const dateObj = new Date(date);
+  const zonedDate = toZonedTime(dateObj, timezone);
   
   const getLabel = () => {
-    if (isToday(dateObj)) return "Today";
-    if (isYesterday(dateObj)) return "Yesterday";
-    return format(dateObj, "EEEE, MMMM d");
+    if (isToday(zonedDate)) return "Today";
+    if (isYesterday(zonedDate)) return "Yesterday";
+    return formatInTimeZone(dateObj, timezone, "EEEE, MMMM d");
   };
 
   return (

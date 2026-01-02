@@ -24,6 +24,22 @@ import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
 import { CardSkeleton } from "@/components/ui/card-skeleton";
 import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+import { useTimezone, getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
+import { Globe, Pencil } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 // Lazy load non-critical sidebar components for faster initial load
 const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeavesCard").then(m => ({ default: m.AllPendingLeavesCard })));
@@ -86,6 +102,8 @@ interface UpcomingCalendarEvent {
 
 const Home = () => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [timezonePopoverOpen, setTimezonePopoverOpen] = useState(false);
+  const { timezone, setTimezone } = useTimezone();
   const {
     feedFilter, setFeedFilter,
     dateFilter, setDateFilter,
@@ -452,8 +470,39 @@ const Home = () => {
                     {greeting}{currentUserName ? `, ${currentUserName}` : ""}
                   </h1>
                   <p className="text-sm text-white/80 mt-1">
-                    {format(currentTime, "EEEE, MMMM d, yyyy")} • {format(currentTime, "h:mm a")}
+                    {formatInTimeZone(currentTime, timezone, "EEEE, MMMM d, yyyy")} • {formatInTimeZone(currentTime, timezone, "h:mm a")}
                   </p>
+                  <Popover open={timezonePopoverOpen} onOpenChange={setTimezonePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center gap-1 text-xs text-white/60 hover:text-white/90 mt-1 transition-colors">
+                        <Globe className="h-3 w-3" />
+                        {timezone.replace(/_/g, ' ')}
+                        <Pencil className="h-2.5 w-2.5 opacity-70" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search timezone..." />
+                        <CommandList>
+                          <CommandEmpty>No timezone found.</CommandEmpty>
+                          <CommandGroup className="max-h-[250px] overflow-auto">
+                            {getTimezones().map((tz) => (
+                              <CommandItem
+                                key={tz}
+                                value={formatTimezoneLabel(tz)}
+                                onSelect={() => {
+                                  setTimezone(tz);
+                                  setTimezonePopoverOpen(false);
+                                }}
+                              >
+                                {formatTimezoneLabel(tz)}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 
                 <hr className="md:hidden border-white/20" />
