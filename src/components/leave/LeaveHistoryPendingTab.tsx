@@ -67,9 +67,15 @@ interface PendingLeaveRequest {
 
 interface LeaveHistoryPendingTabProps {
   onApprovalChange?: () => void;
+  selectedEmployees?: string[];
+  onSelectedEmployeesChange?: (ids: string[]) => void;
 }
 
-export const LeaveHistoryPendingTab = ({ onApprovalChange }: LeaveHistoryPendingTabProps) => {
+export const LeaveHistoryPendingTab = ({ 
+  onApprovalChange,
+  selectedEmployees: externalSelectedEmployees,
+  onSelectedEmployeesChange,
+}: LeaveHistoryPendingTabProps) => {
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { data: currentEmployee, isLoading: employeeLoading } = useCurrentEmployee();
@@ -80,9 +86,10 @@ export const LeaveHistoryPendingTab = ({ onApprovalChange }: LeaveHistoryPending
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   
-  // Employee filter
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  // Use external filter state if provided, otherwise use internal state
+  const [internalSelectedEmployees, setInternalSelectedEmployees] = useState<string[]>([]);
+  const selectedEmployees = externalSelectedEmployees ?? internalSelectedEmployees;
+  const setSelectedEmployees = onSelectedEmployeesChange ?? setInternalSelectedEmployees;
   
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -579,109 +586,6 @@ export const LeaveHistoryPendingTab = ({ onApprovalChange }: LeaveHistoryPending
 
   return (
     <div className="space-y-4">
-      {/* Filter Bar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Employee Filter */}
-        {canEditAll && (
-          <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={employeePopoverOpen}
-                className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
-              >
-                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate text-sm">
-                  {selectedEmployees.length === 0
-                    ? "All Employees"
-                    : selectedEmployees.length === 1
-                      ? visibleEmployees.find(e => e.id === selectedEmployees[0])?.profiles?.full_name || "1 selected"
-                      : `${selectedEmployees.length} selected`}
-                </span>
-                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search employees..." />
-                <CommandList>
-                  <CommandEmpty>No employees found.</CommandEmpty>
-                  <CommandGroup>
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees(visibleEmployees.map(e => e.id))}
-                      >
-                        Select All
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedEmployees([])}
-                      >
-                        Clear All
-                      </Button>
-                    </div>
-                    {visibleEmployees.map((employee) => (
-                      <CommandItem
-                        key={employee.id}
-                        value={employee.profiles?.full_name || employee.id}
-                        onSelect={() => {
-                          const isSelected = selectedEmployees.includes(employee.id);
-                          if (isSelected) {
-                            setSelectedEmployees(selectedEmployees.filter(id => id !== employee.id));
-                          } else {
-                            setSelectedEmployees([...selectedEmployees, employee.id]);
-                          }
-                        }}
-                      >
-                        <div className={cn(
-                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                          selectedEmployees.includes(employee.id)
-                            ? "bg-primary text-primary-foreground"
-                            : "opacity-50 [&_svg]:invisible"
-                        )}>
-                          <Check className="h-3 w-3" />
-                        </div>
-                        <Avatar className="h-6 w-6 mr-2">
-                          <AvatarImage src={employee.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(employee.profiles?.full_name || "?")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{employee.profiles?.full_name}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )}
-
-        {/* Results count */}
-        <div className="text-sm text-muted-foreground">
-          {filteredRequests.length} pending request{filteredRequests.length !== 1 ? 's' : ''}
-        </div>
-
-        {/* Clear filter */}
-        {selectedEmployees.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedEmployees([])}
-            className="h-8 gap-1 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-            Clear
-          </Button>
-        )}
-      </div>
-
       {/* Table */}
       <Card>
         <CardContent className="p-0">

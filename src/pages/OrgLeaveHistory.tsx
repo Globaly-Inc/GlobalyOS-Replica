@@ -129,6 +129,10 @@ const OrgLeaveHistory = () => {
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [customDatePopoverOpen, setCustomDatePopoverOpen] = useState(false);
   
+  // Pending tab specific employee filter
+  const [pendingSelectedEmployees, setPendingSelectedEmployees] = useState<string[]>([]);
+  const [pendingEmployeePopoverOpen, setPendingEmployeePopoverOpen] = useState(false);
+  
   const {
     statusFilter, setStatusFilter,
     leaveTypeFilter, setLeaveTypeFilter,
@@ -947,7 +951,7 @@ const OrgLeaveHistory = () => {
       {/* Pending Tab Content */}
       {activeTab === 'pending' && (canEditAll || isManager) && (
         <>
-          {/* Pending Tab Filter Bar - Tabs only */}
+          {/* Pending Tab Filter Bar - With Employee filter */}
           <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 pt-2 rounded-lg">
             <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
               {/* Tab Toggle - Inline with filters */}
@@ -987,9 +991,113 @@ const OrgLeaveHistory = () => {
                   </Button>
                 )}
               </div>
+
+              {/* Employee Filter - for Pending tab */}
+              {canEditAll && (
+                <Popover open={pendingEmployeePopoverOpen} onOpenChange={setPendingEmployeePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={pendingEmployeePopoverOpen}
+                      className="h-9 justify-between gap-1 bg-background hover:bg-background/80 min-w-[140px]"
+                    >
+                      <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm">
+                        {pendingSelectedEmployees.length === 0
+                          ? "All Employees"
+                          : pendingSelectedEmployees.length === 1
+                            ? allEmployees.find(e => e.id === pendingSelectedEmployees[0])?.profiles?.full_name || "1 selected"
+                            : `${pendingSelectedEmployees.length} selected`}
+                      </span>
+                      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search employees..." />
+                      <CommandList>
+                        <CommandEmpty>No employees found.</CommandEmpty>
+                        <CommandGroup>
+                          <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setPendingSelectedEmployees(allEmployees.map(e => e.id))}
+                            >
+                              Select All
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setPendingSelectedEmployees([])}
+                            >
+                              Clear All
+                            </Button>
+                          </div>
+                          {allEmployees.map((employee) => (
+                            <CommandItem
+                              key={employee.id}
+                              value={employee.profiles?.full_name || employee.id}
+                              onSelect={() => {
+                                const isSelected = pendingSelectedEmployees.includes(employee.id);
+                                if (isSelected) {
+                                  setPendingSelectedEmployees(pendingSelectedEmployees.filter(id => id !== employee.id));
+                                } else {
+                                  setPendingSelectedEmployees([...pendingSelectedEmployees, employee.id]);
+                                }
+                              }}
+                            >
+                              <div className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                pendingSelectedEmployees.includes(employee.id)
+                                  ? "bg-primary text-primary-foreground"
+                                  : "opacity-50 [&_svg]:invisible"
+                              )}>
+                                <Check className="h-3 w-3" />
+                              </div>
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarImage src={employee.profiles?.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(employee.profiles?.full_name || "?")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate">{employee.profiles?.full_name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Clear filter */}
+              {pendingSelectedEmployees.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPendingSelectedEmployees([])}
+                  className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+
+              {/* Results count - pushed to end */}
+              <div className="text-sm text-muted-foreground ml-auto">
+                {totalPendingCount} pending
+              </div>
             </div>
           </div>
-          <LeaveHistoryPendingTab onApprovalChange={loadData} />
+          <LeaveHistoryPendingTab 
+            onApprovalChange={loadData}
+            selectedEmployees={pendingSelectedEmployees}
+            onSelectedEmployeesChange={setPendingSelectedEmployees}
+          />
         </>
       )}
 
