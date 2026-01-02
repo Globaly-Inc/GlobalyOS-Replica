@@ -8,6 +8,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useCheckInStatus } from "@/services/useAttendance";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { format, differenceInMinutes } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface EmployeeSchedule {
   work_start_time: string;
@@ -26,8 +27,9 @@ export const SelfCheckInCard = () => {
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [scheduleStarted, setScheduleStarted] = useState(false);
+  const [orgTimezone, setOrgTimezone] = useState<string>('Asia/Kathmandu');
 
-  // Check if schedule has started (only show card after work_start_time)
+  // Check if schedule has started (only show card after work_start_time in org timezone)
   useEffect(() => {
     if (!schedule?.work_start_time) {
       setScheduleStarted(false);
@@ -35,12 +37,11 @@ export const SelfCheckInCard = () => {
     }
 
     const checkScheduleStarted = () => {
-      const now = new Date();
-      const [hours, minutes] = schedule.work_start_time.split(":").map(Number);
-      const startTime = new Date();
-      startTime.setHours(hours, minutes, 0, 0);
+      // Get current time in organization's timezone
+      const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
+      const startTimeStr = schedule.work_start_time;
       
-      setScheduleStarted(now >= startTime);
+      setScheduleStarted(currentTimeStr >= startTimeStr);
     };
 
     // Check immediately
@@ -50,7 +51,7 @@ export const SelfCheckInCard = () => {
     const interval = setInterval(checkScheduleStarted, 60000);
     
     return () => clearInterval(interval);
-  }, [schedule?.work_start_time]);
+  }, [schedule?.work_start_time, orgTimezone]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -60,6 +61,16 @@ export const SelfCheckInCard = () => {
       }
 
       try {
+        // Get organization timezone
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('timezone')
+          .eq('id', currentOrg.id)
+          .single();
+
+        const timezone = orgData?.timezone || 'Asia/Kathmandu';
+        setOrgTimezone(timezone);
+
         // Get employee and schedule
         const { data: employee } = await supabase
           .from("employees")
@@ -101,8 +112,8 @@ export const SelfCheckInCard = () => {
 
         setSchedule(empSchedule);
 
-        // Check if on approved leave today - use UTC date for consistency
-        const today = new Date().toISOString().split("T")[0];
+        // Check if on approved leave today - use organization's local date
+        const today = formatInTimeZone(new Date(), timezone, 'yyyy-MM-dd');
         const { data: leaveRequest } = await supabase
           .from("leave_requests")
           .select("id")
