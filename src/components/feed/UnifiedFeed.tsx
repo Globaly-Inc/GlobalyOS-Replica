@@ -8,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { usePosts, PostType, Post } from '@/services/useSocialFeed';
 import { useFeedRealtime } from '@/services/useSocialFeedRealtime';
-import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { PostCard } from './PostCard';
 import { CreatePostModal } from './CreatePostModal';
 import { startOfWeek, startOfMonth, isAfter, parseISO, isSameDay } from 'date-fns';
@@ -27,7 +26,6 @@ export const UnifiedFeed = ({
   // Fetch from unified posts table
   const postTypeFilter = feedFilter === 'all' ? 'all' : (feedFilter as PostType);
   const { data: posts = [], isLoading } = usePosts(postTypeFilter);
-  const { data: currentEmployee } = useCurrentEmployee();
   
   // Subscribe to real-time updates for posts, comments, and reactions
   useFeedRealtime();
@@ -66,11 +64,9 @@ export const UnifiedFeed = ({
     
     // Sort: unacknowledged posts requiring ack > pinned > by date
     return [...dateFiltered].sort((a, b) => {
-      // Priority 1: Unacknowledged posts requiring acknowledgment (exclude own posts)
-      const aIsOwn = a.employee_id === currentEmployee?.id;
-      const bIsOwn = b.employee_id === currentEmployee?.id;
-      const aRequiresAck = a.requires_acknowledgment && !a.user_has_acknowledged && !aIsOwn;
-      const bRequiresAck = b.requires_acknowledgment && !b.user_has_acknowledged && !bIsOwn;
+      // Priority 1: Unacknowledged posts requiring acknowledgment
+      const aRequiresAck = a.requires_acknowledgment && !a.user_has_acknowledged;
+      const bRequiresAck = b.requires_acknowledgment && !b.user_has_acknowledged;
       if (aRequiresAck && !bRequiresAck) return -1;
       if (!aRequiresAck && bRequiresAck) return 1;
       
@@ -88,7 +84,7 @@ export const UnifiedFeed = ({
       // Priority 3: By date (newest first)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [posts, dateFilter, currentEmployee?.id]);
+  }, [posts, dateFilter]);
 
   if (isLoading) {
     return (

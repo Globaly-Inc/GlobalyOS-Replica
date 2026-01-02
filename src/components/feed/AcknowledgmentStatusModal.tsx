@@ -26,7 +26,6 @@ import { cn } from '@/lib/utils';
 
 interface AcknowledgmentStatusModalProps {
   postId: string;
-  postAuthorId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -41,7 +40,6 @@ interface Employee {
 
 export const AcknowledgmentStatusModal = ({
   postId,
-  postAuthorId,
   open,
   onOpenChange,
 }: AcknowledgmentStatusModalProps) => {
@@ -83,16 +81,9 @@ export const AcknowledgmentStatusModal = ({
     [acknowledgments]
   );
 
-  // Exclude the post author from pending list (they don't need to acknowledge)
   const pendingEmployees = useMemo(
-    () => allEmployees.filter(emp => !acknowledgedIds.has(emp.id) && emp.id !== postAuthorId),
-    [allEmployees, acknowledgedIds, postAuthorId]
-  );
-
-  // Also exclude author from total count
-  const totalEmployeesExcludingAuthor = useMemo(
-    () => allEmployees.filter(emp => emp.id !== postAuthorId).length,
-    [allEmployees, postAuthorId]
+    () => allEmployees.filter(emp => !acknowledgedIds.has(emp.id)),
+    [allEmployees, acknowledgedIds]
   );
 
   const displayedEmployees = useMemo(() => {
@@ -119,7 +110,7 @@ export const AcknowledgmentStatusModal = ({
   }, [filter, acknowledgedEmployees, pendingEmployees, searchQuery]);
 
   const acknowledgedCount = acknowledgments.length;
-  const totalCount = totalEmployeesExcludingAuthor;
+  const totalCount = allEmployees.length;
   const progressPercent = totalCount > 0 ? Math.round((acknowledgedCount / totalCount) * 100) : 0;
 
   const isLoading = loadingAcks || loadingEmployees;
