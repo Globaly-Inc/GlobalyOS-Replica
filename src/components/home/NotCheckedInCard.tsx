@@ -11,6 +11,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { OrgLink } from "@/components/OrgLink";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,8 +51,17 @@ export const NotCheckedInCard = () => {
     }
 
     try {
-      // Use UTC date for consistency with database storage
-      const today = new Date().toISOString().split('T')[0];
+      // Get organization timezone
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('timezone')
+        .eq('id', currentOrg.id)
+        .single();
+
+      const orgTimezone = orgData?.timezone || 'Asia/Kathmandu';
+
+      // Use organization's local date for consistency
+      const today = formatInTimeZone(new Date(), orgTimezone, 'yyyy-MM-dd');
 
       // Get active employees WITH a schedule (inner join)
       const { data: employeesWithSchedule, error: empError } = await supabase
@@ -108,8 +118,8 @@ export const NotCheckedInCard = () => {
       
       setSentReminders(reminderSentIds);
 
-      // Get current time in HH:mm:ss format for comparison
-      const currentTimeStr = format(new Date(), 'HH:mm:ss');
+      // Get current time in organization's timezone for comparison
+      const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
 
       // Filter to find not-checked-in employees whose start time has passed
       const filtered = (employeesWithSchedule || []).filter(emp => {
