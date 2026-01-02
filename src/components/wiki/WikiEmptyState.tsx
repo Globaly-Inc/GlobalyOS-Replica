@@ -1,4 +1,4 @@
-import { Folder, FileText, BookOpen, Plus } from "lucide-react";
+import { Folder, FileText, BookOpen, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface WikiEmptyStateProps {
@@ -7,6 +7,7 @@ interface WikiEmptyStateProps {
   disabled?: boolean;
   onCreateFolder?: () => void;
   onCreatePage?: () => void;
+  onUploadFile?: () => void;
 }
 
 export const WikiEmptyState = ({
@@ -15,6 +16,7 @@ export const WikiEmptyState = ({
   disabled = false,
   onCreateFolder,
   onCreatePage,
+  onUploadFile,
 }: WikiEmptyStateProps) => {
   if (type === "wiki") {
     return (
@@ -29,13 +31,31 @@ export const WikiEmptyState = ({
         {canEdit && (
           <div className="flex flex-col sm:flex-row gap-3">
             <Button onClick={onCreateFolder} variant="outline" className="gap-2" disabled={disabled}>
-              <Folder className="h-4 w-4" />
+              {disabled ? (
+                <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+              ) : (
+                <Folder className="h-4 w-4" />
+              )}
               Create First Folder
             </Button>
             <Button onClick={onCreatePage} className="gap-2" disabled={disabled}>
-              <FileText className="h-4 w-4" />
+              {disabled ? (
+                <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
               Create First Page
             </Button>
+            {onUploadFile && (
+              <Button onClick={onUploadFile} variant="outline" className="gap-2" disabled={disabled}>
+                {disabled ? (
+                  <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Upload File
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -55,13 +75,31 @@ export const WikiEmptyState = ({
         {canEdit && (
           <div className="flex flex-col sm:flex-row gap-2">
             <Button onClick={onCreateFolder} variant="outline" size="sm" className="gap-1.5" disabled={disabled}>
-              <Plus className="h-4 w-4" />
+              {disabled ? (
+                <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               Add Folder
             </Button>
             <Button onClick={onCreatePage} size="sm" className="gap-1.5" disabled={disabled}>
-              <Plus className="h-4 w-4" />
+              {disabled ? (
+                <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               Add Page
             </Button>
+            {onUploadFile && (
+              <Button onClick={onUploadFile} variant="outline" size="sm" className="gap-1.5" disabled={disabled}>
+                {disabled ? (
+                  <span className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Upload File
+              </Button>
+            )}
           </div>
         )}
       </div>

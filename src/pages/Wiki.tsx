@@ -115,12 +115,19 @@ const Wiki = () => {
 
   // Check if user can edit the current folder context
   useEffect(() => {
+    // If user has global access (admin/HR/owner), they can always edit - set immediately
+    if (hasGlobalEditAccess) {
+      setCanEditCurrentFolder(true);
+      return;
+    }
+    
+    // Otherwise check folder-specific permission
     const checkFolderPermission = async () => {
       const canEdit = await checkCanEditFolder(selectedFolderId);
       setCanEditCurrentFolder(canEdit);
     };
     checkFolderPermission();
-  }, [selectedFolderId, checkCanEditFolder]);
+  }, [selectedFolderId, checkCanEditFolder, hasGlobalEditAccess]);
 
   // Navigation handlers - handleSelectPage moved after pagesList query
   const handleSelectFolder = useCallback((folderId: string) => {
@@ -314,7 +321,12 @@ const Wiki = () => {
   // Create folder mutation
   const createFolderMutation = useMutation({
     mutationFn: async ({ name, parentId }: { name: string; parentId: string | null }) => {
-      if (!currentOrg?.id || !currentEmployee?.id) throw new Error("Not authenticated");
+      if (!currentOrg?.id) {
+        throw new Error("Organization not loaded. Please refresh the page.");
+      }
+      if (!currentEmployee?.id) {
+        throw new Error("Loading your profile... Please wait a moment and try again.");
+      }
       const { error } = await supabase.from("wiki_folders").insert({
         name,
         parent_id: parentId,
@@ -328,16 +340,22 @@ const Wiki = () => {
       queryClient.invalidateQueries({ queryKey: ["wiki-folders"] });
       toast.success("Folder created");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Failed to create folder:", error);
-      toast.error("Failed to create folder");
+      const message = error?.message || "Failed to create folder. Please try again.";
+      toast.error(message);
     },
   });
 
   // Create page mutation
   const createPageMutation = useMutation({
     mutationFn: async ({ title, folderId }: { title: string; folderId: string | null }) => {
-      if (!currentOrg?.id || !currentEmployee?.id) throw new Error("Not authenticated");
+      if (!currentOrg?.id) {
+        throw new Error("Organization not loaded. Please refresh the page.");
+      }
+      if (!currentEmployee?.id) {
+        throw new Error("Loading your profile... Please wait a moment and try again.");
+      }
       const { data, error } = await supabase
         .from("wiki_pages")
         .insert({
@@ -358,9 +376,10 @@ const Wiki = () => {
       // Navigate to edit page for new pages
       navigateOrg(`/wiki/edit/${data.id}`);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Failed to create page:", error);
-      toast.error("Failed to create page");
+      const message = error?.message || "Failed to create page. Please try again.";
+      toast.error(message);
     },
   });
 
@@ -699,7 +718,8 @@ const Wiki = () => {
                 }
                 setCreatingItem({ type });
               }}
-              canEdit={canEditCurrentFolder}
+              canEdit={canEditCurrentFolder || hasGlobalEditAccess}
+              isCreatingDisabled={isLoadingEmployee || !currentEmployee?.id}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
               recentItems={recentItems}
