@@ -327,6 +327,8 @@ const Wiki = () => {
       if (!currentEmployee?.id) {
         throw new Error("Loading your profile... Please wait a moment and try again.");
       }
+      // Note: created_by is set/overridden server-side by trigger (set_wiki_folder_created_by_trigger)
+      // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { error } = await supabase.from("wiki_folders").insert({
         name,
         parent_id: parentId,
@@ -356,6 +358,8 @@ const Wiki = () => {
       if (!currentEmployee?.id) {
         throw new Error("Loading your profile... Please wait a moment and try again.");
       }
+      // Note: created_by is set/overridden server-side by trigger (set_wiki_page_created_by_trigger)
+      // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { data, error } = await supabase
         .from("wiki_pages")
         .insert({
