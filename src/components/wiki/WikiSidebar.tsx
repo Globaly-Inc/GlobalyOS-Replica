@@ -77,6 +77,7 @@ interface WikiSidebarProps {
   onSelectHome: () => void;
   onStartCreating: (type: "folder" | "page") => void;
   canEdit: boolean;
+  isCreatingDisabled?: boolean;
   isFavorite: (itemType: "folder" | "page", itemId: string) => boolean;
   onToggleFavorite: (itemType: "folder" | "page", itemId: string) => void;
   recentItems: RecentItem[];
@@ -94,6 +95,7 @@ export const WikiSidebar = ({
   onSelectHome,
   onStartCreating,
   canEdit,
+  isCreatingDisabled = false,
   isFavorite,
   onToggleFavorite,
   recentItems,
@@ -116,27 +118,31 @@ export const WikiSidebar = ({
         </button>
         {canEdit && <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
-                <Plus className="h-3.5 w-3.5" />
+              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" disabled={isCreatingDisabled}>
+                {isCreatingDisabled ? (
+                  <span className="h-3.5 w-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
                 Create
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onStartCreating("page")}>
+              <DropdownMenuItem onClick={() => onStartCreating("page")} disabled={isCreatingDisabled}>
                 <FileText className="h-4 w-4 mr-2" />
                 New Page
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStartCreating("folder")}>
+              <DropdownMenuItem onClick={() => onStartCreating("folder")} disabled={isCreatingDisabled}>
                 <Folder className="h-4 w-4 mr-2" />
                 New Folder
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onOpenUploadDialog?.()}>
+              <DropdownMenuItem onClick={() => onOpenUploadDialog?.()} disabled={isCreatingDisabled}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload File
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onOpenImportDialog?.()}>
+              <DropdownMenuItem onClick={() => onOpenImportDialog?.()} disabled={isCreatingDisabled}>
                 <FileDown className="h-4 w-4 mr-2" />
                 Import
               </DropdownMenuItem>
