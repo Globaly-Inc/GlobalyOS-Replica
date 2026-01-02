@@ -132,14 +132,7 @@ export const useInitializeYearBalances = () => {
         officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
       });
 
-      // 6. Process each employee
-      const balancesToInsert: Array<{
-        employee_id: string;
-        leave_type_id: string;
-        organization_id: string;
-        balance: number;
-        year: number;
-      }> = [];
+      // 6. Process each employee - LOG ONLY (trigger handles balances)
 
       const logsToInsert: LogEntry[] = [];
 
@@ -205,13 +198,8 @@ export const useInitializeYearBalances = () => {
 
           const newBalance = defaultDays + carriedForward;
 
-          balancesToInsert.push({
-            employee_id: employee.id,
-            leave_type_id: leaveType.id,
-            organization_id: currentOrg.id,
-            balance: newBalance,
-            year: year,
-          });
+          // Balance creation is handled by the sync_balance_from_log trigger
+          // when we insert logs below - no direct balance insert needed
 
           // Create audit trail logs (3-transaction model)
           if (creatorEmployeeId) {
@@ -271,18 +259,7 @@ export const useInitializeYearBalances = () => {
         }
       }
 
-      // 7. Batch insert balances
-      if (balancesToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from("leave_type_balances")
-          .insert(balancesToInsert);
-
-        if (insertError) {
-          result.errors.push(`Failed to insert balances: ${insertError.message}`);
-        }
-      }
-
-      // 8. Batch insert logs
+      // 7. Batch insert logs - trigger will create balances automatically
       if (logsToInsert.length > 0) {
         const { error: logError } = await supabase
           .from("leave_balance_logs")
@@ -422,14 +399,7 @@ export const useInitializeSelectedEmployeesBalances = () => {
         creatorEmployeeId = creatorEmployee?.id || null;
       }
 
-      // 7. Process each employee
-      const balancesToInsert: Array<{
-        employee_id: string;
-        leave_type_id: string;
-        organization_id: string;
-        balance: number;
-        year: number;
-      }> = [];
+      // 7. Process each employee - LOG ONLY (trigger handles balances)
 
       const logsToInsert: LogEntry[] = [];
 
@@ -478,13 +448,8 @@ export const useInitializeSelectedEmployeesBalances = () => {
 
           const newBalance = defaultDays + carriedForward;
 
-          balancesToInsert.push({
-            employee_id: employee.id,
-            leave_type_id: leaveType.id,
-            organization_id: currentOrg.id,
-            balance: newBalance,
-            year: year,
-          });
+          // Balance creation is handled by the sync_balance_from_log trigger
+          // when we insert logs below - no direct balance insert needed
 
           // Create audit trail logs (3-transaction model)
           if (creatorEmployeeId) {
@@ -544,18 +509,7 @@ export const useInitializeSelectedEmployeesBalances = () => {
         }
       }
 
-      // 8. Batch insert balances
-      if (balancesToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from("leave_type_balances")
-          .insert(balancesToInsert);
-
-        if (insertError) {
-          result.errors.push(`Failed to insert balances: ${insertError.message}`);
-        }
-      }
-
-      // 9. Batch insert logs
+      // 8. Batch insert logs - trigger will create balances automatically
       if (logsToInsert.length > 0) {
         const { error: logError } = await supabase
           .from("leave_balance_logs")
@@ -700,39 +654,27 @@ export const useInitializeEmployeeBalances = () => {
           carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
         }
 
-        const newBalance = defaultDays + carriedForward;
-
-        // Insert balance
-        const { error: insertError } = await supabase
-          .from("leave_type_balances")
-          .insert({
+        // Log-only approach: trigger handles balance creation
+        // Insert logs and let the sync_balance_from_log trigger create the balance
+        if (creatorEmployeeId) {
+          // Log 1: Year allocation (default days)
+          const { error: logError } = await supabase.from("leave_balance_logs").insert({
             employee_id: employeeId,
-            leave_type_id: leaveType.id,
             organization_id: currentOrg.id,
-            balance: newBalance,
+            leave_type: leaveType.name,
+            leave_type_id: leaveType.id,
+            change_amount: defaultDays,
+            previous_balance: 0,
+            new_balance: defaultDays,
+            reason: `${currentYear} annual allocation (auto)`,
+            created_by: creatorEmployeeId,
+            effective_date: `${currentYear}-01-01`,
+            action: "year_allocation",
             year: currentYear,
           });
 
-        if (!insertError) {
-          balancesCreated++;
-
-          // Create audit trail logs (3-transaction model)
-          if (creatorEmployeeId) {
-            // Log 1: Year allocation (default days)
-            await supabase.from("leave_balance_logs").insert({
-              employee_id: employeeId,
-              organization_id: currentOrg.id,
-              leave_type: leaveType.name,
-              leave_type_id: leaveType.id,
-              change_amount: defaultDays,
-              previous_balance: 0,
-              new_balance: defaultDays,
-              reason: `${currentYear} annual allocation (auto)`,
-              created_by: creatorEmployeeId,
-              effective_date: `${currentYear}-01-01`,
-              action: "year_allocation",
-              year: currentYear,
-            });
+          if (!logError) {
+            balancesCreated++;
 
             // Log 2 & 3: Carry forward (if applicable)
             if (carriedForward !== 0 && prevBalance !== undefined) {
