@@ -114,7 +114,8 @@ const OrgAttendanceHistory = () => {
     selectedEmployees,
     setSelectedEmployees,
     notCheckedInSelectedEmployees,
-    setNotCheckedInSelectedEmployees
+    setNotCheckedInSelectedEmployees,
+    clearFilters
   } = useAttendanceHistoryFilters();
 
   // Sync URL param with active tab
@@ -1147,195 +1148,179 @@ const OrgAttendanceHistory = () => {
                 variant={activeTab === 'analytics' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => handleTabChange('analytics')}
-                className="h-8"
+                className="gap-1.5 h-7"
               >
                 <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline ml-1.5">Analytics</span>
+                <span className="hidden sm:inline">Analytics</span>
               </Button>
               <Button 
                 variant={activeTab === 'records' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => handleTabChange('records')}
-                className="h-8"
+                className="gap-1.5 h-7"
               >
                 <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline ml-1.5">Records</span>
+                <span className="hidden sm:inline">Records</span>
               </Button>
               {canViewAll && (
                 <Button 
                   variant={activeTab === 'not-checked-in' ? 'secondary' : 'ghost'}
                   size="sm"
                   onClick={() => handleTabChange('not-checked-in')}
-                  className="h-8"
+                  className="gap-1.5 h-7"
                 >
                   <UserMinus className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-1.5">Not Checked In</span>
+                  <span className="hidden sm:inline">Not Checked In</span>
                 </Button>
               )}
             </div>
+
+            {/* Divider */}
+            {activeTab !== 'not-checked-in' && (
+              <div className="w-px h-6 bg-border hidden md:block" />
+            )}
 
             {/* Tab-specific filters */}
             {activeTab !== 'not-checked-in' && (
               <>
                 {/* Employee Multi-Select Dropdown */}
-            <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="w-[180px] h-10 justify-between bg-background">
-                  <div className="flex items-center gap-2 truncate">
-                    <Users className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{employeeFilterLabel}</span>
-                  </div>
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput placeholder="Search employees..." value={employeeSearchQuery} onValueChange={setEmployeeSearchQuery} />
-                  <CommandList>
-                    <CommandEmpty>No employees found.</CommandEmpty>
-                    <CommandGroup>
-                      {/* Select All / Clear All - only for admin users with multiple options */}
-                      {canViewAll && employeesList.length > 1 && <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
-                          Select All
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
-                          Clear All
-                        </Button>
-                      </div>}
-                      {filteredEmployeesList.map(employee => <CommandItem key={employee.id} value={employee.id} onSelect={() => {
-                    setSelectedEmployees(selectedEmployees.includes(employee.id) ? selectedEmployees.filter(id => id !== employee.id) : [...selectedEmployees, employee.id]);
-                  }}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={employee.avatarUrl || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
-                              {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
-                            </div>
-                          </div>
-                        </CommandItem>)}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                <div className="hidden md:block">
+                  <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" aria-expanded={employeePopoverOpen} className="h-9 min-w-[140px] justify-between bg-background">
+                        <div className="flex items-center gap-2 truncate">
+                          <Users className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{employeeFilterLabel}</span>
+                        </div>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput placeholder="Search employees..." value={employeeSearchQuery} onValueChange={setEmployeeSearchQuery} />
+                        <CommandList>
+                          <CommandEmpty>No employees found.</CommandEmpty>
+                          <CommandGroup>
+                            {/* Select All / Clear All - only for admin users with multiple options */}
+                            {canViewAll && employeesList.length > 1 && <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees(employeesList.map(e => e.id))}>
+                                Select All
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedEmployees([])}>
+                                Clear All
+                              </Button>
+                            </div>}
+                            {filteredEmployeesList.map(employee => <CommandItem key={employee.id} value={employee.id} onSelect={() => {
+                              setSelectedEmployees(selectedEmployees.includes(employee.id) ? selectedEmployees.filter(id => id !== employee.id) : [...selectedEmployees, employee.id]);
+                            }}>
+                              <div className="flex items-center gap-2 flex-1">
+                                <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={employee.avatarUrl || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
+                                  {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
+                                </div>
+                              </div>
+                            </CommandItem>)}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-            {/* Status Selector - Records tab only */}
-            {activeTab === 'records' && (
-              <>
-                <Select value={workStatusFilter} onValueChange={setWorkStatusFilter}>
-                  <SelectTrigger className="w-[140px] h-10 bg-background">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="office">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-primary" />
-                        Office
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="remote">
-                      <div className="flex items-center gap-1.5">
-                        <Home className="h-3.5 w-3.5 text-purple-600" />
-                        Remote
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="hybrid">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-blue-600" />
-                        Hybrid
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="wfh">
-                      <div className="flex items-center gap-1.5">
-                        <Home className="h-3.5 w-3.5 text-green-600" />
-                        WFH
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Records tab filters */}
+                {activeTab === 'records' && (
+                  <>
+                    {/* Office Selector */}
+                    <div className="hidden md:block">
+                      <Select value={officeFilter} onValueChange={setOfficeFilter}>
+                        <SelectTrigger className="h-9 min-w-[120px] bg-background">
+                          <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <SelectValue placeholder="Office" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Offices</SelectItem>
+                          {offices.map(office => <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {/* Office Selector */}
-                <Select value={officeFilter} onValueChange={setOfficeFilter}>
-                  <SelectTrigger className="w-[140px] h-10 bg-background">
-                    <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <SelectValue placeholder="Office" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Offices</SelectItem>
-                    {offices.map(office => <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                    {/* Department Selector */}
+                    <div className="hidden md:block">
+                      <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                        <SelectTrigger className="h-9 min-w-[130px] bg-background">
+                          <SelectValue placeholder="Department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Departments</SelectItem>
+                          {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
 
-                {/* Department Selector */}
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[160px] h-10 bg-background">
-                    <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-
-                {/* Projects Selector */}
-                {projects.length > 0 && (
-                  <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-[150px] h-10 bg-background">
-                      <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <SelectValue placeholder="Project" />
+                {/* Date Range Selector */}
+                <div className="hidden md:block">
+                  <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
+                    <SelectTrigger className="h-9 min-w-[130px] bg-background">
+                      <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <SelectValue>{dateRangeLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Projects</SelectItem>
-                      {projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                      {dateRangeOptions.map(option => <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Custom Date Range Picker */}
+                {dateRangeFilter === 'custom' && (
+                  <div className="hidden md:block">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-9 px-3 gap-1.5 bg-background">
+                          <CalendarIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            {customDateRange.from && customDateRange.to ? `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}` : "Select dates"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar mode="range" selected={{
+                          from: customDateRange.from,
+                          to: customDateRange.to
+                        }} onSelect={range => setCustomDateRange({
+                          from: range?.from,
+                          to: range?.to
+                        })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 )}
-              </>
-            )}
 
-            {/* Date Range Selector */}
-            <Select value={dateRangeFilter} onValueChange={val => setDateRangeFilter(val as DateRangeOption)}>
-              <SelectTrigger className="w-[145px] h-10 bg-background">
-                <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                <SelectValue>{dateRangeLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {dateRangeOptions.map(option => <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
-
-            {/* Custom Date Range Picker */}
-            {dateRangeFilter === 'custom' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 px-3 gap-1.5 bg-background">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span className="text-sm">
-                      {customDateRange.from && customDateRange.to ? `${format(customDateRange.from, "MMM d")} - ${format(customDateRange.to, "MMM d")}` : "Select dates"}
-                    </span>
+                {/* Clear Filters Button */}
+                {(selectedEmployees.length > 0 || 
+                  officeFilter !== 'all' || 
+                  departmentFilter !== 'all' || 
+                  dateRangeFilter !== 'last7days') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar mode="range" selected={{
-                    from: customDateRange.from,
-                    to: customDateRange.to
-                  }} onSelect={range => setCustomDateRange({
-                    from: range?.from,
-                    to: range?.to
-                  })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
-                </PopoverContent>
-              </Popover>
-            )}
+                )}
               </>
             )}
 
