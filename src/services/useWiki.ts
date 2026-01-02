@@ -111,6 +111,8 @@ export const useCreateWikiFolder = () => {
         throw new Error('Not authenticated');
       }
 
+      // Note: created_by is set/overridden server-side by trigger (set_wiki_folder_created_by_trigger)
+      // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { error } = await supabase
         .from('wiki_folders')
         .insert({
@@ -145,6 +147,8 @@ export const useCreateWikiPage = () => {
         throw new Error('Not authenticated');
       }
 
+      // Note: created_by is set/overridden server-side by trigger (set_wiki_page_created_by_trigger)
+      // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { data, error } = await supabase
         .from('wiki_pages')
         .insert({
@@ -415,7 +419,8 @@ export const useDuplicateWikiPage = () => {
 
       if (fetchError || !originalPage) throw fetchError || new Error('Page not found');
 
-      // Create duplicate
+      // Create duplicate - created_by is set/overridden server-side by trigger
+      // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { data, error } = await supabase
         .from('wiki_pages')
         .insert({
