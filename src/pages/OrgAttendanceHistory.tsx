@@ -158,6 +158,12 @@ const OrgAttendanceHistory = () => {
   const [reportScheduleOpen, setReportScheduleOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  
+  // Not Checked In tab state - for employee filter in parent
+  const [notCheckedInEmployeesList, setNotCheckedInEmployeesList] = useState<{ id: string; name: string; avatarUrl: string | null; position: string }[]>([]);
+  const [notCheckedInCount, setNotCheckedInCount] = useState(0);
+  const [notCheckedInEmployeePopoverOpen, setNotCheckedInEmployeePopoverOpen] = useState(false);
+  const [notCheckedInEmployeeSearchQuery, setNotCheckedInEmployeeSearchQuery] = useState("");
 
   // PDF Export handler
   const handleExportPDF = () => {
@@ -1176,12 +1182,10 @@ const OrgAttendanceHistory = () => {
             </div>
 
             {/* Divider */}
-            {activeTab !== 'not-checked-in' && (
-              <div className="w-px h-6 bg-border hidden md:block" />
-            )}
+            <div className="w-px h-6 bg-border hidden md:block" />
 
             {/* Tab-specific filters */}
-            {activeTab !== 'not-checked-in' && (
+            {activeTab !== 'not-checked-in' ? (
               <>
                 {/* Employee Multi-Select Dropdown */}
                 <div className="hidden md:block">
@@ -1315,6 +1319,106 @@ const OrgAttendanceHistory = () => {
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
+                    className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
+              </>
+            ) : (
+              /* Not Checked In tab filters */
+              <>
+                {/* Employee Multi-Select Dropdown for Not Checked In */}
+                <div className="hidden md:block">
+                  <Popover open={notCheckedInEmployeePopoverOpen} onOpenChange={setNotCheckedInEmployeePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" aria-expanded={notCheckedInEmployeePopoverOpen} className="h-9 min-w-[140px] justify-between bg-background">
+                        <div className="flex items-center gap-2 truncate">
+                          <Users className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {notCheckedInSelectedEmployees.length === 0 
+                              ? "All Employees" 
+                              : notCheckedInSelectedEmployees.length === 1
+                                ? notCheckedInEmployeesList.find(e => e.id === notCheckedInSelectedEmployees[0])?.name || "1 Employee"
+                                : `${notCheckedInSelectedEmployees.length} Employees`}
+                          </span>
+                        </div>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput placeholder="Search employees..." value={notCheckedInEmployeeSearchQuery} onValueChange={setNotCheckedInEmployeeSearchQuery} />
+                        <CommandList>
+                          <CommandEmpty>No employees found.</CommandEmpty>
+                          <CommandGroup>
+                            {notCheckedInEmployeesList.length > 1 && (
+                              <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNotCheckedInSelectedEmployees(notCheckedInEmployeesList.map(e => e.id))}>
+                                  Select All
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNotCheckedInSelectedEmployees([])}>
+                                  Clear All
+                                </Button>
+                              </div>
+                            )}
+                            {(notCheckedInEmployeeSearchQuery
+                              ? notCheckedInEmployeesList.filter(e => 
+                                  e.name.toLowerCase().includes(notCheckedInEmployeeSearchQuery.toLowerCase()) ||
+                                  e.position.toLowerCase().includes(notCheckedInEmployeeSearchQuery.toLowerCase())
+                                )
+                              : notCheckedInEmployeesList
+                            ).map(employee => (
+                              <CommandItem 
+                                key={employee.id} 
+                                value={employee.id} 
+                                onSelect={() => {
+                                  setNotCheckedInSelectedEmployees(
+                                    notCheckedInSelectedEmployees.includes(employee.id)
+                                      ? notCheckedInSelectedEmployees.filter(id => id !== employee.id)
+                                      : [...notCheckedInSelectedEmployees, employee.id]
+                                  );
+                                }}
+                              >
+                                <div className="flex items-center gap-2 flex-1">
+                                  <Checkbox checked={notCheckedInSelectedEmployees.includes(employee.id)} className="pointer-events-none" />
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={employee.avatarUrl || undefined} />
+                                    <AvatarFallback className="text-xs">
+                                      {employee.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
+                                    {employee.position && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{employee.position}</span>}
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                            {notCheckedInEmployeesList.length === 0 && (
+                              <div className="px-2 py-3 text-center text-sm text-muted-foreground">
+                                No employees to filter
+                              </div>
+                            )}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Not Checked In Count */}
+                <div className="text-sm text-muted-foreground hidden md:block">
+                  {notCheckedInCount} {notCheckedInCount === 1 ? 'person' : 'people'} not checked in
+                </div>
+
+                {/* Clear filter button */}
+                {notCheckedInSelectedEmployees.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setNotCheckedInSelectedEmployees([])}
                     className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
@@ -1477,6 +1581,8 @@ const OrgAttendanceHistory = () => {
             <AttendanceNotCheckedInTab
               selectedEmployees={notCheckedInSelectedEmployees}
               onSelectedEmployeesChange={setNotCheckedInSelectedEmployees}
+              onEmployeesListChange={setNotCheckedInEmployeesList}
+              onCountChange={setNotCheckedInCount}
             />
           </div>
         )}
