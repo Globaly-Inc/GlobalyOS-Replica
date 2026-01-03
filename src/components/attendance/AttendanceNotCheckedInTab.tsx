@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, MapPin, Send, Check, Loader2, Users, ChevronDown, UserMinus } from "lucide-react";
+import { Clock, MapPin, Send, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -16,7 +12,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { OrgLink } from "@/components/OrgLink";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface EmployeeSchedule {
@@ -38,11 +33,15 @@ export interface NotCheckedInEmployee {
 interface AttendanceNotCheckedInTabProps {
   selectedEmployees?: string[];
   onSelectedEmployeesChange?: (employees: string[]) => void;
+  onEmployeesListChange?: (employees: { id: string; name: string; avatarUrl: string | null; position: string }[]) => void;
+  onCountChange?: (count: number) => void;
 }
 
 export const AttendanceNotCheckedInTab = ({
   selectedEmployees: externalSelectedEmployees,
   onSelectedEmployeesChange,
+  onEmployeesListChange,
+  onCountChange,
 }: AttendanceNotCheckedInTabProps) => {
   const [notCheckedIn, setNotCheckedIn] = useState<NotCheckedInEmployee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,10 +51,6 @@ export const AttendanceNotCheckedInTab = ({
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { data: currentEmployee } = useCurrentEmployee();
   const isMobile = useIsMobile();
-
-  // Internal employee filter state (for popover)
-  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
-  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   
   // Use external state if provided, otherwise internal
   const selectedEmployees = externalSelectedEmployees ?? [];
@@ -249,7 +244,7 @@ export const AttendanceNotCheckedInTab = ({
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Build employees list for filter
+  // Build employees list for filter and notify parent
   const employeesList = notCheckedIn.map(emp => ({
     id: emp.id,
     name: emp.profiles.full_name,
@@ -257,18 +252,19 @@ export const AttendanceNotCheckedInTab = ({
     position: emp.position,
   }));
 
-  const filteredEmployeesList = employeeSearchQuery
-    ? employeesList.filter(e => 
-        e.name.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
-        e.position.toLowerCase().includes(employeeSearchQuery.toLowerCase())
-      )
-    : employeesList;
+  // Notify parent of employees list changes
+  useEffect(() => {
+    if (onEmployeesListChange) {
+      onEmployeesListChange(employeesList);
+    }
+  }, [notCheckedIn, onEmployeesListChange]);
 
-  const employeeFilterLabel = selectedEmployees.length === 0 
-    ? "All Employees" 
-    : selectedEmployees.length === 1
-      ? employeesList.find(e => e.id === selectedEmployees[0])?.name || "1 Employee"
-      : `${selectedEmployees.length} Employees`;
+  // Notify parent of count changes
+  useEffect(() => {
+    if (onCountChange) {
+      onCountChange(notCheckedIn.length);
+    }
+  }, [notCheckedIn.length, onCountChange]);
 
   // Filter displayed employees based on selection
   const displayedEmployees = selectedEmployees.length > 0
@@ -295,92 +291,6 @@ export const AttendanceNotCheckedInTab = ({
 
   return (
     <div className="space-y-4">
-      {/* Filter Bar */}
-      {onSelectedEmployeesChange && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" className="w-[180px] h-10 justify-between bg-background">
-                <div className="flex items-center gap-2 truncate">
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{employeeFilterLabel}</span>
-                </div>
-                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
-              <Command shouldFilter={false}>
-                <CommandInput 
-                  placeholder="Search employees..." 
-                  value={employeeSearchQuery} 
-                  onValueChange={setEmployeeSearchQuery} 
-                />
-                <CommandList>
-                  <CommandEmpty>No employees found.</CommandEmpty>
-                  <CommandGroup>
-                    {employeesList.length > 1 && (
-                      <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-xs"
-                          onClick={() => onSelectedEmployeesChange(employeesList.map(e => e.id))}
-                        >
-                          Select All
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-xs"
-                          onClick={() => onSelectedEmployeesChange([])}
-                        >
-                          Clear All
-                        </Button>
-                      </div>
-                    )}
-                    {filteredEmployeesList.map(employee => (
-                      <CommandItem
-                        key={employee.id}
-                        value={employee.id}
-                        onSelect={() => {
-                          onSelectedEmployeesChange(
-                            selectedEmployees.includes(employee.id)
-                              ? selectedEmployees.filter(id => id !== employee.id)
-                              : [...selectedEmployees, employee.id]
-                          );
-                        }}
-                      >
-                        <div className="flex items-center gap-2 flex-1">
-                          <Checkbox checked={selectedEmployees.includes(employee.id)} className="pointer-events-none" />
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={employee.avatarUrl || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(employee.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium truncate max-w-[160px]">{employee.name}</span>
-                            {employee.position && (
-                              <span className="text-xs text-muted-foreground truncate max-w-[160px]">
-                                {employee.position}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          <div className="text-sm text-muted-foreground">
-            {displayedEmployees.length} {displayedEmployees.length === 1 ? 'person' : 'people'} not checked in
-          </div>
-        </div>
-      )}
-
       {/* Content */}
       {isMobile ? (
         // Mobile Card View
@@ -456,16 +366,6 @@ export const AttendanceNotCheckedInTab = ({
       ) : (
         // Desktop Table View
         <Card className="overflow-hidden">
-          <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserMinus className="h-4 w-4 text-destructive" />
-              <h2 className="font-semibold text-sm">Not Checked In</h2>
-            </div>
-            <Badge variant="destructive" className="text-xs">
-              {displayedEmployees.length} {displayedEmployees.length === 1 ? 'person' : 'people'}
-            </Badge>
-          </div>
-          
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
