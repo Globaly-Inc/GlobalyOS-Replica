@@ -59,44 +59,34 @@ export const InitializeYearBalancesButton = ({
     );
   }
 
+  // Don't render anything when all balances are initialized
+  if (!showBanner) {
+    return null;
+  }
+
   return (
     <>
-      {showBanner && (
-        <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800 dark:text-amber-200">
-            {year} Leave Balances Not Initialized
-          </AlertTitle>
-          <AlertDescription className="text-amber-700 dark:text-amber-300">
-            <p className="mb-3">
-              <strong>{missingCount}</strong> employee{missingCount > 1 ? "s are" : " is"} missing eligible leave balances for {year}.
-              Click below to review and initialize balances with default days and carry forward from {year - 1}.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-amber-300 bg-white dark:bg-amber-900 hover:bg-amber-100 dark:hover:bg-amber-800"
-              onClick={() => setDialogOpen(true)}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Initialize {year} Balances
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Re-initialize button for when all balances are set */}
-      {!showBanner && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setDialogOpen(true)}
-          className="gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Re-check {year} Balances
-        </Button>
-      )}
+      <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertTitle className="text-amber-800 dark:text-amber-200">
+          {year} Leave Balances Not Initialized
+        </AlertTitle>
+        <AlertDescription className="text-amber-700 dark:text-amber-300">
+          <p className="mb-3">
+            <strong>{missingCount}</strong> employee{missingCount > 1 ? "s are" : " is"} missing eligible leave balances for {year}.
+            Click below to review and initialize balances with default days and carry forward from {year - 1}.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 bg-white dark:bg-amber-900 hover:bg-amber-100 dark:hover:bg-amber-800"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Initialize {year} Balances
+          </Button>
+        </AlertDescription>
+      </Alert>
 
       <InitializeYearBalancesDialog
         open={dialogOpen}
