@@ -64,69 +64,88 @@ Write in second person ("You will..." or "Today brings...").`;
 
     console.log(`Generating horoscope for ${zodiacSign}`);
     
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        console.error('Rate limit exceeded');
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        console.error('Payment required');
-        return new Response(
-          JSON.stringify({ error: 'AI service quota exceeded.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errorText);
-      throw new Error(`AI gateway error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const horoscope = aiData.choices?.[0]?.message?.content?.trim();
-
-    if (!horoscope) {
-      throw new Error('Failed to generate horoscope content');
-    }
-
-    // Cache the horoscope
-    const { error: insertError } = await supabase
-      .from('daily_horoscopes')
-      .upsert({
-        zodiac_sign: zodiacSign,
-        horoscope_date: today,
-        content: horoscope,
-      }, {
-        onConflict: 'zodiac_sign,horoscope_date'
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+    
+    try {
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+        }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
-    if (insertError) {
-      console.error('Failed to cache horoscope:', insertError);
-    } else {
-      console.log(`Cached horoscope for ${zodiacSign}`);
+      if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          console.error('Rate limit exceeded');
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (aiResponse.status === 402) {
+          console.error('Payment required');
+          return new Response(
+            JSON.stringify({ error: 'AI service quota exceeded.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const errorText = await aiResponse.text();
+        console.error('AI gateway error:', aiResponse.status, errorText);
+        throw new Error(`AI gateway error: ${aiResponse.status}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const horoscope = aiData.choices?.[0]?.message?.content?.trim();
+
+      if (!horoscope) {
+        throw new Error('Failed to generate horoscope content');
+      }
+
+      // Cache the horoscope
+      const { error: insertError } = await supabase
+        .from('daily_horoscopes')
+        .upsert({
+          zodiac_sign: zodiacSign,
+          horoscope_date: today,
+          content: horoscope,
+        }, {
+          onConflict: 'zodiac_sign,horoscope_date'
+        });
+
+      if (insertError) {
+        console.error('Failed to cache horoscope:', insertError);
+      } else {
+        console.log(`Cached horoscope for ${zodiacSign}`);
+      }
+
+      return new Response(
+        JSON.stringify({ horoscope, cached: false }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error('AI request timed out');
+        return new Response(
+          JSON.stringify({ error: 'Request timed out. Please try again.' }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw fetchError;
     }
-
-    return new Response(
-      JSON.stringify({ horoscope, cached: false }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('Error in daily-horoscope function:', error);
