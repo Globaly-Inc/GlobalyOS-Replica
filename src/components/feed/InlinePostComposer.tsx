@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2,
-  BarChart3, Users, Globe, Video, Loader2, Smile, Calendar
+  BarChart3, Users, Globe, Video, Loader2, Smile, Calendar, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { GifPicker } from './GifPicker';
@@ -77,6 +77,7 @@ export const InlinePostComposer = ({
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   
   // Team members (for kudos and mentions)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -155,11 +156,16 @@ export const InlinePostComposer = ({
     }
 
     validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaPreviews(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
+      // For PDFs, use a placeholder preview
+      if (file.type === 'application/pdf') {
+        setMediaPreviews(prev => [...prev, `pdf:${file.name}`]);
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setMediaPreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      }
     });
 
     setMediaFiles(prev => [...prev, ...validFiles]);
@@ -500,22 +506,32 @@ export const InlinePostComposer = ({
               {/* Media Previews */}
               {mediaPreviews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {mediaPreviews.map((preview, index) => (
-                    <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border border-border">
-                      {mediaFiles[index]?.type.startsWith('video/') ? (
-                        <video src={preview} className="w-full h-full object-cover" />
-                      ) : (
-                        <img src={preview} alt="" className="w-full h-full object-cover" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeMedia(index)}
-                        className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                  {mediaPreviews.map((preview, index) => {
+                    const isPdf = preview.startsWith('pdf:');
+                    const pdfName = isPdf ? preview.replace('pdf:', '') : '';
+                    
+                    return (
+                      <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border border-border">
+                        {isPdf ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-1 p-2">
+                            <FileText className="h-8 w-8 text-rose-500" />
+                            <span className="text-xs text-muted-foreground text-center line-clamp-2">{pdfName}</span>
+                          </div>
+                        ) : mediaFiles[index]?.type.startsWith('video/') ? (
+                          <video src={preview} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={preview} alt="" className="w-full h-full object-cover" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(index)}
+                          className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -686,6 +702,14 @@ export const InlinePostComposer = ({
             multiple
             onChange={handleMediaSelect}
           />
+          <input
+            type="file"
+            ref={pdfInputRef}
+            className="hidden"
+            accept="application/pdf,.pdf"
+            multiple
+            onChange={handleMediaSelect}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -731,6 +755,19 @@ export const InlinePostComposer = ({
             }}
             triggerClassName="text-muted-foreground hover:text-foreground"
           />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground gap-2"
+            onClick={() => {
+              if (!isExpanded) setIsExpanded(true);
+              pdfInputRef.current?.click();
+            }}
+          >
+            <FileText className="h-4 w-4 text-rose-500" />
+            <span className="hidden sm:inline">PDF</span>
+          </Button>
 
           <Button
             variant="ghost"

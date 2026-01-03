@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2, Calendar,
-  BarChart3, AlertTriangle, Users
+  BarChart3, AlertTriangle, Users, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -261,11 +261,16 @@ export const CreatePostModal = ({
     }
 
     validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaPreviews(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
+      // For PDFs, use a placeholder preview
+      if (file.type === 'application/pdf') {
+        setMediaPreviews(prev => [...prev, `pdf:${file.name}`]);
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setMediaPreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      }
     });
 
     setMediaFiles(prev => [...prev, ...validFiles]);
@@ -668,55 +673,76 @@ export const CreatePostModal = ({
                 {/* Existing Media (Edit Mode) */}
                 {existingMedia.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-2">
-                    {existingMedia.map((media) => (
-                      <div key={media.id} className="relative">
-                        {media.media_type === 'video' ? (
-                          <video
-                            src={media.file_url}
-                            className="w-full h-20 object-cover rounded-lg"
-                          />
-                        ) : (
-                          <img
-                            src={media.file_url}
-                            alt="Existing media"
-                            className="w-full h-20 object-cover rounded-lg"
-                          />
-                        )}
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-6 w-6"
-                          onClick={() => removeExistingMedia(media)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                    {existingMedia.map((media) => {
+                      const isPdf = media.media_type === 'pdf' || media.file_url.toLowerCase().endsWith('.pdf');
+                      
+                      return (
+                        <div key={media.id} className="relative">
+                          {isPdf ? (
+                            <div className="w-full h-20 flex flex-col items-center justify-center bg-muted rounded-lg gap-1 p-2 border border-border">
+                              <FileText className="h-6 w-6 text-rose-500" />
+                              <span className="text-[10px] text-muted-foreground text-center line-clamp-1">PDF</span>
+                            </div>
+                          ) : media.media_type === 'video' ? (
+                            <video
+                              src={media.file_url}
+                              className="w-full h-20 object-cover rounded-lg"
+                            />
+                          ) : (
+                            <img
+                              src={media.file_url}
+                              alt="Existing media"
+                              className="w-full h-20 object-cover rounded-lg"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6"
+                            onClick={() => removeExistingMedia(media)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 
                 {/* New Media Previews */}
                 {mediaPreviews.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {mediaPreviews.map((preview, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-20 object-cover rounded-lg"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-6 w-6"
-                          onClick={() => removeMedia(index)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                    {mediaPreviews.map((preview, index) => {
+                      const isPdf = preview.startsWith('pdf:');
+                      const pdfName = isPdf ? preview.replace('pdf:', '') : '';
+                      
+                      return (
+                        <div key={index} className="relative">
+                          {isPdf ? (
+                            <div className="w-full h-20 flex flex-col items-center justify-center bg-muted rounded-lg gap-1 p-2 border border-border">
+                              <FileText className="h-6 w-6 text-rose-500" />
+                              <span className="text-[10px] text-muted-foreground text-center line-clamp-1">{pdfName}</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-20 object-cover rounded-lg"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6"
+                            onClick={() => removeMedia(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <Button
@@ -732,7 +758,7 @@ export const CreatePostModal = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,application/pdf,.pdf"
                   multiple
                   onChange={handleMediaSelect}
                   className="hidden"

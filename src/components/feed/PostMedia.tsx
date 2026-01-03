@@ -1,6 +1,6 @@
 /**
  * Post Media Gallery Component
- * Displays images and videos in a responsive grid
+ * Displays images, videos, and PDFs in a responsive grid
  */
 
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoPlayer } from './VideoPlayer';
+import { PDFViewer } from './PDFViewer';
 
 interface MediaItem {
   id: string;
@@ -61,6 +62,21 @@ export const PostMedia = ({ media }: PostMediaProps) => {
 
   const renderMediaItem = (item: MediaItem, index: number, isInLightbox = false) => {
     const isGif = item.media_type === 'gif' || item.file_url.toLowerCase().endsWith('.gif');
+    const isPdf = item.media_type === 'pdf' || item.file_url.toLowerCase().endsWith('.pdf');
+    
+    // PDF rendering
+    if (isPdf) {
+      return (
+        <div className="w-full h-full group">
+          <PDFViewer
+            fileUrl={item.file_url}
+            mode={isInLightbox ? 'lightbox' : 'inline'}
+            onExpand={isInLightbox ? undefined : () => openLightbox(index)}
+            className={isInLightbox ? "min-h-[500px]" : "h-full"}
+          />
+        </div>
+      );
+    }
     
     if (item.media_type === 'video') {
       if (isInLightbox) {
