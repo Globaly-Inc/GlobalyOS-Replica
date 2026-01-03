@@ -1517,11 +1517,6 @@ const OrgAttendanceHistory = () => {
             </div> :
       // Desktop Table View
       <Card className="overflow-hidden">
-              <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
-                <h2 className="font-semibold text-sm">Attendance Records</h2>
-                <span className="text-xs text-muted-foreground">{filteredRecords.length} records</span>
-              </div>
-              
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
