@@ -320,7 +320,11 @@ export const useCreatePost = () => {
             .from('post-media')
             .getPublicUrl(fileName);
 
-          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          const mediaType = file.type.startsWith('video/') 
+            ? 'video' 
+            : file.type === 'application/pdf' 
+              ? 'pdf' 
+              : 'image';
           
           await supabase.from('post_media').insert({
             post_id: post.id,
@@ -719,7 +723,11 @@ export const useUpdatePost = () => {
             .from('post-media')
             .getPublicUrl(fileName);
 
-          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          const mediaType = file.type.startsWith('video/') 
+            ? 'video' 
+            : file.type === 'application/pdf' 
+              ? 'pdf' 
+              : 'image';
 
           await supabase.from('post_media').insert({
             post_id: input.postId,
