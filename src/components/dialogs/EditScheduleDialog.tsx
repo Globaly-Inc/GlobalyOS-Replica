@@ -41,6 +41,7 @@ interface EditScheduleDialogProps {
     late_threshold_minutes: number;
     timezone?: string;
     work_location?: WorkLocation;
+    work_days?: number[];
   } | null;
   onSuccess?: () => void;
 }
@@ -126,14 +127,17 @@ export const EditScheduleDialog = ({
         setBreakStartTime(currentSchedule.break_start_time?.substring(0, 5) || "12:00");
         setBreakEndTime(currentSchedule.break_end_time?.substring(0, 5) || "13:00");
         
+        // Use work_days from schedule if available, otherwise default to Mon-Fri
+        const workDays = currentSchedule.work_days || [1, 2, 3, 4, 5];
+        
         setWeekSchedule({
-          monday: { enabled: true, start: startTime, end: endTime },
-          tuesday: { enabled: true, start: startTime, end: endTime },
-          wednesday: { enabled: true, start: startTime, end: endTime },
-          thursday: { enabled: true, start: startTime, end: endTime },
-          friday: { enabled: true, start: startTime, end: endTime },
-          saturday: { enabled: false, start: startTime, end: endTime },
-          sunday: { enabled: false, start: startTime, end: endTime },
+          sunday: { enabled: workDays.includes(0), start: startTime, end: endTime },
+          monday: { enabled: workDays.includes(1), start: startTime, end: endTime },
+          tuesday: { enabled: workDays.includes(2), start: startTime, end: endTime },
+          wednesday: { enabled: workDays.includes(3), start: startTime, end: endTime },
+          thursday: { enabled: workDays.includes(4), start: startTime, end: endTime },
+          friday: { enabled: workDays.includes(5), start: startTime, end: endTime },
+          saturday: { enabled: workDays.includes(6), start: startTime, end: endTime },
         });
       } else {
         setWeekSchedule(getDefaultWeekSchedule());
@@ -182,6 +186,16 @@ export const EditScheduleDialog = ({
 
     const primarySchedule = weekSchedule[enabledDay.key];
 
+    // Build work_days array from weekSchedule (0=Sunday, 1=Monday, ..., 6=Saturday)
+    const workDays: number[] = [];
+    if (weekSchedule.sunday.enabled) workDays.push(0);
+    if (weekSchedule.monday.enabled) workDays.push(1);
+    if (weekSchedule.tuesday.enabled) workDays.push(2);
+    if (weekSchedule.wednesday.enabled) workDays.push(3);
+    if (weekSchedule.thursday.enabled) workDays.push(4);
+    if (weekSchedule.friday.enabled) workDays.push(5);
+    if (weekSchedule.saturday.enabled) workDays.push(6);
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -195,6 +209,7 @@ export const EditScheduleDialog = ({
           break_end_time: `${breakEndTime}:00`,
           late_threshold_minutes: lateThreshold,
           work_location: workLocation,
+          work_days: workDays,
         }, {
           onConflict: "employee_id",
         });

@@ -20,6 +20,9 @@ interface EmployeeSchedule {
   work_start_time: string;
   work_end_time: string;
   work_location: string;
+  break_start_time?: string;
+  break_end_time?: string;
+  work_days?: number[];
 }
 
 interface NotCheckedInEmployee {
@@ -74,7 +77,10 @@ export const NotCheckedInCard = () => {
           employee_schedules!inner(
             work_start_time,
             work_end_time,
-            work_location
+            work_location,
+            break_start_time,
+            break_end_time,
+            work_days
           )
         `)
         .eq('organization_id', currentOrg.id)
@@ -87,10 +93,10 @@ export const NotCheckedInCard = () => {
         return;
       }
 
-      // Get employees on approved leave today
+      // Get employees on approved leave today (include half_day_type)
       const { data: onLeaveToday } = await supabase
         .from('leave_requests')
-        .select('employee_id')
+        .select('employee_id, half_day_type')
         .eq('organization_id', currentOrg.id)
         .eq('status', 'approved')
         .lte('start_date', today)
@@ -112,19 +118,29 @@ export const NotCheckedInCard = () => {
         .eq('reminder_date', today)
         .eq('reminder_type', 'checkin');
 
-      const onLeaveIds = new Set(onLeaveToday?.map(l => l.employee_id) || []);
+      // Build leave map: employee_id -> { isFullDay, isFirstHalf, isSecondHalf }
+      const leaveMap = new Map<string, { isFullDay: boolean; isFirstHalf: boolean; isSecondHalf: boolean }>();
+      onLeaveToday?.forEach(l => {
+        leaveMap.set(l.employee_id, {
+          isFullDay: l.half_day_type === 'full',
+          isFirstHalf: l.half_day_type === 'first_half',
+          isSecondHalf: l.half_day_type === 'second_half',
+        });
+      });
+
       const checkedInIds = new Set(checkedInToday?.map(r => r.employee_id) || []);
       const reminderSentIds = new Set(remindersToday?.map(r => r.employee_id) || []);
       
       setSentReminders(reminderSentIds);
 
-      // Get current time in organization's timezone for comparison
+      // Get current time and day in organization's timezone for comparison
       const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
+      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), orgTimezone, 'i')) % 7; // 0=Sunday, 1=Monday, ..., 6=Saturday
 
       // Filter to find not-checked-in employees whose start time has passed
       const filtered = (employeesWithSchedule || []).filter(emp => {
-        // Exclude employees on leave or already checked in
-        if (onLeaveIds.has(emp.id) || checkedInIds.has(emp.id)) {
+        // Already checked in - exclude
+        if (checkedInIds.has(emp.id)) {
           return false;
         }
 
@@ -134,6 +150,32 @@ export const NotCheckedInCard = () => {
         
         if (!schedule?.work_start_time) {
           return false;
+        }
+
+        // Check if today is a work day for this employee (default Mon-Fri if not set)
+        const workDays = schedule.work_days || [1, 2, 3, 4, 5];
+        if (!workDays.includes(currentDayOfWeek)) {
+          return false; // Today is not a scheduled work day
+        }
+
+        // Check leave status
+        const leave = leaveMap.get(emp.id);
+        if (leave) {
+          // Full day leave - exclude entirely
+          if (leave.isFullDay) return false;
+          
+          // First half leave - only flag if current time is past break_end_time
+          if (leave.isFirstHalf) {
+            const breakEndTime = schedule.break_end_time || '13:00:00';
+            return currentTimeStr >= breakEndTime; // Only show after lunch break
+          }
+          
+          // Second half leave - only flag if current time is before break_start_time
+          if (leave.isSecondHalf) {
+            const breakStartTime = schedule.break_start_time || '12:00:00';
+            if (currentTimeStr >= breakStartTime) return false; // They're on leave now
+            // Otherwise, they should have checked in by their normal start time
+          }
         }
 
         // Only show if their scheduled start time has passed
