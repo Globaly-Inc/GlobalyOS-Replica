@@ -111,12 +111,31 @@ export const useCreateWikiFolder = () => {
         throw new Error('Not authenticated');
       }
 
+      // Check for existing folder with same name at same level (case-insensitive)
+      let checkQuery = supabase
+        .from('wiki_folders')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .ilike('name', name.trim());
+      
+      if (parentId === null) {
+        checkQuery = checkQuery.is('parent_id', null);
+      } else {
+        checkQuery = checkQuery.eq('parent_id', parentId);
+      }
+
+      const { data: existing } = await checkQuery.maybeSingle();
+
+      if (existing) {
+        throw new Error('A folder with this name already exists in this location');
+      }
+
       // Note: created_by is set/overridden server-side by trigger (set_wiki_folder_created_by_trigger)
       // We still pass it here for TypeScript type compliance (column is non-nullable)
       const { error } = await supabase
         .from('wiki_folders')
         .insert({
-          name,
+          name: name.trim(),
           parent_id: parentId,
           organization_id: currentOrg.id,
           created_by: currentEmployee.id,
@@ -303,12 +322,46 @@ export const useDeleteWikiPage = () => {
 // Rename folder
 export const useRenameWikiFolder = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
 
   return useMutation({
     mutationFn: async ({ folderId, name }: { folderId: string; name: string }) => {
+      if (!currentOrg?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Get current folder's parent_id to check for duplicates at the same level
+      const { data: currentFolder, error: fetchError } = await supabase
+        .from('wiki_folders')
+        .select('parent_id')
+        .eq('id', folderId)
+        .single();
+
+      if (fetchError || !currentFolder) throw fetchError || new Error('Folder not found');
+
+      // Check for existing folder with same name at same level (case-insensitive)
+      let checkQuery = supabase
+        .from('wiki_folders')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .ilike('name', name.trim())
+        .neq('id', folderId); // Exclude current folder
+
+      if (currentFolder.parent_id === null) {
+        checkQuery = checkQuery.is('parent_id', null);
+      } else {
+        checkQuery = checkQuery.eq('parent_id', currentFolder.parent_id);
+      }
+
+      const { data: existing } = await checkQuery.maybeSingle();
+
+      if (existing) {
+        throw new Error('A folder with this name already exists in this location');
+      }
+
       const { error } = await supabase
         .from('wiki_folders')
-        .update({ name })
+        .update({ name: name.trim() })
         .eq('id', folderId);
 
       if (error) throw error;

@@ -57,6 +57,11 @@ function parseErrorMessage(message: string): string {
     .replace(/^ERROR:\s*/i, '')
     .replace(/^RAISE EXCEPTION:\s*/i, '')
     .replace(/^SQLSTATE\[\w+\]:\s*/i, '')
+    // Handle unique constraint violations for wiki folders
+    .replace(/idx_wiki_folders_unique_name/i,
+      'A folder with this name already exists in this location')
+    .replace(/duplicate key value violates unique constraint.*wiki_folders/i,
+      'A folder with this name already exists in this location')
     // Handle RLS violations with a friendly message
     .replace(/^new row violates row-level security policy.*$/i, 
       'You do not have permission to perform this action')
