@@ -14,7 +14,12 @@ interface EmployeeSchedule {
   work_start_time: string;
   work_end_time: string;
   work_location: string;
+  break_start_time?: string;
+  break_end_time?: string;
+  work_days?: number[];
 }
+
+type HalfDayType = 'full' | 'first_half' | 'second_half' | null;
 
 export const SelfCheckInCard = () => {
   const { user } = useAuth();
@@ -24,12 +29,13 @@ export const SelfCheckInCard = () => {
   const [loading, setLoading] = useState(true);
   const [schedule, setSchedule] = useState<EmployeeSchedule | null>(null);
   const [isOnLeave, setIsOnLeave] = useState(false);
+  const [halfDayType, setHalfDayType] = useState<HalfDayType>(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [scheduleStarted, setScheduleStarted] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>('Asia/Kathmandu');
 
-  // Check if schedule has started (only show card after work_start_time in org timezone)
+  // Check if schedule has started based on work days and half-day leave
   useEffect(() => {
     if (!schedule?.work_start_time) {
       setScheduleStarted(false);
@@ -37,21 +43,41 @@ export const SelfCheckInCard = () => {
     }
 
     const checkScheduleStarted = () => {
-      // Get current time in organization's timezone
+      // Get current time and day in organization's timezone
       const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
-      const startTimeStr = schedule.work_start_time;
+      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), orgTimezone, 'i')) % 7;
       
-      setScheduleStarted(currentTimeStr >= startTimeStr);
+      // Check if today is a scheduled work day (default Mon-Fri: 1,2,3,4,5)
+      const workDays = schedule.work_days || [1, 2, 3, 4, 5];
+      if (!workDays.includes(currentDayOfWeek)) {
+        setScheduleStarted(false);
+        return;
+      }
+
+      // Determine effective start and end time based on leave type
+      let effectiveStartTime = schedule.work_start_time;
+      let effectiveEndTime = schedule.work_end_time;
+      
+      if (halfDayType === 'first_half') {
+        // First half leave: check-in starts after break ends
+        effectiveStartTime = schedule.break_end_time || '13:00:00';
+      } else if (halfDayType === 'second_half') {
+        // Second half leave: check-in at regular time, ends when break starts
+        effectiveEndTime = schedule.break_start_time || '12:00:00';
+      }
+      
+      // Only show card if current time is within working window
+      const isAfterStart = currentTimeStr >= effectiveStartTime;
+      const isBeforeEnd = currentTimeStr < effectiveEndTime;
+      
+      setScheduleStarted(isAfterStart && isBeforeEnd);
     };
 
-    // Check immediately
     checkScheduleStarted();
-    
-    // Re-check every minute
     const interval = setInterval(checkScheduleStarted, 60000);
     
     return () => clearInterval(interval);
-  }, [schedule?.work_start_time, orgTimezone]);
+  }, [schedule, orgTimezone, halfDayType]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -80,7 +106,10 @@ export const SelfCheckInCard = () => {
             employee_schedules(
               work_start_time,
               work_end_time,
-              work_location
+              work_location,
+              break_start_time,
+              break_end_time,
+              work_days
             )
           `)
           .eq("user_id", user.id)
@@ -116,14 +145,22 @@ export const SelfCheckInCard = () => {
         const today = formatInTimeZone(new Date(), timezone, 'yyyy-MM-dd');
         const { data: leaveRequest } = await supabase
           .from("leave_requests")
-          .select("id")
+          .select("id, half_day_type")
           .eq("employee_id", employee.id)
           .eq("status", "approved")
           .lte("start_date", today)
           .gte("end_date", today)
           .maybeSingle();
 
-        setIsOnLeave(!!leaveRequest);
+        if (leaveRequest) {
+          const leaveType = leaveRequest.half_day_type as HalfDayType;
+          setHalfDayType(leaveType);
+          // Only set isOnLeave for full day leave
+          setIsOnLeave(leaveType === 'full');
+        } else {
+          setHalfDayType(null);
+          setIsOnLeave(false);
+        }
       } catch (error) {
         console.error("Error loading self check-in data:", error);
       } finally {
@@ -134,7 +171,7 @@ export const SelfCheckInCard = () => {
     loadData();
   }, [user?.id, currentOrg?.id]);
 
-  // Don't show if loading, no schedule, on leave, or already checked in
+  // Don't show if loading, no schedule, on full-day leave, or already checked in
   if (loading || statusLoading) {
     return null;
   }
@@ -151,11 +188,20 @@ export const SelfCheckInCard = () => {
     return format(date, "h:mm a");
   };
 
+  // Get effective start time based on half-day leave
+  const getEffectiveStartTime = () => {
+    if (halfDayType === 'first_half') {
+      return schedule?.break_end_time || '13:00:00';
+    }
+    return schedule?.work_start_time || '';
+  };
+
   const getLateDuration = () => {
-    if (!schedule?.work_start_time) return null;
+    const effectiveStartTime = getEffectiveStartTime();
+    if (!effectiveStartTime) return null;
     
     const now = new Date();
-    const [hours, minutes] = schedule.work_start_time.split(":").map(Number);
+    const [hours, minutes] = effectiveStartTime.split(":").map(Number);
     const startTime = new Date();
     startTime.setHours(hours, minutes, 0, 0);
 
@@ -187,7 +233,7 @@ export const SelfCheckInCard = () => {
               <div className="mt-2 space-y-1">
                 <div className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300">
                   <Clock className="h-3.5 w-3.5" />
-                  <span>Expected: {formatTime(schedule.work_start_time)}</span>
+                  <span>Expected: {formatTime(getEffectiveStartTime())}</span>
                   {lateDuration && (
                     <span className="text-amber-600 dark:text-amber-400 font-medium">
                       ({lateDuration})
