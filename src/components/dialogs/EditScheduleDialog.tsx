@@ -123,6 +123,7 @@ export const EditScheduleDialog = ({
         const startTime = currentSchedule.work_start_time.substring(0, 5);
         const endTime = currentSchedule.work_end_time.substring(0, 5);
         setLateThreshold(currentSchedule.late_threshold_minutes);
+        setTimezone(currentSchedule.timezone || getLocalTimezone());
         setWorkLocation(currentSchedule.work_location || "office");
         setBreakStartTime(currentSchedule.break_start_time?.substring(0, 5) || "12:00");
         setBreakEndTime(currentSchedule.break_end_time?.substring(0, 5) || "13:00");
@@ -142,6 +143,7 @@ export const EditScheduleDialog = ({
       } else {
         setWeekSchedule(getDefaultWeekSchedule());
         setLateThreshold(15);
+        setTimezone(getLocalTimezone());
         setWorkLocation("office");
         setBreakStartTime("12:00");
         setBreakEndTime("13:00");
@@ -210,6 +212,7 @@ export const EditScheduleDialog = ({
           late_threshold_minutes: lateThreshold,
           work_location: workLocation,
           work_days: workDays,
+          timezone: timezone,
         }, {
           onConflict: "employee_id",
         });

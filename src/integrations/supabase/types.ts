@@ -2340,6 +2340,7 @@ export type Database = {
           id: string
           late_threshold_minutes: number
           organization_id: string | null
+          timezone: string | null
           updated_at: string
           work_days: number[] | null
           work_end_time: string
@@ -2354,6 +2355,7 @@ export type Database = {
           id?: string
           late_threshold_minutes?: number
           organization_id?: string | null
+          timezone?: string | null
           updated_at?: string
           work_days?: number[] | null
           work_end_time?: string
@@ -2368,6 +2370,7 @@ export type Database = {
           id?: string
           late_threshold_minutes?: number
           organization_id?: string | null
+          timezone?: string | null
           updated_at?: string
           work_days?: number[] | null
           work_end_time?: string

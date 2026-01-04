@@ -9,6 +9,7 @@ import { useCheckInStatus } from "@/services/useAttendance";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { getTimezoneAbbreviation } from "@/utils/timezone";
 
 interface EmployeeSchedule {
   work_start_time: string;
@@ -185,7 +186,7 @@ export const SelfCheckInCard = () => {
     const [hours, minutes] = timeStr.split(":");
     const date = new Date();
     date.setHours(parseInt(hours), parseInt(minutes));
-    return format(date, "h:mm a");
+    return `${format(date, "h:mm a")} ${getTimezoneAbbreviation(orgTimezone)}`;
   };
 
   // Get effective start time based on half-day leave

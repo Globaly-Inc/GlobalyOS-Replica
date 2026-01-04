@@ -22,7 +22,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings, Check, BarChart3 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
-import { formatTimeInTimezone } from "@/utils/timezone";
+import { formatTimeInTimezone, getTimezoneAbbreviation } from "@/utils/timezone";
+import { useTimezone } from "@/hooks/useTimezone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,8 @@ const OrgAttendanceHistory = () => {
   } = useOrgNavigation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { timezone: userTimezone } = useTimezone();
+  const tzAbbr = getTimezoneAbbreviation(userTimezone);
   
   // Get current employee and their direct reports for role-based access
   const { data: currentEmployee, isLoading: currentEmployeeLoading } = useCurrentEmployee();
@@ -311,7 +314,7 @@ const OrgAttendanceHistory = () => {
     }
   };
 
-  // Helper function to check if check-in is late (accounts for half-day leave and uses org timezone)
+  // Helper function to check if check-in is late (accounts for half-day leave and uses schedule timezone)
   const isLateArrival = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_in_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
@@ -324,9 +327,9 @@ const OrgAttendanceHistory = () => {
       effectiveStartTime = schedule.break_end_time || '13:00:00';
     }
     
-    // Use org timezone for accurate comparison
-    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
-    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, orgTimezone, 'HH:mm:ss');
+    // Use schedule's timezone for business logic, falling back to org timezone
+    const scheduleTimezone = schedule.timezone || currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, scheduleTimezone, 'HH:mm:ss');
     const [checkInH, checkInM] = checkInTimeLocal.split(':').map(Number);
     const [startH, startM] = effectiveStartTime.split(':').map(Number);
     
@@ -336,7 +339,7 @@ const OrgAttendanceHistory = () => {
     return checkInTotalMinutes > thresholdTotalMinutes;
   };
 
-  // Helper function to check if check-out is early (accounts for half-day leave and uses org timezone)
+  // Helper function to check if check-out is early (accounts for half-day leave and uses schedule timezone)
   const isEarlyDeparture = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_out_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
@@ -349,9 +352,9 @@ const OrgAttendanceHistory = () => {
       effectiveEndTime = schedule.break_start_time || '12:00:00';
     }
     
-    // Use org timezone for accurate comparison
-    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
-    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, orgTimezone, 'HH:mm:ss');
+    // Use schedule's timezone for business logic, falling back to org timezone
+    const scheduleTimezone = schedule.timezone || currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, scheduleTimezone, 'HH:mm:ss');
     const [checkOutH, checkOutM] = checkOutTimeLocal.split(':').map(Number);
     const [endH, endM] = effectiveEndTime.split(':').map(Number);
     
@@ -382,7 +385,7 @@ const OrgAttendanceHistory = () => {
             position,
             office_id,
             profiles!inner(full_name, avatar_url),
-            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time),
+            employee_schedules(work_location, work_start_time, work_end_time, late_threshold_minutes, break_start_time, break_end_time, timezone),
             office:offices!employees_office_id_fkey(
               id,
               name,

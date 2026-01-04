@@ -194,6 +194,7 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
       break_end_time: formData.break_end_time + ':00',
       late_threshold_minutes: formData.late_threshold_minutes,
       work_location: 'office' as const,
+      timezone: formData.timezone,
     }));
 
     const { error } = await supabase
