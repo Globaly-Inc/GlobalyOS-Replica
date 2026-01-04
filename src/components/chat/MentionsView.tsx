@@ -57,7 +57,7 @@ const MentionsView = ({ onNavigateToChat, onBack }: MentionsViewProps) => {
   return (
     <div className="flex flex-col h-full bg-card">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border">
+      <div className="flex items-center gap-3 px-2 py-4 border-b border-border">
         {isMobile && onBack && (
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
@@ -74,7 +74,7 @@ const MentionsView = ({ onNavigateToChat, onBack }: MentionsViewProps) => {
 
       {/* Content */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
+        <div className="px-2 py-4 space-y-3">
           {isLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading...</div>
           ) : messages.length === 0 ? (
@@ -89,7 +89,7 @@ const MentionsView = ({ onNavigateToChat, onBack }: MentionsViewProps) => {
                 key={message.id}
                 onClick={() => handleMessageClick(message)}
                 className={cn(
-                  "w-full text-left p-4 rounded-lg border border-border bg-background",
+                  "w-full text-left p-3 rounded-lg border border-border bg-background",
                   "hover:bg-muted transition-colors"
                 )}
               >

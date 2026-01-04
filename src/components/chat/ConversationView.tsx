@@ -640,7 +640,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
         <div className="flex-1 relative overflow-hidden">
           <div 
             ref={scrollContainerRef}
-            className="absolute inset-0 overflow-y-auto px-2 md:px-4 py-4"
+            className="absolute inset-0 overflow-y-auto px-1 md:px-4 py-4"
             onScroll={handleScroll}
           >
             {isLoading ? (
