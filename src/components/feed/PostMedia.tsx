@@ -28,6 +28,10 @@ export const PostMedia = ({ media }: PostMediaProps) => {
 
   if (!media || media.length === 0) return null;
 
+  // Check if this is a single PDF post for edge-to-edge mobile display
+  const isSinglePdf = media.length === 1 && 
+    (media[0].media_type === 'pdf' || media[0].file_url.toLowerCase().endsWith('.pdf'));
+
   const openLightbox = (index: number) => {
     setCurrentIndex(index);
     setLightboxOpen(true);
@@ -122,15 +126,21 @@ export const PostMedia = ({ media }: PostMediaProps) => {
   return (
     <>
       <div className={cn(
-        "grid gap-1 px-4 pb-3",
+        "grid gap-1 pb-3",
+        !isSinglePdf && "px-4", // Remove padding for single PDF (edge-to-edge on mobile)
         getGridClass()
       )}>
         {media.slice(0, 6).map((item, index) => (
           <div
             key={item.id}
             className={cn(
-              "relative overflow-hidden rounded-lg bg-muted",
-              media.length === 1 && "aspect-video",
+              "relative overflow-hidden bg-muted",
+              // Single PDF: taller on mobile, no rounded corners for edge-to-edge
+              isSinglePdf && "aspect-[4/5] sm:aspect-video sm:rounded-lg",
+              // Single non-PDF media
+              media.length === 1 && !isSinglePdf && "aspect-video rounded-lg",
+              // Multiple items - always rounded
+              media.length >= 2 && "rounded-lg",
               media.length === 2 && "aspect-square",
               media.length === 3 && index === 0 && "row-span-2 aspect-auto h-full",
               media.length === 3 && index > 0 && "aspect-square",

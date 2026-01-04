@@ -245,8 +245,10 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
     <div 
       ref={containerRef}
       className={cn(
-        "flex flex-col bg-muted rounded-lg overflow-hidden",
-        mode === 'inline' ? "aspect-[4/3]" : "w-full",
+        "flex flex-col bg-muted overflow-hidden",
+        mode === 'inline' 
+          ? "min-h-[300px] sm:min-h-[320px] sm:rounded-lg" // No rounded corners on mobile for edge-to-edge
+          : "w-full rounded-lg",
         className
       )}
     >
