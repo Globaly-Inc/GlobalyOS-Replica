@@ -19,8 +19,9 @@ import { z } from 'zod';
 import { 
   Trophy, Megaphone, Heart, MessageSquare, Crown, 
   Image, X, ChevronDown, Search, Plus, Trash2, Calendar,
-  BarChart3, AlertTriangle, Users, FileText
+  BarChart3, AlertTriangle, Users, FileText, Video
 } from 'lucide-react';
+import { PdfThumbnailPreview } from './PdfThumbnailPreview';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
@@ -732,14 +733,15 @@ export const CreatePostModal = ({
                   <div className="grid grid-cols-3 gap-2 mb-2">
                     {existingMedia.map((media) => {
                       const isPdf = media.media_type === 'pdf' || media.file_url.toLowerCase().endsWith('.pdf');
+                      const fileName = media.file_url.split('/').pop() || 'document.pdf';
                       
                       return (
                         <div key={media.id} className="relative">
                           {isPdf ? (
-                            <div className="w-full h-20 flex flex-col items-center justify-center bg-muted rounded-lg gap-1 p-2 border border-border">
-                              <FileText className="h-6 w-6 text-rose-500" />
-                              <span className="text-[10px] text-muted-foreground text-center line-clamp-1">PDF</span>
-                            </div>
+                            <PdfThumbnailPreview 
+                              url={media.file_url} 
+                              fileName={fileName}
+                            />
                           ) : media.media_type === 'video' ? (
                             <video
                               src={media.file_url}
@@ -756,7 +758,7 @@ export const CreatePostModal = ({
                             type="button"
                             variant="destructive"
                             size="icon"
-                            className="absolute -top-2 -right-2 h-6 w-6"
+                            className="absolute -top-2 -right-2 h-6 w-6 z-10"
                             onClick={() => removeExistingMedia(media)}
                           >
                             <X className="h-3 w-3" />
@@ -773,13 +775,18 @@ export const CreatePostModal = ({
                     {mediaPreviews.map((preview, index) => {
                       const isPdf = preview.startsWith('pdf:');
                       const pdfName = isPdf ? preview.replace('pdf:', '') : '';
+                      const pdfFile = isPdf ? mediaFiles[index] : undefined;
                       
                       return (
                         <div key={index} className="relative">
                           {isPdf ? (
-                            <div className="w-full h-20 flex flex-col items-center justify-center bg-muted rounded-lg gap-1 p-2 border border-border">
-                              <FileText className="h-6 w-6 text-rose-500" />
-                              <span className="text-[10px] text-muted-foreground text-center line-clamp-1">{pdfName}</span>
+                            <PdfThumbnailPreview 
+                              file={pdfFile}
+                              fileName={pdfName}
+                            />
+                          ) : preview.startsWith('data:video') ? (
+                            <div className="w-full h-20 flex items-center justify-center bg-muted rounded-lg border border-border">
+                              <Video className="h-6 w-6 text-blue-500" />
                             </div>
                           ) : (
                             <img
@@ -792,7 +799,7 @@ export const CreatePostModal = ({
                             type="button"
                             variant="destructive"
                             size="icon"
-                            className="absolute -top-2 -right-2 h-6 w-6"
+                            className="absolute -top-2 -right-2 h-6 w-6 z-10"
                             onClick={() => removeMedia(index)}
                           >
                             <X className="h-3 w-3" />
@@ -820,35 +827,57 @@ export const CreatePostModal = ({
                   </div>
                 )}
                 
-                {/* Action buttons - conditional based on attachment type */}
+                {/* Action buttons - always visible, disabled when incompatible */}
                 <div className="flex gap-2">
-                  {/* Show Image/Video button only when no PDF attached */}
-                  {attachmentType !== 'pdf' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => mediaFileInputRef.current?.click()}
-                      className="gap-2"
-                    >
-                      <Image className="h-4 w-4 text-emerald-500" />
-                      Add Photo/Video
-                    </Button>
-                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => mediaFileInputRef.current?.click()}
+                            disabled={attachmentType === 'pdf'}
+                            className="gap-2"
+                          >
+                            <Image className="h-4 w-4 text-emerald-500" />
+                            Add Photo/Video
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {attachmentType === 'pdf' && (
+                        <TooltipContent>
+                          <p>Remove PDF to add photos/videos</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                   
-                  {/* Show PDF button only when no media attached */}
-                  {attachmentType !== 'media' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => pdfFileInputRef.current?.click()}
-                      className="gap-2"
-                    >
-                      <FileText className="h-4 w-4 text-rose-500" />
-                      Add PDF
-                    </Button>
-                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => pdfFileInputRef.current?.click()}
+                            disabled={attachmentType === 'media'}
+                            className="gap-2"
+                          >
+                            <FileText className="h-4 w-4 text-rose-500" />
+                            Add PDF
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {attachmentType === 'media' && (
+                        <TooltipContent>
+                          <p>Remove photos/videos to add PDF</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 
                 {/* Hidden file inputs */}

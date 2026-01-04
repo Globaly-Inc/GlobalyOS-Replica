@@ -31,6 +31,8 @@ import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisib
 import { useCreatePost, PostType } from '@/services/useSocialFeed';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
 import UploadProgress, { UploadingFile } from '@/components/chat/UploadProgress';
+import { PdfThumbnailPreview } from './PdfThumbnailPreview';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -559,14 +561,16 @@ export const InlinePostComposer = ({
                   {mediaPreviews.map((preview, index) => {
                     const isPdf = preview.startsWith('pdf:');
                     const pdfName = isPdf ? preview.replace('pdf:', '') : '';
+                    const pdfFile = isPdf ? mediaFiles[index] : undefined;
                     
                     return (
                       <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border border-border">
                         {isPdf ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-1 p-2">
-                            <FileText className="h-8 w-8 text-rose-500" />
-                            <span className="text-xs text-muted-foreground text-center line-clamp-2">{pdfName}</span>
-                          </div>
+                          <PdfThumbnailPreview
+                            file={pdfFile}
+                            fileName={pdfName}
+                            className="h-full"
+                          />
                         ) : mediaFiles[index]?.type.startsWith('video/') ? (
                           <video src={preview} className="w-full h-full object-cover" />
                         ) : (
@@ -575,7 +579,7 @@ export const InlinePostComposer = ({
                         <button
                           type="button"
                           onClick={() => removeMedia(index)}
-                          className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -760,72 +764,110 @@ export const InlinePostComposer = ({
             onChange={handlePdfSelect}
           />
           
-          {/* Show Image/Video/GIF buttons only when no PDF attached */}
+          {/* Show Image/Video/GIF buttons - always visible, disabled when PDF attached */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground gap-2"
+                    disabled={attachmentType === 'pdf'}
+                    onClick={() => {
+                      if (!isExpanded) setIsExpanded(true);
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    <Image className="h-4 w-4 text-emerald-500" />
+                    <span className="hidden sm:inline">Image</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {attachmentType === 'pdf' && (
+                <TooltipContent>
+                  <p>Remove PDF to add images</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground gap-2"
+                    disabled={attachmentType === 'pdf'}
+                    onClick={() => {
+                      if (!isExpanded) setIsExpanded(true);
+                      videoInputRef.current?.click();
+                    }}
+                  >
+                    <Video className="h-4 w-4 text-blue-500" />
+                    <span className="hidden sm:inline">Video</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {attachmentType === 'pdf' && (
+                <TooltipContent>
+                  <p>Remove PDF to add videos</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+
           {attachmentType !== 'pdf' && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground gap-2"
-                onClick={() => {
-                  if (!isExpanded) setIsExpanded(true);
-                  fileInputRef.current?.click();
-                }}
-              >
-                <Image className="h-4 w-4 text-emerald-500" />
-                <span className="hidden sm:inline">Image</span>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground gap-2"
-                onClick={() => {
-                  if (!isExpanded) setIsExpanded(true);
-                  videoInputRef.current?.click();
-                }}
-              >
-                <Video className="h-4 w-4 text-blue-500" />
-                <span className="hidden sm:inline">Video</span>
-              </Button>
-
-              <GifPicker
-                onSelect={(gifUrl) => {
-                  if (!isExpanded) setIsExpanded(true);
-                  // Add GIF as a preview (treat as image)
-                  setMediaPreviews(prev => [...prev, gifUrl]);
-                  // Create a fake File for submission
-                  fetch(gifUrl)
-                    .then(res => res.blob())
-                    .then(blob => {
-                      const file = new File([blob], 'gif.gif', { type: 'image/gif' });
-                      setMediaFiles(prev => [...prev, file]);
-                    })
-                    .catch(() => {
-                      // Fallback: add as external URL
-                      setMediaPreviews(prev => [...prev, gifUrl]);
-                    });
-                }}
-                triggerClassName="text-muted-foreground hover:text-foreground"
-              />
-            </>
-          )}
-
-          {/* Show PDF button only when no media attached */}
-          {attachmentType !== 'media' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-2"
-              onClick={() => {
+            <GifPicker
+              onSelect={(gifUrl) => {
                 if (!isExpanded) setIsExpanded(true);
-                pdfInputRef.current?.click();
+                // Add GIF as a preview (treat as image)
+                setMediaPreviews(prev => [...prev, gifUrl]);
+                // Create a fake File for submission
+                fetch(gifUrl)
+                  .then(res => res.blob())
+                  .then(blob => {
+                    const file = new File([blob], 'gif.gif', { type: 'image/gif' });
+                    setMediaFiles(prev => [...prev, file]);
+                  })
+                  .catch(() => {
+                    // Fallback: add as external URL
+                    setMediaPreviews(prev => [...prev, gifUrl]);
+                  });
               }}
-            >
-              <FileText className="h-4 w-4 text-rose-500" />
-              <span className="hidden sm:inline">PDF</span>
-            </Button>
+              triggerClassName="text-muted-foreground hover:text-foreground"
+            />
           )}
+
+          {/* Show PDF button - always visible, disabled when media attached */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground gap-2"
+                    disabled={attachmentType === 'media'}
+                    onClick={() => {
+                      if (!isExpanded) setIsExpanded(true);
+                      pdfInputRef.current?.click();
+                    }}
+                  >
+                    <FileText className="h-4 w-4 text-rose-500" />
+                    <span className="hidden sm:inline">PDF</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {attachmentType === 'media' && (
+                <TooltipContent>
+                  <p>Remove photos/videos to add PDF</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
 
           <Button
             variant="ghost"
