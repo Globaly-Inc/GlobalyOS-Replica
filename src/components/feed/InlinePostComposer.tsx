@@ -79,6 +79,16 @@ export const InlinePostComposer = ({
   const videoInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   
+  // Track attachment type for mutual exclusivity (none, pdf, or media)
+  type AttachmentType = 'none' | 'pdf' | 'media';
+  const getAttachmentType = (): AttachmentType => {
+    const fileTypes = mediaFiles.map(f => f.type === 'application/pdf' ? 'pdf' : 'image');
+    if (fileTypes.length === 0) return 'none';
+    if (fileTypes.some(t => t === 'pdf')) return 'pdf';
+    return 'media';
+  };
+  const attachmentType = getAttachmentType();
+  
   // Team members (for kudos and mentions)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [kudosRecipients, setKudosRecipients] = useState<string[]>([]);
@@ -145,9 +155,24 @@ export const InlinePostComposer = ({
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
     
-    if (validFiles.length < files.length) {
+    // Filter out PDFs from media selection
+    const validFiles = files.filter(file => {
+      if (file.type === 'application/pdf') {
+        toast({
+          title: 'Use PDF button',
+          description: 'PDFs cannot be mixed with images/videos. Use the PDF button instead.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length < files.filter(f => f.type !== 'application/pdf').length) {
       toast({
         title: 'Some files skipped',
         description: 'Files must be under 50MB',
@@ -156,19 +181,44 @@ export const InlinePostComposer = ({
     }
 
     validFiles.forEach(file => {
-      // For PDFs, use a placeholder preview
-      if (file.type === 'application/pdf') {
-        setMediaPreviews(prev => [...prev, `pdf:${file.name}`]);
-      } else {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setMediaPreviews(prev => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMediaPreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
     });
 
     setMediaFiles(prev => [...prev, ...validFiles]);
+    
+    // Reset file input
+    if (e.target) e.target.value = '';
+  };
+  
+  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'File too large',
+        description: 'PDF must be under 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Clear any existing media (enforce mutual exclusivity)
+    if (mediaFiles.length > 0) {
+      setMediaFiles([]);
+      setMediaPreviews([]);
+    }
+    
+    // Add PDF
+    setMediaFiles([file]);
+    setMediaPreviews([`pdf:${file.name}`]);
+    
+    // Reset file input
+    if (e.target) e.target.value = '';
   };
 
   const removeMedia = (index: number) => {
@@ -707,67 +757,75 @@ export const InlinePostComposer = ({
             ref={pdfInputRef}
             className="hidden"
             accept="application/pdf,.pdf"
-            multiple
-            onChange={handleMediaSelect}
+            onChange={handlePdfSelect}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground gap-2"
-            onClick={() => {
-              if (!isExpanded) setIsExpanded(true);
-              fileInputRef.current?.click();
-            }}
-          >
-            <Image className="h-4 w-4 text-emerald-500" />
-            <span className="hidden sm:inline">Image</span>
-          </Button>
+          
+          {/* Show Image/Video/GIF buttons only when no PDF attached */}
+          {attachmentType !== 'pdf' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground gap-2"
+                onClick={() => {
+                  if (!isExpanded) setIsExpanded(true);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Image className="h-4 w-4 text-emerald-500" />
+                <span className="hidden sm:inline">Image</span>
+              </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground gap-2"
-            onClick={() => {
-              if (!isExpanded) setIsExpanded(true);
-              videoInputRef.current?.click();
-            }}
-          >
-            <Video className="h-4 w-4 text-blue-500" />
-            <span className="hidden sm:inline">Video</span>
-          </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground gap-2"
+                onClick={() => {
+                  if (!isExpanded) setIsExpanded(true);
+                  videoInputRef.current?.click();
+                }}
+              >
+                <Video className="h-4 w-4 text-blue-500" />
+                <span className="hidden sm:inline">Video</span>
+              </Button>
 
-          <GifPicker
-            onSelect={(gifUrl) => {
-              if (!isExpanded) setIsExpanded(true);
-              // Add GIF as a preview (treat as image)
-              setMediaPreviews(prev => [...prev, gifUrl]);
-              // Create a fake File for submission
-              fetch(gifUrl)
-                .then(res => res.blob())
-                .then(blob => {
-                  const file = new File([blob], 'gif.gif', { type: 'image/gif' });
-                  setMediaFiles(prev => [...prev, file]);
-                })
-                .catch(() => {
-                  // Fallback: add as external URL
+              <GifPicker
+                onSelect={(gifUrl) => {
+                  if (!isExpanded) setIsExpanded(true);
+                  // Add GIF as a preview (treat as image)
                   setMediaPreviews(prev => [...prev, gifUrl]);
-                });
-            }}
-            triggerClassName="text-muted-foreground hover:text-foreground"
-          />
+                  // Create a fake File for submission
+                  fetch(gifUrl)
+                    .then(res => res.blob())
+                    .then(blob => {
+                      const file = new File([blob], 'gif.gif', { type: 'image/gif' });
+                      setMediaFiles(prev => [...prev, file]);
+                    })
+                    .catch(() => {
+                      // Fallback: add as external URL
+                      setMediaPreviews(prev => [...prev, gifUrl]);
+                    });
+                }}
+                triggerClassName="text-muted-foreground hover:text-foreground"
+              />
+            </>
+          )}
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground gap-2"
-            onClick={() => {
-              if (!isExpanded) setIsExpanded(true);
-              pdfInputRef.current?.click();
-            }}
-          >
-            <FileText className="h-4 w-4 text-rose-500" />
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
+          {/* Show PDF button only when no media attached */}
+          {attachmentType !== 'media' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground gap-2"
+              onClick={() => {
+                if (!isExpanded) setIsExpanded(true);
+                pdfInputRef.current?.click();
+              }}
+            >
+              <FileText className="h-4 w-4 text-rose-500" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+          )}
 
           <Button
             variant="ghost"
