@@ -1199,18 +1199,77 @@ export type Database = {
           },
         ]
       }
+      chat_message_read_receipts: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          message_id: string
+          organization_id: string
+          read_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          message_id: string
+          organization_id: string
+          read_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          message_id?: string
+          organization_id?: string
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_read_receipts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_read_receipts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_read_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_read_receipts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
           content_type: string
           conversation_id: string | null
           created_at: string
+          delivered_at: string | null
           id: string
           is_pinned: boolean
           organization_id: string
+          read_at: string | null
           reply_to_id: string | null
           sender_id: string
           space_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -1218,12 +1277,15 @@ export type Database = {
           content_type?: string
           conversation_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
           is_pinned?: boolean
           organization_id: string
+          read_at?: string | null
           reply_to_id?: string | null
           sender_id: string
           space_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -1231,12 +1293,15 @@ export type Database = {
           content_type?: string
           conversation_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
           is_pinned?: boolean
           organization_id?: string
+          read_at?: string | null
           reply_to_id?: string | null
           sender_id?: string
           space_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
