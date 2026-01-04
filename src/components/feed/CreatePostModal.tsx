@@ -99,7 +99,21 @@ export const CreatePostModal = ({
   const [existingMedia, setExistingMedia] = useState<ExistingMedia[]>([]);
   const [removedMediaIds, setRemovedMediaIds] = useState<string[]>([]);
   const [removedMediaUrls, setRemovedMediaUrls] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Track attachment type for mutual exclusivity (none, pdf, or media)
+  type AttachmentType = 'none' | 'pdf' | 'media';
+  const getAttachmentType = (): AttachmentType => {
+    const allMedia = [
+      ...existingMedia.map(m => m.media_type),
+      ...mediaFiles.map(f => f.type === 'application/pdf' ? 'pdf' : 'image')
+    ];
+    if (allMedia.length === 0) return 'none';
+    if (allMedia.some(t => t === 'pdf')) return 'pdf';
+    return 'media';
+  };
+  const attachmentType = getAttachmentType();
   
   // Team members (for kudos and mentions)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -250,9 +264,24 @@ export const CreatePostModal = ({
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
     
-    if (validFiles.length < files.length) {
+    // Filter out PDFs from media selection (they should use PDF button)
+    const validFiles = files.filter(file => {
+      if (file.type === 'application/pdf') {
+        toast({
+          title: 'Use PDF button',
+          description: 'PDFs cannot be mixed with images/videos. Use the PDF button instead.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length < files.filter(f => f.type !== 'application/pdf').length) {
       toast({
         title: 'Some files skipped',
         description: 'Files must be under 50MB',
@@ -261,19 +290,47 @@ export const CreatePostModal = ({
     }
 
     validFiles.forEach(file => {
-      // For PDFs, use a placeholder preview
-      if (file.type === 'application/pdf') {
-        setMediaPreviews(prev => [...prev, `pdf:${file.name}`]);
-      } else {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setMediaPreviews(prev => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMediaPreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
     });
 
     setMediaFiles(prev => [...prev, ...validFiles]);
+    
+    // Reset file input
+    if (e.target) e.target.value = '';
+  };
+  
+  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'File too large',
+        description: 'PDF must be under 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Clear any existing media (enforce mutual exclusivity)
+    if (existingMedia.length > 0 || mediaFiles.length > 0) {
+      setRemovedMediaIds(prev => [...prev, ...existingMedia.map(m => m.id)]);
+      setRemovedMediaUrls(prev => [...prev, ...existingMedia.map(m => m.file_url)]);
+      setExistingMedia([]);
+      setMediaFiles([]);
+      setMediaPreviews([]);
+    }
+    
+    // Add PDF
+    setMediaFiles([file]);
+    setMediaPreviews([`pdf:${file.name}`]);
+    
+    // Reset file input
+    if (e.target) e.target.value = '';
   };
 
   const removeMedia = (index: number) => {
@@ -745,22 +802,69 @@ export const CreatePostModal = ({
                     })}
                   </div>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-2"
-                >
-                  <Image className="h-4 w-4" />
-                  Add Photo/Video
-                </Button>
+                
+                {/* Attachment type indicator */}
+                {attachmentType !== 'none' && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1 py-1">
+                    {attachmentType === 'pdf' ? (
+                      <>
+                        <FileText className="h-3 w-3 text-rose-500" />
+                        PDF attached — remove to add images/videos
+                      </>
+                    ) : (
+                      <>
+                        <Image className="h-3 w-3 text-emerald-500" />
+                        Media attached — remove to add PDF
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {/* Action buttons - conditional based on attachment type */}
+                <div className="flex gap-2">
+                  {/* Show Image/Video button only when no PDF attached */}
+                  {attachmentType !== 'pdf' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => mediaFileInputRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <Image className="h-4 w-4 text-emerald-500" />
+                      Add Photo/Video
+                    </Button>
+                  )}
+                  
+                  {/* Show PDF button only when no media attached */}
+                  {attachmentType !== 'media' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => pdfFileInputRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <FileText className="h-4 w-4 text-rose-500" />
+                      Add PDF
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Hidden file inputs */}
                 <input
-                  ref={fileInputRef}
+                  ref={mediaFileInputRef}
                   type="file"
-                  accept="image/*,video/*,application/pdf,.pdf"
+                  accept="image/*,video/*"
                   multiple
                   onChange={handleMediaSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={pdfFileInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={handlePdfSelect}
                   className="hidden"
                 />
               </div>
