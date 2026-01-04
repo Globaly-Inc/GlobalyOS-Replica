@@ -392,11 +392,17 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const canSend = message.trim() || selectedFiles.length > 0;
 
   return (
-    <div className="border-t border-border bg-card flex-shrink-0">
+    <div className={cn(
+      "border-t border-border bg-card flex-shrink-0",
+      isMobile && "shadow-[0_-2px_10px_-3px_rgba(0,0,0,0.1)]"
+    )}>
       {/* Upload Progress */}
       <UploadProgress files={uploadingFiles} />
       
-      <div className="mx-3 md:mx-4 mb-3 md:mb-4 mt-3">
+      <div className={cn(
+        "mx-3 mb-3 mt-3",
+        isMobile ? "mx-2 mb-2 mt-2" : "md:mx-4 md:mb-4"
+      )}>
         {/* Selected files preview - above the input box */}
         {selectedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/30 rounded-lg border border-border/50">
@@ -406,10 +412,16 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   <img 
                     src={sf.preview} 
                     alt={sf.file.name} 
-                    className="h-12 w-12 md:h-14 md:w-14 object-cover rounded-md border border-border"
+                    className={cn(
+                      "object-cover rounded-md border border-border",
+                      isMobile ? "h-14 w-14" : "h-12 w-12 md:h-14 md:w-14"
+                    )}
                   />
                 ) : (
-                  <div className="h-12 w-12 md:h-14 md:w-14 flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1">
+                  <div className={cn(
+                    "flex flex-col items-center justify-center bg-muted rounded-md border border-border p-1",
+                    isMobile ? "h-14 w-14" : "h-12 w-12 md:h-14 md:w-14"
+                  )}>
                     <FileIcon className="h-5 w-5 text-muted-foreground" />
                     <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-0.5">
                       {sf.file.name.split('.').pop()?.toUpperCase()}
@@ -427,9 +439,12 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           </div>
         )}
 
-        {/* Main composer container - Slack style */}
-        <div className="border border-border rounded-lg bg-background overflow-hidden">
-          {/* Formatting toolbar - subtle, always visible on desktop */}
+        {/* Main composer container */}
+        <div className={cn(
+          "border border-border rounded-xl bg-background overflow-hidden",
+          isMobile && "rounded-2xl"
+        )}>
+          {/* Formatting toolbar - desktop only */}
           {!isMobile && (
             <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border/50 bg-muted/20">
               <Button 
@@ -491,19 +506,34 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               value={message}
               onChange={handleMessageChange}
               onKeyDown={handleKeyDown}
-              className="border-0 resize-none min-h-[44px] max-h-[160px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none text-sm"
+              className={cn(
+                "border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none",
+                isMobile 
+                  ? "min-h-[48px] max-h-[120px] text-base py-3 px-4" 
+                  : "min-h-[44px] max-h-[160px] text-sm"
+              )}
               rows={1}
             />
           </div>
 
-          {/* Bottom action bar */}
-          <div className="flex items-center justify-between px-2 py-1.5 border-t border-border/50 bg-muted/20">
-            <div className="flex items-center gap-0.5">
+          {/* Bottom action bar - mobile optimized */}
+          <div className={cn(
+            "flex items-center justify-between border-t border-border/50 bg-muted/20",
+            isMobile ? "px-1.5 py-1.5" : "px-2 py-1.5"
+          )}>
+            <div className="flex items-center gap-0">
               {/* Attachments */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <Plus className="h-4 w-4" />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "text-muted-foreground hover:text-foreground",
+                      isMobile ? "h-10 w-10" : "h-8 w-8"
+                    )}
+                  >
+                    <Plus className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-48 p-1">
@@ -529,8 +559,15 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               {/* Emoji */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <Smile className="h-4 w-4" />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "text-muted-foreground hover:text-foreground",
+                      isMobile ? "h-10 w-10" : "h-8 w-8"
+                    )}
+                  >
+                    <Smile className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-64 p-2">
@@ -554,7 +591,10 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground",
+                  isMobile ? "h-10 w-10" : "h-8 w-8"
+                )}
                 onClick={() => {
                   const cursorPosition = textareaRef.current?.selectionStart || message.length;
                   setMessage(prev => prev.slice(0, cursorPosition) + '@' + prev.slice(cursorPosition));
@@ -562,21 +602,24 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   textareaRef.current?.focus();
                 }}
               >
-                <AtSign className="h-4 w-4" />
+                <AtSign className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
               </Button>
             </div>
 
             {/* Send button */}
             <Button 
-              size="sm"
+              size={isMobile ? "icon" : "sm"}
               className={cn(
-                "h-8 px-3 gap-1.5 transition-colors",
+                "transition-all",
+                isMobile 
+                  ? "h-10 w-10 rounded-full" 
+                  : "h-8 px-3 gap-1.5",
                 !canSend && "opacity-50"
               )}
               onClick={handleSend}
               disabled={!canSend || sendMessage.isPending || isUploading}
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
               {!isMobile && <span>Send</span>}
             </Button>
           </div>

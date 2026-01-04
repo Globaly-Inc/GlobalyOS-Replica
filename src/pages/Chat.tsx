@@ -74,7 +74,7 @@ const Chat = () => {
   // Mobile view
   if (isMobile) {
     return (
-      <div className="flex flex-col h-full overflow-hidden bg-background">
+      <div className="flex flex-col h-full overflow-hidden bg-background safe-area-top">
         {!activeChat ? (
           <MobileChatHome
             onSelectChat={handleSelectChat}
@@ -90,12 +90,14 @@ const Chat = () => {
             <StarredView onNavigateToChat={handleSelectChat} onBack={handleBack} />
           </div>
         ) : (
-          <ConversationView
-            activeChat={activeChat}
-            onBack={handleBack}
-            onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-            highlightMessageId={highlightMessageId}
-          />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ConversationView
+              activeChat={activeChat}
+              onBack={handleBack}
+              onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+              highlightMessageId={highlightMessageId}
+            />
+          </div>
         )}
 
         {/* Dialogs */}
