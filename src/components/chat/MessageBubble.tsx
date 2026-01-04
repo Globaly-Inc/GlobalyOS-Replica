@@ -5,6 +5,7 @@ import MessageActionsToolbar from "./MessageActionsToolbar";
 import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
 import RichTextMessage from "./RichTextMessage";
+import MessageDeliveryStatus from "./MessageDeliveryStatus";
 
 import type { ChatMessage } from "@/types/chat";
 import { format } from "date-fns";
@@ -75,7 +76,7 @@ const MessageBubble = ({
     <div
       id={`message-${message.id}`}
       className={cn(
-        "group relative flex gap-3 px-4 py-1 transition-colors duration-150",
+        "group relative flex gap-2 md:gap-3 px-2 md:px-4 py-1 transition-colors duration-150",
         "hover:bg-muted/40",
         message.is_pinned && "bg-amber-500/5 hover:bg-amber-500/10",
         isGrouped && "py-0.5"
@@ -97,7 +98,7 @@ const MessageBubble = ({
       <div className="flex-1 min-w-0">
         {/* Sender name and timestamp - only for first message in group */}
         {!isGrouped && (
-          <div className="flex items-baseline gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5">
             <span className={cn(
               "font-semibold text-sm",
               isOwn ? "text-primary" : "text-foreground"
@@ -107,6 +108,9 @@ const MessageBubble = ({
             <span className="text-xs text-muted-foreground">
               {formattedTime}
             </span>
+            {isOwn && (
+              <MessageDeliveryStatus status={message.status || 'sent'} />
+            )}
             {message.is_pinned && (
               <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                 Pinned

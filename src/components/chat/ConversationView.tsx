@@ -640,7 +640,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
         <div className="flex-1 relative overflow-hidden">
           <div 
             ref={scrollContainerRef}
-            className="absolute inset-0 overflow-y-auto p-4"
+            className="absolute inset-0 overflow-y-auto px-2 md:px-4 py-4"
             onScroll={handleScroll}
           >
             {isLoading ? (
@@ -762,8 +762,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
           </div>
         )}
 
-        {/* Message Composer with safe area */}
-        <div className="safe-area-bottom">
+        {/* Message Composer with safe area and bottom nav clearance */}
+        <div className="pb-16 md:pb-0 safe-area-bottom">
           <MessageComposer 
             ref={composerRef}
             conversationId={conversationId}

@@ -92,6 +92,8 @@ export interface CallLogData {
   ai_summary?: string;
 }
 
+export type MessageDeliveryStatus = 'sending' | 'sent' | 'delivered' | 'read';
+
 export interface ChatMessage {
   id: string;
   organization_id: string;
@@ -105,6 +107,9 @@ export interface ChatMessage {
   reply_to_id: string | null;
   created_at: string;
   updated_at: string;
+  status?: MessageDeliveryStatus;
+  delivered_at?: string;
+  read_at?: string;
   sender?: {
     id: string;
     user_id: string;
