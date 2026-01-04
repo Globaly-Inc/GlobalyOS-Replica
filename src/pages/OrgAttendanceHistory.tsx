@@ -1135,8 +1135,8 @@ const OrgAttendanceHistory = () => {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    <span className="font-medium">In:</span>
-                    <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
+                    <span className="font-medium">In ({tzAbbr}):</span>
+                    <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, userTimezone, "h:mm a") : "—"}</span>
                   </div>
                   {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                       <Clock className="h-2 w-2 mr-0.5" />Late
@@ -1148,8 +1148,8 @@ const OrgAttendanceHistory = () => {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-1">
                     <XCircle className="h-3 w-3 text-red-500" />
-                    <span className="font-medium">Out:</span>
-                    <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
+                    <span className="font-medium">Out ({tzAbbr}):</span>
+                    <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, userTimezone, "h:mm a") : "—"}</span>
                   </div>
                   {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                       <Clock className="h-2 w-2 mr-0.5" />Early
@@ -1726,8 +1726,8 @@ const OrgAttendanceHistory = () => {
                       <TableHead className="min-w-[180px]">Employee</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Check In</TableHead>
-                      <TableHead>Check Out</TableHead>
+                      <TableHead>Check In ({tzAbbr})</TableHead>
+                      <TableHead>Check Out ({tzAbbr})</TableHead>
                       <TableHead>Net Hours</TableHead>
                       
                       <TableHead className="w-[80px]"></TableHead>
@@ -1777,7 +1777,7 @@ const OrgAttendanceHistory = () => {
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1.5 text-sm">
                                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                                <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
+                                <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, userTimezone, "h:mm a") : "—"}</span>
                               </div>
                               {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
@@ -1793,7 +1793,7 @@ const OrgAttendanceHistory = () => {
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1.5 text-sm">
                                 <XCircle className="h-3.5 w-3.5 text-red-500" />
-                                <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
+                                <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, userTimezone, "h:mm a") : "—"}</span>
                               </div>
                               {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
