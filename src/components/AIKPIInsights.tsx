@@ -11,7 +11,7 @@ import { CircularProgress } from "@/components/ui/circular-progress";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useEmployeeInheritedKpis, useEmployeeOwnedGroupKpis } from "@/services/useKpi";
+import { useEmployeeOwnedGroupKpis } from "@/services/useKpi";
 import { OrgLink } from "@/components/OrgLink";
 import type { GroupKpiWithScope } from "@/types";
 
@@ -66,62 +66,12 @@ const AIKPIInsights = ({ employeeId, embedded = false }: AIKPIInsightsProps) => 
   const currentQuarter = getCurrentQuarter();
   const currentYear = new Date().getFullYear();
 
-  // Fetch employee details for inherited KPIs
-  const { data: employeeDetails } = useQuery({
-    queryKey: ["employee-details-for-kpi", employeeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("department, office_id")
-        .eq("id", employeeId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!employeeId,
-  });
-
-  // Fetch employee projects for inherited KPIs
-  const { data: employeeProjects = [] } = useQuery({
-    queryKey: ["employee-project-ids", employeeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("employee_projects")
-        .select("project_id")
-        .eq("employee_id", employeeId);
-      if (error) throw error;
-      return data.map(ep => ep.project_id);
-    },
-    enabled: !!employeeId,
-  });
-
-  // Fetch inherited group KPIs
-  const { data: inheritedKpis = [] } = useEmployeeInheritedKpis(
-    employeeId,
-    employeeDetails?.department,
-    employeeDetails?.office_id,
-    employeeProjects,
-    currentQuarter,
-    currentYear
-  );
-
-  // Fetch owned group KPIs (where employee is a KPI owner)
-  const { data: ownedGroupKpis = [] } = useEmployeeOwnedGroupKpis(
+  // Fetch owned group KPIs (where employee is explicitly assigned as owner)
+  const { data: allGroupKpis = [] } = useEmployeeOwnedGroupKpis(
     employeeId,
     currentQuarter,
     currentYear
   );
-
-  // Combine inherited and owned group KPIs (deduplicated)
-  const allGroupKpis = useMemo(() => {
-    const combined = [...inheritedKpis];
-    ownedGroupKpis.forEach(kpi => {
-      if (!combined.find(k => k.id === kpi.id)) {
-        combined.push(kpi);
-      }
-    });
-    return combined;
-  }, [inheritedKpis, ownedGroupKpis]);
 
   // Fetch cached insights
   const { data: cachedInsights, isLoading } = useQuery({
