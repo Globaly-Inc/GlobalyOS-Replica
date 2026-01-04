@@ -184,21 +184,35 @@ export const WikiUploadDialog = ({
         const publicUrl = urlData.publicUrl;
         const fileTypeCategory = getFileTypeCategory(file.type);
 
-        // Create a wiki page for the uploaded file with file metadata
-        const { error: pageError } = await supabase.from("wiki_pages").insert({
-          title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for title
-          content: createFilePageContent(file.name, filePath, file.type, file.size),
-          folder_id: currentFolderId,
-          organization_id: organizationId,
-          created_by: employeeId,
-          is_file: true,
-          file_type: fileTypeCategory,
-          file_url: publicUrl,
-          thumbnail_url: fileTypeCategory === 'image' ? publicUrl : null,
-        });
+        // Create a wiki page using RPC, then update with file metadata
+        const { data: pageId, error: pageError } = await supabase
+          .rpc('create_wiki_page', {
+            _organization_id: organizationId,
+            _folder_id: currentFolderId,
+            _title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for title
+          });
 
         if (pageError) {
           toast.error(`Failed to create page for ${file.name}`);
+          progressMap[file.name] = -1;
+          setUploadProgress({ ...progressMap });
+          continue;
+        }
+
+        // Update the created page with file-specific metadata
+        const { error: updateError } = await supabase
+          .from("wiki_pages")
+          .update({
+            content: createFilePageContent(file.name, filePath, file.type, file.size),
+            is_file: true,
+            file_type: fileTypeCategory,
+            file_url: publicUrl,
+            thumbnail_url: fileTypeCategory === 'image' ? publicUrl : null,
+          })
+          .eq("id", pageId);
+
+        if (updateError) {
+          toast.error(`Failed to update file metadata for ${file.name}`);
           progressMap[file.name] = -1;
           setUploadProgress({ ...progressMap });
           continue;

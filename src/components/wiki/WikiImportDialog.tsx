@@ -452,8 +452,9 @@ export const WikiImportDialog = ({
         }
       }
 
-      // Create pages with updated content
-      const pagesToInsert = previewData.map((page, index) => {
+      // Create pages using RPC then update with content
+      let importedCount = 0;
+      for (const page of previewData) {
         let content = page.content || "";
         
         // Replace attachment references with uploaded URLs
@@ -461,23 +462,35 @@ export const WikiImportDialog = ({
           content = replaceAttachmentRefs(content, urlMap);
         }
 
-        return {
-          title: page.title.trim(),
-          content,
-          folder_id: page.folder ? folderIdMap.get(page.folder.trim().toLowerCase()) || null : null,
-          organization_id: organizationId,
-          created_by: employeeId,
-          sort_order: index,
-        };
-      });
+        const folderId = page.folder ? folderIdMap.get(page.folder.trim().toLowerCase()) || null : null;
 
-      const { error: insertError } = await supabase.from("wiki_pages").insert(pagesToInsert);
+        // Create page via RPC
+        const { data: pageId, error: createError } = await supabase
+          .rpc('create_wiki_page', {
+            _organization_id: organizationId,
+            _folder_id: folderId,
+            _title: page.title.trim(),
+          });
 
-      if (insertError) throw insertError;
+        if (createError) {
+          console.error(`Failed to create page "${page.title}":`, createError);
+          continue;
+        }
+
+        // Update with content
+        if (content) {
+          await supabase
+            .from("wiki_pages")
+            .update({ content })
+            .eq("id", pageId);
+        }
+
+        importedCount++;
+      }
 
       const attachmentCount = urlMap.size;
       toast.success(
-        `Imported ${pagesToInsert.length} pages${attachmentCount > 0 ? ` and ${attachmentCount} attachments` : ""} successfully`
+        `Imported ${importedCount} pages${attachmentCount > 0 ? ` and ${attachmentCount} attachments` : ""} successfully`
       );
       setIsOpen(false);
       setPreviewData(null);

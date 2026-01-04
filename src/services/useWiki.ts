@@ -180,6 +180,7 @@ export const useCreateWikiPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages-list'] });
       toast.success('Page created');
     },
     onError: (error) => {
@@ -446,15 +447,14 @@ export const useMoveWikiPage = () => {
   });
 };
 
-// Duplicate page
+// Duplicate page using RPC then update with content
 export const useDuplicateWikiPage = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ pageId }: { pageId: string }) => {
-      if (!currentOrg?.id || !currentEmployee?.id) {
+      if (!currentOrg?.id) {
         throw new Error('Not authenticated');
       }
 
@@ -467,25 +467,29 @@ export const useDuplicateWikiPage = () => {
 
       if (fetchError || !originalPage) throw fetchError || new Error('Page not found');
 
-      // Create duplicate - created_by is set/overridden server-side by trigger
-      // We still pass it here for TypeScript type compliance (column is non-nullable)
-      const { data, error } = await supabase
-        .from('wiki_pages')
-        .insert({
-          title: `${originalPage.title} (Copy)`,
-          content: originalPage.content,
-          folder_id: originalPage.folder_id,
-          organization_id: currentOrg.id,
-          created_by: currentEmployee.id,
-        })
-        .select('id')
-        .single();
+      // Create duplicate via RPC
+      const { data: newPageId, error: createError } = await supabase
+        .rpc('create_wiki_page', {
+          _organization_id: currentOrg.id,
+          _folder_id: originalPage.folder_id,
+          _title: `${originalPage.title} (Copy)`,
+        });
 
-      if (error) throw error;
-      return data;
+      if (createError) throw createError;
+
+      // Update with original content
+      if (originalPage.content) {
+        await supabase
+          .from('wiki_pages')
+          .update({ content: originalPage.content })
+          .eq('id', newPageId);
+      }
+
+      return { id: newPageId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki-pages-list'] });
       toast.success('Page duplicated');
     },
     onError: (error) => {
