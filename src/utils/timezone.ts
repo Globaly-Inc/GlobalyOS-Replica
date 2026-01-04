@@ -1,6 +1,58 @@
 import { format, parseISO } from 'date-fns';
 import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
+// Custom timezone abbreviation mapping for common timezones
+const TIMEZONE_ABBREVIATIONS: Record<string, string> = {
+  // Asia
+  'Asia/Kathmandu': 'NPT',
+  'Asia/Kolkata': 'IST',
+  'Asia/Tokyo': 'JST',
+  'Asia/Shanghai': 'CST',
+  'Asia/Hong_Kong': 'HKT',
+  'Asia/Singapore': 'SGT',
+  'Asia/Dubai': 'GST',
+  'Asia/Seoul': 'KST',
+  'Asia/Bangkok': 'ICT',
+  'Asia/Jakarta': 'WIB',
+  'Asia/Manila': 'PHT',
+  
+  // Australia
+  'Australia/Sydney': 'AEST',
+  'Australia/Melbourne': 'AEST',
+  'Australia/Brisbane': 'AEST',
+  'Australia/Perth': 'AWST',
+  'Australia/Adelaide': 'ACST',
+  'Australia/Darwin': 'ACST',
+  
+  // Europe
+  'Europe/London': 'GMT',
+  'Europe/Paris': 'CET',
+  'Europe/Berlin': 'CET',
+  'Europe/Amsterdam': 'CET',
+  'Europe/Rome': 'CET',
+  'Europe/Madrid': 'CET',
+  'Europe/Moscow': 'MSK',
+  
+  // Americas
+  'America/New_York': 'EST',
+  'America/Chicago': 'CST',
+  'America/Denver': 'MST',
+  'America/Los_Angeles': 'PST',
+  'America/Toronto': 'EST',
+  'America/Vancouver': 'PST',
+  'America/Sao_Paulo': 'BRT',
+  'America/Mexico_City': 'CST',
+  
+  // Pacific
+  'Pacific/Auckland': 'NZST',
+  'Pacific/Fiji': 'FJT',
+  'Pacific/Honolulu': 'HST',
+  
+  // Other
+  'UTC': 'UTC',
+  'Etc/UTC': 'UTC',
+};
+
 /**
  * Converts a local date and time string to a UTC ISO string for database storage.
  * 
@@ -104,5 +156,11 @@ export const getTimezoneAbbreviation = (
   timezone: string,
   date: Date = new Date()
 ): string => {
+  // Check custom mapping first for proper abbreviations
+  if (TIMEZONE_ABBREVIATIONS[timezone]) {
+    return TIMEZONE_ABBREVIATIONS[timezone];
+  }
+  
+  // Fall back to library output for unmapped timezones
   return formatInTimeZone(date, timezone, 'zzz');
 };
