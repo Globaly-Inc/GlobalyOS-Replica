@@ -24,10 +24,11 @@ interface AttendanceAnalyticsChartProps {
   dateRange: { start: Date; end: Date };
   dateRangeLabel: string;
   getSchedule: (scheduleData: any) => any;
-  isLateArrival: (record: any, scheduleData: any) => boolean;
-  isEarlyDeparture: (record: any, scheduleData: any) => boolean;
+  isLateArrival: (record: any, scheduleData: any, halfDayType?: string | null) => boolean;
+  isEarlyDeparture: (record: any, scheduleData: any, halfDayType?: string | null) => boolean;
   getNetHours: (workHours: number | null, scheduleData: any) => number;
   getTimeVariance: (workHours: number | null, scheduleData: any) => { status: string; diff: string | null };
+  getHalfDayTypeForRecord?: (employeeId: string, date: string) => string | null;
 }
 
 interface TrendDataPoint {
@@ -55,6 +56,7 @@ const AttendanceAnalyticsChart = ({
   isEarlyDeparture,
   getNetHours,
   getTimeVariance,
+  getHalfDayTypeForRecord,
 }: AttendanceAnalyticsChartProps) => {
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -83,17 +85,20 @@ const AttendanceAnalyticsChart = ({
       const totalCheckIns = dayRecords.length;
       const lateArrivals = dayRecords.filter(r => {
         const employee = r.employee as any;
-        return isLateArrival(r, employee?.employee_schedules);
+        const halfDayType = getHalfDayTypeForRecord?.(r.employee_id, r.date) ?? null;
+        return isLateArrival(r, employee?.employee_schedules, halfDayType);
       }).length;
       
       const earlyCheckouts = dayRecords.filter(r => {
         const employee = r.employee as any;
-        return isEarlyDeparture(r, employee?.employee_schedules);
+        const halfDayType = getHalfDayTypeForRecord?.(r.employee_id, r.date) ?? null;
+        return isEarlyDeparture(r, employee?.employee_schedules, halfDayType);
       }).length;
       
       const onTime = dayRecords.filter(r => {
         const employee = r.employee as any;
-        return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
+        const halfDayType = getHalfDayTypeForRecord?.(r.employee_id, r.date) ?? null;
+        return r.check_in_time && !isLateArrival(r, employee?.employee_schedules, halfDayType);
       }).length;
       
       const wfh = dayRecords.filter(r => r.status === 'remote').length;
@@ -130,7 +135,7 @@ const AttendanceAnalyticsChart = ({
         avgNetHours: totalCheckIns > 0 ? Math.round((netHoursTotal / totalCheckIns) * 10) / 10 : 0,
       };
     });
-  }, [records, dateRange, isLateArrival, isEarlyDeparture, getNetHours, getTimeVariance]);
+  }, [records, dateRange, isLateArrival, isEarlyDeparture, getNetHours, getTimeVariance, getHalfDayTypeForRecord]);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
