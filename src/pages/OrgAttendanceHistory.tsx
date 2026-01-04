@@ -22,6 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Clock, CheckCircle2, XCircle, CalendarIcon, Search, Users, X, Download, ExternalLink, Pencil, Trash2, Building2, Home, MapPin, Eye, TrendingUp, TrendingDown, Timer, LogOut, ClipboardList, UserMinus, Plane, FolderKanban, UserPlus, ChevronDown, FileText, FileSpreadsheet, Sparkles, Settings, Check, BarChart3 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, subDays, differenceInDays, isWithinInterval } from "date-fns";
+import { formatTimeInTimezone } from "@/utils/timezone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
@@ -310,7 +311,7 @@ const OrgAttendanceHistory = () => {
     }
   };
 
-  // Helper function to check if check-in is late (accounts for half-day leave)
+  // Helper function to check if check-in is late (accounts for half-day leave and uses org timezone)
   const isLateArrival = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_in_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
@@ -323,14 +324,19 @@ const OrgAttendanceHistory = () => {
       effectiveStartTime = schedule.break_end_time || '13:00:00';
     }
     
-    const checkInTime = new Date(record.check_in_time);
-    const [startHours, startMinutes] = effectiveStartTime.split(':').map(Number);
-    const workStartWithThreshold = new Date(checkInTime);
-    workStartWithThreshold.setHours(startHours, startMinutes + (schedule.late_threshold_minutes || 0), 0, 0);
-    return checkInTime > workStartWithThreshold;
+    // Use org timezone for accurate comparison
+    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, orgTimezone, 'HH:mm:ss');
+    const [checkInH, checkInM] = checkInTimeLocal.split(':').map(Number);
+    const [startH, startM] = effectiveStartTime.split(':').map(Number);
+    
+    const checkInTotalMinutes = checkInH * 60 + checkInM;
+    const thresholdTotalMinutes = startH * 60 + startM + (schedule.late_threshold_minutes || 0);
+    
+    return checkInTotalMinutes > thresholdTotalMinutes;
   };
 
-  // Helper function to check if check-out is early (accounts for half-day leave)
+  // Helper function to check if check-out is early (accounts for half-day leave and uses org timezone)
   const isEarlyDeparture = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_out_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
@@ -343,11 +349,16 @@ const OrgAttendanceHistory = () => {
       effectiveEndTime = schedule.break_start_time || '12:00:00';
     }
     
-    const checkOutTime = new Date(record.check_out_time);
-    const [endHours, endMinutes] = effectiveEndTime.split(':').map(Number);
-    const workEndTime = new Date(checkOutTime);
-    workEndTime.setHours(endHours, endMinutes, 0, 0);
-    return checkOutTime < workEndTime;
+    // Use org timezone for accurate comparison
+    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, orgTimezone, 'HH:mm:ss');
+    const [checkOutH, checkOutM] = checkOutTimeLocal.split(':').map(Number);
+    const [endH, endM] = effectiveEndTime.split(':').map(Number);
+    
+    const checkOutTotalMinutes = checkOutH * 60 + checkOutM;
+    const endTotalMinutes = endH * 60 + endM;
+    
+    return checkOutTotalMinutes < endTotalMinutes;
   };
 
   // Helper to get work location from schedule
@@ -721,7 +732,7 @@ const OrgAttendanceHistory = () => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Helper: Calculate late arrival duration in minutes (accounts for half-day leave)
+  // Helper: Calculate late arrival duration in minutes (accounts for half-day leave and uses org timezone)
   const getLateMinutes = (record: any, scheduleData: any, halfDayType?: string | null): number => {
     if (!record.check_in_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
@@ -733,15 +744,19 @@ const OrgAttendanceHistory = () => {
       effectiveStartTime = schedule.break_end_time || '13:00:00';
     }
     
-    const checkInTime = new Date(record.check_in_time);
+    // Use org timezone for accurate comparison
+    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, orgTimezone, 'HH:mm:ss');
+    const [checkInH, checkInM] = checkInTimeLocal.split(':').map(Number);
     const [startH, startM] = effectiveStartTime.split(':').map(Number);
-    const expectedStart = new Date(checkInTime);
-    expectedStart.setHours(startH, startM + (schedule.late_threshold_minutes || 0), 0, 0);
-    const diff = (checkInTime.getTime() - expectedStart.getTime()) / (1000 * 60);
-    return Math.max(0, diff);
+    
+    const checkInTotalMinutes = checkInH * 60 + checkInM;
+    const thresholdTotalMinutes = startH * 60 + startM + (schedule.late_threshold_minutes || 0);
+    
+    return Math.max(0, checkInTotalMinutes - thresholdTotalMinutes);
   };
 
-  // Helper: Calculate early checkout duration in minutes (accounts for half-day leave)
+  // Helper: Calculate early checkout duration in minutes (accounts for half-day leave and uses org timezone)
   const getEarlyMinutes = (record: any, scheduleData: any, halfDayType?: string | null): number => {
     if (!record.check_out_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
@@ -753,12 +768,16 @@ const OrgAttendanceHistory = () => {
       effectiveEndTime = schedule.break_start_time || '12:00:00';
     }
     
-    const checkOutTime = new Date(record.check_out_time);
+    // Use org timezone for accurate comparison
+    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
+    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, orgTimezone, 'HH:mm:ss');
+    const [checkOutH, checkOutM] = checkOutTimeLocal.split(':').map(Number);
     const [endH, endM] = effectiveEndTime.split(':').map(Number);
-    const expectedEnd = new Date(checkOutTime);
-    expectedEnd.setHours(endH, endM, 0, 0);
-    const diff = (expectedEnd.getTime() - checkOutTime.getTime()) / (1000 * 60);
-    return Math.max(0, diff);
+    
+    const checkOutTotalMinutes = checkOutH * 60 + checkOutM;
+    const endTotalMinutes = endH * 60 + endM;
+    
+    return Math.max(0, endTotalMinutes - checkOutTotalMinutes);
   };
 
   // Helper: Format minutes as "Xh Ym"
@@ -968,12 +987,13 @@ const OrgAttendanceHistory = () => {
   const exportCSV = () => {
     const dataToExport = selectedRecords.size > 0 ? filteredRecords.filter(r => selectedRecords.has(r.id)) : filteredRecords;
     const headers = ["Employee", "Position", "Department", "Date", "Check In", "Check Out", "Net Hours", "Status", "Location"];
+    const orgTimezone = currentOrg?.timezone || 'Asia/Kathmandu';
     const rows = dataToExport.map(record => {
       const employee = record.employee as any;
       const office = record.check_in_office as any;
       const location = record.status === "remote" ? "WFH" : office?.name || "Office";
       const netHours = getNetHours(record.work_hours, employee?.employee_schedules);
-      return [employee?.profiles?.full_name || "", employee?.position || "", employee?.department || "", format(parseISO(record.date), "yyyy-MM-dd"), record.check_in_time ? format(new Date(record.check_in_time), "HH:mm") : "", record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "", netHours.toFixed(2), record.status, location];
+      return [employee?.profiles?.full_name || "", employee?.position || "", employee?.department || "", format(parseISO(record.date), "yyyy-MM-dd"), record.check_in_time ? formatTimeInTimezone(record.check_in_time, orgTimezone, "HH:mm") : "", record.check_out_time ? formatTimeInTimezone(record.check_out_time, orgTimezone, "HH:mm") : "", netHours.toFixed(2), record.status, location];
     });
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csvContent], {
@@ -1113,7 +1133,7 @@ const OrgAttendanceHistory = () => {
                   <div className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />
                     <span className="font-medium">In:</span>
-                    <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                    <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
                   </div>
                   {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                       <Clock className="h-2 w-2 mr-0.5" />Late
@@ -1126,7 +1146,7 @@ const OrgAttendanceHistory = () => {
                   <div className="flex items-center gap-1">
                     <XCircle className="h-3 w-3 text-red-500" />
                     <span className="font-medium">Out:</span>
-                    <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                    <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
                   </div>
                   {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                       <Clock className="h-2 w-2 mr-0.5" />Early
@@ -1754,7 +1774,7 @@ const OrgAttendanceHistory = () => {
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1.5 text-sm">
                                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                                <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
+                                <span>{record.check_in_time ? formatTimeInTimezone(record.check_in_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
                               </div>
                               {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
@@ -1770,7 +1790,7 @@ const OrgAttendanceHistory = () => {
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1.5 text-sm">
                                 <XCircle className="h-3.5 w-3.5 text-red-500" />
-                                <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
+                                <span>{record.check_out_time ? formatTimeInTimezone(record.check_out_time, currentOrg?.timezone || 'Asia/Kathmandu', "h:mm a") : "—"}</span>
                               </div>
                               {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
