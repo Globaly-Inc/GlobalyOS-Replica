@@ -742,16 +742,16 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
           />
         </div>
 
-        {/* Typing Indicator */}
+        {/* Typing Indicator - Improved animation */}
         {typingUsers.length > 0 && (
-          <div className="px-4 py-2 border-t border-border bg-muted/30">
+          <div className="px-4 py-2 bg-muted/20">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="flex gap-1">
-                <span className="animate-bounce" style={{ animationDelay: '0ms' }}>•</span>
-                <span className="animate-bounce" style={{ animationDelay: '150ms' }}>•</span>
-                <span className="animate-bounce" style={{ animationDelay: '300ms' }}>•</span>
+              <div className="flex items-center gap-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: '200ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: '400ms' }} />
               </div>
-              <span>
+              <span className="text-xs">
                 {typingUsers.length === 1
                   ? `${typingUsers[0].name} is typing...`
                   : typingUsers.length === 2
@@ -762,12 +762,14 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
           </div>
         )}
 
-        {/* Message Composer */}
-        <MessageComposer 
-          ref={composerRef}
-          conversationId={conversationId}
-          spaceId={spaceId}
-        />
+        {/* Message Composer with safe area */}
+        <div className="safe-area-bottom">
+          <MessageComposer 
+            ref={composerRef}
+            conversationId={conversationId}
+            spaceId={spaceId}
+          />
+        </div>
         
         {/* Space Management Dialogs */}
         {activeChat.type === 'space' && spaceId && (
