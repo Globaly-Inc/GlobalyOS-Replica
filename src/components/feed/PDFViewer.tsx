@@ -9,10 +9,22 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ChevronLeft, ChevronRight, Maximize2, Loader2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Types for pdfjs-dist (loaded dynamically)
+interface PDFDocumentProxy {
+  numPages: number;
+  getPage: (pageNum: number) => Promise<PDFPageProxy>;
+}
+
+interface PDFPageProxy {
+  getViewport: (options: { scale: number }) => { width: number; height: number };
+  render: (options: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => RenderTask;
+}
+
+interface RenderTask {
+  promise: Promise<void>;
+  cancel: () => void;
+}
 
 interface PDFViewerProps {
   fileUrl: string;
@@ -21,16 +33,35 @@ interface PDFViewerProps {
   className?: string;
 }
 
+// Cache for the pdfjs library
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+let pdfjsLoadPromise: Promise<typeof import('pdfjs-dist')> | null = null;
+
+const loadPdfJs = async () => {
+  if (pdfjsLib) return pdfjsLib;
+  if (pdfjsLoadPromise) return pdfjsLoadPromise;
+  
+  pdfjsLoadPromise = (async () => {
+    const pdfjs = await import('pdfjs-dist');
+    // Use the legacy build worker to avoid top-level await issues
+    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    pdfjsLib = pdfjs;
+    return pdfjs;
+  })();
+  
+  return pdfjsLoadPromise;
+};
+
 export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
-  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
 
   // Load PDF document
   useEffect(() => {
@@ -39,10 +70,11 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
         setLoading(true);
         setError(null);
         
-        const loadingTask = pdfjsLib.getDocument(fileUrl);
+        const pdfjs = await loadPdfJs();
+        const loadingTask = pdfjs.getDocument(fileUrl);
         const pdf = await loadingTask.promise;
         
-        setPdfDoc(pdf);
+        setPdfDoc(pdf as unknown as PDFDocumentProxy);
         setTotalPages(pdf.numPages);
         setCurrentPage(1);
       } catch (err) {
