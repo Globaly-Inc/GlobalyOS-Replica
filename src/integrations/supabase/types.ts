@@ -396,6 +396,64 @@ export type Database = {
           },
         ]
       }
+      attendance_not_checked_in: {
+        Row: {
+          created_at: string | null
+          date: string
+          employee_id: string
+          expected_start_time: string | null
+          id: string
+          organization_id: string
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
+          work_location: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          employee_id: string
+          expected_start_time?: string | null
+          id?: string
+          organization_id: string
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          work_location?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          employee_id?: string
+          expected_start_time?: string | null
+          id?: string
+          organization_id?: string
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          work_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_not_checked_in_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_not_checked_in_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_not_checked_in_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           check_in_latitude: number | null
