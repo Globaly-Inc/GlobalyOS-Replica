@@ -6,8 +6,6 @@ import {
   Pin,
   Link2,
   Plus,
-  Phone,
-  Video,
   ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -58,21 +56,6 @@ const ChatRightPanel = ({ activeChat, onClose }: ChatRightPanelProps) => {
       </div>
 
       <ScrollArea className="flex-1">
-        {/* Quick Actions (for DMs) */}
-        {activeChat.type === 'conversation' && !activeChat.isGroup && (
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-center gap-4">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Phone className="h-4 w-4" />
-                Call
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Video className="h-4 w-4" />
-                Meet
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Pinned Messages */}
         <div className="p-4 border-b border-border">
