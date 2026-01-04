@@ -295,14 +295,14 @@ export const LeaveHistoryPendingTab = ({
             const managerId = req.employee?.manager_id;
             const isHRBackup = managerId ? managersOnLeaveSet.has(managerId) : !managerId;
             const managerName = managerId 
-              ? (managersOnLeaveSet.has(managerId) ? managerNamesMap.get(managerId) : undefined)
-              : "No manager assigned";
+              ? managerNamesMap.get(managerId)
+              : null;
 
             return {
               ...req,
               balance,
               isHRBackup,
-              managerName: isHRBackup ? managerName : undefined,
+              managerName,
             } as PendingLeaveRequest;
           });
         }
@@ -348,7 +348,11 @@ export const LeaveHistoryPendingTab = ({
 
         requests = managerRequests.map((req: any) => {
           const balance = balanceMap.get(`${req.employee.id}:${req.leave_type.toLowerCase()}`);
-          return { ...req, balance } as PendingLeaveRequest;
+          return { 
+            ...req, 
+            balance,
+            managerName: currentEmployee?.profiles?.full_name || 'You',
+          } as PendingLeaveRequest;
         });
       }
 
@@ -613,6 +617,7 @@ export const LeaveHistoryPendingTab = ({
                       />
                     </TableHead>
                     <TableHead>Employee</TableHead>
+                    <TableHead className="hidden lg:table-cell">Manager</TableHead>
                     <TableHead>Leave Type</TableHead>
                     <TableHead>Dates</TableHead>
                     <TableHead className="text-center">Days</TableHead>
@@ -652,13 +657,22 @@ export const LeaveHistoryPendingTab = ({
                                 {request.employee.position}
                               </div>
                             )}
-                            {request.isHRBackup && request.managerName && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200 mt-0.5">
-                                Manager: {request.managerName}
+                          </div>
+                        </OrgLink>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {request.managerName ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{request.managerName}</span>
+                            {request.isHRBackup && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200">
+                                On Leave
                               </Badge>
                             )}
                           </div>
-                        </OrgLink>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Not assigned</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs whitespace-nowrap">
