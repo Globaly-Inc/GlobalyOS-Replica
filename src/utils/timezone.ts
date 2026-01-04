@@ -90,3 +90,19 @@ export const getTimeInTimezone = (utcDateTime: string, timezone: string): string
 export const getDateInTimezone = (utcDateTime: string, timezone: string): string => {
   return formatInTimeZone(utcDateTime, timezone, 'yyyy-MM-dd');
 };
+
+/**
+ * Gets the timezone abbreviation for a given timezone and date.
+ * 
+ * @param timezone - IANA timezone string (e.g., "Asia/Kathmandu")
+ * @param date - Optional date to get abbreviation for (affects DST)
+ * @returns Timezone abbreviation (e.g., "NPT", "AEDT", "EST")
+ * 
+ * Example: getTimezoneAbbreviation("Asia/Kathmandu") returns "NPT"
+ */
+export const getTimezoneAbbreviation = (
+  timezone: string,
+  date: Date = new Date()
+): string => {
+  return formatInTimeZone(date, timezone, 'zzz');
+};

@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useTimezone } from "@/hooks/useTimezone";
-import { toUTCDateTime } from "@/utils/timezone";
+import { toUTCDateTime, getTimezoneAbbreviation } from "@/utils/timezone";
+import { Globe } from "lucide-react";
 
 interface BulkEditAttendanceDialogProps {
   open: boolean;
@@ -144,11 +145,17 @@ export const BulkEditAttendanceDialog = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Timezone indicator */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
+            <Globe className="h-3 w-3" />
+            <span>Times are in {timezone.replace(/_/g, ' ')} ({getTimezoneAbbreviation(timezone)})</span>
+          </div>
+
           {/* Check In Time */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="update-check-in" className="text-sm font-medium">
-                Update Check In Time
+                Update Check In Time ({getTimezoneAbbreviation(timezone)})
               </Label>
               <Switch
                 id="update-check-in"
@@ -170,7 +177,7 @@ export const BulkEditAttendanceDialog = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="update-check-out" className="text-sm font-medium">
-                Update Check Out Time
+                Update Check Out Time ({getTimezoneAbbreviation(timezone)})
               </Label>
               <Switch
                 id="update-check-out"

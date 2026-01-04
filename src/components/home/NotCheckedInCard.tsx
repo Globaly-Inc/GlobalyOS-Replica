@@ -12,6 +12,7 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { getTimezoneAbbreviation } from "@/utils/timezone";
 import { OrgLink } from "@/components/OrgLink";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ export const NotCheckedInCard = () => {
   const [loading, setLoading] = useState(true);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [sentReminders, setSentReminders] = useState<Set<string>>(new Set());
+  const [orgTimezone, setOrgTimezone] = useState<string>('Asia/Kathmandu');
   const { currentOrg } = useOrganization();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -61,10 +63,11 @@ export const NotCheckedInCard = () => {
         .eq('id', currentOrg.id)
         .single();
 
-      const orgTimezone = orgData?.timezone || 'Asia/Kathmandu';
+      const timezone = orgData?.timezone || 'Asia/Kathmandu';
+      setOrgTimezone(timezone);
 
       // Use organization's local date for consistency
-      const today = formatInTimeZone(new Date(), orgTimezone, 'yyyy-MM-dd');
+      const today = formatInTimeZone(new Date(), timezone, 'yyyy-MM-dd');
 
       // Get active employees WITH a schedule (inner join)
       const { data: employeesWithSchedule, error: empError } = await supabase
@@ -134,8 +137,8 @@ export const NotCheckedInCard = () => {
       setSentReminders(reminderSentIds);
 
       // Get current time and day in organization's timezone for comparison
-      const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
-      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), orgTimezone, 'i')) % 7; // 0=Sunday, 1=Monday, ..., 6=Saturday
+      const currentTimeStr = formatInTimeZone(new Date(), timezone, 'HH:mm:ss');
+      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), timezone, 'i')) % 7; // 0=Sunday, 1=Monday, ..., 6=Saturday
 
       // Filter to find not-checked-in employees whose start time has passed
       const filtered = (employeesWithSchedule || []).filter(emp => {
@@ -283,7 +286,7 @@ export const NotCheckedInCard = () => {
     const [hours, minutes] = timeStr.split(':');
     const date = new Date();
     date.setHours(parseInt(hours), parseInt(minutes));
-    return format(date, 'h:mm a');
+    return `${format(date, 'h:mm a')} ${getTimezoneAbbreviation(orgTimezone)}`;
   };
 
   const maxVisible = isMobile ? 10 : 20;

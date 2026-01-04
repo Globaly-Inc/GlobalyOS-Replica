@@ -28,13 +28,14 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { EditAttendanceDialog } from "@/components/dialogs/EditAttendanceDialog";
 import { cn } from "@/lib/utils";
 import { useTimezone } from "@/hooks/useTimezone";
-import { formatTimeInTimezone } from "@/utils/timezone";
+import { formatTimeInTimezone, getTimezoneAbbreviation } from "@/utils/timezone";
 
 const AttendanceHistory = () => {
   const { id } = useParams<{ id: string }>();
   const { navigateOrg } = useOrgNavigation();
   const { isAdmin, isHR } = useUserRole();
   const { timezone } = useTimezone();
+  const tzAbbr = getTimezoneAbbreviation(timezone);
   const canEditAttendance = isAdmin || isHR;
   
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
@@ -51,8 +52,9 @@ const AttendanceHistory = () => {
     if (!record.check_in_time || !schedule) return false;
     if (!schedule.work_start_time || schedule.late_threshold_minutes === null || schedule.late_threshold_minutes === undefined) return false;
     
-    // Get check-in time in user's timezone
-    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, timezone, 'HH:mm:ss');
+    // Use schedule's timezone for business logic, falling back to user's timezone
+    const scheduleTimezone = schedule.timezone || timezone;
+    const checkInTimeLocal = formatTimeInTimezone(record.check_in_time, scheduleTimezone, 'HH:mm:ss');
     const [checkInH, checkInM] = checkInTimeLocal.split(':').map(Number);
     const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
     
@@ -67,8 +69,9 @@ const AttendanceHistory = () => {
     if (!record.check_out_time || !schedule) return false;
     if (!schedule.work_end_time) return false;
     
-    // Get check-out time in user's timezone
-    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, timezone, 'HH:mm:ss');
+    // Use schedule's timezone for business logic, falling back to user's timezone
+    const scheduleTimezone = schedule.timezone || timezone;
+    const checkOutTimeLocal = formatTimeInTimezone(record.check_out_time, scheduleTimezone, 'HH:mm:ss');
     const [checkOutH, checkOutM] = checkOutTimeLocal.split(':').map(Number);
     const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
     
@@ -356,13 +359,13 @@ const AttendanceHistory = () => {
                   {getStatusIcon(record.status)}
                   <div>
                     <p className="font-medium">{format(parseISO(record.date), "EEEE, MMMM d, yyyy")}</p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                      <div className="flex flex-col gap-0.5">
-                        <span>
-                          In: {record.check_in_time 
-                            ? formatTimeInTimezone(record.check_in_time, timezone, "h:mm a")
-                            : "-"}
-                        </span>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <div className="flex flex-col gap-0.5">
+                          <span>
+                            In ({tzAbbr}): {record.check_in_time 
+                              ? formatTimeInTimezone(record.check_in_time, timezone, "h:mm a")
+                              : "-"}
+                          </span>
                         {isLateArrival(record) && (
                           <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                             <Clock className="h-2.5 w-2.5 mr-1" />
@@ -370,11 +373,11 @@ const AttendanceHistory = () => {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span>
-                          Out: {record.check_out_time 
-                            ? formatTimeInTimezone(record.check_out_time, timezone, "h:mm a")
-                            : "-"}
+                        <div className="flex flex-col gap-0.5">
+                          <span>
+                            Out ({tzAbbr}): {record.check_out_time 
+                              ? formatTimeInTimezone(record.check_out_time, timezone, "h:mm a")
+                              : "-"}
                         </span>
                         {isEarlyDeparture(record) && (
                           <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">

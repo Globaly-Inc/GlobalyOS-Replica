@@ -8,9 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Clock, Save } from "lucide-react";
+import { Clock, Save, Globe } from "lucide-react";
 import { useTimezone } from "@/hooks/useTimezone";
-import { toUTCDateTime, fromUTCDateTime } from "@/utils/timezone";
+import { toUTCDateTime, fromUTCDateTime, getTimezoneAbbreviation } from "@/utils/timezone";
 
 interface AttendanceRecord {
   id: string;
@@ -178,7 +178,7 @@ export const EditAttendanceDialog = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Check-in Time</Label>
+              <Label>Check-in Time ({getTimezoneAbbreviation(timezone)})</Label>
               <Input
                 type="time"
                 value={checkInTime}
@@ -186,13 +186,18 @@ export const EditAttendanceDialog = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Check-out Time</Label>
+              <Label>Check-out Time ({getTimezoneAbbreviation(timezone)})</Label>
               <Input
                 type="time"
                 value={checkOutTime}
                 onChange={(e) => setCheckOutTime(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Globe className="h-3 w-3" />
+            <span>Times are in {timezone.replace(/_/g, ' ')} timezone</span>
           </div>
 
           <div className="space-y-2">
