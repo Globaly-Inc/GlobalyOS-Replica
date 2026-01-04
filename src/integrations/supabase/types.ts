@@ -9086,6 +9086,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_wiki_page: {
+        Args: { _folder_id?: string; _organization_id: string; _title?: string }
+        Returns: string
+      }
       debug_can_insert_post: {
         Args: {
           _employee_id: string

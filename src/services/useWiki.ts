@@ -154,34 +154,29 @@ export const useCreateWikiFolder = () => {
   });
 };
 
-// Create page
+// Create page using server-side RPC function
+// This bypasses RLS issues and validates permissions server-side
 export const useCreateWikiPage = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ title, folderId }: { title: string; folderId: string | null }) => {
-      if (!currentOrg?.id || !currentEmployee?.id) {
+      if (!currentOrg?.id) {
         throw new Error('Not authenticated');
       }
 
-      // Note: created_by is set/overridden server-side by trigger (set_wiki_page_created_by_trigger)
-      // We still pass it here for TypeScript type compliance (column is non-nullable)
+      // Use server-side RPC function that handles all validation and permissions
       const { data, error } = await supabase
-        .from('wiki_pages')
-        .insert({
-          title,
-          folder_id: folderId,
-          organization_id: currentOrg.id,
-          created_by: currentEmployee.id,
-        })
-        .select('id')
-        .single();
+        .rpc('create_wiki_page', {
+          _organization_id: currentOrg.id,
+          _folder_id: folderId,
+          _title: title || 'Untitled',
+        });
 
       if (error) throw error;
 
-      return data;
+      return { id: data as string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wiki-pages'] });
