@@ -34,17 +34,17 @@ interface PDFViewerProps {
 }
 
 // Cache for the pdfjs library
-let pdfjsLib: typeof import('pdfjs-dist') | null = null;
-let pdfjsLoadPromise: Promise<typeof import('pdfjs-dist')> | null = null;
+let pdfjsLib: typeof import('pdfjs-dist/legacy/build/pdf.mjs') | null = null;
+let pdfjsLoadPromise: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')> | null = null;
 
 const loadPdfJs = async () => {
   if (pdfjsLib) return pdfjsLib;
   if (pdfjsLoadPromise) return pdfjsLoadPromise;
   
   pdfjsLoadPromise = (async () => {
-    const pdfjs = await import('pdfjs-dist');
-    // Use the legacy build worker to avoid top-level await issues
-    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    // Use legacy build to avoid top-level await issues with es2020 target
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
     pdfjsLib = pdfjs;
     return pdfjs;
   })();
