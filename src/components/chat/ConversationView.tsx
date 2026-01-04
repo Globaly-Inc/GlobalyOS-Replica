@@ -17,8 +17,6 @@ import {
   ArrowLeft,
   Search,
   MoreVertical,
-  Phone,
-  Video,
   Pin,
   History,
   Users,
@@ -43,7 +41,7 @@ import {
   useConversationParticipants,
   useMessageReplyCounts,
 } from "@/services/useChat";
-import { useCall } from "@/contexts/CallContext";
+
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
@@ -95,7 +93,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const { initiateCall } = useCall();
+  
   const togglePin = useTogglePinMessage();
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
@@ -580,47 +578,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </Button>
             )}
             
-            {/* Desktop: Show all action buttons */}
-            {!isMobile && activeChat.type === 'conversation' && (
-              <>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => initiateCall({ conversationId, callType: 'audio' })}
-                  title="Start audio call"
-                >
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => initiateCall({ conversationId, callType: 'video' })}
-                  title="Start video call"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {!isMobile && activeChat.type === 'space' && (
-              <>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => initiateCall({ spaceId, callType: 'audio' })}
-                  title="Start group audio call"
-                >
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => initiateCall({ spaceId, callType: 'video' })}
-                  title="Start group video call"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
-              </>
-            )}
+            {/* Desktop: Show action buttons */}
             {!isMobile && (
               <Button variant="ghost" size="icon" onClick={onToggleRightPanel}>
                 <Pin className="h-4 w-4" />
@@ -921,58 +879,6 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
             
             {/* Action items */}
             <div className="py-2 space-y-1">
-              {/* Call actions */}
-              {activeChat.type === 'conversation' && (
-                <>
-                  <button 
-                    onClick={() => { 
-                      initiateCall({ conversationId, callType: 'audio' }); 
-                      setShowMobileMenu(false); 
-                    }}
-                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
-                  >
-                    <Phone className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Audio call</span>
-                  </button>
-                  <button 
-                    onClick={() => { 
-                      initiateCall({ conversationId, callType: 'video' }); 
-                      setShowMobileMenu(false); 
-                    }}
-                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
-                  >
-                    <Video className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Video call</span>
-                  </button>
-                </>
-              )}
-              
-              {activeChat.type === 'space' && (
-                <>
-                  <button 
-                    onClick={() => { 
-                      initiateCall({ spaceId, callType: 'audio' }); 
-                      setShowMobileMenu(false); 
-                    }}
-                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
-                  >
-                    <Phone className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Audio call</span>
-                  </button>
-                  <button 
-                    onClick={() => { 
-                      initiateCall({ spaceId, callType: 'video' }); 
-                      setShowMobileMenu(false); 
-                    }}
-                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
-                  >
-                    <Video className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Video call</span>
-                  </button>
-                </>
-              )}
-              
-              <div className="border-t my-2 mx-4" />
               
               {/* Pinned messages */}
               <button 
