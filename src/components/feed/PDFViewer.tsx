@@ -34,7 +34,8 @@ interface PDFViewerProps {
 }
 
 // Load PDF.js from CDN to avoid bundling top-level `await` modules into the build.
-const PDFJS_VERSION = '4.0.379';
+// Using version 3.11.174 to match pdfThumbnail.ts and avoid worker version conflicts
+const PDFJS_VERSION = '3.11.174';
 const PDFJS_CDN_SRC = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
 const PDFJS_WORKER_SRC = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
 
