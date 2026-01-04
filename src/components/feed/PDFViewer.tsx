@@ -90,6 +90,7 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [canvasHeight, setCanvasHeight] = useState<number | null>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
 
   // Load PDF document
@@ -140,23 +141,38 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      // Calculate scale based on container size
+      // Calculate scale based on container width (content-driven height)
       const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = mode === 'lightbox' 
-        ? Math.min(window.innerHeight * 0.7, 800)
-        : containerRef.current.clientHeight || 300;
-
       const viewport = page.getViewport({ scale: 1 });
-      const scaleX = containerWidth / viewport.width;
-      const scaleY = containerHeight / viewport.height;
-      const scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
+      
+      // For inline mode: scale to fit width, let height flow naturally
+      // For lightbox: constrain to viewport height as well
+      let scale: number;
+      if (mode === 'lightbox') {
+        const maxHeight = Math.min(window.innerHeight * 0.7, 800);
+        const scaleX = containerWidth / viewport.width;
+        const scaleY = maxHeight / viewport.height;
+        scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
+      } else {
+        // Inline: just fit to width, height will be natural
+        scale = (containerWidth / viewport.width) * (window.devicePixelRatio || 1);
+      }
 
       const scaledViewport = page.getViewport({ scale });
 
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
-      canvas.style.width = `${scaledViewport.width / (window.devicePixelRatio || 1)}px`;
-      canvas.style.height = `${scaledViewport.height / (window.devicePixelRatio || 1)}px`;
+      
+      const displayWidth = scaledViewport.width / (window.devicePixelRatio || 1);
+      const displayHeight = scaledViewport.height / (window.devicePixelRatio || 1);
+      
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+      
+      // Store height for container sizing (inline mode only)
+      if (mode === 'inline') {
+        setCanvasHeight(displayHeight);
+      }
 
       const renderContext = {
         canvasContext: context,
@@ -246,22 +262,22 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
       ref={containerRef}
       className={cn(
         "flex flex-col bg-muted overflow-hidden",
-        mode === 'inline' 
-          ? "min-h-[300px] sm:min-h-[320px] sm:rounded-lg" // No rounded corners on mobile for edge-to-edge
-          : "w-full rounded-lg",
+        mode === 'inline' && "sm:rounded-lg",
+        mode === 'lightbox' && "w-full rounded-lg",
         className
       )}
     >
-      {/* PDF Canvas */}
-      <div className={cn(
-        "relative flex-1 flex items-center justify-center overflow-hidden",
-        mode === 'inline' && "cursor-pointer"
-      )}
+      {/* PDF Canvas - content-driven height */}
+      <div 
+        className={cn(
+          "relative overflow-hidden",
+          mode === 'inline' && "cursor-pointer"
+        )}
         onClick={mode === 'inline' ? onExpand : undefined}
       >
         <canvas 
           ref={canvasRef} 
-          className="max-w-full max-h-full object-contain"
+          className="block w-full"
         />
         
         {rendering && (

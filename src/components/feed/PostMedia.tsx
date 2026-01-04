@@ -135,8 +135,8 @@ export const PostMedia = ({ media }: PostMediaProps) => {
             key={item.id}
             className={cn(
               "relative overflow-hidden bg-muted",
-              // Single PDF: taller on mobile, no rounded corners for edge-to-edge
-              isSinglePdf && "aspect-[4/5] sm:aspect-video sm:rounded-lg",
+              // Single PDF: no fixed aspect ratio, let content determine height, edge-to-edge on mobile
+              isSinglePdf && "sm:rounded-lg",
               // Single non-PDF media
               media.length === 1 && !isSinglePdf && "aspect-video rounded-lg",
               // Multiple items - always rounded
