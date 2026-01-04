@@ -8,6 +8,7 @@ interface Organization {
   slug: string;
   plan: string;
   logo_url: string | null;
+  timezone: string;
 }
 
 interface OrganizationMember {
@@ -56,7 +57,8 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
             name,
             slug,
             plan,
-            logo_url
+            logo_url,
+            timezone
           )
         `)
         .eq("user_id", user.id);
