@@ -33,22 +33,50 @@ interface PDFViewerProps {
   className?: string;
 }
 
-// Cache for the pdfjs library
-let pdfjsLib: typeof import('pdfjs-dist/legacy/build/pdf.mjs') | null = null;
-let pdfjsLoadPromise: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')> | null = null;
+// Load PDF.js from CDN to avoid bundling top-level `await` modules into the build.
+const PDFJS_VERSION = '4.0.379';
+const PDFJS_CDN_SRC = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+const PDFJS_WORKER_SRC = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
 
-const loadPdfJs = async () => {
+type PdfJsLib = {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (src: string | { url: string }) => { promise: Promise<unknown> };
+};
+
+let pdfjsLib: PdfJsLib | null = null;
+let pdfjsLoadPromise: Promise<PdfJsLib> | null = null;
+
+const loadPdfJs = async (): Promise<PdfJsLib> => {
   if (pdfjsLib) return pdfjsLib;
   if (pdfjsLoadPromise) return pdfjsLoadPromise;
-  
-  pdfjsLoadPromise = (async () => {
-    // Use legacy build to avoid top-level await issues with es2020 target
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
-    pdfjsLib = pdfjs;
-    return pdfjs;
-  })();
-  
+
+  pdfjsLoadPromise = new Promise<PdfJsLib>((resolve, reject) => {
+    const existing = (window as any).pdfjsLib as PdfJsLib | undefined;
+    if (existing) {
+      existing.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
+      pdfjsLib = existing;
+      resolve(existing);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = PDFJS_CDN_SRC;
+    script.async = true;
+    script.onload = () => {
+      const loaded = (window as any).pdfjsLib as PdfJsLib | undefined;
+      if (!loaded) {
+        reject(new Error('PDF.js failed to load'));
+        return;
+      }
+      loaded.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
+      pdfjsLib = loaded;
+      resolve(loaded);
+    };
+    script.onerror = () => reject(new Error('Failed to load PDF.js'));
+
+    document.head.appendChild(script);
+  });
+
   return pdfjsLoadPromise;
 };
 
@@ -72,9 +100,9 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
         
         const pdfjs = await loadPdfJs();
         const loadingTask = pdfjs.getDocument(fileUrl);
-        const pdf = await loadingTask.promise;
+        const pdf = (await loadingTask.promise) as unknown as PDFDocumentProxy;
         
-        setPdfDoc(pdf as unknown as PDFDocumentProxy);
+        setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
         setCurrentPage(1);
       } catch (err) {
