@@ -310,25 +310,41 @@ const OrgAttendanceHistory = () => {
     }
   };
 
-  // Helper function to check if check-in is late
-  const isLateArrival = (record: any, scheduleData: any) => {
+  // Helper function to check if check-in is late (accounts for half-day leave)
+  const isLateArrival = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_in_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_start_time || schedule.late_threshold_minutes === null || schedule.late_threshold_minutes === undefined) return false;
+    
+    // Determine effective start time based on half-day leave
+    let effectiveStartTime = schedule.work_start_time;
+    if (halfDayType === 'first_half') {
+      // First-half leave: expected start is after break ends
+      effectiveStartTime = schedule.break_end_time || '13:00:00';
+    }
+    
     const checkInTime = new Date(record.check_in_time);
-    const [startHours, startMinutes] = schedule.work_start_time.split(':').map(Number);
+    const [startHours, startMinutes] = effectiveStartTime.split(':').map(Number);
     const workStartWithThreshold = new Date(checkInTime);
     workStartWithThreshold.setHours(startHours, startMinutes + (schedule.late_threshold_minutes || 0), 0, 0);
     return checkInTime > workStartWithThreshold;
   };
 
-  // Helper function to check if check-out is early
-  const isEarlyDeparture = (record: any, scheduleData: any) => {
+  // Helper function to check if check-out is early (accounts for half-day leave)
+  const isEarlyDeparture = (record: any, scheduleData: any, halfDayType?: string | null) => {
     if (!record.check_out_time || !scheduleData) return false;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_end_time) return false;
+    
+    // Determine effective end time based on half-day leave
+    let effectiveEndTime = schedule.work_end_time;
+    if (halfDayType === 'second_half') {
+      // Second-half leave: expected end is at break start
+      effectiveEndTime = schedule.break_start_time || '12:00:00';
+    }
+    
     const checkOutTime = new Date(record.check_out_time);
-    const [endHours, endMinutes] = schedule.work_end_time.split(':').map(Number);
+    const [endHours, endMinutes] = effectiveEndTime.split(':').map(Number);
     const workEndTime = new Date(checkOutTime);
     workEndTime.setHours(endHours, endMinutes, 0, 0);
     return checkOutTime < workEndTime;
@@ -445,7 +461,7 @@ const OrgAttendanceHistory = () => {
     enabled: !!currentOrg?.id
   });
 
-  // Fetch approved leave for the selected period
+  // Fetch approved leave for the selected period (including half_day_type)
   const {
     data: leaveRecords
   } = useQuery({
@@ -454,12 +470,40 @@ const OrgAttendanceHistory = () => {
       const {
         data,
         error
-      } = await supabase.from("leave_requests").select("employee_id, start_date, end_date").eq("organization_id", currentOrg!.id).eq("status", "approved").lte("start_date", format(dateRange.end, "yyyy-MM-dd")).gte("end_date", format(dateRange.start, "yyyy-MM-dd"));
+      } = await supabase.from("leave_requests").select("employee_id, start_date, end_date, half_day_type").eq("organization_id", currentOrg!.id).eq("status", "approved").lte("start_date", format(dateRange.end, "yyyy-MM-dd")).gte("end_date", format(dateRange.start, "yyyy-MM-dd"));
       if (error) throw error;
       return data || [];
     },
     enabled: !!currentOrg?.id
   });
+
+  // Build a lookup map for half-day leave: employee_id -> date -> half_day_type
+  const leaveByEmployeeDate = useMemo(() => {
+    const map = new Map<string, Map<string, string | null>>();
+    if (!leaveRecords) return map;
+    
+    leaveRecords.forEach(leave => {
+      const startDate = parseISO(leave.start_date);
+      const endDate = parseISO(leave.end_date);
+      let current = startDate;
+      
+      while (current <= endDate) {
+        const dateStr = format(current, "yyyy-MM-dd");
+        if (!map.has(leave.employee_id)) {
+          map.set(leave.employee_id, new Map());
+        }
+        map.get(leave.employee_id)!.set(dateStr, leave.half_day_type || null);
+        current = new Date(current.getTime() + 24 * 60 * 60 * 1000);
+      }
+    });
+    
+    return map;
+  }, [leaveRecords]);
+
+  // Helper to get half-day type for a specific employee and date
+  const getHalfDayTypeForRecord = (employeeId: string, date: string): string | null => {
+    return leaveByEmployeeDate.get(employeeId)?.get(date) || null;
+  };
 
   // Fetch projects for filter
   const {
@@ -677,26 +721,40 @@ const OrgAttendanceHistory = () => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Helper: Calculate late arrival duration in minutes
-  const getLateMinutes = (record: any, scheduleData: any): number => {
+  // Helper: Calculate late arrival duration in minutes (accounts for half-day leave)
+  const getLateMinutes = (record: any, scheduleData: any, halfDayType?: string | null): number => {
     if (!record.check_in_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_start_time) return 0;
+    
+    // Determine effective start time based on half-day leave
+    let effectiveStartTime = schedule.work_start_time;
+    if (halfDayType === 'first_half') {
+      effectiveStartTime = schedule.break_end_time || '13:00:00';
+    }
+    
     const checkInTime = new Date(record.check_in_time);
-    const [startH, startM] = schedule.work_start_time.split(':').map(Number);
+    const [startH, startM] = effectiveStartTime.split(':').map(Number);
     const expectedStart = new Date(checkInTime);
     expectedStart.setHours(startH, startM + (schedule.late_threshold_minutes || 0), 0, 0);
     const diff = (checkInTime.getTime() - expectedStart.getTime()) / (1000 * 60);
     return Math.max(0, diff);
   };
 
-  // Helper: Calculate early checkout duration in minutes
-  const getEarlyMinutes = (record: any, scheduleData: any): number => {
+  // Helper: Calculate early checkout duration in minutes (accounts for half-day leave)
+  const getEarlyMinutes = (record: any, scheduleData: any, halfDayType?: string | null): number => {
     if (!record.check_out_time || !scheduleData) return 0;
     const schedule = getSchedule(scheduleData);
     if (!schedule?.work_end_time) return 0;
+    
+    // Determine effective end time based on half-day leave
+    let effectiveEndTime = schedule.work_end_time;
+    if (halfDayType === 'second_half') {
+      effectiveEndTime = schedule.break_start_time || '12:00:00';
+    }
+    
     const checkOutTime = new Date(record.check_out_time);
-    const [endH, endM] = schedule.work_end_time.split(':').map(Number);
+    const [endH, endM] = effectiveEndTime.split(':').map(Number);
     const expectedEnd = new Date(checkOutTime);
     expectedEnd.setHours(endH, endM, 0, 0);
     const diff = (expectedEnd.getTime() - checkOutTime.getTime()) / (1000 * 60);
@@ -733,30 +791,35 @@ const OrgAttendanceHistory = () => {
     const checkedInEmployeeIds = new Set(filteredRecords.map(r => r.employee_id));
     const missingCount = (activeEmployees || []).filter(e => !checkedInEmployeeIds.has(e.id) && !employeesOnLeave.has(e.id)).length;
 
-    // Late arrivals with duration
+    // Late arrivals with duration (accounting for half-day leave)
     const lateRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
-      return isLateArrival(r, employee?.employee_schedules);
+      const halfDayType = getHalfDayTypeForRecord(r.employee_id, r.date);
+      return isLateArrival(r, employee?.employee_schedules, halfDayType);
     });
     const totalLateDuration = lateRecords.reduce((sum, r) => {
       const employee = r.employee as any;
-      return sum + getLateMinutes(r, employee?.employee_schedules);
+      const halfDayType = getHalfDayTypeForRecord(r.employee_id, r.date);
+      return sum + getLateMinutes(r, employee?.employee_schedules, halfDayType);
     }, 0);
 
-    // Early checkouts with duration
+    // Early checkouts with duration (accounting for half-day leave)
     const earlyRecords = filteredRecords.filter(r => {
       const employee = r.employee as any;
-      return isEarlyDeparture(r, employee?.employee_schedules);
+      const halfDayType = getHalfDayTypeForRecord(r.employee_id, r.date);
+      return isEarlyDeparture(r, employee?.employee_schedules, halfDayType);
     });
     const totalEarlyDuration = earlyRecords.reduce((sum, r) => {
       const employee = r.employee as any;
-      return sum + getEarlyMinutes(r, employee?.employee_schedules);
+      const halfDayType = getHalfDayTypeForRecord(r.employee_id, r.date);
+      return sum + getEarlyMinutes(r, employee?.employee_schedules, halfDayType);
     }, 0);
 
-    // On Time (not late)
+    // On Time (not late, accounting for half-day leave)
     const onTimeCount = filteredRecords.filter(r => {
       const employee = r.employee as any;
-      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
+      const halfDayType = getHalfDayTypeForRecord(r.employee_id, r.date);
+      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules, halfDayType);
     }).length;
 
     // Below Time / Over Time
@@ -790,18 +853,19 @@ const OrgAttendanceHistory = () => {
       return sum + getNetHours(r.work_hours, employee?.employee_schedules);
     }, 0);
 
-    // Calculate previous period stats for comparison
+    // Calculate previous period stats for comparison (note: we don't have leave data for previous period, so use null)
     const prevLate = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
-      return isLateArrival(r, employee?.employee_schedules);
+      // For previous period, we don't track half-day leave - use standard calculation
+      return isLateArrival(r, employee?.employee_schedules, null);
     }).length;
     const prevEarly = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
-      return isEarlyDeparture(r, employee?.employee_schedules);
+      return isEarlyDeparture(r, employee?.employee_schedules, null);
     }).length;
     const prevOnTime = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
-      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules);
+      return r.check_in_time && !isLateArrival(r, employee?.employee_schedules, null);
     }).length;
     const prevBelowTime = (previousRecords || []).filter(r => {
       const employee = r.employee as any;
@@ -853,7 +917,7 @@ const OrgAttendanceHistory = () => {
         change: calcChange(Math.round(totalNetHours), Math.round(prevNetHours))
       }
     };
-  }, [filteredRecords, previousRecords, activeEmployees, employeesOnLeave]);
+  }, [filteredRecords, previousRecords, activeEmployees, employeesOnLeave, leaveByEmployeeDate]);
   const dateRangeOptions: {
     value: DateRangeOption;
     label: string;
@@ -1051,8 +1115,11 @@ const OrgAttendanceHistory = () => {
                     <span className="font-medium">In:</span>
                     <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
                   </div>
-                  {isLateArrival(record, employee?.employee_schedules) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                  {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                       <Clock className="h-2 w-2 mr-0.5" />Late
+                    </Badge>}
+                  {getHalfDayTypeForRecord(record.employee_id, record.date) === 'first_half' && !isLateArrival(record, employee?.employee_schedules, 'first_half') && <Badge variant="outline" className="w-fit text-[8px] px-1 py-0.5 text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+                      <Plane className="h-2 w-2 mr-0.5" />AM Leave
                     </Badge>}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -1061,8 +1128,11 @@ const OrgAttendanceHistory = () => {
                     <span className="font-medium">Out:</span>
                     <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
                   </div>
-                  {isEarlyDeparture(record, employee?.employee_schedules) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                  {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[8px] px-1 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                       <Clock className="h-2 w-2 mr-0.5" />Early
+                    </Badge>}
+                  {getHalfDayTypeForRecord(record.employee_id, record.date) === 'second_half' && !isEarlyDeparture(record, employee?.employee_schedules, 'second_half') && <Badge variant="outline" className="w-fit text-[8px] px-1 py-0.5 text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+                      <Plane className="h-2 w-2 mr-0.5" />PM Leave
                     </Badge>}
                 </div>
               </div>
@@ -1572,7 +1642,7 @@ const OrgAttendanceHistory = () => {
 
         {/* Attendance Analytics Chart */}
         {activeTab === 'analytics' && records && records.length > 0 && dateRangeFilter !== 'today' && <div className="px-4 md:px-0">
-            <AttendanceAnalyticsChart records={records} dateRange={dateRange} dateRangeLabel={dateRangeLabel} getSchedule={getSchedule} isLateArrival={isLateArrival} isEarlyDeparture={isEarlyDeparture} getNetHours={getNetHours} getTimeVariance={getTimeVariance} />
+            <AttendanceAnalyticsChart records={records} dateRange={dateRange} dateRangeLabel={dateRangeLabel} getSchedule={getSchedule} isLateArrival={isLateArrival} isEarlyDeparture={isEarlyDeparture} getNetHours={getNetHours} getTimeVariance={getTimeVariance} getHalfDayTypeForRecord={getHalfDayTypeForRecord} />
           </div>}
 
         {/* Not Checked In Tab Content */}
@@ -1686,9 +1756,13 @@ const OrgAttendanceHistory = () => {
                                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                                 <span>{record.check_in_time ? format(new Date(record.check_in_time), "h:mm a") : "—"}</span>
                               </div>
-                              {isLateArrival(record, employee?.employee_schedules) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                              {isLateArrival(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
                                   Late Arrival
+                                </Badge>}
+                              {getHalfDayTypeForRecord(record.employee_id, record.date) === 'first_half' && !isLateArrival(record, employee?.employee_schedules, 'first_half') && <Badge variant="outline" className="w-fit text-[9px] px-1.5 py-0.5 text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+                                  <Plane className="h-2.5 w-2.5 mr-1" />
+                                  AM Leave
                                 </Badge>}
                             </div>
                           </TableCell>
@@ -1698,9 +1772,13 @@ const OrgAttendanceHistory = () => {
                                 <XCircle className="h-3.5 w-3.5 text-red-500" />
                                 <span>{record.check_out_time ? format(new Date(record.check_out_time), "h:mm a") : "—"}</span>
                               </div>
-                              {isEarlyDeparture(record, employee?.employee_schedules) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                              {isEarlyDeparture(record, employee?.employee_schedules, getHalfDayTypeForRecord(record.employee_id, record.date)) && <Badge className="w-fit text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
                                   <Clock className="h-2.5 w-2.5 mr-1" />
                                   Early Checkout 
+                                </Badge>}
+                              {getHalfDayTypeForRecord(record.employee_id, record.date) === 'second_half' && !isEarlyDeparture(record, employee?.employee_schedules, 'second_half') && <Badge variant="outline" className="w-fit text-[9px] px-1.5 py-0.5 text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+                                  <Plane className="h-2.5 w-2.5 mr-1" />
+                                  PM Leave
                                 </Badge>}
                             </div>
                           </TableCell>
