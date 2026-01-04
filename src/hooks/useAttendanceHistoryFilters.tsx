@@ -13,6 +13,7 @@ interface AttendanceHistoryFilters {
   projectFilter: string;
   selectedEmployees: string[];
   notCheckedInSelectedEmployees: string[];
+  notCheckedInDateRangeFilter: DateRangeOption;
 }
 
 const DEFAULT_FILTERS: AttendanceHistoryFilters = {
@@ -25,12 +26,13 @@ const DEFAULT_FILTERS: AttendanceHistoryFilters = {
   projectFilter: "all",
   selectedEmployees: [],
   notCheckedInSelectedEmployees: [],
+  notCheckedInDateRangeFilter: "last7days",
 };
 
 export const useAttendanceHistoryFilters = () => {
   const { filters, setFilter, setFilters, clearFilters, isLoaded } =
     usePersistedFilters<AttendanceHistoryFilters>({
-      pageKey: "attendance_history_v3",
+      pageKey: "attendance_history_v4",
       defaultFilters: DEFAULT_FILTERS,
     });
 
@@ -45,6 +47,7 @@ export const useAttendanceHistoryFilters = () => {
     projectFilter: filters.projectFilter,
     selectedEmployees: filters.selectedEmployees,
     notCheckedInSelectedEmployees: filters.notCheckedInSelectedEmployees,
+    notCheckedInDateRangeFilter: filters.notCheckedInDateRangeFilter,
     // Setters
     setActiveTab: (value: AttendanceHistoryTab) => setFilter("activeTab", value),
     setDateRangeFilter: (value: DateRangeOption) => setFilter("dateRangeFilter", value),
@@ -55,9 +58,10 @@ export const useAttendanceHistoryFilters = () => {
     setProjectFilter: (value: string) => setFilter("projectFilter", value),
     setSelectedEmployees: (value: string[]) => setFilter("selectedEmployees", value),
     setNotCheckedInSelectedEmployees: (value: string[]) => setFilter("notCheckedInSelectedEmployees", value),
+    setNotCheckedInDateRangeFilter: (value: DateRangeOption) => setFilter("notCheckedInDateRangeFilter", value),
     clearFilters,
     isLoaded,
   };
 };
 
-export type { AttendanceHistoryTab };
+export type { AttendanceHistoryTab, DateRangeOption };

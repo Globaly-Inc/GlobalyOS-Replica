@@ -119,6 +119,8 @@ const OrgAttendanceHistory = () => {
     setSelectedEmployees,
     notCheckedInSelectedEmployees,
     setNotCheckedInSelectedEmployees,
+    notCheckedInDateRangeFilter,
+    setNotCheckedInDateRangeFilter,
     clearFilters
   } = useAttendanceHistoryFilters();
 
@@ -168,6 +170,13 @@ const OrgAttendanceHistory = () => {
   const [notCheckedInCount, setNotCheckedInCount] = useState(0);
   const [notCheckedInEmployeePopoverOpen, setNotCheckedInEmployeePopoverOpen] = useState(false);
   const [notCheckedInEmployeeSearchQuery, setNotCheckedInEmployeeSearchQuery] = useState("");
+  const [notCheckedInCustomDateRange, setNotCheckedInCustomDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined
+  });
 
   // PDF Export handler
   const handleExportPDF = () => {
@@ -1422,6 +1431,56 @@ const OrgAttendanceHistory = () => {
             ) : (
               /* Not Checked In tab filters */
               <>
+                {/* Date Range Filter for Not Checked In */}
+                <Select value={notCheckedInDateRangeFilter} onValueChange={(value: any) => setNotCheckedInDateRangeFilter(value)}>
+                  <SelectTrigger className="h-9 w-[140px] md:w-[150px] bg-background">
+                    <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="last7days">Last 7 days</SelectItem>
+                    <SelectItem value="last14days">Last 14 days</SelectItem>
+                    <SelectItem value="last30days">Last 30 days</SelectItem>
+                    <SelectItem value="thisMonth">This Month</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Custom Date Range Picker for Not Checked In */}
+                {notCheckedInDateRangeFilter === 'custom' && (
+                  <div className="hidden md:block">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 min-w-[200px] justify-start text-left font-normal bg-background">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {notCheckedInCustomDateRange.from ? (
+                            notCheckedInCustomDateRange.to ? (
+                              <>
+                                {format(notCheckedInCustomDateRange.from, "LLL dd")} - {format(notCheckedInCustomDateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(notCheckedInCustomDateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Pick a date range</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="range" defaultMonth={notCheckedInCustomDateRange.from} selected={{
+                          from: notCheckedInCustomDateRange.from,
+                          to: notCheckedInCustomDateRange.to
+                        }} onSelect={(range) => setNotCheckedInCustomDateRange({
+                          from: range?.from,
+                          to: range?.to
+                        })} initialFocus className="pointer-events-auto" numberOfMonths={2} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
                 {/* Employee Multi-Select Dropdown for Not Checked In */}
                 <div className="hidden md:block">
                   <Popover open={notCheckedInEmployeePopoverOpen} onOpenChange={setNotCheckedInEmployeePopoverOpen}>
@@ -1507,11 +1566,15 @@ const OrgAttendanceHistory = () => {
                 </div>
 
                 {/* Clear filter button */}
-                {notCheckedInSelectedEmployees.length > 0 && (
+                {(notCheckedInSelectedEmployees.length > 0 || notCheckedInDateRangeFilter !== 'last7days') && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setNotCheckedInSelectedEmployees([])}
+                    onClick={() => {
+                      setNotCheckedInSelectedEmployees([]);
+                      setNotCheckedInDateRangeFilter('last7days');
+                      setNotCheckedInCustomDateRange({ from: undefined, to: undefined });
+                    }}
                     className="hidden md:flex h-9 gap-1.5 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
@@ -1676,6 +1739,8 @@ const OrgAttendanceHistory = () => {
               onSelectedEmployeesChange={setNotCheckedInSelectedEmployees}
               onEmployeesListChange={setNotCheckedInEmployeesList}
               onCountChange={setNotCheckedInCount}
+              dateRangeFilter={notCheckedInDateRangeFilter}
+              customDateRange={notCheckedInCustomDateRange}
             />
           </div>
         )}

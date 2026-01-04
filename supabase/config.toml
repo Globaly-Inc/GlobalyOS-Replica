@@ -179,3 +179,9 @@ verify_jwt = false
 
 [functions.post-acknowledgment-reminders]
 verify_jwt = false
+
+[functions.capture-not-checked-in]
+verify_jwt = false
+
+[functions.backfill-not-checked-in]
+verify_jwt = false
