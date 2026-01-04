@@ -349,33 +349,25 @@ const Wiki = () => {
     },
   });
 
-  // Create page mutation
+  // Create page mutation - uses server-side RPC function
   const createPageMutation = useMutation({
     mutationFn: async ({ title, folderId }: { title: string; folderId: string | null }) => {
       if (!currentOrg?.id) {
         throw new Error("Organization not loaded. Please refresh the page.");
       }
-      if (!currentEmployee?.id) {
-        throw new Error("Loading your profile... Please wait a moment and try again.");
-      }
-      // Note: created_by is set/overridden server-side by trigger (set_wiki_page_created_by_trigger)
-      // We still pass it here for TypeScript type compliance (column is non-nullable)
+      // Use server-side RPC function that handles all validation and permissions
       const { data, error } = await supabase
-        .from("wiki_pages")
-        .insert({
-          title,
-          folder_id: folderId,
-          organization_id: currentOrg.id,
-          created_by: currentEmployee.id,
-          sort_order: pagesList.length,
-        })
-        .select("id")
-        .single();
+        .rpc('create_wiki_page', {
+          _organization_id: currentOrg.id,
+          _folder_id: folderId,
+          _title: title || 'Untitled',
+        });
       if (error) throw error;
-      return data;
+      return { id: data as string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-pages"] });
       toast.success("Page created");
       // Navigate to edit page for new pages
       navigateOrg(`/wiki/edit/${data.id}`);
