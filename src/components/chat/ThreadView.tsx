@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPreferences";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import RichTextMessage from "./RichTextMessage";
 import AttachmentRenderer from "./AttachmentRenderer";
 import type { ChatMessage } from "@/types/chat";
@@ -38,6 +40,10 @@ const ThreadView = ({
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
+  
+  // Chat notification sound hooks
+  const { shouldPlayChatSound, preferences: chatPreferences } = useChatNotificationPreferences();
+  const { playNotificationSound } = useNotificationSound();
 
   // Fetch replies for this message
   const { data: replies = [], isLoading } = useQuery({
@@ -91,7 +97,17 @@ const ThreadView = ({
           table: 'chat_messages',
           filter: `reply_to_id=eq.${parentMessage.id}`
         },
-        () => {
+        (payload) => {
+          const newReply = payload.new as any;
+          
+          // Play sound for incoming replies from others
+          if (newReply.sender_id !== currentEmployee?.id) {
+            const messageType = conversationId ? 'dm' : 'space';
+            if (shouldPlayChatSound(messageType)) {
+              playNotificationSound(chatPreferences.soundType, chatPreferences.soundVolume);
+            }
+          }
+          
           queryClient.invalidateQueries({ queryKey: ['thread-replies', parentMessage.id] });
           queryClient.invalidateQueries({ queryKey: ['message-reply-counts', conversationId, spaceId] });
         }
@@ -101,7 +117,7 @@ const ThreadView = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [parentMessage.id, conversationId, spaceId, queryClient]);
+  }, [parentMessage.id, conversationId, spaceId, queryClient, currentEmployee?.id, shouldPlayChatSound, playNotificationSound, chatPreferences.soundType, chatPreferences.soundVolume]);
 
   // Auto-scroll to bottom when new replies come in
   useEffect(() => {

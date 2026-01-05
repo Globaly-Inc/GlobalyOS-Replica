@@ -43,6 +43,8 @@ import {
 } from "@/services/useChat";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPreferences";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
 import DateSeparator from "./DateSeparator";
@@ -93,6 +95,10 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  
+  // Chat notification sound hooks
+  const { shouldPlayChatSound, preferences: chatPreferences } = useChatNotificationPreferences();
+  const { playNotificationSound } = useNotificationSound();
   
   const togglePin = useTogglePinMessage();
   const editMessage = useEditMessage();
@@ -293,6 +299,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               ['chat-messages', conversationId, spaceId],
               (old) => old?.filter(m => !m.id.startsWith('temp-')) || []
             );
+          } else {
+            // Play sound for incoming messages from others
+            const messageType = conversationId ? 'dm' : 'space';
+            if (shouldPlayChatSound(messageType)) {
+              playNotificationSound(chatPreferences.soundType, chatPreferences.soundVolume);
+            }
           }
           
           // Fetch sender info for the new message
