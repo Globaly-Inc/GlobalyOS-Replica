@@ -32,6 +32,8 @@ export const useNotifications = (type?: NotificationType | 'all') => {
         `)
         .eq('user_id', user.id)
         .eq('organization_id', currentOrg.id)
+        .neq('type', 'chat_message')
+        .neq('type', 'chat_mention')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -64,7 +66,9 @@ export const useUnreadNotificationCount = () => {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('organization_id', currentOrg.id)
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .neq('type', 'chat_message')
+        .neq('type', 'chat_mention');
 
       if (error) throw error;
 
