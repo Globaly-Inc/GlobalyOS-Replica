@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Plus,
   Settings,
+  BellOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConversations, useSpaces, useUnreadCounts, useCreateConversation } from "@/services/useChat";
@@ -24,6 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ChatConversation, ActiveChat } from "@/types/chat";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import GlobalChatSearch from "./GlobalChatSearch";
+import BrowseSpacesDialog from "./BrowseSpacesDialog";
 import type { GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
 
 interface ChatSidebarProps {
@@ -38,6 +40,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [browseSpacesOpen, setBrowseSpacesOpen] = useState(false);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
@@ -354,6 +357,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                   const avatar = getConversationAvatar(conv);
                   const isActive = activeChat?.type === 'conversation' && activeChat.id === conv.id;
                   const hasUnread = (unreadCounts?.conversations[conv.id] || 0) > 0;
+                  const isMuted = (conv as any).is_muted;
                   
                   return (
                     <button
@@ -385,6 +389,9 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         )}
                       </div>
                       <span className="truncate flex-1 text-left">{name}</span>
+                      {isMuted && (
+                        <BellOff className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      )}
                       {hasUnread && (
                         <Badge 
                           variant="destructive" 
@@ -469,7 +476,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                 variant="ghost" 
                 size="sm" 
                 className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground mt-1"
-                onClick={onNewSpace}
+                onClick={() => setBrowseSpacesOpen(true)}
               >
                 <Plus className="h-4 w-4" />
                 Browse spaces
@@ -478,6 +485,13 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           )}
         </div>
       </ScrollArea>
+      
+      {/* Browse Spaces Dialog */}
+      <BrowseSpacesDialog
+        open={browseSpacesOpen}
+        onOpenChange={setBrowseSpacesOpen}
+        onSpaceJoined={onSelectChat}
+      />
     </div>
   );
 };

@@ -177,6 +177,7 @@ const MessageBubble = ({
       {!isEditing && (
         <MessageActionsToolbar
           messageId={message.id}
+          messageContent={message.content}
           isPinned={message.is_pinned}
           isOwn={isOwn}
           onPin={onPin}

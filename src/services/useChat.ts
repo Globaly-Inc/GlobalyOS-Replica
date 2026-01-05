@@ -1425,3 +1425,156 @@ export const useOnlinePresence = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 };
+
+// Mute/Unmute a conversation
+export const useMuteConversation = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ conversationId, mute }: { conversationId: string; mute: boolean }) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_participants')
+        .update({ is_muted: mute })
+        .eq('conversation_id', conversationId)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+    },
+  });
+};
+
+// Leave a group conversation
+export const useLeaveConversation = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+    },
+  });
+};
+
+// Leave a space
+export const useLeaveSpace = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .delete()
+        .eq('space_id', spaceId)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+    },
+  });
+};
+
+// Update space notification setting
+export const useUpdateSpaceNotification = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({ 
+      spaceId, 
+      setting 
+    }: { 
+      spaceId: string; 
+      setting: 'all' | 'mentions' | 'mute' 
+    }) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .update({ notification_setting: setting })
+        .eq('space_id', spaceId)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    },
+  });
+};
+
+// Get public spaces the user can join
+export const usePublicSpaces = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['public-spaces', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      // Get spaces user is already a member of
+      const { data: memberSpaces } = await supabase
+        .from('chat_space_members')
+        .select('space_id')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const memberSpaceIds = memberSpaces?.map(s => s.space_id) || [];
+
+      // Get all public spaces in the organization
+      let query = supabase
+        .from('chat_spaces')
+        .select(`
+          *,
+          chat_space_members (
+            id,
+            employee_id
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('access_type', 'public');
+
+      // Exclude spaces user is already a member of
+      if (memberSpaceIds.length > 0) {
+        query = query.not('id', 'in', `(${memberSpaceIds.join(',')})`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data || []).map((space: any) => ({
+        ...space,
+        member_count: space.chat_space_members?.length || 0
+      })) as ChatSpace[];
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+  });
+};
