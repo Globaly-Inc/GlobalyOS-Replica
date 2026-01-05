@@ -24,6 +24,9 @@ import {
   UserPlus,
   Camera,
   Pencil,
+  BellOff,
+  Bell,
+  LogOut,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -40,6 +43,10 @@ import {
   useSpaceMembers,
   useConversationParticipants,
   useMessageReplyCounts,
+  useMuteConversation,
+  useLeaveConversation,
+  useLeaveSpace,
+  useUpdateSpaceNotification,
 } from "@/services/useChat";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -105,6 +112,11 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const deleteMessage = useDeleteMessage();
   const toggleReaction = useToggleReaction();
   const markAsRead = useMarkAsRead();
+  const muteConversation = useMuteConversation();
+  const leaveConversation = useLeaveConversation();
+  const leaveSpace = useLeaveSpace();
+  const updateSpaceNotification = useUpdateSpaceNotification();
+  
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -118,6 +130,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [groupName, setGroupName] = useState(activeChat.name);
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -132,6 +146,35 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   // Check if current user is a space admin
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
   const isSpaceAdmin = currentMembership?.role === 'admin';
+  const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
+
+  // Handle mute toggle for conversations
+  const handleToggleMute = async () => {
+    if (conversationId) {
+      await muteConversation.mutateAsync({ conversationId, mute: !isMuted });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Handle space notification toggle (mute = 'mute', unmute = 'all')
+  const handleToggleSpaceMute = async () => {
+    if (spaceId) {
+      const newSetting = spaceNotificationSetting === 'mute' ? 'all' : 'mute';
+      await updateSpaceNotification.mutateAsync({ spaceId, setting: newSetting });
+    }
+  };
+
+  // Handle leave conversation/space
+  const handleLeave = async () => {
+    if (conversationId) {
+      await leaveConversation.mutateAsync(conversationId);
+      onBack();
+    } else if (spaceId) {
+      await leaveSpace.mutateAsync(spaceId);
+      onBack();
+    }
+    setShowLeaveConfirm(false);
+  };
 
   const handleFilesDropped = useCallback((files: File[]) => {
     composerRef.current?.addFiles(files);
@@ -623,6 +666,67 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                       </DropdownMenuItem>
                     </>
                   )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleToggleSpaceMute}>
+                    {spaceNotificationSetting === 'mute' ? (
+                      <>
+                        <Bell className="h-4 w-4 mr-2" />
+                        Unmute notifications
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="h-4 w-4 mr-2" />
+                        Mute notifications
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  {!isSpaceAdmin && (
+                    <DropdownMenuItem 
+                      onClick={() => setShowLeaveConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Leave space
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Desktop: Conversation menu (for group chats) */}
+            {!isMobile && activeChat.type === 'conversation' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuItem onClick={handleToggleMute}>
+                    {isMuted ? (
+                      <>
+                        <Bell className="h-4 w-4 mr-2" />
+                        Unmute chat
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="h-4 w-4 mr-2" />
+                        Mute chat
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  {activeChat.isGroup && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => setShowLeaveConfirm(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave group
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -963,9 +1067,99 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                   )}
                 </>
               )}
+              
+              {/* Mute/Leave options */}
+              <div className="border-t my-2 mx-4" />
+              
+              {activeChat.type === 'conversation' && (
+                <button 
+                  onClick={() => { 
+                    handleToggleMute(); 
+                    setShowMobileMenu(false); 
+                  }}
+                  className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                >
+                  {isMuted ? (
+                    <>
+                      <Bell className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">Unmute chat</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">Mute chat</span>
+                    </>
+                  )}
+                </button>
+              )}
+              
+              {activeChat.type === 'space' && (
+                <button 
+                  onClick={() => { 
+                    handleToggleSpaceMute(); 
+                    setShowMobileMenu(false); 
+                  }}
+                  className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left"
+                >
+                  {spaceNotificationSetting === 'mute' ? (
+                    <>
+                      <Bell className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">Unmute notifications</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">Mute notifications</span>
+                    </>
+                  )}
+                </button>
+              )}
+              
+              {/* Leave option for group chats and non-admin space members */}
+              {(activeChat.isGroup || (activeChat.type === 'space' && !isSpaceAdmin)) && (
+                <button 
+                  onClick={() => { 
+                    setShowLeaveConfirm(true); 
+                    setShowMobileMenu(false); 
+                  }}
+                  className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left text-destructive"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-medium">
+                    {activeChat.type === 'space' ? 'Leave space' : 'Leave group'}
+                  </span>
+                </button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
+        
+        {/* Leave Confirmation Dialog */}
+        {showLeaveConfirm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-background rounded-lg p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-lg font-semibold mb-2">
+                Leave {activeChat.type === 'space' ? 'space' : 'group'}?
+              </h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                You won't receive any more messages from this {activeChat.type === 'space' ? 'space' : 'group'}. 
+                You can rejoin later if it's a public space.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleLeave}
+                  disabled={leaveConversation.isPending || leaveSpace.isPending}
+                >
+                  Leave
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ChatDropZone>
   );

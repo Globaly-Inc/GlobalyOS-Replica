@@ -21,13 +21,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin, Reply } from "lucide-react";
+import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin, Reply, Copy, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
 
 interface MessageActionsToolbarProps {
   messageId: string;
+  messageContent: string;
   isPinned: boolean;
   isOwn: boolean;
   onPin: () => void;
@@ -75,6 +77,7 @@ const ToolbarButton = ({
 
 const MessageActionsToolbar = ({
   messageId,
+  messageContent,
   isPinned,
   isOwn,
   onPin,
@@ -87,6 +90,20 @@ const MessageActionsToolbar = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const handleCopyText = () => {
+    navigator.clipboard.writeText(messageContent);
+    toast.success("Message copied to clipboard");
+    setShowMoreMenu(false);
+  };
+
+  const handleCopyLink = () => {
+    const url = new URL(window.location.href);
+    url.hash = `message-${messageId}`;
+    navigator.clipboard.writeText(url.toString());
+    toast.success("Link copied to clipboard");
+    setShowMoreMenu(false);
+  };
 
   return (
     <>
@@ -149,9 +166,30 @@ const MessageActionsToolbar = ({
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-40 p-1" side="top" align="end">
+          <PopoverContent className="w-44 p-1" side="top" align="end">
+            {/* Copy actions - available to everyone */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 h-8"
+              onClick={handleCopyText}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy text
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 h-8"
+              onClick={handleCopyLink}
+            >
+              <Link className="h-3.5 w-3.5" />
+              Copy link
+            </Button>
+            
             {isOwn && (
               <>
+                <div className="border-t border-border my-1" />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -177,9 +215,6 @@ const MessageActionsToolbar = ({
                   Delete
                 </Button>
               </>
-            )}
-            {!isOwn && (
-              <p className="text-xs text-muted-foreground px-2 py-1">No actions available</p>
             )}
           </PopoverContent>
         </Popover>
