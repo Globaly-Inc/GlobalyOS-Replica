@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
 import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useTotalUnreadCount } from '@/services/useChat';
+import { Badge } from '@/components/ui/badge';
 
 interface TopNavProps {
   isAdmin: boolean;
@@ -33,6 +35,7 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
   const { isOwner } = useUserRole();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  const { data: chatUnreadCount = 0 } = useTotalUnreadCount();
 
   // Filter items based on feature flags, admin-only, and owner-only
   const visibleItems = mainNavItems.filter(item => {
@@ -90,6 +93,14 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
         >
           <item.icon className="h-4 w-4" />
           {item.name}
+          {item.name === 'Chat' && chatUnreadCount > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold"
+            >
+              {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+            </Badge>
+          )}
         </OrgLink>
       ))}
     </nav>

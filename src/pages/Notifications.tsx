@@ -71,6 +71,8 @@ const Notifications = () => {
           )
         `)
         .eq("user_id", user.id)
+        .neq("type", "chat_message")
+        .neq("type", "chat_mention")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
