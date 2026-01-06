@@ -23,7 +23,7 @@ import { EditOfficeDialog } from "@/components/dialogs/EditOfficeDialog";
 import { EditAddressDialog } from "@/components/dialogs/EditAddressDialog";
 import { EditNameDialog } from "@/components/dialogs/EditNameDialog";
 import { EditEmailDialog } from "@/components/dialogs/EditEmailDialog";
-import { EditEmployeeInfoDialog } from "@/components/dialogs/EditEmployeeInfoDialog";
+// EditEmployeeInfoDialog removed - using PositionDialog for unified position management
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
@@ -111,6 +111,10 @@ const TeamMemberProfile = () => {
   const [positionId, setPositionId] = useState<string | null>(null);
   const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
+  const [editingCurrentPosition, setEditingCurrentPosition] = useState(false);
+
+  // Get current position from position history (source of truth)
+  const currentPosition = positionHistory.find(p => p.is_current);
 
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
@@ -667,10 +671,20 @@ const TeamMemberProfile = () => {
                 
                 {/* Position, Department and Projects */}
                 <div className="group flex items-center gap-2 flex-wrap">
-                  <p className="text-base font-medium text-primary">{employee.position}</p>
-                  <Badge variant="secondary" className="text-xs">{employee.department}</Badge>
+                  <p className="text-base font-medium text-primary">{currentPosition?.position || employee.position}</p>
+                  <Badge variant="secondary" className="text-xs">{currentPosition?.department || employee.department}</Badge>
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditEmployeeInfoDialog employeeId={id!} currentPosition={employee.position} currentDepartment={employee.department} currentEmploymentType={employee.employment_type || "employee"} onSuccess={loadEmployee} />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setEditingCurrentPosition(!!currentPosition);
+                          setShowAddPositionDialog(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                     </span>}
                   <span className="text-muted-foreground">·</span>
                   {employeeProjects.length > 0 ? employeeProjects.map(ep => <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
@@ -918,12 +932,16 @@ const TeamMemberProfile = () => {
                 </div>
               </Card>}
 
-            {/* Add Position Dialog */}
+            {/* Add/Edit Position Dialog */}
             {canEditPositionTimeline && id && (
               <PositionDialog
                 open={showAddPositionDialog}
-                onOpenChange={setShowAddPositionDialog}
+                onOpenChange={(open) => {
+                  setShowAddPositionDialog(open);
+                  if (!open) setEditingCurrentPosition(false);
+                }}
                 employeeId={id}
+                entry={editingCurrentPosition ? currentPosition : undefined}
                 existingPositions={positionHistory}
                 onSuccess={() => {
                   loadPositionHistory();
