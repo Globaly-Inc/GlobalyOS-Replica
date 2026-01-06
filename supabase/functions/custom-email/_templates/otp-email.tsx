@@ -4,6 +4,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -34,9 +35,13 @@ export const OTPEmail = ({
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
-          <div style={logoCircle}>
-            <span style={logoText}>GO</span>
-          </div>
+          <Img 
+            src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png"
+            alt="GlobalyOS"
+            width="64"
+            height="64"
+            style={logoImage}
+          />
         </Section>
         
         <Heading style={h1}>Hi {userName}!</Heading>
@@ -101,20 +106,8 @@ const logoSection = {
   marginBottom: '24px',
 }
 
-const logoCircle = {
-  display: 'inline-block',
-  width: '64px',
-  height: '64px',
+const logoImage = {
   borderRadius: '16px',
-  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-  textAlign: 'center' as const,
-  lineHeight: '64px',
-}
-
-const logoText = {
-  color: '#ffffff',
-  fontSize: '24px',
-  fontWeight: 'bold' as const,
 }
 
 const h1 = {

@@ -183,9 +183,7 @@ serve(async (req) => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; padding: 40px;">
                   <tr>
                     <td align="center" style="padding-bottom: 24px;">
-                      <div style="display: inline-block; width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #6366f1, #4f46e5); line-height: 64px; text-align: center;">
-                        <span style="color: #ffffff; font-size: 24px; font-weight: bold;">GO</span>
-                      </div>
+                      <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
                     </td>
                   </tr>
                   <tr>
