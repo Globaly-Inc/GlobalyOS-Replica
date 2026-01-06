@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
@@ -11,16 +13,49 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
-import { Loader2, Users, Crown, Shield, User } from "lucide-react";
+import { Loader2, Users, Crown, Shield, User, MoreHorizontal, UserMinus, UserCog } from "lucide-react";
+import { toast } from "sonner";
+import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
 interface OrgMembersTabProps {
   organizationId: string;
 }
 
 export function OrgMembersTab({ organizationId }: OrgMembersTabProps) {
+  const queryClient = useQueryClient();
+  const { logActivity } = useAdminActivityLog();
+  const [removingMember, setRemovingMember] = useState<string | null>(null);
+  const [changingRole, setChangingRole] = useState<{ id: string; currentRole: string; name: string } | null>(null);
+  const [newRole, setNewRole] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
   // Fetch organization members with profiles
-  const { data: members, isLoading } = useQuery({
+  const { data: members, isLoading, refetch } = useQuery({
     queryKey: ["org-members", organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,6 +103,78 @@ export function OrgMembersTab({ organizationId }: OrgMembersTabProps) {
       return data;
     },
   });
+
+  const handleRemoveMember = async () => {
+    if (!removingMember) return;
+    
+    const member = members?.find(m => m.id === removingMember);
+    if (!member) return;
+
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("organization_members")
+        .delete()
+        .eq("id", removingMember);
+
+      if (error) throw error;
+
+      const profile = member.profiles as any;
+      await logActivity({
+        organizationId,
+        actionType: 'member_removed',
+        entityType: 'member',
+        entityId: removingMember,
+        metadata: { 
+          memberName: profile?.full_name || profile?.email || 'Unknown',
+          role: member.role
+        }
+      });
+
+      toast.success("Member removed successfully");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["org-quick-stats", organizationId] });
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast.error("Failed to remove member");
+    } finally {
+      setIsProcessing(false);
+      setRemovingMember(null);
+    }
+  };
+
+  const handleChangeRole = async () => {
+    if (!changingRole || !newRole) return;
+
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("organization_members")
+        .update({ role: newRole })
+        .eq("id", changingRole.id);
+
+      if (error) throw error;
+
+      await logActivity({
+        organizationId,
+        actionType: 'member_role_changed',
+        entityType: 'member',
+        entityId: changingRole.id,
+        changes: { role: { from: changingRole.currentRole, to: newRole } },
+        metadata: { memberName: changingRole.name }
+      });
+
+      toast.success("Member role updated successfully");
+      refetch();
+    } catch (error) {
+      console.error("Error updating member role:", error);
+      toast.error("Failed to update member role");
+    } finally {
+      setIsProcessing(false);
+      setChangingRole(null);
+      setNewRole("");
+    }
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -130,11 +237,13 @@ export function OrgMembersTab({ organizationId }: OrgMembersTabProps) {
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Joined</TableHead>
+                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members?.map((member) => {
                 const profile = member.profiles as any;
+                const isOwner = member.role === "owner";
                 return (
                   <TableRow key={member.id}>
                     <TableCell>
@@ -153,12 +262,45 @@ export function OrgMembersTab({ organizationId }: OrgMembersTabProps) {
                     </TableCell>
                     <TableCell>{getRoleBadge(member.role)}</TableCell>
                     <TableCell>{format(new Date(member.created_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setChangingRole({ 
+                                id: member.id, 
+                                currentRole: member.role,
+                                name: profile?.full_name || profile?.email || 'Unknown'
+                              });
+                              setNewRole(member.role);
+                            }}
+                          >
+                            <UserCog className="h-4 w-4 mr-2" />
+                            Change Role
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setRemovingMember(member.id)}
+                            className="text-destructive focus:text-destructive"
+                            disabled={isOwner}
+                          >
+                            <UserMinus className="h-4 w-4 mr-2" />
+                            Remove Member
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {(!members || members.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     No members found
                   </TableCell>
                 </TableRow>
@@ -232,6 +374,76 @@ export function OrgMembersTab({ organizationId }: OrgMembersTabProps) {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Remove Member Confirmation Dialog */}
+      <AlertDialog open={!!removingMember} onOpenChange={(open) => !open && setRemovingMember(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this member from the organization? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveMember}
+              disabled={isProcessing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Role Dialog */}
+      <AlertDialog open={!!changingRole} onOpenChange={(open) => !open && setChangingRole(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Member Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select a new role for {changingRole?.name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleChangeRole}
+              disabled={isProcessing || !newRole || newRole === changingRole?.currentRole}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Role"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
