@@ -22,6 +22,7 @@ interface EmployeeSchedule {
   break_start_time?: string;
   break_end_time?: string;
   work_days?: number[];
+  timezone?: string;
 }
 
 export interface NotCheckedInEmployee {
@@ -148,7 +149,8 @@ export const AttendanceNotCheckedInTab = ({
             work_location,
             break_start_time,
             break_end_time,
-            work_days
+            work_days,
+            timezone
           )
         `)
         .eq('organization_id', currentOrg.id)
@@ -198,9 +200,7 @@ export const AttendanceNotCheckedInTab = ({
       
       setSentReminders(reminderSentIds);
 
-      const currentTimeStr = formatInTimeZone(new Date(), orgTimezone, 'HH:mm:ss');
-      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), orgTimezone, 'i')) % 7;
-
+      // Filter employees whose start time has passed IN THEIR OWN TIMEZONE
       const filtered = (employeesWithSchedule || []).filter(emp => {
         if (checkedInIds.has(emp.id)) return false;
 
@@ -209,8 +209,15 @@ export const AttendanceNotCheckedInTab = ({
         
         if (!schedule?.work_start_time) return false;
 
+        // Use employee's schedule timezone (fallback to org timezone)
+        const employeeTimezone = schedule.timezone || orgTimezone;
+
+        // Get current time and day in EMPLOYEE'S timezone
+        const currentTimeInEmpTz = formatInTimeZone(new Date(), employeeTimezone, 'HH:mm:ss');
+        const currentDayInEmpTz = parseInt(formatInTimeZone(new Date(), employeeTimezone, 'i')) % 7;
+
         const workDays = schedule.work_days || [1, 2, 3, 4, 5];
-        if (!workDays.includes(currentDayOfWeek)) return false;
+        if (!workDays.includes(currentDayInEmpTz)) return false;
 
         const leave = leaveMap.get(emp.id);
         if (leave) {
@@ -218,16 +225,17 @@ export const AttendanceNotCheckedInTab = ({
           
           if (leave.isFirstHalf) {
             const breakEndTime = schedule.break_end_time || '13:00:00';
-            return currentTimeStr >= breakEndTime;
+            return currentTimeInEmpTz >= breakEndTime;
           }
           
           if (leave.isSecondHalf) {
             const breakStartTime = schedule.break_start_time || '12:00:00';
-            if (currentTimeStr >= breakStartTime) return false;
+            if (currentTimeInEmpTz >= breakStartTime) return false;
           }
         }
 
-        return currentTimeStr >= schedule.work_start_time;
+        // Only show if their scheduled start time has passed IN THEIR TIMEZONE
+        return currentTimeInEmpTz >= schedule.work_start_time;
       }) as NotCheckedInEmployee[];
 
       setNotCheckedIn(filtered);
