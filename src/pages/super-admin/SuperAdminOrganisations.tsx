@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,26 +38,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { 
   Search, MoreHorizontal, Eye, Power, Trash2, Loader2, Building2, 
-  CheckCircle, XCircle, Clock, Users, Calendar as CalendarIcon 
+  CheckCircle, XCircle, Clock, Users, Calendar as CalendarIcon,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
-import { OrganizationFeaturesManager } from "@/components/super-admin/OrganizationFeaturesManager";
-import { usePagination } from "@/hooks/usePagination";
-import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface Organization {
   id: string;
@@ -76,20 +68,12 @@ interface Organization {
   primaryAdmin?: string;
 }
 
-interface OrganizationDetails extends Organization {
-  wikiPageCount: number;
-  calendarEventCount: number;
-  employeeCount: number;
-  lastActivityDate: string | null;
-}
-
 const SuperAdminOrganisations = () => {
+  const navigate = useNavigate();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedOrg, setSelectedOrg] = useState<OrganizationDetails | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orgToDelete, setOrgToDelete] = useState<Organization | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -157,43 +141,8 @@ const SuperAdminOrganisations = () => {
     }
   };
 
-  const fetchOrgDetails = async (org: Organization) => {
-    try {
-      const { count: wikiCount } = await supabase
-        .from('wiki_pages')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', org.id);
-
-      const { count: calendarCount } = await supabase
-        .from('calendar_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', org.id);
-
-      const { count: empCount } = await supabase
-        .from('employees')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', org.id);
-
-      const { data: lastUpdate } = await supabase
-        .from('updates')
-        .select('created_at')
-        .eq('organization_id', org.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      setSelectedOrg({
-        ...org,
-        wikiPageCount: wikiCount || 0,
-        calendarEventCount: calendarCount || 0,
-        employeeCount: empCount || 0,
-        lastActivityDate: lastUpdate?.created_at || null,
-      });
-      setDetailsOpen(true);
-    } catch (error) {
-      console.error('Error fetching org details:', error);
-      toast.error('Failed to load organization details');
-    }
+  const handleViewDetails = (org: Organization) => {
+    navigate(`/super-admin/organisations/${org.id}`);
   };
 
   const toggleOrgStatus = async (org: Organization) => {
@@ -438,7 +387,7 @@ const SuperAdminOrganisations = () => {
                 <TabsContent value="all" className="mt-4">
                   <OrganizationsTable 
                     organizations={filterOrganizations(organizations, 'all')}
-                    onViewDetails={fetchOrgDetails}
+                    onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
@@ -449,13 +398,13 @@ const SuperAdminOrganisations = () => {
                   <PendingOrganizationsTable 
                     organizations={filterOrganizations(organizations, 'pending')}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
-                    onViewDetails={fetchOrgDetails}
+                    onViewDetails={handleViewDetails}
                   />
                 </TabsContent>
                 <TabsContent value="active" className="mt-4">
                   <OrganizationsTable 
                     organizations={filterOrganizations(organizations, 'active')}
-                    onViewDetails={fetchOrgDetails}
+                    onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
@@ -465,7 +414,7 @@ const SuperAdminOrganisations = () => {
                 <TabsContent value="inactive" className="mt-4">
                   <OrganizationsTable 
                     organizations={filterOrganizations(organizations, 'inactive')}
-                    onViewDetails={fetchOrgDetails}
+                    onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
@@ -489,20 +438,16 @@ const SuperAdminOrganisations = () => {
             <DialogHeader>
               <DialogTitle>Review Organisation Application</DialogTitle>
               <DialogDescription>
-                Review the details below and approve or reject this organisation.
+                Review the application details and approve or reject this organisation.
               </DialogDescription>
             </DialogHeader>
             
             {orgToReview && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 py-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Organisation</p>
                     <p className="font-medium">{orgToReview.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Code</p>
-                    <code className="text-sm bg-muted px-2 py-0.5 rounded">{orgToReview.slug}</code>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Owner</p>
@@ -510,7 +455,7 @@ const SuperAdminOrganisations = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium text-sm">{orgToReview.owner_email || 'N/A'}</p>
+                    <p className="font-medium">{orgToReview.owner_email || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Plan</p>
@@ -524,17 +469,13 @@ const SuperAdminOrganisations = () => {
                     <p className="text-sm text-muted-foreground">Industry</p>
                     <p className="font-medium">{orgToReview.industry || 'N/A'}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Requested</p>
-                    <p className="font-medium">{formatDistanceToNow(new Date(orgToReview.created_at), { addSuffix: true })}</p>
-                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="rejection-reason">Rejection Reason (required for rejection)</Label>
                   <Textarea
                     id="rejection-reason"
-                    placeholder="Enter reason for rejection..."
+                    placeholder="Explain why this application is being rejected..."
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     rows={3}
@@ -543,157 +484,22 @@ const SuperAdminOrganisations = () => {
               </div>
             )}
 
-            <DialogFooter className="flex gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => setReviewDialogOpen(false)}
-                disabled={processing}
-              >
-                Cancel
-              </Button>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 variant="destructive"
                 onClick={handleReject}
                 disabled={processing || !rejectionReason.trim()}
               >
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Reject
               </Button>
-              <Button
-                onClick={handleApprove}
-                disabled={processing}
-              >
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+              <Button onClick={handleApprove} disabled={processing}>
+                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Approve
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* Details Sheet */}
-        <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <SheetContent className="sm:max-w-lg">
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-3">
-                {selectedOrg?.logo_url ? (
-                  <img
-                    src={selectedOrg.logo_url}
-                    alt={selectedOrg.name}
-                    className="h-10 w-10 rounded object-cover"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
-                    <Building2 className="h-5 w-5 text-primary" />
-                  </div>
-                )}
-                {selectedOrg?.name}
-              </SheetTitle>
-            </SheetHeader>
-            {selectedOrg && (
-              <ScrollArea className="h-[calc(100vh-120px)] pr-4">
-                <div className="mt-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Code</p>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {selectedOrg.slug}
-                      </code>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      {getStatusBadge(selectedOrg)}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Plan</p>
-                      <p className="font-medium capitalize">{selectedOrg.plan}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Billing</p>
-                      <p className="font-medium capitalize">{selectedOrg.billing_cycle || 'monthly'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Owner</p>
-                      <p className="font-medium">{selectedOrg.owner_name || selectedOrg.primaryAdmin}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium text-sm">{selectedOrg.owner_email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Company Size</p>
-                      <p className="font-medium">{selectedOrg.company_size || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Industry</p>
-                      <p className="font-medium">{selectedOrg.industry || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Created</p>
-                      <p className="font-medium">
-                        {format(new Date(selectedOrg.created_at), "dd MMM yyyy")}
-                      </p>
-                    </div>
-                    {selectedOrg.trial_ends_at && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Trial Ends</p>
-                        <p className="font-medium">
-                          {format(new Date(selectedOrg.trial_ends_at), "dd MMM yyyy")}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-3">Usage Statistics</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Card>
-                        <CardContent className="pt-4">
-                          <p className="text-2xl font-bold">{selectedOrg.userCount}</p>
-                          <p className="text-sm text-muted-foreground">Users</p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="pt-4">
-                          <p className="text-2xl font-bold">{selectedOrg.employeeCount}</p>
-                          <p className="text-sm text-muted-foreground">Employees</p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="pt-4">
-                          <p className="text-2xl font-bold">{selectedOrg.wikiPageCount}</p>
-                          <p className="text-sm text-muted-foreground">Wiki Pages</p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="pt-4">
-                          <p className="text-2xl font-bold">{selectedOrg.calendarEventCount}</p>
-                          <p className="text-sm text-muted-foreground">Calendar Events</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-
-                  {selectedOrg.lastActivityDate && (
-                    <div className="border-t pt-4">
-                      <p className="text-sm text-muted-foreground">Last Activity</p>
-                      <p className="font-medium">
-                        {format(new Date(selectedOrg.lastActivityDate), "dd MMM yyyy 'at' HH:mm")}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Feature Flags Management */}
-                  <div className="border-t pt-4">
-                    <OrganizationFeaturesManager 
-                      organizationId={selectedOrg.id} 
-                      organizationName={selectedOrg.name} 
-                    />
-                  </div>
-                </div>
-              </ScrollArea>
-            )}
-          </SheetContent>
-        </Sheet>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -768,7 +574,11 @@ const OrganizationsTable = ({
     </TableHeader>
     <TableBody>
       {organizations.map((org) => (
-        <TableRow key={org.id}>
+        <TableRow 
+          key={org.id} 
+          className="cursor-pointer hover:bg-muted/50"
+          onClick={() => onViewDetails(org)}
+        >
           <TableCell>
             <div className="flex items-center gap-3">
               {org.logo_url ? (
@@ -790,14 +600,14 @@ const OrganizationsTable = ({
               {org.slug}
             </code>
           </TableCell>
-          <TableCell>{getStatusBadge(org)}</TableCell>
+          <TableCell onClick={(e) => e.stopPropagation()}>{getStatusBadge(org)}</TableCell>
           <TableCell className="capitalize">{org.plan}</TableCell>
           <TableCell>{org.userCount}</TableCell>
           <TableCell className="max-w-[150px] truncate">{org.primaryAdmin}</TableCell>
           <TableCell>
             {format(new Date(org.created_at), "dd MMM yyyy")}
           </TableCell>
-          <TableCell>
+          <TableCell onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -867,7 +677,11 @@ const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: P
     </TableHeader>
     <TableBody>
       {organizations.map((org) => (
-        <TableRow key={org.id}>
+        <TableRow 
+          key={org.id}
+          className="cursor-pointer hover:bg-muted/50"
+          onClick={() => onViewDetails(org)}
+        >
           <TableCell>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded bg-amber-100 flex items-center justify-center">
@@ -889,13 +703,13 @@ const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: P
           <TableCell>{org.company_size || 'N/A'}</TableCell>
           <TableCell>{org.industry || 'N/A'}</TableCell>
           <TableCell>{formatDistanceToNow(new Date(org.created_at), { addSuffix: true })}</TableCell>
-          <TableCell>
+          <TableCell onClick={(e) => e.stopPropagation()}>
             <div className="flex gap-1">
               <Button size="sm" onClick={() => onReview(org)}>
                 Review
               </Button>
               <Button size="sm" variant="ghost" onClick={() => onViewDetails(org)}>
-                <Eye className="h-4 w-4" />
+                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           </TableCell>
