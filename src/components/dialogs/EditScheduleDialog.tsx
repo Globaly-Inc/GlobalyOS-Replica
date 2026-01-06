@@ -8,25 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, Globe, Building2, Home, Building } from "lucide-react";
+import { Clock, Globe, Building2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkLocation, WORK_LOCATION_CONFIG } from "@/types/wfh";
-
-interface DaySchedule {
-  enabled: boolean;
-  start: string;
-  end: string;
-}
-
-interface WeekSchedule {
-  monday: DaySchedule;
-  tuesday: DaySchedule;
-  wednesday: DaySchedule;
-  thursday: DaySchedule;
-  friday: DaySchedule;
-  saturday: DaySchedule;
-  sunday: DaySchedule;
-}
 
 interface EditScheduleDialogProps {
   open: boolean;
@@ -47,13 +31,13 @@ interface EditScheduleDialogProps {
 }
 
 const DAYS = [
-  { key: 'monday', label: 'Monday', short: 'Mon' },
-  { key: 'tuesday', label: 'Tuesday', short: 'Tue' },
-  { key: 'wednesday', label: 'Wednesday', short: 'Wed' },
-  { key: 'thursday', label: 'Thursday', short: 'Thu' },
-  { key: 'friday', label: 'Friday', short: 'Fri' },
-  { key: 'saturday', label: 'Saturday', short: 'Sat' },
-  { key: 'sunday', label: 'Sunday', short: 'Sun' },
+  { key: 'sunday', label: 'Sunday', short: 'Sun', dayNum: 0 },
+  { key: 'monday', label: 'Monday', short: 'Mon', dayNum: 1 },
+  { key: 'tuesday', label: 'Tuesday', short: 'Tue', dayNum: 2 },
+  { key: 'wednesday', label: 'Wednesday', short: 'Wed', dayNum: 3 },
+  { key: 'thursday', label: 'Thursday', short: 'Thu', dayNum: 4 },
+  { key: 'friday', label: 'Friday', short: 'Fri', dayNum: 5 },
+  { key: 'saturday', label: 'Saturday', short: 'Sat', dayNum: 6 },
 ] as const;
 
 const TIMEZONES = [
@@ -78,19 +62,6 @@ const TIMEZONES = [
   { value: "Pacific/Auckland", label: "New Zealand (NZST)" },
 ];
 
-const DEFAULT_DAY: DaySchedule = { enabled: true, start: "09:00", end: "17:00" };
-const DEFAULT_WEEKEND: DaySchedule = { enabled: false, start: "09:00", end: "17:00" };
-
-const getDefaultWeekSchedule = (): WeekSchedule => ({
-  monday: { ...DEFAULT_DAY },
-  tuesday: { ...DEFAULT_DAY },
-  wednesday: { ...DEFAULT_DAY },
-  thursday: { ...DEFAULT_DAY },
-  friday: { ...DEFAULT_DAY },
-  saturday: { ...DEFAULT_WEEKEND },
-  sunday: { ...DEFAULT_WEEKEND },
-});
-
 const getLocalTimezone = (): string => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -112,65 +83,42 @@ export const EditScheduleDialog = ({
   const [lateThreshold, setLateThreshold] = useState(15);
   const [timezone, setTimezone] = useState(getLocalTimezone());
   const [workLocation, setWorkLocation] = useState<WorkLocation>("office");
-  const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(getDefaultWeekSchedule());
+  const [workStartTime, setWorkStartTime] = useState("09:00");
+  const [workEndTime, setWorkEndTime] = useState("17:00");
   const [breakStartTime, setBreakStartTime] = useState("12:00");
   const [breakEndTime, setBreakEndTime] = useState("13:00");
+  const [enabledDays, setEnabledDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri by default
 
   useEffect(() => {
     if (open) {
       if (currentSchedule) {
-        // Convert old single schedule to week format
-        const startTime = currentSchedule.work_start_time.substring(0, 5);
-        const endTime = currentSchedule.work_end_time.substring(0, 5);
+        setWorkStartTime(currentSchedule.work_start_time.substring(0, 5));
+        setWorkEndTime(currentSchedule.work_end_time.substring(0, 5));
         setLateThreshold(currentSchedule.late_threshold_minutes);
         setTimezone(currentSchedule.timezone || getLocalTimezone());
         setWorkLocation(currentSchedule.work_location || "office");
         setBreakStartTime(currentSchedule.break_start_time?.substring(0, 5) || "12:00");
         setBreakEndTime(currentSchedule.break_end_time?.substring(0, 5) || "13:00");
-        
-        // Use work_days from schedule if available, otherwise default to Mon-Fri
-        const workDays = currentSchedule.work_days || [1, 2, 3, 4, 5];
-        
-        setWeekSchedule({
-          sunday: { enabled: workDays.includes(0), start: startTime, end: endTime },
-          monday: { enabled: workDays.includes(1), start: startTime, end: endTime },
-          tuesday: { enabled: workDays.includes(2), start: startTime, end: endTime },
-          wednesday: { enabled: workDays.includes(3), start: startTime, end: endTime },
-          thursday: { enabled: workDays.includes(4), start: startTime, end: endTime },
-          friday: { enabled: workDays.includes(5), start: startTime, end: endTime },
-          saturday: { enabled: workDays.includes(6), start: startTime, end: endTime },
-        });
+        setEnabledDays(currentSchedule.work_days || [1, 2, 3, 4, 5]);
       } else {
-        setWeekSchedule(getDefaultWeekSchedule());
+        setWorkStartTime("09:00");
+        setWorkEndTime("17:00");
         setLateThreshold(15);
         setTimezone(getLocalTimezone());
         setWorkLocation("office");
         setBreakStartTime("12:00");
         setBreakEndTime("13:00");
+        setEnabledDays([1, 2, 3, 4, 5]);
       }
     }
   }, [currentSchedule, open]);
 
-  const updateDay = (day: keyof WeekSchedule, field: keyof DaySchedule, value: string | boolean) => {
-    setWeekSchedule(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        [field]: value,
-      },
-    }));
-  };
-
-  const applyToAllWeekdays = () => {
-    const mondaySchedule = weekSchedule.monday;
-    setWeekSchedule(prev => ({
-      ...prev,
-      tuesday: { ...mondaySchedule },
-      wednesday: { ...mondaySchedule },
-      thursday: { ...mondaySchedule },
-      friday: { ...mondaySchedule },
-    }));
-    toast.success("Applied Monday's schedule to all weekdays");
+  const toggleDay = (dayNum: number) => {
+    setEnabledDays(prev => 
+      prev.includes(dayNum) 
+        ? prev.filter(d => d !== dayNum)
+        : [...prev, dayNum].sort((a, b) => a - b)
+    );
   };
 
   const handleSave = async () => {
@@ -179,24 +127,10 @@ export const EditScheduleDialog = ({
       return;
     }
 
-    // Find the first enabled day to use as the primary schedule
-    const enabledDay = DAYS.find(d => weekSchedule[d.key].enabled);
-    if (!enabledDay) {
+    if (enabledDays.length === 0) {
       toast.error("Please enable at least one working day");
       return;
     }
-
-    const primarySchedule = weekSchedule[enabledDay.key];
-
-    // Build work_days array from weekSchedule (0=Sunday, 1=Monday, ..., 6=Saturday)
-    const workDays: number[] = [];
-    if (weekSchedule.sunday.enabled) workDays.push(0);
-    if (weekSchedule.monday.enabled) workDays.push(1);
-    if (weekSchedule.tuesday.enabled) workDays.push(2);
-    if (weekSchedule.wednesday.enabled) workDays.push(3);
-    if (weekSchedule.thursday.enabled) workDays.push(4);
-    if (weekSchedule.friday.enabled) workDays.push(5);
-    if (weekSchedule.saturday.enabled) workDays.push(6);
 
     setLoading(true);
     try {
@@ -205,13 +139,13 @@ export const EditScheduleDialog = ({
         .upsert({
           employee_id: employeeId,
           organization_id: organizationId,
-          work_start_time: `${primarySchedule.start}:00`,
-          work_end_time: `${primarySchedule.end}:00`,
+          work_start_time: `${workStartTime}:00`,
+          work_end_time: `${workEndTime}:00`,
           break_start_time: `${breakStartTime}:00`,
           break_end_time: `${breakEndTime}:00`,
           late_threshold_minutes: lateThreshold,
           work_location: workLocation,
-          work_days: workDays,
+          work_days: enabledDays,
           timezone: timezone,
         }, {
           onConflict: "employee_id",
@@ -276,79 +210,83 @@ export const EditScheduleDialog = ({
               </p>
             </div>
 
-            {/* Timezone & Quick Actions Row */}
-            <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Timezone
-                </Label>
-                <Select value={timezone} onValueChange={setTimezone}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timezone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Work Hours - Single Global Input */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Work Hours
+              </Label>
+              <div className="flex items-center gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Start</Label>
+                  <Input
+                    type="time"
+                    value={workStartTime}
+                    onChange={(e) => setWorkStartTime(e.target.value)}
+                    className="w-[120px] h-9"
+                  />
+                </div>
+                <span className="text-muted-foreground mt-5">to</span>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">End</Label>
+                  <Input
+                    type="time"
+                    value={workEndTime}
+                    onChange={(e) => setWorkEndTime(e.target.value)}
+                    className="w-[120px] h-9"
+                  />
+                </div>
               </div>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                className="whitespace-nowrap"
-                onClick={applyToAllWeekdays}
-              >
-                Apply Mon to all weekdays
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                These hours apply to all selected working days
+              </p>
             </div>
 
-            {/* Weekly Schedule */}
+            {/* Working Days - Toggle Only */}
             <div className="space-y-3">
-              {DAYS.map((day) => (
-                <div 
-                  key={day.key} 
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                    weekSchedule[day.key].enabled 
-                      ? 'bg-primary/5 border-primary/20' 
-                      : 'bg-muted/30 border-muted'
-                  }`}
-                >
-                  <Switch
-                    checked={weekSchedule[day.key].enabled}
-                    onCheckedChange={(checked) => updateDay(day.key, 'enabled', checked)}
-                  />
-                  <span className={`w-12 font-medium text-sm ${
-                    !weekSchedule[day.key].enabled ? 'text-muted-foreground' : ''
-                  }`}>
-                    {day.short}
-                  </span>
-                  
-                  {weekSchedule[day.key].enabled ? (
-                    <div className="flex items-center gap-2 flex-1">
-                      <Input
-                        type="time"
-                        value={weekSchedule[day.key].start}
-                        onChange={(e) => updateDay(day.key, 'start', e.target.value)}
-                        className="w-[110px] h-8 text-sm"
-                      />
-                      <span className="text-muted-foreground text-sm">to</span>
-                      <Input
-                        type="time"
-                        value={weekSchedule[day.key].end}
-                        onChange={(e) => updateDay(day.key, 'end', e.target.value)}
-                        className="w-[110px] h-8 text-sm"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">Off</span>
-                  )}
-                </div>
-              ))}
+              <Label>Working Days</Label>
+              <div className="grid grid-cols-7 gap-2">
+                {DAYS.map((day) => {
+                  const isEnabled = enabledDays.includes(day.dayNum);
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => toggleDay(day.dayNum)}
+                      className={`p-2 rounded-lg border-2 transition-all text-center ${
+                        isEnabled
+                          ? 'bg-primary/10 border-primary/30 text-primary'
+                          : 'border-muted bg-muted/30 text-muted-foreground'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{day.short.charAt(0)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+                {DAYS.filter(d => enabledDays.includes(d.dayNum)).map(d => d.short).join(', ') || 'No days selected'}
+              </div>
+            </div>
+
+            {/* Timezone */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Timezone
+              </Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Break Time */}
