@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // Build the full URL - use the app URL from environment or construct it
     // Handle trailing slash in APP_BASE_URL to avoid double slashes
-    let appBaseUrl = Deno.env.get('APP_BASE_URL') || 'https://globalyos.com';
+    let appBaseUrl = Deno.env.get('APP_BASE_URL') || 'https://www.globalyos.com';
     // Remove trailing slash if present
     if (appBaseUrl.endsWith('/')) {
       appBaseUrl = appBaseUrl.slice(0, -1);

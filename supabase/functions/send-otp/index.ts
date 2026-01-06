@@ -32,20 +32,9 @@ function getUserAgent(req: Request): string {
   return req.headers.get('user-agent') || 'unknown';
 }
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 async function logLoginAttempt(
   supabase: any,
@@ -179,7 +168,7 @@ serve(async (req) => {
 
     console.log('OTP stored in database, sending email...');
 
-    const logoUrl = getLogoUrl(req);
+    const logoUrl = GLOBALYOS_LOGO_URL;
 
     // Send email with OTP
     const { error: emailError } = await resend.emails.send({

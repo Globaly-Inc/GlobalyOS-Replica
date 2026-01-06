@@ -41,20 +41,9 @@ function getClientIP(req: Request): string {
          'unknown';
 }
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 
 serve(async (req: Request) => {
@@ -65,7 +54,7 @@ serve(async (req: Request) => {
 
   const clientIP = getClientIP(req);
   console.log('Leave notification request from IP:', clientIP);
-  const logoUrl = getLogoUrl(req);
+  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const supabaseClient = createClient(
@@ -267,7 +256,7 @@ serve(async (req: Request) => {
               
               <p>Please review and respond to this request at your earliest convenience.</p>
               
-              <a href="https://people.globalyhub.com" class="button">Review Request</a>
+              <a href="${APP_URL}" class="button">Review Request</a>
               
               <div class="footer">
                 <p>This is an automated notification from GlobalyHub People.</p>

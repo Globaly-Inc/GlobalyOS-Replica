@@ -176,8 +176,8 @@ serve(async (req: Request) => {
 
     console.log('Generated new invitation code for:', email);
 
-    // Get the app URL from environment or use default
-    const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
+    // Get the app URL
+    const appUrl = 'https://www.globalyos.com';
     const joinUrl = `${appUrl}/join?email=${encodeURIComponent(email)}`;
 
     // Send invitation email via Resend API

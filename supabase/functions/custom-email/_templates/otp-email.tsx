@@ -21,20 +21,8 @@ interface OTPEmailProps {
   emailActionType: string
 }
 
-const getLogoUrl = (redirectTo: string) => {
-  try {
-    const origin = new URL(redirectTo).origin
-    return `${origin}/images/globalyos-icon.png`
-  } catch {
-    const base =
-      Deno.env.get('APP_URL') ||
-      Deno.env.get('PUBLIC_URL') ||
-      Deno.env.get('APP_BASE_URL') ||
-      'https://people.globalyhub.com'
-
-    return `${base.replace(/\/$/, '')}/images/globalyos-icon.png`
-  }
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
 
 export const OTPEmail = ({
   userName,
@@ -44,7 +32,7 @@ export const OTPEmail = ({
   redirectTo,
   emailActionType,
 }: OTPEmailProps) => {
-  const logoUrl = getLogoUrl(redirectTo)
+  const logoUrl = GLOBALYOS_LOGO_URL
 
   return (
     <Html>

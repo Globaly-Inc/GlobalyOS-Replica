@@ -55,7 +55,7 @@ async function sendWelcomeEmail(
     return false;
   }
 
-  const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
+  const appUrl = 'https://www.globalyos.com';
   const loginUrl = `${appUrl}/auth`;
   const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'User';
 
