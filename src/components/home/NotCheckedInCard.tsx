@@ -24,6 +24,7 @@ interface EmployeeSchedule {
   break_start_time?: string;
   break_end_time?: string;
   work_days?: number[];
+  timezone?: string;
 }
 
 interface NotCheckedInEmployee {
@@ -83,7 +84,8 @@ export const NotCheckedInCard = () => {
             work_location,
             break_start_time,
             break_end_time,
-            work_days
+            work_days,
+            timezone
           )
         `)
         .eq('organization_id', currentOrg.id)
@@ -136,11 +138,7 @@ export const NotCheckedInCard = () => {
       
       setSentReminders(reminderSentIds);
 
-      // Get current time and day in organization's timezone for comparison
-      const currentTimeStr = formatInTimeZone(new Date(), timezone, 'HH:mm:ss');
-      const currentDayOfWeek = parseInt(formatInTimeZone(new Date(), timezone, 'i')) % 7; // 0=Sunday, 1=Monday, ..., 6=Saturday
-
-      // Filter to find not-checked-in employees whose start time has passed
+      // Filter to find not-checked-in employees whose start time has passed IN THEIR TIMEZONE
       const filtered = (employeesWithSchedule || []).filter(emp => {
         // Already checked in - exclude
         if (checkedInIds.has(emp.id)) {
@@ -155,9 +153,16 @@ export const NotCheckedInCard = () => {
           return false;
         }
 
-        // Check if today is a work day for this employee (default Mon-Fri if not set)
+        // Use employee's schedule timezone (fallback to org timezone)
+        const employeeTimezone = schedule.timezone || timezone;
+
+        // Get current time and day in EMPLOYEE'S timezone
+        const currentTimeInEmpTz = formatInTimeZone(new Date(), employeeTimezone, 'HH:mm:ss');
+        const currentDayInEmpTz = parseInt(formatInTimeZone(new Date(), employeeTimezone, 'i')) % 7; // 0=Sunday
+
+        // Check if today is a work day for this employee (in their timezone)
         const workDays = schedule.work_days || [1, 2, 3, 4, 5];
-        if (!workDays.includes(currentDayOfWeek)) {
+        if (!workDays.includes(currentDayInEmpTz)) {
           return false; // Today is not a scheduled work day
         }
 
@@ -170,19 +175,19 @@ export const NotCheckedInCard = () => {
           // First half leave - only flag if current time is past break_end_time
           if (leave.isFirstHalf) {
             const breakEndTime = schedule.break_end_time || '13:00:00';
-            return currentTimeStr >= breakEndTime; // Only show after lunch break
+            return currentTimeInEmpTz >= breakEndTime; // Only show after lunch break
           }
           
           // Second half leave - only flag if current time is before break_start_time
           if (leave.isSecondHalf) {
             const breakStartTime = schedule.break_start_time || '12:00:00';
-            if (currentTimeStr >= breakStartTime) return false; // They're on leave now
+            if (currentTimeInEmpTz >= breakStartTime) return false; // They're on leave now
             // Otherwise, they should have checked in by their normal start time
           }
         }
 
-        // Only show if their scheduled start time has passed
-        return currentTimeStr >= schedule.work_start_time;
+        // Only show if their scheduled start time has passed IN THEIR TIMEZONE
+        return currentTimeInEmpTz >= schedule.work_start_time;
       }) as NotCheckedInEmployee[];
 
       setNotCheckedIn(filtered);
@@ -281,12 +286,13 @@ export const NotCheckedInCard = () => {
     return null;
   }
 
-  const formatTime = (timeStr: string) => {
+  const formatTime = (timeStr: string, scheduleTimezone?: string) => {
     if (!timeStr) return '';
+    const tz = scheduleTimezone || orgTimezone;
     const [hours, minutes] = timeStr.split(':');
     const date = new Date();
     date.setHours(parseInt(hours), parseInt(minutes));
-    return `${format(date, 'h:mm a')} ${getTimezoneAbbreviation(orgTimezone)}`;
+    return `${format(date, 'h:mm a')} ${getTimezoneAbbreviation(tz)}`;
   };
 
   const maxVisible = isMobile ? 10 : 20;
@@ -362,7 +368,7 @@ export const NotCheckedInCard = () => {
                     <>
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
-                        <span>Expected: {formatTime(schedule.work_start_time)}</span>
+                        <span>Expected: {formatTime(schedule.work_start_time, schedule.timezone)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <MapPin className="h-3.5 w-3.5" />
