@@ -830,6 +830,13 @@ const TeamMemberProfile = () => {
                         ].map(day => {
                           const workDays = employeeSchedule.work_days || [1, 2, 3, 4, 5];
                           const isWorking = workDays.includes(day.dayNum);
+                          
+                          // Get per-day schedule if available, otherwise use default times
+                          const daySchedules = employeeSchedule.day_schedules as Record<string, { enabled: boolean; start: string; end: string }> | null;
+                          const daySchedule = daySchedules?.[String(day.dayNum)];
+                          const startTime = daySchedule?.start || employeeSchedule.work_start_time;
+                          const endTime = daySchedule?.end || employeeSchedule.work_end_time;
+                          
                           const formatTime12 = (time: string) => {
                             const [hours, minutes] = time.split(":");
                             const hour = parseInt(hours);
@@ -844,10 +851,10 @@ const TeamMemberProfile = () => {
                               {isWorking ? (
                                 <div className="mt-0.5">
                                   <p className="text-[9px] font-semibold text-foreground leading-tight">
-                                    {formatTime12(employeeSchedule.work_start_time)}
+                                    {formatTime12(startTime)}
                                   </p>
                                   <p className="text-[9px] font-semibold text-foreground leading-tight">
-                                    {formatTime12(employeeSchedule.work_end_time)}
+                                    {formatTime12(endTime)}
                                   </p>
                                 </div>
                               ) : (

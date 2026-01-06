@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, Globe, Building2, Home, Building } from "lucide-react";
+import { Clock, Globe, Building2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkLocation, WORK_LOCATION_CONFIG } from "@/types/wfh";
+import type { Json } from "@/integrations/supabase/types";
 
 interface DaySchedule {
   enabled: boolean;
@@ -28,6 +29,17 @@ interface WeekSchedule {
   sunday: DaySchedule;
 }
 
+// Structure for day_schedules JSONB column
+interface DayScheduleDB {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+type DaySchedulesDB = {
+  [key: string]: DayScheduleDB;
+};
+
 interface EditScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,18 +54,20 @@ interface EditScheduleDialogProps {
     timezone?: string;
     work_location?: WorkLocation;
     work_days?: number[];
+    day_schedules?: DaySchedulesDB | null;
   } | null;
   onSuccess?: () => void;
 }
 
+// dayNum matches JS Date.getDay() - 0=Sunday, 1=Monday, etc.
 const DAYS = [
-  { key: 'monday', label: 'Monday', short: 'Mon' },
-  { key: 'tuesday', label: 'Tuesday', short: 'Tue' },
-  { key: 'wednesday', label: 'Wednesday', short: 'Wed' },
-  { key: 'thursday', label: 'Thursday', short: 'Thu' },
-  { key: 'friday', label: 'Friday', short: 'Fri' },
-  { key: 'saturday', label: 'Saturday', short: 'Sat' },
-  { key: 'sunday', label: 'Sunday', short: 'Sun' },
+  { key: 'monday', label: 'Monday', short: 'Mon', dayNum: 1 },
+  { key: 'tuesday', label: 'Tuesday', short: 'Tue', dayNum: 2 },
+  { key: 'wednesday', label: 'Wednesday', short: 'Wed', dayNum: 3 },
+  { key: 'thursday', label: 'Thursday', short: 'Thu', dayNum: 4 },
+  { key: 'friday', label: 'Friday', short: 'Fri', dayNum: 5 },
+  { key: 'saturday', label: 'Saturday', short: 'Sat', dayNum: 6 },
+  { key: 'sunday', label: 'Sunday', short: 'Sun', dayNum: 0 },
 ] as const;
 
 const TIMEZONES = [
@@ -119,27 +133,42 @@ export const EditScheduleDialog = ({
   useEffect(() => {
     if (open) {
       if (currentSchedule) {
-        // Convert old single schedule to week format
-        const startTime = currentSchedule.work_start_time.substring(0, 5);
-        const endTime = currentSchedule.work_end_time.substring(0, 5);
+        // Default fallback times
+        const defaultStartTime = currentSchedule.work_start_time.substring(0, 5);
+        const defaultEndTime = currentSchedule.work_end_time.substring(0, 5);
         setLateThreshold(currentSchedule.late_threshold_minutes);
         setTimezone(currentSchedule.timezone || getLocalTimezone());
         setWorkLocation(currentSchedule.work_location || "office");
         setBreakStartTime(currentSchedule.break_start_time?.substring(0, 5) || "12:00");
         setBreakEndTime(currentSchedule.break_end_time?.substring(0, 5) || "13:00");
         
-        // Use work_days from schedule if available, otherwise default to Mon-Fri
+        // Check if we have per-day schedules in the new format
+        const daySchedules = currentSchedule.day_schedules;
         const workDays = currentSchedule.work_days || [1, 2, 3, 4, 5];
         
-        setWeekSchedule({
-          sunday: { enabled: workDays.includes(0), start: startTime, end: endTime },
-          monday: { enabled: workDays.includes(1), start: startTime, end: endTime },
-          tuesday: { enabled: workDays.includes(2), start: startTime, end: endTime },
-          wednesday: { enabled: workDays.includes(3), start: startTime, end: endTime },
-          thursday: { enabled: workDays.includes(4), start: startTime, end: endTime },
-          friday: { enabled: workDays.includes(5), start: startTime, end: endTime },
-          saturday: { enabled: workDays.includes(6), start: startTime, end: endTime },
-        });
+        if (daySchedules && Object.keys(daySchedules).length > 0) {
+          // Load from day_schedules JSONB
+          setWeekSchedule({
+            sunday: daySchedules['0'] || { enabled: workDays.includes(0), start: defaultStartTime, end: defaultEndTime },
+            monday: daySchedules['1'] || { enabled: workDays.includes(1), start: defaultStartTime, end: defaultEndTime },
+            tuesday: daySchedules['2'] || { enabled: workDays.includes(2), start: defaultStartTime, end: defaultEndTime },
+            wednesday: daySchedules['3'] || { enabled: workDays.includes(3), start: defaultStartTime, end: defaultEndTime },
+            thursday: daySchedules['4'] || { enabled: workDays.includes(4), start: defaultStartTime, end: defaultEndTime },
+            friday: daySchedules['5'] || { enabled: workDays.includes(5), start: defaultStartTime, end: defaultEndTime },
+            saturday: daySchedules['6'] || { enabled: workDays.includes(6), start: defaultStartTime, end: defaultEndTime },
+          });
+        } else {
+          // Fallback to old format - all days use same time
+          setWeekSchedule({
+            sunday: { enabled: workDays.includes(0), start: defaultStartTime, end: defaultEndTime },
+            monday: { enabled: workDays.includes(1), start: defaultStartTime, end: defaultEndTime },
+            tuesday: { enabled: workDays.includes(2), start: defaultStartTime, end: defaultEndTime },
+            wednesday: { enabled: workDays.includes(3), start: defaultStartTime, end: defaultEndTime },
+            thursday: { enabled: workDays.includes(4), start: defaultStartTime, end: defaultEndTime },
+            friday: { enabled: workDays.includes(5), start: defaultStartTime, end: defaultEndTime },
+            saturday: { enabled: workDays.includes(6), start: defaultStartTime, end: defaultEndTime },
+          });
+        }
       } else {
         setWeekSchedule(getDefaultWeekSchedule());
         setLateThreshold(15);
@@ -179,7 +208,7 @@ export const EditScheduleDialog = ({
       return;
     }
 
-    // Find the first enabled day to use as the primary schedule
+    // Find the first enabled day to use as the primary schedule (for legacy columns)
     const enabledDay = DAYS.find(d => weekSchedule[d.key].enabled);
     if (!enabledDay) {
       toast.error("Please enable at least one working day");
@@ -198,6 +227,17 @@ export const EditScheduleDialog = ({
     if (weekSchedule.friday.enabled) workDays.push(5);
     if (weekSchedule.saturday.enabled) workDays.push(6);
 
+    // Build day_schedules JSONB for per-day times
+    const daySchedules: DaySchedulesDB = {
+      '0': weekSchedule.sunday,
+      '1': weekSchedule.monday,
+      '2': weekSchedule.tuesday,
+      '3': weekSchedule.wednesday,
+      '4': weekSchedule.thursday,
+      '5': weekSchedule.friday,
+      '6': weekSchedule.saturday,
+    };
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -213,6 +253,7 @@ export const EditScheduleDialog = ({
           work_location: workLocation,
           work_days: workDays,
           timezone: timezone,
+          day_schedules: daySchedules as unknown as Json,
         }, {
           onConflict: "employee_id",
         });
