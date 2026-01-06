@@ -128,8 +128,8 @@ describe('useUserRole', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      // User role should not have admin/hr privileges
-      if (result.current.role === 'user') {
+      // Member role should not have admin/hr privileges
+      if (result.current.role === 'member') {
         expect(result.current.isAdmin).toBe(false);
         expect(result.current.isHR).toBe(false);
         expect(result.current.isOwner).toBe(false);
@@ -138,7 +138,7 @@ describe('useUserRole', () => {
 
     it('should respect role hierarchy - admin has HR privileges', async () => {
       // This validates that the hasRole function correctly implements hierarchy:
-      // owner > admin > hr > user
+      // owner > admin > hr > member
       const { useUserRole } = await import('@/hooks/useUserRole');
       
       const { result } = renderHook(() => useUserRole());
@@ -150,8 +150,8 @@ describe('useUserRole', () => {
       // Verify hasRole function exists and works
       expect(result.current.hasRole).toBeDefined();
       
-      // hasRole('user') should always return true (everyone is at least a user)
-      expect(result.current.hasRole('user')).toBe(true);
+      // hasRole('member') should always return true (everyone is at least a member)
+      expect(result.current.hasRole('member')).toBe(true);
     });
   });
 

@@ -248,8 +248,8 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       if (!emp.country?.trim()) {
         errors.push(`Row ${row}: Country is required`);
       }
-      if (emp.role && !['admin', 'hr', 'user'].includes(emp.role.toLowerCase())) {
-        errors.push(`Row ${row}: Role must be admin, hr, or user`);
+      if (emp.role && !['admin', 'hr', 'member'].includes(emp.role.toLowerCase())) {
+        errors.push(`Row ${row}: Role must be admin, hr, or member`);
       }
     });
 

@@ -35,7 +35,7 @@ interface InviteRequest {
   emergencyContactPhone?: string;
   emergencyContactRelationship?: string;
   avatarUrl?: string;
-  role: 'admin' | 'hr' | 'user';
+  role: 'admin' | 'hr' | 'member';
   managerId?: string;
   officeId?: string;
   organizationId: string;

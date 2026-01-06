@@ -755,8 +755,8 @@ const BulkImport = () => {
       if (!emp.country?.trim()) {
         errors.push(`Row ${row}: Country is required`);
       }
-      if (emp.role && !['admin', 'hr', 'user'].includes(emp.role.toLowerCase())) {
-        errors.push(`Row ${row}: Role must be admin, hr, or user`);
+      if (emp.role && !['admin', 'hr', 'member'].includes(emp.role.toLowerCase())) {
+        errors.push(`Row ${row}: Role must be admin, hr, or member`);
       }
     });
 
@@ -1297,9 +1297,9 @@ const BulkImport = () => {
                             </td>
                             <td className={`p-0 border ${getFieldError('role') ? 'border-destructive' : 'border-border/50'}`}>
                               <SelectableCell
-                                value={emp.role || 'user'}
+                                value={emp.role || 'member'}
                                 options={[
-                                  { value: 'user', label: 'User' },
+                                  { value: 'member', label: 'Member' },
                                   { value: 'hr', label: 'HR' },
                                   { value: 'admin', label: 'Admin' }
                                 ]}
