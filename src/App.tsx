@@ -82,6 +82,7 @@ const SupportArticle = lazy(() => import('./pages/SupportArticle'));
 const SupportAPI = lazy(() => import('./pages/SupportAPI'));
 const SupportGetHelp = lazy(() => import('./pages/SupportGetHelp'));
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
+const SuperAdminOrganisationDetail = lazy(() => import('./pages/super-admin/SuperAdminOrganisationDetail'));
 const SuperAdminUsers = lazy(() => import('./pages/super-admin/SuperAdminUsers'));
 const SuperAdminAnalytics = lazy(() => import('./pages/super-admin/SuperAdminAnalytics'));
 const SuperAdminBlog = lazy(() => import('./pages/super-admin/SuperAdminBlog'));
@@ -184,6 +185,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/organisations" element={<SuperAdminProtectedRoute>
                     <SuperAdminOrganisations />
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/organisations/:orgId" element={<SuperAdminProtectedRoute>
+                    <SuperAdminOrganisationDetail />
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/users" element={<SuperAdminProtectedRoute>
                     <SuperAdminUsers />
