@@ -1,12 +1,23 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
@@ -22,19 +33,40 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  MapPin,
+  Mail,
+  Briefcase,
+  Power,
+  Trash2,
+  Edit,
+  ExternalLink,
 } from "lucide-react";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import { OrgBillingTab } from "@/components/super-admin/OrgBillingTab";
 import { OrgMembersTab } from "@/components/super-admin/OrgMembersTab";
 import { OrgUsageTab } from "@/components/super-admin/OrgUsageTab";
+import { OrgOfficesTab } from "@/components/super-admin/OrgOfficesTab";
 import { OrganizationFeaturesManager } from "@/components/super-admin/OrganizationFeaturesManager";
+import { toast } from "sonner";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export default function SuperAdminOrganisationDetail() {
   const { orgId } = useParams<{ orgId: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   // Fetch organization details
-  const { data: org, isLoading } = useQuery({
+  const { data: org, isLoading, refetch } = useQuery({
     queryKey: ["super-admin-org-detail", orgId],
     queryFn: async () => {
       if (!orgId) throw new Error("Organization ID is required");
@@ -70,13 +102,14 @@ export default function SuperAdminOrganisationDetail() {
     queryKey: ["org-quick-stats", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      
-      const [members, employees, wikiPages, chatSpaces, events] = await Promise.all([
+
+      const [members, employees, wikiPages, chatSpaces, events, offices] = await Promise.all([
         supabase.from("organization_members").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("employees").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("wiki_pages").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("chat_spaces").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("calendar_events").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+        supabase.from("offices").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
       ]);
 
       return {
@@ -85,47 +118,108 @@ export default function SuperAdminOrganisationDetail() {
         wikiPages: wikiPages.count || 0,
         chatSpaces: chatSpaces.count || 0,
         events: events.count || 0,
+        offices: offices.count || 0,
       };
     },
     enabled: !!orgId,
   });
 
+  const toggleOrgStatus = async () => {
+    if (!org) return;
+    const newPlan = org.plan === "inactive" ? "free" : "inactive";
+    setToggling(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ plan: newPlan })
+        .eq("id", org.id);
+
+      if (error) throw error;
+
+      toast.success(`Organization ${newPlan === "inactive" ? "deactivated" : "activated"}`);
+      refetch();
+    } catch (error) {
+      console.error("Error updating organization:", error);
+      toast.error("Failed to update organization status");
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  const handleDeleteOrg = async () => {
+    if (!org) return;
+
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-organization", {
+        body: { organizationId: org.id },
+      });
+
+      if (error) throw error;
+
+      toast.success("Organization deleted successfully");
+      navigate("/super-admin/organisations");
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      toast.error("Failed to delete organization");
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   const getStatusBadge = () => {
     const status = org?.approval_status || "approved";
-    
+
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
-            <Clock className="h-3 w-3" />
+          <Badge variant="outline" className="gap-1.5 bg-amber-50 text-amber-700 border-amber-200 px-3 py-1">
+            <Clock className="h-3.5 w-3.5" />
             Pending Approval
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive" className="gap-1">
-            <XCircle className="h-3 w-3" />
+          <Badge variant="destructive" className="gap-1.5 px-3 py-1">
+            <XCircle className="h-3.5 w-3.5" />
             Rejected
           </Badge>
         );
       case "approved":
         if (org?.plan === "inactive") {
           return (
-            <Badge variant="secondary" className="gap-1">
-              <XCircle className="h-3 w-3" />
+            <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+              <XCircle className="h-3.5 w-3.5" />
               Inactive
             </Badge>
           );
         }
         return (
-          <Badge className="gap-1 bg-emerald-500 hover:bg-emerald-600">
-            <CheckCircle className="h-3 w-3" />
+          <Badge className="gap-1.5 bg-emerald-500 hover:bg-emerald-600 px-3 py-1">
+            <CheckCircle className="h-3.5 w-3.5" />
             Active
           </Badge>
         );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
+  };
+
+  const getSubscriptionBadge = () => {
+    if (!subscription) return null;
+    const statusColors: Record<string, string> = {
+      active: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      trialing: "bg-blue-100 text-blue-700 border-blue-200",
+      past_due: "bg-amber-100 text-amber-700 border-amber-200",
+      canceled: "bg-red-100 text-red-700 border-red-200",
+      incomplete: "bg-gray-100 text-gray-700 border-gray-200",
+    };
+    return (
+      <Badge variant="outline" className={statusColors[subscription.status] || ""}>
+        {subscription.status}
+      </Badge>
+    );
   };
 
   if (isLoading) {
@@ -142,9 +236,11 @@ export default function SuperAdminOrganisationDetail() {
     return (
       <SuperAdminLayout>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Organization not found</p>
+          <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+          <p className="text-muted-foreground mb-4">Organization not found</p>
           <Link to="/super-admin/organisations">
-            <Button variant="link" className="mt-4">
+            <Button variant="outline" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
               Back to Organizations
             </Button>
           </Link>
@@ -153,235 +249,413 @@ export default function SuperAdminOrganisationDetail() {
     );
   }
 
+  const statsConfig = [
+    { key: "members", label: "Members", icon: Users, color: "bg-primary/10 text-primary" },
+    { key: "employees", label: "Employees", icon: Briefcase, color: "bg-blue-100 text-blue-600" },
+    { key: "offices", label: "Offices", icon: MapPin, color: "bg-orange-100 text-orange-600" },
+    { key: "wikiPages", label: "Wiki Pages", icon: FileText, color: "bg-emerald-100 text-emerald-600" },
+    { key: "chatSpaces", label: "Chat Spaces", icon: MessageSquare, color: "bg-purple-100 text-purple-600" },
+    { key: "events", label: "Events", icon: Calendar, color: "bg-amber-100 text-amber-600" },
+  ];
+
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        {/* Breadcrumb + Header */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link to="/super-admin/organisations" className="hover:text-foreground">
-            Organisations
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">{org.name}</span>
-        </div>
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/super-admin">Super Admin</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/super-admin/organisations">Organisations</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{org.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={org.logo_url || undefined} />
-              <AvatarFallback className="text-xl bg-primary/10">
-                {org.name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{org.name}</h1>
-                {getStatusBadge()}
+        {/* Header Card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              {/* Left: Logo + Info */}
+              <div className="flex items-start gap-4">
+                <Avatar className="h-20 w-20 rounded-xl border-2 border-border">
+                  <AvatarImage src={org.logo_url || undefined} className="object-cover" />
+                  <AvatarFallback className="text-2xl font-semibold bg-primary/10 rounded-xl">
+                    {org.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-2xl font-bold">{org.name}</h1>
+                    {getStatusBadge()}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono">{org.slug}</code>
+                    </div>
+                    <Separator orientation="vertical" className="h-4" />
+                    <span>Created {formatDistanceToNow(new Date(org.created_at), { addSuffix: true })}</span>
+                    {org.trial_ends_at && new Date(org.trial_ends_at) > new Date() && (
+                      <>
+                        <Separator orientation="vertical" className="h-4" />
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          Trial ends {format(new Date(org.trial_ends_at), "MMM d, yyyy")}
+                        </Badge>
+                      </>
+                    )}
+                  </div>
+                  {org.owner_email && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5" />
+                      <span>{org.owner_name || org.owner_email}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-muted-foreground">
-                {org.slug} • Created {formatDistanceToNow(new Date(org.created_at), { addSuffix: true })}
-              </p>
+
+              {/* Right: Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleOrgStatus}
+                  disabled={toggling}
+                  className="gap-2"
+                >
+                  {toggling ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="h-4 w-4" />
+                  )}
+                  {org.plan === "inactive" ? "Activate" : "Deactivate"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+                <Link to="/super-admin/organisations">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
-          <Link to="/super-admin/organisations">
-            <Button variant="outline" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </Link>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold">{stats?.members || 0}</p>
-                  <p className="text-xs text-muted-foreground">Members</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Users className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold">{stats?.employees || 0}</p>
-                  <p className="text-xs text-muted-foreground">Employees</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-100">
-                  <FileText className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold">{stats?.wikiPages || 0}</p>
-                  <p className="text-xs text-muted-foreground">Wiki Pages</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-100">
-                  <MessageSquare className="h-4 w-4 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold">{stats?.chatSpaces || 0}</p>
-                  <p className="text-xs text-muted-foreground">Chat Spaces</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100">
-                  <Calendar className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold">{stats?.events || 0}</p>
-                  <p className="text-xs text-muted-foreground">Events</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="overview" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="members" className="gap-2">
-              <Users className="h-4 w-4" />
-              Members
-            </TabsTrigger>
-            <TabsTrigger value="usage" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Usage
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              Billing
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Organization Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Name</p>
-                      <p className="font-medium">{org.name}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {statsConfig.map((stat) => {
+            const Icon = stat.icon;
+            const value = stats?.[stat.key as keyof typeof stats] || 0;
+            return (
+              <Card
+                key={stat.key}
+                className="cursor-pointer hover:shadow-md transition-all hover:border-primary/20"
+                onClick={() => {
+                  if (stat.key === "members" || stat.key === "employees") setActiveTab("members");
+                  else if (stat.key === "offices") setActiveTab("offices");
+                  else if (stat.key === "wikiPages" || stat.key === "chatSpaces" || stat.key === "events") setActiveTab("usage");
+                }}
+              >
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${stat.color}`}>
+                      <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Slug</p>
-                      <p className="font-medium font-mono">{org.slug}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Owner</p>
-                      <p className="font-medium">{org.owner_name || org.owner_email || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Industry</p>
-                      <p className="font-medium">{org.industry || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Company Size</p>
-                      <p className="font-medium">{org.company_size || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Created</p>
-                      <p className="font-medium">{format(new Date(org.created_at), "MMM d, yyyy")}</p>
+                      <p className="text-xl font-bold">{value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            );
+          })}
+        </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subscription</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {subscription ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Plan</p>
-                        <p className="font-medium capitalize">{subscription.plan}</p>
+        {/* Tabs */}
+        <Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <CardHeader className="pb-0">
+              <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0 gap-0">
+                <TabsTrigger
+                  value="overview"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="members"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <Users className="h-4 w-4" />
+                  Members
+                </TabsTrigger>
+                <TabsTrigger
+                  value="offices"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Offices
+                </TabsTrigger>
+                <TabsTrigger
+                  value="usage"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Usage
+                </TabsTrigger>
+                <TabsTrigger
+                  value="billing"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Billing
+                </TabsTrigger>
+                <TabsTrigger
+                  value="settings"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </TabsTrigger>
+              </TabsList>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <TabsContent value="overview" className="mt-0">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Organization Details */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Organization Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <dl className="grid grid-cols-2 gap-4">
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Name</dt>
+                          <dd className="font-medium">{org.name}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Slug</dt>
+                          <dd className="font-medium font-mono text-sm">{org.slug}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Owner</dt>
+                          <dd className="font-medium">{org.owner_name || org.owner_email || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Industry</dt>
+                          <dd className="font-medium">{org.industry || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Company Size</dt>
+                          <dd className="font-medium">{org.company_size || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm text-muted-foreground">Created</dt>
+                          <dd className="font-medium">{format(new Date(org.created_at), "MMM d, yyyy")}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+
+                  {/* Subscription Summary */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">Subscription</CardTitle>
+                        {getSubscriptionBadge()}
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={subscription.status === "active" ? "default" : "secondary"}>
-                          {subscription.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Billing Cycle</p>
-                        <p className="font-medium capitalize">{subscription.billing_cycle}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Period End</p>
-                        <p className="font-medium">
-                          {subscription.current_period_end
-                            ? format(new Date(subscription.current_period_end), "MMM d, yyyy")
-                            : "-"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No subscription found</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                    </CardHeader>
+                    <CardContent>
+                      {subscription ? (
+                        <dl className="grid grid-cols-2 gap-4">
+                          <div>
+                            <dt className="text-sm text-muted-foreground">Plan</dt>
+                            <dd className="font-medium capitalize">{subscription.plan}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm text-muted-foreground">Billing Cycle</dt>
+                            <dd className="font-medium capitalize">{subscription.billing_cycle}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm text-muted-foreground">Period Start</dt>
+                            <dd className="font-medium">
+                              {subscription.current_period_start
+                                ? format(new Date(subscription.current_period_start), "MMM d, yyyy")
+                                : "-"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm text-muted-foreground">Period End</dt>
+                            <dd className="font-medium">
+                              {subscription.current_period_end
+                                ? format(new Date(subscription.current_period_end), "MMM d, yyyy")
+                                : "-"}
+                            </dd>
+                          </div>
+                        </dl>
+                      ) : (
+                        <div className="text-center py-6">
+                          <CreditCard className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-muted-foreground">No subscription found</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-          <TabsContent value="members" className="mt-6">
-            <OrgMembersTab organizationId={orgId!} />
-          </TabsContent>
+                  {/* Contact Info */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Contact Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <dl className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-muted">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <dt className="text-xs text-muted-foreground">Owner Email</dt>
+                            <dd className="font-medium">{org.owner_email || "-"}</dd>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-muted">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <dt className="text-xs text-muted-foreground">Owner Name</dt>
+                            <dd className="font-medium">{org.owner_name || "-"}</dd>
+                          </div>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
 
-          <TabsContent value="usage" className="mt-6">
-            <OrgUsageTab organizationId={orgId!} />
-          </TabsContent>
+                  {/* Quick Actions */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        onClick={() => setActiveTab("billing")}
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        View Billing History
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        onClick={() => setActiveTab("usage")}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        View Usage Statistics
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        onClick={() => setActiveTab("settings")}
+                      >
+                        <Settings className="h-4 w-4" />
+                        Manage Feature Flags
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="billing" className="mt-6">
-            <OrgBillingTab organizationId={orgId!} />
-          </TabsContent>
+              <TabsContent value="members" className="mt-0">
+                <OrgMembersTab organizationId={orgId!} />
+              </TabsContent>
 
-          <TabsContent value="settings" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Feature Flags</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <OrganizationFeaturesManager organizationId={orgId!} organizationName={org.name} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="offices" className="mt-0">
+                <OrgOfficesTab organizationId={orgId!} />
+              </TabsContent>
+
+              <TabsContent value="usage" className="mt-0">
+                <OrgUsageTab organizationId={orgId!} />
+              </TabsContent>
+
+              <TabsContent value="billing" className="mt-0">
+                <OrgBillingTab organizationId={orgId!} />
+              </TabsContent>
+
+              <TabsContent value="settings" className="mt-0">
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Feature Flags</CardTitle>
+                      <CardDescription>
+                        Enable or disable specific features for this organization
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <OrganizationFeaturesManager organizationId={orgId!} organizationName={org.name} />
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </CardContent>
+          </Tabs>
+        </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Organisation</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>
+                  Are you sure you want to delete <strong>{org.name}</strong>?
+                </p>
+                <p className="text-destructive font-medium">
+                  This action cannot be undone. All organisation data (employees, wiki pages, calendar events, attendance
+                  records, etc.) will be permanently deleted.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteOrg}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SuperAdminLayout>
   );
