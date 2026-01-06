@@ -21,6 +21,21 @@ interface OTPEmailProps {
   emailActionType: string
 }
 
+const getLogoUrl = (redirectTo: string) => {
+  try {
+    const origin = new URL(redirectTo).origin
+    return `${origin}/images/globalyos-icon.png`
+  } catch {
+    const base =
+      Deno.env.get('APP_URL') ||
+      Deno.env.get('PUBLIC_URL') ||
+      Deno.env.get('APP_BASE_URL') ||
+      'https://people.globalyhub.com'
+
+    return `${base.replace(/\/$/, '')}/images/globalyos-icon.png`
+  }
+}
+
 export const OTPEmail = ({
   userName,
   otpCode,
@@ -28,62 +43,67 @@ export const OTPEmail = ({
   tokenHash,
   redirectTo,
   emailActionType,
-}: OTPEmailProps) => (
-  <Html>
-    <Head />
-    <Preview>Your GlobalyOS verification code is {otpCode}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Section style={logoSection}>
-          <Img 
-            src="https://people.globalyhub.com/images/globalyos-icon.png"
-            alt="GlobalyOS"
-            width="64"
-            height="64"
-            style={logoImage}
-          />
-        </Section>
-        
-        <Heading style={h1}>Hi {userName}!</Heading>
-        
-        <Text style={text}>
-          Use the following 6-digit code to sign in to GlobalyOS:
-        </Text>
-        
-        <Section style={codeContainer}>
-          <Text style={codeText}>{otpCode}</Text>
-        </Section>
-        
-        <Text style={subText}>
-          This code will expire in 10 minutes.
-        </Text>
-        
-        <Section style={divider} />
-        
-        <Text style={alternativeText}>
-          Or click the button below to sign in directly:
-        </Text>
-        
-        <Section style={buttonContainer}>
-          <Link
-            href={`${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${redirectTo}`}
-            style={button}
-          >
-            Sign in to GlobalyOS
-          </Link>
-        </Section>
-        
-        <Text style={footer}>
-          If you didn't request this code, you can safely ignore this email.
-        </Text>
-        
-        <Text style={footerBrand}>
-          © {new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
-        </Text>
-      </Container>
-    </Body>
-  </Html>
-)
+}: OTPEmailProps) => {
+  const logoUrl = getLogoUrl(redirectTo)
+
+  return (
+    <Html>
+      <Head />
+      <Preview>Your GlobalyOS verification code is {otpCode}</Preview>
+      <Body style={main}>
+        <Container style={container}>
+          <Section style={logoSection}>
+            <Img
+              src={logoUrl}
+              alt="GlobalyOS"
+              width="64"
+              height="64"
+              style={logoImage}
+            />
+          </Section>
+
+          <Heading style={h1}>Hi {userName}!</Heading>
+
+          <Text style={text}>
+            Use the following 6-digit code to sign in to GlobalyOS:
+          </Text>
+
+          <Section style={codeContainer}>
+            <Text style={codeText}>{otpCode}</Text>
+          </Section>
+
+          <Text style={subText}>
+            This code will expire in 10 minutes.
+          </Text>
+
+          <Section style={divider} />
+
+          <Text style={alternativeText}>
+            Or click the button below to sign in directly:
+          </Text>
+
+          <Section style={buttonContainer}>
+            <Link
+              href={`${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${redirectTo}`}
+              style={button}
+            >
+              Sign in to GlobalyOS
+            </Link>
+          </Section>
+
+          <Text style={footer}>
+            If you didn't request this code, you can safely ignore this email.
+          </Text>
+
+          <Text style={footerBrand}>
+            © {new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
+          </Text>
+        </Container>
+      </Body>
+    </Html>
+  )
+}
+
 
 export default OTPEmail
 

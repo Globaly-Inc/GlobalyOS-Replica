@@ -7,6 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function getAppBaseUrl(req?: Request): string {
+  const origin = req?.headers.get('origin');
+  const envBase =
+    Deno.env.get('APP_URL') ||
+    Deno.env.get('PUBLIC_URL') ||
+    Deno.env.get('APP_BASE_URL') ||
+    '';
+  const base = origin || envBase || 'https://people.globalyhub.com';
+  return base.replace(/\/$/, '');
+}
+
+function getLogoUrl(req?: Request): string {
+  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
+}
+
 interface NotifyRequest {
   review_id: string;
   stage: "review_initiated" | "self_assessment_submitted" | "manager_review_ready" | "review_acknowledged";
@@ -74,6 +89,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const logoUrl = getLogoUrl(req);
 
   try {
     const { review_id, stage } = (await req.json()) as NotifyRequest;
@@ -198,7 +215,7 @@ serve(async (req) => {
             <body>
               <div class="container">
                 <div class="header">
-                  <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
+                  <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                   <p style="margin: 4px 0 0 0; opacity: 0.9;">Performance Review Update</p>
                 </div>
                 <div class="content">

@@ -41,6 +41,22 @@ function getClientIP(req: Request): string {
          'unknown';
 }
 
+function getAppBaseUrl(req?: Request): string {
+  const origin = req?.headers.get('origin');
+  const envBase =
+    Deno.env.get('APP_URL') ||
+    Deno.env.get('PUBLIC_URL') ||
+    Deno.env.get('APP_BASE_URL') ||
+    '';
+  const base = origin || envBase || 'https://people.globalyhub.com';
+  return base.replace(/\/$/, '');
+}
+
+function getLogoUrl(req?: Request): string {
+  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
+}
+
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -49,6 +65,7 @@ serve(async (req: Request) => {
 
   const clientIP = getClientIP(req);
   console.log('Leave notification request from IP:', clientIP);
+  const logoUrl = getLogoUrl(req);
 
   try {
     const supabaseClient = createClient(
@@ -224,7 +241,7 @@ serve(async (req: Request) => {
         <body>
           <div class="container">
             <div class="header">
-              <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
+              <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
               <h2 style="margin: 0;">New Leave Request</h2>
             </div>
             <div class="content">

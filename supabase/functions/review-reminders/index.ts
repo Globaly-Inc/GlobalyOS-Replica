@@ -7,10 +7,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function getAppBaseUrl(req?: Request): string {
+  const origin = req?.headers.get('origin');
+  const envBase =
+    Deno.env.get('APP_URL') ||
+    Deno.env.get('PUBLIC_URL') ||
+    Deno.env.get('APP_BASE_URL') ||
+    '';
+  const base = origin || envBase || 'https://people.globalyhub.com';
+  return base.replace(/\/$/, '');
+}
+
+function getLogoUrl(req?: Request): string {
+  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const logoUrl = getLogoUrl(req);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -133,7 +150,7 @@ serve(async (req) => {
               <body>
                 <div class="container">
                   <div class="header">
-                    <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
+                    <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                     <span class="reminder-badge">Reminder ${reminderNum}</span>
                     <h1 style="margin: 12px 0 0 0;">Self-Assessment Pending</h1>
                   </div>
@@ -225,7 +242,7 @@ serve(async (req) => {
               <body>
                 <div class="container">
                   <div class="header">
-                    <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
+                    <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                     <span class="reminder-badge">Reminder ${reminderNum}</span>
                     <h1 style="margin: 12px 0 0 0;">Review Awaiting Acknowledgment</h1>
                   </div>

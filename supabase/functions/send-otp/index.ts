@@ -32,6 +32,21 @@ function getUserAgent(req: Request): string {
   return req.headers.get('user-agent') || 'unknown';
 }
 
+function getAppBaseUrl(req?: Request): string {
+  const origin = req?.headers.get('origin');
+  const envBase =
+    Deno.env.get('APP_URL') ||
+    Deno.env.get('PUBLIC_URL') ||
+    Deno.env.get('APP_BASE_URL') ||
+    '';
+  const base = origin || envBase || 'https://people.globalyhub.com';
+  return base.replace(/\/$/, '');
+}
+
+function getLogoUrl(req?: Request): string {
+  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
+}
+
 async function logLoginAttempt(
   supabase: any,
   email: string,
@@ -164,6 +179,8 @@ serve(async (req) => {
 
     console.log('OTP stored in database, sending email...');
 
+    const logoUrl = getLogoUrl(req);
+
     // Send email with OTP
     const { error: emailError } = await resend.emails.send({
       from: 'GlobalyOS <hello@globalyhub.com>',
@@ -183,7 +200,7 @@ serve(async (req) => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; padding: 40px;">
                   <tr>
                     <td align="center" style="padding-bottom: 24px;">
-                      <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
+                      <img src="${logoUrl}" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
                     </td>
                   </tr>
                   <tr>

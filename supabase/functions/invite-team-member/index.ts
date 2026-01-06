@@ -54,6 +54,22 @@ function getClientIP(req: Request): string {
          'unknown';
 }
 
+function getAppBaseUrl(req?: Request): string {
+  const origin = req?.headers.get('origin');
+  const envBase =
+    Deno.env.get('APP_URL') ||
+    Deno.env.get('PUBLIC_URL') ||
+    Deno.env.get('APP_BASE_URL') ||
+    '';
+  const base = origin || envBase || 'https://people.globalyhub.com';
+  return base.replace(/\/$/, '');
+}
+
+function getLogoUrl(req?: Request): string {
+  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
+}
+
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -61,6 +77,7 @@ serve(async (req: Request) => {
 
   const clientIP = getClientIP(req);
   console.log('Invite request from IP:', clientIP);
+  const logoUrl = getLogoUrl(req);
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -324,7 +341,7 @@ serve(async (req: Request) => {
       <body>
         <div class="container">
           <div class="header">
-            <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 56px; height: 56px; border-radius: 14px; margin-bottom: 12px;" />
+            <img src="${logoUrl}" alt="GlobalyOS" style="width: 56px; height: 56px; border-radius: 14px; margin-bottom: 12px;" />
             <h1>Welcome to GlobalyOS!</h1>
           </div>
           <div class="content">
