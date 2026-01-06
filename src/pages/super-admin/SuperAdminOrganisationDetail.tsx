@@ -648,7 +648,7 @@ export default function SuperAdminOrganisationDetail() {
               </TabsContent>
 
               <TabsContent value="billing" className="mt-0">
-                <OrgBillingTab organizationId={orgId!} />
+                <OrgBillingTab organizationId={orgId!} organizationCode={org?.name?.substring(0, 4)} />
               </TabsContent>
 
               <TabsContent value="settings" className="mt-0">

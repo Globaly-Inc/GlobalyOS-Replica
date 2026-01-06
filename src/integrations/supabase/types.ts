@@ -7755,6 +7755,44 @@ export type Database = {
           },
         ]
       }
+      usage_alerts: {
+        Row: {
+          billing_period_start: string
+          created_at: string | null
+          feature: string
+          id: string
+          notified_at: string | null
+          organization_id: string
+          threshold_percent: number
+        }
+        Insert: {
+          billing_period_start: string
+          created_at?: string | null
+          feature: string
+          id?: string
+          notified_at?: string | null
+          organization_id: string
+          threshold_percent: number
+        }
+        Update: {
+          billing_period_start?: string
+          created_at?: string | null
+          feature?: string
+          id?: string
+          notified_at?: string | null
+          organization_id?: string
+          threshold_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_records: {
         Row: {
           billing_period: string

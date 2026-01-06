@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -43,37 +48,29 @@ import {
   DollarSign,
   Eye,
   Loader2,
+  MoreHorizontal,
+  FileText,
+  Ban,
 } from "lucide-react";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
+import { CreateInvoiceDialog } from "./CreateInvoiceDialog";
 
 interface OrgBillingTabProps {
   organizationId: string;
+  organizationCode?: string;
 }
 
-export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
+export function OrgBillingTab({ organizationId, organizationCode }: OrgBillingTabProps) {
   const queryClient = useQueryClient();
   const { logActivity } = useAdminActivityLog();
-  const [activeTab, setActiveTab] = useState("subscription");
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount: "",
     payment_method: "bank_transfer",
     reference_number: "",
     notes: "",
-  });
-
-  // Fetch subscription
-  const { data: subscription, isLoading: loadingSubscription } = useQuery({
-    queryKey: ["org-subscription", organizationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    invoice_id: "",
   });
 
   // Fetch payments
@@ -115,6 +112,7 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
         payment_method: paymentForm.payment_method,
         reference_number: paymentForm.reference_number || null,
         notes: paymentForm.notes || null,
+        invoice_id: paymentForm.invoice_id || null,
         status: "completed",
         processed_by: user?.id,
         processed_at: new Date().toISOString(),
@@ -134,64 +132,58 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
         }
       });
 
-      // Update subscription to active if needed
-      if (subscription && ["past_due", "unpaid"].includes(subscription.status)) {
+      // If payment is linked to invoice, mark invoice as paid
+      if (paymentForm.invoice_id) {
         await supabase
-          .from("subscriptions")
-          .update({ status: "active" })
-          .eq("id", subscription.id);
-          
-        await logActivity({
-          organizationId,
-          actionType: 'subscription_updated',
-          entityType: 'subscription',
-          entityId: subscription.id,
-          changes: { status: { from: subscription.status, to: 'active' } }
-        });
+          .from("invoices")
+          .update({ status: "paid", paid_at: new Date().toISOString() })
+          .eq("id", paymentForm.invoice_id);
       }
     },
     onSuccess: () => {
       toast.success("Payment recorded");
       queryClient.invalidateQueries({ queryKey: ["org-payments", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["org-subscription", organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["org-invoices", organizationId] });
       setRecordPaymentOpen(false);
-      setPaymentForm({ amount: "", payment_method: "bank_transfer", reference_number: "", notes: "" });
+      setPaymentForm({ amount: "", payment_method: "bank_transfer", reference_number: "", notes: "", invoice_id: "" });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to record payment");
     },
   });
 
-  // Update subscription mutation
-  const updateSubscriptionMutation = useMutation({
-    mutationFn: async ({ status }: { status: string }) => {
-      if (!subscription) return;
-      const previousStatus = subscription.status;
+  // Update invoice status mutation
+  const updateInvoiceMutation = useMutation({
+    mutationFn: async ({ invoiceId, status }: { invoiceId: string; status: string }) => {
+      const updates: Record<string, unknown> = { status };
+      if (status === "paid") {
+        updates.paid_at = new Date().toISOString();
+      }
       const { error } = await supabase
-        .from("subscriptions")
-        .update({ status })
-        .eq("id", subscription.id);
+        .from("invoices")
+        .update(updates)
+        .eq("id", invoiceId);
       if (error) throw error;
 
       await logActivity({
         organizationId,
-        actionType: status === 'canceled' ? 'subscription_canceled' : 'subscription_updated',
-        entityType: 'subscription',
-        entityId: subscription.id,
-        changes: { status: { from: previousStatus, to: status } }
+        actionType: 'invoice_updated',
+        entityType: 'payment',
+        entityId: invoiceId,
+        changes: { status: { from: "previous", to: status } }
       });
     },
     onSuccess: () => {
-      toast.success("Subscription updated");
-      queryClient.invalidateQueries({ queryKey: ["org-subscription", organizationId] });
+      toast.success("Invoice updated");
+      queryClient.invalidateQueries({ queryKey: ["org-invoices", organizationId] });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update subscription");
+      toast.error(error.message || "Failed to update invoice");
     },
   });
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ComponentType<{ className?: string }> }> = {
       active: { variant: "default", icon: CheckCircle },
       trialing: { variant: "secondary", icon: Clock },
       past_due: { variant: "destructive", icon: XCircle },
@@ -201,6 +193,7 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
       pending: { variant: "secondary", icon: Clock },
       paid: { variant: "default", icon: CheckCircle },
       draft: { variant: "outline", icon: Clock },
+      void: { variant: "outline", icon: Ban },
     };
     const config = variants[status] || { variant: "outline", icon: Clock };
     const Icon = config.icon;
@@ -221,7 +214,9 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
     }
   };
 
-  const isLoading = loadingSubscription || loadingPayments || loadingInvoices;
+  const pendingInvoices = invoices?.filter((inv) => inv.status === "pending") || [];
+
+  const isLoading = loadingPayments || loadingInvoices;
 
   if (isLoading) {
     return (
@@ -233,177 +228,154 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="subscription" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Current Subscription</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setRecordPaymentOpen(true)}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Record Payment
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {subscription ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Plan</p>
-                      <p className="font-medium capitalize">{subscription.plan}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      {getStatusBadge(subscription.status)}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Billing Cycle</p>
-                      <p className="font-medium capitalize">{subscription.billing_cycle}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Period End</p>
-                      <p className="font-medium">
-                        {subscription.current_period_end
-                          ? format(new Date(subscription.current_period_end), "MMM d, yyyy")
-                          : subscription.trial_ends_at
-                            ? format(new Date(subscription.trial_ends_at), "MMM d, yyyy")
-                            : "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-4 border-t">
-                    {subscription.status === "active" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateSubscriptionMutation.mutate({ status: "canceled" })}
-                      >
-                        Cancel Subscription
-                      </Button>
-                    )}
-                    {["canceled", "past_due", "unpaid"].includes(subscription.status) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateSubscriptionMutation.mutate({ status: "active" })}
-                      >
-                        Activate Subscription
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No subscription found for this organization.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payments" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments?.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>{format(new Date(payment.created_at), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="font-medium">
-                        ${Number(payment.amount).toFixed(2)} {payment.currency}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPaymentMethodIcon(payment.payment_method)}
-                          <span className="capitalize">{payment.payment_method.replace("_", " ")}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{payment.reference_number || "-"}</TableCell>
-                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {(!payments || payments.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No payments found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invoices" className="mt-4">
-          <Card>
-            <CardHeader>
+      {/* Invoices Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
               <CardTitle>Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices?.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
-                      <TableCell className="font-medium">
-                        ${Number(invoice.amount).toFixed(2)} {invoice.currency}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell>
-                        {invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "-"}
-                      </TableCell>
-                      <TableCell>
+              <CardDescription>All invoices for this organization</CardDescription>
+            </div>
+          </div>
+          <Button size="sm" onClick={() => setCreateInvoiceOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Invoice
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices?.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
+                  <TableCell className="font-medium">
+                    ${Number(invoice.amount).toFixed(2)} {invoice.currency}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                  <TableCell>
+                    {invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {format(new Date(invoice.created_at), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!invoices || invoices.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No invoices found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        {invoice.status === "pending" && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => updateInvoiceMutation.mutate({ invoiceId: invoice.id, status: "paid" })}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Mark as Paid
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => updateInvoiceMutation.mutate({ invoiceId: invoice.id, status: "void" })}
+                            >
+                              <Ban className="h-4 w-4 mr-2" />
+                              Mark as Void
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(!invoices || invoices.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No invoices found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Payments Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100">
+              <Receipt className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <CardTitle>Payment History</CardTitle>
+              <CardDescription>All payments received from this organization</CardDescription>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setRecordPaymentOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Record Payment
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead>Invoice</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments?.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell>{format(new Date(payment.created_at), "MMM d, yyyy")}</TableCell>
+                  <TableCell className="font-medium">
+                    ${Number(payment.amount).toFixed(2)} {payment.currency}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getPaymentMethodIcon(payment.payment_method)}
+                      <span className="capitalize">{payment.payment_method.replace("_", " ")}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{payment.reference_number || "-"}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {payment.invoices?.invoice_number || "-"}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                </TableRow>
+              ))}
+              {(!payments || payments.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No payments found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Record Payment Dialog */}
       <Dialog open={recordPaymentOpen} onOpenChange={setRecordPaymentOpen}>
@@ -440,6 +412,27 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
                 </SelectContent>
               </Select>
             </div>
+            {pendingInvoices.length > 0 && (
+              <div className="space-y-2">
+                <Label>Link to Invoice (Optional)</Label>
+                <Select
+                  value={paymentForm.invoice_id}
+                  onValueChange={(value) => setPaymentForm({ ...paymentForm, invoice_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select invoice..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {pendingInvoices.map((inv) => (
+                      <SelectItem key={inv.id} value={inv.id}>
+                        {inv.invoice_number} - ${Number(inv.amount).toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="reference">Reference Number</Label>
               <Input
@@ -473,6 +466,14 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Invoice Dialog */}
+      <CreateInvoiceDialog
+        open={createInvoiceOpen}
+        onOpenChange={setCreateInvoiceOpen}
+        organizationId={organizationId}
+        organizationCode={organizationCode}
+      />
     </div>
   );
 }
