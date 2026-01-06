@@ -44,6 +44,7 @@ interface PendingLeaveRequest {
   start_date: string;
   end_date: string;
   days_count: number;
+  half_day_type: 'full' | 'first_half' | 'second_half';
   reason: string | null;
   isHRBackup?: boolean;
   managerName?: string;
@@ -63,6 +64,7 @@ interface OwnPendingRequest {
   start_date: string;
   end_date: string;
   days_count: number;
+  half_day_type: 'full' | 'first_half' | 'second_half';
   reason: string | null;
 }
 
@@ -214,12 +216,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     // Load user's own pending requests
     const { data: ownRequests } = await supabase
       .from("leave_requests")
-      .select("id, leave_type, start_date, end_date, days_count, reason")
+      .select("id, leave_type, start_date, end_date, days_count, half_day_type, reason")
       .eq("employee_id", currentEmployee.id)
       .eq("status", "pending")
       .order("created_at", { ascending: true });
 
-    setOwnPendingRequests(ownRequests || []);
+    setOwnPendingRequests((ownRequests || []) as OwnPendingRequest[]);
 
     const today = format(new Date(), "yyyy-MM-dd");
 
@@ -258,6 +260,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         start_date,
         end_date,
         days_count,
+        half_day_type,
         reason,
         employee:employees!leave_requests_employee_id_fkey(
           id,
@@ -313,6 +316,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           start_date,
           end_date,
           days_count,
+          half_day_type,
           reason,
           employee:employees!leave_requests_employee_id_fkey(
             id,
@@ -661,6 +665,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
                       <Badge variant="outline" className="text-xs">
                         {getLeaveTypeLabel(request.leave_type)}
                       </Badge>
+                      {request.half_day_type !== 'full' && (
+                        <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                          {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
+                        </Badge>
+                      )}
                       <span>
                         {format(parseISO(request.start_date), "MMM d")} - {format(parseISO(request.end_date), "MMM d")}
                       </span>
