@@ -133,7 +133,7 @@ serve(async (req) => {
               <body>
                 <div class="container">
                   <div class="header">
-                    <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
+                    <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                     <span class="reminder-badge">Reminder ${reminderNum}</span>
                     <h1 style="margin: 12px 0 0 0;">Self-Assessment Pending</h1>
                   </div>
@@ -225,7 +225,7 @@ serve(async (req) => {
               <body>
                 <div class="container">
                   <div class="header">
-                    <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
+                    <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                     <span class="reminder-badge">Reminder ${reminderNum}</span>
                     <h1 style="margin: 12px 0 0 0;">Review Awaiting Acknowledgment</h1>
                   </div>

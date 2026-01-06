@@ -142,7 +142,7 @@ serve(async (req: Request) => {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f4f5; padding: 40px 20px;">
   <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
     <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 32px; text-align: center;">
-      <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
+      <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
       <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Check-in Reminder</h1>
     </div>
     <div style="padding: 32px;">
