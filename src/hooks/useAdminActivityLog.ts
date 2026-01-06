@@ -10,7 +10,10 @@ export type AdminActionType =
   | 'subscription_created'
   | 'subscription_updated'
   | 'subscription_canceled'
+  | 'plan_changed'
   | 'payment_recorded'
+  | 'invoice_created'
+  | 'invoice_updated'
   | 'coupon_applied'
   | 'coupon_removed'
   | 'feature_enabled'
@@ -18,7 +21,8 @@ export type AdminActionType =
   | 'member_added'
   | 'member_removed'
   | 'member_role_changed'
-  | 'trial_extended';
+  | 'trial_extended'
+  | 'usage_alert_sent';
 
 export type EntityType =
   | 'organization'
