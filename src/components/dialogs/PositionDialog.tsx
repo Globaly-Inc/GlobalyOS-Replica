@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,12 +90,17 @@ export const PositionDialog = ({
   const [newPosition, setNewPosition] = useState("");
   const [positionOpen, setPositionOpen] = useState(false);
   const [positionSearch, setPositionSearch] = useState("");
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
   const { currentOrg } = useOrganization();
   const { data: employmentTypes = [] } = useEmploymentTypes();
 
   const currentPosition = existingPositions.find(p => p.is_current);
+  
+  // Determine if "Present (Current)" checkbox should be disabled
+  // Only allow setting as current if:
+  // - There's no current position yet, OR
+  // - We're editing the current position itself
+  const hasOtherCurrentPosition = currentPosition && currentPosition.id !== entry?.id;
+  const disableCurrentCheckbox = !!hasOtherCurrentPosition;
 
   const [formData, setFormData] = useState({
     position: "",
@@ -254,13 +258,6 @@ export const PositionDialog = ({
         return;
       }
 
-      // If marking as current and there's an existing current position, show confirmation
-      if (validated.is_current && currentPosition && currentPosition.id !== entry?.id && !skipConfirmation) {
-        setPendingSubmit(true);
-        setConfirmDialogOpen(true);
-        return;
-      }
-
       await savePosition(validated);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -332,14 +329,7 @@ export const PositionDialog = ({
       toast.error(error.message || "Failed to save position");
     } finally {
       setLoading(false);
-      setPendingSubmit(false);
     }
-  };
-
-  const handleConfirmReplace = async () => {
-    setConfirmDialogOpen(false);
-    const validated = positionSchema.parse(formData);
-    await savePosition(validated);
   };
 
   const handleCurrentToggle = (checked: boolean) => {
@@ -621,10 +611,22 @@ export const PositionDialog = ({
                       id="is_current"
                       checked={formData.is_current}
                       onCheckedChange={handleCurrentToggle}
+                      disabled={disableCurrentCheckbox}
                     />
-                    <Label htmlFor="is_current" className="text-sm font-normal cursor-pointer">
+                    <Label 
+                      htmlFor="is_current" 
+                      className={cn(
+                        "text-sm font-normal cursor-pointer",
+                        disableCurrentCheckbox && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
                       Present (Current)
                     </Label>
+                    {disableCurrentCheckbox && (
+                      <span className="text-xs text-muted-foreground">
+                        (End current position first)
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Input
@@ -662,25 +664,6 @@ export const PositionDialog = ({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Confirmation Dialog for replacing current position */}
-      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace Current Position?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will close the current position "{currentPosition?.position}" with an end date of{" "}
-              {formData.effective_date ? formatDate(new Date(new Date(formData.effective_date).getTime() - 86400000).toISOString().split('T')[0]) : "the day before"}.
-              <br /><br />
-              Do you want to continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingSubmit(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmReplace}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };
