@@ -22,7 +22,7 @@ interface OTPEmailProps {
 }
 
 // Stable logo URL from Supabase Storage
-const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets//GlobalyOS%20Blue%20BG%20Icon.png';
 
 export const OTPEmail = ({
   userName,
