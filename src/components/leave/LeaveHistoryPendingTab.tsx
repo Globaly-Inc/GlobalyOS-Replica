@@ -50,6 +50,7 @@ interface PendingLeaveRequest {
   start_date: string;
   end_date: string;
   days_count: number;
+  half_day_type: 'full' | 'first_half' | 'second_half';
   reason: string | null;
   created_at: string;
   isHRBackup?: boolean;
@@ -236,6 +237,7 @@ export const LeaveHistoryPendingTab = ({
             start_date,
             end_date,
             days_count,
+            half_day_type,
             reason,
             created_at,
             employee:employees!leave_requests_employee_id_fkey(
@@ -316,6 +318,7 @@ export const LeaveHistoryPendingTab = ({
             start_date,
             end_date,
             days_count,
+            half_day_type,
             reason,
             created_at,
             employee:employees!leave_requests_employee_id_fkey(
@@ -675,9 +678,16 @@ export const LeaveHistoryPendingTab = ({
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {request.leave_type}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className="text-xs whitespace-nowrap">
+                            {request.leave_type}
+                          </Badge>
+                          {request.half_day_type !== 'full' && (
+                            <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                              {request.half_day_type === 'first_half' ? '1st Half' : '2nd Half'}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
                         <div className="flex items-center gap-1">
