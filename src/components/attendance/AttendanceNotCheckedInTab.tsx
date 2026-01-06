@@ -117,7 +117,13 @@ export const AttendanceNotCheckedInTab = ({
     }
   }, [dateRangeFilter, customDateRange]);
 
-  const isToday = dateRangeFilter === "today";
+  // Check if today falls within the date range
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const startStr = format(dateRange.start, 'yyyy-MM-dd');
+  const endStr = format(dateRange.end, 'yyyy-MM-dd');
+  
+  const includesToday = todayStr >= startStr && todayStr <= endStr;
+  const isOnlyToday = dateRangeFilter === "today";
 
   // Load real-time "not checked in" for today
   const loadTodayNotCheckedIn = async () => {
@@ -239,16 +245,21 @@ export const AttendanceNotCheckedInTab = ({
       }) as NotCheckedInEmployee[];
 
       setNotCheckedIn(filtered);
-      setHistoricalRecords([]);
+      // Only clear historical if this is the ONLY load (not hybrid)
+      if (isOnlyToday) {
+        setHistoricalRecords([]);
+      }
     } catch (error) {
       console.error('Error loading not checked in employees:', error);
     } finally {
-      setLoading(false);
+      if (isOnlyToday) {
+        setLoading(false);
+      }
     }
   };
 
-  // Load historical records from database
-  const loadHistoricalRecords = async () => {
+  // Load historical records from database (for past dates only when hybrid)
+  const loadHistoricalRecords = async (excludeToday = false) => {
     if (!currentOrg?.id || !canView) {
       setLoading(false);
       return;
@@ -256,7 +267,21 @@ export const AttendanceNotCheckedInTab = ({
 
     try {
       const startDate = format(dateRange.start, "yyyy-MM-dd");
-      const endDate = format(dateRange.end, "yyyy-MM-dd");
+      const today = format(new Date(), 'yyyy-MM-dd');
+      // If excludeToday, use yesterday as end date; otherwise use the range end
+      const endDate = excludeToday 
+        ? format(subDays(new Date(), 1), 'yyyy-MM-dd')
+        : format(dateRange.end, "yyyy-MM-dd");
+
+      // Skip query if start > end (e.g., today filter with excludeToday)
+      if (startDate > endDate) {
+        if (!excludeToday) {
+          setHistoricalRecords([]);
+          setNotCheckedIn([]);
+        }
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('attendance_not_checked_in')
@@ -286,7 +311,9 @@ export const AttendanceNotCheckedInTab = ({
       }
 
       setHistoricalRecords((data || []) as NotCheckedInRecord[]);
-      setNotCheckedIn([]);
+      if (!excludeToday) {
+        setNotCheckedIn([]);
+      }
     } catch (error) {
       console.error('Error loading historical records:', error);
     } finally {
@@ -294,30 +321,54 @@ export const AttendanceNotCheckedInTab = ({
     }
   };
 
+  // Load hybrid data: real-time for today + historical for past dates
+  const loadHybridData = async () => {
+    if (!currentOrg?.id || !canView) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Load real-time "today" data
+      await loadTodayNotCheckedIn();
+      
+      // Also load historical records for dates before today
+      await loadHistoricalRecords(true);
+    } catch (error) {
+      console.error('Error loading hybrid data:', error);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!roleLoading && currentOrg?.id) {
       setLoading(true);
-      if (isToday) {
+      if (isOnlyToday) {
+        // Pure today view
         loadTodayNotCheckedIn();
+      } else if (includesToday) {
+        // Hybrid: today's real-time + past historical
+        loadHybridData();
       } else {
-        loadHistoricalRecords();
+        // Pure historical (e.g., "last month")
+        loadHistoricalRecords(false);
       }
     }
   }, [currentOrg?.id, roleLoading, canView, dateRangeFilter, dateRange.start, dateRange.end]);
 
-  // Only set up real-time updates for today view
+  // Set up real-time updates when range includes today
   useEffect(() => {
-    if (!currentOrg?.id || !canView || !isToday) return;
+    if (!currentOrg?.id || !canView || !includesToday) return;
     
     const interval = setInterval(() => {
       loadTodayNotCheckedIn();
     }, 60000);
     
     return () => clearInterval(interval);
-  }, [currentOrg?.id, canView, isToday]);
+  }, [currentOrg?.id, canView, includesToday]);
 
   useEffect(() => {
-    if (!currentOrg?.id || !canView || !isToday) return;
+    if (!currentOrg?.id || !canView || !includesToday) return;
 
     const attendanceChannel = supabase
       .channel('not-checked-in-tab-attendance')
@@ -343,7 +394,7 @@ export const AttendanceNotCheckedInTab = ({
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(leaveChannel);
     };
-  }, [currentOrg?.id, canView, isToday]);
+  }, [currentOrg?.id, canView, includesToday]);
 
   const handleSendReminder = async (employeeId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -394,30 +445,34 @@ export const AttendanceNotCheckedInTab = ({
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Build employees list for filter
+  // Build employees list for filter - combine both sources when hybrid
   const employeesList = useMemo(() => {
-    if (isToday) {
-      return notCheckedIn.map(emp => ({
+    const uniqueEmployees = new Map<string, { id: string; name: string; avatarUrl: string | null; position: string }>();
+    
+    // Add from today's real-time data
+    notCheckedIn.forEach(emp => {
+      uniqueEmployees.set(emp.id, {
         id: emp.id,
         name: emp.profiles.full_name,
         avatarUrl: emp.profiles.avatar_url,
         position: emp.position,
-      }));
-    } else {
-      const uniqueEmployees = new Map<string, { id: string; name: string; avatarUrl: string | null; position: string }>();
-      historicalRecords.forEach(record => {
-        if (record.employee && !uniqueEmployees.has(record.employee_id)) {
-          uniqueEmployees.set(record.employee_id, {
-            id: record.employee.id,
-            name: record.employee.profiles.full_name,
-            avatarUrl: record.employee.profiles.avatar_url,
-            position: record.employee.position,
-          });
-        }
       });
-      return Array.from(uniqueEmployees.values());
-    }
-  }, [isToday, notCheckedIn, historicalRecords]);
+    });
+    
+    // Add from historical records
+    historicalRecords.forEach(record => {
+      if (record.employee && !uniqueEmployees.has(record.employee_id)) {
+        uniqueEmployees.set(record.employee_id, {
+          id: record.employee.id,
+          name: record.employee.profiles.full_name,
+          avatarUrl: record.employee.profiles.avatar_url,
+          position: record.employee.position,
+        });
+      }
+    });
+    
+    return Array.from(uniqueEmployees.values());
+  }, [notCheckedIn, historicalRecords]);
 
   // Notify parent of employees list changes
   useEffect(() => {
@@ -426,8 +481,8 @@ export const AttendanceNotCheckedInTab = ({
     }
   }, [employeesList, onEmployeesListChange]);
 
-  // Notify parent of count changes
-  const totalCount = isToday ? notCheckedIn.length : historicalRecords.length;
+  // Notify parent of count changes - combine both when hybrid
+  const totalCount = notCheckedIn.length + historicalRecords.length;
   useEffect(() => {
     if (onCountChange) {
       onCountChange(totalCount);
@@ -451,24 +506,33 @@ export const AttendanceNotCheckedInTab = ({
     );
   }
 
-  if ((isToday && notCheckedIn.length === 0) || (!isToday && historicalRecords.length === 0)) {
+  const hasNoData = notCheckedIn.length === 0 && historicalRecords.length === 0;
+  
+  if (hasNoData) {
     return (
       <Card className="flex flex-col items-center justify-center py-12">
         <Check className="h-12 w-12 text-green-500 mb-3" />
         <p className="text-muted-foreground font-medium">
-          {isToday ? "Everyone has checked in!" : "No missing check-ins found"}
+          {includesToday ? "Everyone has checked in!" : "No missing check-ins found"}
         </p>
         <p className="text-sm text-muted-foreground">
-          {isToday ? "All scheduled employees are present today" : "All employees checked in during this period"}
+          {includesToday ? "All scheduled employees are present today" : "All employees checked in during this period"}
         </p>
       </Card>
     );
   }
 
-  // Render TODAY view
-  if (isToday) {
+  // Helper to render today's section
+  const renderTodaySection = () => {
+    if (displayedEmployees.length === 0) return null;
+    
     return (
-      <div className="space-y-4">
+      <>
+        {!isOnlyToday && (
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Badge variant="secondary" className="bg-primary/10 text-primary">Today</Badge>
+          </h3>
+        )}
         {isMobile ? (
           <div className="space-y-3">
             {displayedEmployees.map((employee) => {
@@ -508,30 +572,32 @@ export const AttendanceNotCheckedInTab = ({
                         )}
                       </div>
                       {canSendReminder && (
-                        <Button
-                          size="sm"
-                          variant={reminderSent ? "secondary" : "outline"}
-                          className="w-full mt-3"
-                          disabled={reminderSent || isSending}
-                          onClick={(e) => handleSendReminder(employee.id, e)}
-                        >
-                          {isSending ? (
-                            <>
-                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              Sending...
-                            </>
-                          ) : reminderSent ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 mr-1.5" />
-                              Reminder Sent
-                            </>
-                          ) : (
-                            <>
-                              <Send className="h-3.5 w-3.5 mr-1.5" />
-                              Send Reminder
-                            </>
-                          )}
-                        </Button>
+                        <div className="mt-3">
+                          <Button
+                            size="sm"
+                            variant={reminderSent ? "secondary" : "outline"}
+                            disabled={reminderSent || isSending}
+                            onClick={(e) => handleSendReminder(employee.id, e)}
+                            className="w-full"
+                          >
+                            {isSending ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                Sending...
+                              </>
+                            ) : reminderSent ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 mr-1.5" />
+                                Reminder Sent
+                              </>
+                            ) : (
+                              <>
+                                <Send className="h-3.5 w-3.5 mr-1.5" />
+                                Send Reminder
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -548,7 +614,7 @@ export const AttendanceNotCheckedInTab = ({
                     <TableHead className="min-w-[200px]">Employee</TableHead>
                     <TableHead>Expected Start</TableHead>
                     <TableHead>Work Location</TableHead>
-                    {canSendReminder && <TableHead className="w-[150px]">Action</TableHead>}
+                    {canSendReminder && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -621,135 +687,152 @@ export const AttendanceNotCheckedInTab = ({
             </div>
           </Card>
         )}
-      </div>
+      </>
     );
-  }
+  };
 
-  // Render HISTORICAL view
-  return (
-    <div className="space-y-4">
-      {isMobile ? (
-        <div className="space-y-3">
-          {displayedRecords.map((record) => {
-            const employee = record.employee;
-            if (!employee) return null;
+  // Helper to render historical section
+  const renderHistoricalSection = () => {
+    if (displayedRecords.length === 0) return null;
+    
+    return (
+      <>
+        {includesToday && displayedEmployees.length > 0 && (
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 mt-6">
+            <Badge variant="outline">Past Days</Badge>
+          </h3>
+        )}
+        {isMobile ? (
+          <div className="space-y-3">
+            {displayedRecords.map((record) => {
+              const employee = record.employee;
+              if (!employee) return null;
 
-            return (
-              <Card key={record.id} className="p-4">
-                <div className="flex items-start gap-3">
-                  <OrgLink to={`/team/${employee.id}`}>
-                    <Avatar className="h-10 w-10 border-2 border-destructive/30">
-                      <AvatarImage src={employee.profiles.avatar_url || undefined} />
-                      <AvatarFallback className="bg-destructive/10 text-destructive text-xs">
-                        {getInitials(employee.profiles.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </OrgLink>
-                  <div className="flex-1 min-w-0">
+              return (
+                <Card key={record.id} className="p-4">
+                  <div className="flex items-start gap-3">
                     <OrgLink to={`/team/${employee.id}`}>
-                      <p className="font-medium text-sm truncate">{employee.profiles.full_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{employee.position}</p>
+                      <Avatar className="h-10 w-10 border-2 border-destructive/30">
+                        <AvatarImage src={employee.profiles.avatar_url || undefined} />
+                        <AvatarFallback className="bg-destructive/10 text-destructive text-xs">
+                          {getInitials(employee.profiles.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
                     </OrgLink>
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{format(new Date(record.date), "MMM d, yyyy")}</span>
+                    <div className="flex-1 min-w-0">
+                      <OrgLink to={`/team/${employee.id}`}>
+                        <p className="font-medium text-sm truncate">{employee.profiles.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{employee.position}</p>
+                      </OrgLink>
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>{format(new Date(record.date), "MMM d, yyyy")}</span>
+                        </div>
+                        {record.expected_start_time && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>Expected: {formatTime(record.expected_start_time)}</span>
+                          </div>
+                        )}
+                        {record.work_location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="capitalize">{record.work_location}</span>
+                          </div>
+                        )}
                       </div>
-                      {record.expected_start_time && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>Expected: {formatTime(record.expected_start_time)}</span>
-                        </div>
-                      )}
-                      {record.work_location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          <span className="capitalize">{record.work_location}</span>
-                        </div>
+                      {record.reminder_sent && (
+                        <Badge variant="secondary" className="mt-2 text-xs">
+                          <Check className="h-3 w-3 mr-1" />
+                          Reminder Sent
+                        </Badge>
                       )}
                     </div>
-                    {record.reminder_sent && (
-                      <Badge variant="secondary" className="mt-2 text-xs">
-                        <Check className="h-3 w-3 mr-1" />
-                        Reminder Sent
-                      </Badge>
-                    )}
                   </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead className="min-w-[200px]">Employee</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Expected Start</TableHead>
-                  <TableHead>Work Location</TableHead>
-                  <TableHead>Reminder</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedRecords.map((record) => {
-                  const employee = record.employee;
-                  if (!employee) return null;
-
-                  return (
-                    <TableRow key={record.id} className="hover:bg-muted/50">
-                      <TableCell>
-                        <OrgLink to={`/team/${employee.id}`} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                          <Avatar className="h-8 w-8 border-2 border-destructive/30">
-                            <AvatarImage src={employee.profiles.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs bg-destructive/10 text-destructive">
-                              {getInitials(employee.profiles.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{employee.profiles.full_name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{employee.position}</p>
-                          </div>
-                        </OrgLink>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <span className="font-medium">{format(new Date(record.date), "EEE")}</span>
-                          <span className="text-muted-foreground ml-1">{format(new Date(record.date), "MMM d, yyyy")}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>{record.expected_start_time ? formatTime(record.expected_start_time) : '—'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" />
-                          <span className="capitalize">{record.work_location || '—'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {record.reminder_sent ? (
-                          <Badge variant="secondary" className="text-xs">
-                            <Check className="h-3 w-3 mr-1" />
-                            Sent
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                </Card>
+              );
+            })}
           </div>
-        </Card>
-      )}
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead className="min-w-[200px]">Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Expected Start</TableHead>
+                    <TableHead>Work Location</TableHead>
+                    <TableHead>Reminder</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayedRecords.map((record) => {
+                    const employee = record.employee;
+                    if (!employee) return null;
+
+                    return (
+                      <TableRow key={record.id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <OrgLink to={`/team/${employee.id}`} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+                            <Avatar className="h-8 w-8 border-2 border-destructive/30">
+                              <AvatarImage src={employee.profiles.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs bg-destructive/10 text-destructive">
+                                {getInitials(employee.profiles.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{employee.profiles.full_name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{employee.position}</p>
+                            </div>
+                          </OrgLink>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <span className="font-medium">{format(new Date(record.date), "EEE")}</span>
+                            <span className="text-muted-foreground ml-1">{format(new Date(record.date), "MMM d, yyyy")}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>{record.expected_start_time ? formatTime(record.expected_start_time) : '—'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5" />
+                            <span className="capitalize">{record.work_location || '—'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {record.reminder_sent ? (
+                            <Badge variant="secondary" className="text-xs">
+                              <Check className="h-3 w-3 mr-1" />
+                              Sent
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
+      </>
+    );
+  };
+
+  // Render combined view
+  return (
+    <div className="space-y-4">
+      {renderTodaySection()}
+      {renderHistoricalSection()}
     </div>
   );
 };
