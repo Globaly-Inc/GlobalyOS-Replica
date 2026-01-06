@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Save, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Save, Trash2, Loader2, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PlanLimit } from './PlanManagement';
+import { FeatureLimitsHelpDialog } from './FeatureLimitsHelpDialog';
 
 interface FeatureLimitsEditorProps {
   planSlug: string;
@@ -20,9 +21,15 @@ const DEFAULT_FEATURES = [
   { feature: 'storage_gb', feature_name: 'Storage', unit: 'GB', sort_order: 1 },
   { feature: 'ai_queries', feature_name: 'AI Queries', unit: 'queries', sort_order: 2 },
   { feature: 'team_members', feature_name: 'Team Members', unit: 'count', sort_order: 3 },
-  { feature: 'performance_reviews', feature_name: 'Performance Reviews', unit: 'count', sort_order: 4 },
-  { feature: 'wiki_pages', feature_name: 'Wiki Pages', unit: 'count', sort_order: 5 },
-  { feature: 'chat_spaces', feature_name: 'Chat Spaces', unit: 'count', sort_order: 6 },
+  { feature: 'wiki_pages', feature_name: 'Wiki Pages', unit: 'count', sort_order: 4 },
+  { feature: 'chat_spaces', feature_name: 'Chat Spaces', unit: 'count', sort_order: 5 },
+  { feature: 'attendance_scans', feature_name: 'Attendance Scans', unit: 'count', sort_order: 6 },
+  { feature: 'leave_requests', feature_name: 'Leave Requests', unit: 'count', sort_order: 7 },
+  { feature: 'performance_reviews', feature_name: 'Performance Reviews', unit: 'count', sort_order: 8 },
+  { feature: 'offices', feature_name: 'Offices', unit: 'count', sort_order: 9 },
+  { feature: 'projects', feature_name: 'Projects', unit: 'count', sort_order: 10 },
+  { feature: 'kpi_metrics', feature_name: 'KPI Metrics', unit: 'count', sort_order: 11 },
+  { feature: 'okr_objectives', feature_name: 'OKR Objectives', unit: 'count', sort_order: 12 },
 ];
 
 interface EditableLimit {
@@ -41,6 +48,7 @@ export function FeatureLimitsEditor({ planSlug, limits, isLoading }: FeatureLimi
   const [editableLimits, setEditableLimits] = useState<EditableLimit[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Properly sync limits prop to state using useEffect
   useEffect(() => {
@@ -175,6 +183,10 @@ export function FeatureLimitsEditor({ planSlug, limits, isLoading }: FeatureLimi
           </p>
         </div>
         <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setHelpOpen(true)}>
+            <HelpCircle className="h-4 w-4 mr-2" />
+            Help
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={addNewLimit}>
             <Plus className="h-4 w-4 mr-2" />
             Add Limit
@@ -192,6 +204,8 @@ export function FeatureLimitsEditor({ planSlug, limits, isLoading }: FeatureLimi
           )}
         </div>
       </div>
+
+      <FeatureLimitsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
       <Table>
         <TableHeader>
