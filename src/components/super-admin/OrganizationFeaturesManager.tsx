@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
 interface FeatureFlag {
   feature_name: string;
@@ -45,6 +46,7 @@ export const OrganizationFeaturesManager = ({
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const { logActivity } = useAdminActivityLog();
 
   const fetchFeatures = async () => {
     try {
@@ -96,6 +98,13 @@ export const OrganizationFeaturesManager = ({
         );
 
       if (error) throw error;
+
+      await logActivity({
+        organizationId,
+        actionType: enabled ? 'feature_enabled' : 'feature_disabled',
+        entityType: 'feature',
+        metadata: { featureName, enabled }
+      });
 
       setFeatures((prev) => ({
         ...prev,

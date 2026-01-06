@@ -40,13 +40,17 @@ import {
   Trash2,
   Edit,
   ExternalLink,
+  Activity,
 } from "lucide-react";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import { OrgBillingTab } from "@/components/super-admin/OrgBillingTab";
 import { OrgMembersTab } from "@/components/super-admin/OrgMembersTab";
 import { OrgUsageTab } from "@/components/super-admin/OrgUsageTab";
 import { OrgOfficesTab } from "@/components/super-admin/OrgOfficesTab";
+import { OrgActivityTab } from "@/components/super-admin/OrgActivityTab";
 import { OrganizationFeaturesManager } from "@/components/super-admin/OrganizationFeaturesManager";
+import { EditOrganizationDialog } from "@/components/super-admin/EditOrganizationDialog";
+import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 import { toast } from "sonner";
 import {
   Breadcrumb,
@@ -62,8 +66,10 @@ export default function SuperAdminOrganisationDetail() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const { logActivity } = useAdminActivityLog();
 
   // Fetch organization details
   const { data: org, isLoading, refetch } = useQuery({
@@ -127,6 +133,7 @@ export default function SuperAdminOrganisationDetail() {
   const toggleOrgStatus = async () => {
     if (!org) return;
     const newPlan = org.plan === "inactive" ? "free" : "inactive";
+    const actionType = newPlan === "inactive" ? "org_deactivated" : "org_activated";
     setToggling(true);
     try {
       const { error } = await supabase
@@ -135,6 +142,14 @@ export default function SuperAdminOrganisationDetail() {
         .eq("id", org.id);
 
       if (error) throw error;
+
+      await logActivity({
+        organizationId: org.id,
+        actionType: actionType as 'org_activated' | 'org_deactivated',
+        entityType: 'organization',
+        entityId: org.id,
+        changes: { plan: { from: org.plan, to: newPlan } }
+      });
 
       toast.success(`Organization ${newPlan === "inactive" ? "deactivated" : "activated"}`);
       refetch();
@@ -151,6 +166,14 @@ export default function SuperAdminOrganisationDetail() {
 
     setDeleting(true);
     try {
+      await logActivity({
+        organizationId: org.id,
+        actionType: 'org_deleted',
+        entityType: 'organization',
+        entityId: org.id,
+        metadata: { organizationName: org.name, organizationSlug: org.slug }
+      });
+
       const { error } = await supabase.functions.invoke("delete-organization", {
         body: { organizationId: org.id },
       });
@@ -328,6 +351,15 @@ export default function SuperAdminOrganisationDetail() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setEditDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={toggleOrgStatus}
                   disabled={toggling}
                   className="gap-2"
@@ -436,6 +468,13 @@ export default function SuperAdminOrganisationDetail() {
                 >
                   <Settings className="h-4 w-4" />
                   Settings
+                </TabsTrigger>
+                <TabsTrigger
+                  value="activity"
+                  className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+                >
+                  <Activity className="h-4 w-4" />
+                  Activity
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -618,9 +657,21 @@ export default function SuperAdminOrganisationDetail() {
                   </Card>
                 </div>
               </TabsContent>
+
+              <TabsContent value="activity" className="mt-0">
+                <OrgActivityTab organizationId={orgId!} />
+              </TabsContent>
             </CardContent>
           </Tabs>
         </Card>
+
+        {/* Edit Organization Dialog */}
+        <EditOrganizationDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          organization={org}
+          onSave={() => refetch()}
+        />
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

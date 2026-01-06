@@ -44,6 +44,7 @@ import {
   Eye,
   Loader2,
 } from "lucide-react";
+import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
 interface OrgBillingTabProps {
   organizationId: string;
@@ -51,6 +52,7 @@ interface OrgBillingTabProps {
 
 export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
   const queryClient = useQueryClient();
+  const { logActivity } = useAdminActivityLog();
   const [activeTab, setActiveTab] = useState("subscription");
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
@@ -120,12 +122,32 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
       
       if (error) throw error;
 
+      // Log the activity
+      await logActivity({
+        organizationId,
+        actionType: 'payment_recorded',
+        entityType: 'payment',
+        metadata: { 
+          amount: parseFloat(paymentForm.amount),
+          payment_method: paymentForm.payment_method,
+          reference_number: paymentForm.reference_number || null
+        }
+      });
+
       // Update subscription to active if needed
       if (subscription && ["past_due", "unpaid"].includes(subscription.status)) {
         await supabase
           .from("subscriptions")
           .update({ status: "active" })
           .eq("id", subscription.id);
+          
+        await logActivity({
+          organizationId,
+          actionType: 'subscription_updated',
+          entityType: 'subscription',
+          entityId: subscription.id,
+          changes: { status: { from: subscription.status, to: 'active' } }
+        });
       }
     },
     onSuccess: () => {
@@ -144,11 +166,20 @@ export function OrgBillingTab({ organizationId }: OrgBillingTabProps) {
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ status }: { status: string }) => {
       if (!subscription) return;
+      const previousStatus = subscription.status;
       const { error } = await supabase
         .from("subscriptions")
         .update({ status })
         .eq("id", subscription.id);
       if (error) throw error;
+
+      await logActivity({
+        organizationId,
+        actionType: status === 'canceled' ? 'subscription_canceled' : 'subscription_updated',
+        entityType: 'subscription',
+        entityId: subscription.id,
+        changes: { status: { from: previousStatus, to: status } }
+      });
     },
     onSuccess: () => {
       toast.success("Subscription updated");
