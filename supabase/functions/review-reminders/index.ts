@@ -7,27 +7,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const logoUrl = getLogoUrl(req);
+  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -159,7 +148,7 @@ serve(async (req) => {
                     <p>This is a friendly reminder that your <strong>self-assessment</strong> for the performance review period <strong>${period}</strong> is still pending.</p>
                     <p>${reviewerName} initiated this review and is waiting for your self-assessment before proceeding with the manager review.</p>
                     <p>Completing your self-assessment ensures your perspective and achievements are captured in the review.</p>
-                    <a href="${Deno.env.get("PUBLIC_URL") || "https://globalyos.com"}" class="button">
+                    <a href="${APP_URL}" class="button">
                       Complete Self-Assessment
                     </a>
                   </div>
@@ -255,7 +244,7 @@ serve(async (req) => {
                       <li>Add any comments or questions</li>
                       <li>Acknowledge the review to complete the process</li>
                     </ul>
-                    <a href="${Deno.env.get("PUBLIC_URL") || "https://globalyos.com"}" class="button">
+                    <a href="${APP_URL}" class="button">
                       View & Acknowledge Review
                     </a>
                   </div>

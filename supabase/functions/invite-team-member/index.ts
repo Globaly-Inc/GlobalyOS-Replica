@@ -54,20 +54,9 @@ function getClientIP(req: Request): string {
          'unknown';
 }
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 
 serve(async (req: Request) => {
@@ -77,7 +66,7 @@ serve(async (req: Request) => {
 
   const clientIP = getClientIP(req);
   console.log('Invite request from IP:', clientIP);
-  const logoUrl = getLogoUrl(req);
+  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -312,8 +301,8 @@ serve(async (req: Request) => {
 
     console.log('Generated invitation code for:', normalizedEmail);
 
-    // Get the app URL from environment or use default
-    const appUrl = Deno.env.get('APP_URL') || 'https://people.globalyhub.com';
+    // Get the app URL
+    const appUrl = APP_URL;
     const joinUrl = `${appUrl}/join?email=${encodeURIComponent(normalizedEmail)}`;
 
     // Send invitation email via Resend API

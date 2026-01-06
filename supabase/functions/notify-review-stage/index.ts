@@ -7,20 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 interface NotifyRequest {
   review_id: string;
@@ -90,7 +79,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const logoUrl = getLogoUrl(req);
+  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const { review_id, stage } = (await req.json()) as NotifyRequest;
@@ -220,7 +209,7 @@ serve(async (req) => {
                 </div>
                 <div class="content">
                   ${emailBody}
-                  <a href="${Deno.env.get("PUBLIC_URL") || "https://globalyos.com"}" class="button">
+                  <a href="${APP_URL}" class="button">
                     Open GlobalyOS
                   </a>
                 </div>

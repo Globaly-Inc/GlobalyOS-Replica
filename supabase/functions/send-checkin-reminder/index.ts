@@ -6,20 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function getAppBaseUrl(req?: Request): string {
-  const origin = req?.headers.get('origin');
-  const envBase =
-    Deno.env.get('APP_URL') ||
-    Deno.env.get('PUBLIC_URL') ||
-    Deno.env.get('APP_BASE_URL') ||
-    '';
-  const base = origin || envBase || 'https://people.globalyhub.com';
-  return base.replace(/\/$/, '');
-}
-
-function getLogoUrl(req?: Request): string {
-  return `${getAppBaseUrl(req)}/images/globalyos-icon.png`;
-}
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-icon.png';
+const APP_URL = 'https://www.globalyos.com';
 
 interface ReminderPayload {
   employee_id: string;
@@ -32,7 +21,7 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const logoUrl = getLogoUrl(req);
+  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const supabaseClient = createClient(
@@ -146,7 +135,7 @@ serve(async (req: Request) => {
 
     // Send email if we have the email and Resend API key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://app.globalyos.com";
+    const appBaseUrl = APP_URL;
     
     if (employeeEmail && resendApiKey) {
       const emailHtml = `
