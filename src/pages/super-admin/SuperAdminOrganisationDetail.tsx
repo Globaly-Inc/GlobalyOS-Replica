@@ -41,6 +41,9 @@ import {
   Edit,
   ExternalLink,
   Activity,
+  FolderKanban,
+  CalendarOff,
+  ClipboardCheck,
 } from "lucide-react";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import { OrgBillingTab } from "@/components/super-admin/OrgBillingTab";
@@ -109,12 +112,15 @@ export default function SuperAdminOrganisationDetail() {
     queryFn: async () => {
       if (!orgId) return null;
 
-      const [employees, wikiPages, chatSpaces, events, offices] = await Promise.all([
+      const [employees, wikiPages, chatSpaces, events, offices, projects, leaveRequests, attendanceRecords] = await Promise.all([
         supabase.from("employees").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("wiki_pages").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("chat_spaces").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("calendar_events").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("offices").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+        supabase.from("projects").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+        supabase.from("attendance_records").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
       ]);
 
       return {
@@ -123,6 +129,9 @@ export default function SuperAdminOrganisationDetail() {
         chatSpaces: chatSpaces.count || 0,
         events: events.count || 0,
         offices: offices.count || 0,
+        projects: projects.count || 0,
+        leaveRequests: leaveRequests.count || 0,
+        attendanceRecords: attendanceRecords.count || 0,
       };
     },
     enabled: !!orgId,
@@ -276,6 +285,9 @@ export default function SuperAdminOrganisationDetail() {
     { key: "wikiPages", label: "Wiki Pages", icon: FileText, color: "bg-emerald-100 text-emerald-600" },
     { key: "chatSpaces", label: "Chat Spaces", icon: MessageSquare, color: "bg-purple-100 text-purple-600" },
     { key: "events", label: "Events", icon: Calendar, color: "bg-amber-100 text-amber-600" },
+    { key: "projects", label: "Projects", icon: FolderKanban, color: "bg-cyan-100 text-cyan-600" },
+    { key: "leaveRequests", label: "Leave Requests", icon: CalendarOff, color: "bg-rose-100 text-rose-600" },
+    { key: "attendanceRecords", label: "Attendance", icon: ClipboardCheck, color: "bg-indigo-100 text-indigo-600" },
   ];
 
   return (
@@ -389,7 +401,7 @@ export default function SuperAdminOrganisationDetail() {
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {statsConfig.map((stat) => {
             const Icon = stat.icon;
             const value = stats?.[stat.key as keyof typeof stats] || 0;
@@ -400,7 +412,7 @@ export default function SuperAdminOrganisationDetail() {
                 onClick={() => {
                   if (stat.key === "users") setActiveTab("users");
                   else if (stat.key === "offices") setActiveTab("offices");
-                  else if (stat.key === "wikiPages" || stat.key === "chatSpaces" || stat.key === "events") setActiveTab("usage");
+                  else setActiveTab("plan-usage");
                 }}
               >
                 <CardContent className="pt-4">
@@ -446,11 +458,11 @@ export default function SuperAdminOrganisationDetail() {
                   Offices
                 </TabsTrigger>
                 <TabsTrigger
-                  value="usage"
+                  value="plan-usage"
                   className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
                 >
                   <BarChart3 className="h-4 w-4" />
-                  Usage
+                  Plan & Usage
                 </TabsTrigger>
                 <TabsTrigger
                   value="billing"
@@ -605,7 +617,7 @@ export default function SuperAdminOrganisationDetail() {
                       <Button
                         variant="outline"
                         className="w-full justify-start gap-2"
-                        onClick={() => setActiveTab("usage")}
+                        onClick={() => setActiveTab("plan-usage")}
                       >
                         <BarChart3 className="h-4 w-4" />
                         View Usage Statistics
@@ -631,7 +643,7 @@ export default function SuperAdminOrganisationDetail() {
                 <OrgOfficesTab organizationId={orgId!} />
               </TabsContent>
 
-              <TabsContent value="usage" className="mt-0">
+              <TabsContent value="plan-usage" className="mt-0">
                 <OrgUsageTab organizationId={orgId!} />
               </TabsContent>
 
