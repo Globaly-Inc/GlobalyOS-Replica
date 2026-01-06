@@ -33,9 +33,12 @@ import {
   Receipt,
   Calendar,
   DollarSign,
+  Clock,
 } from "lucide-react";
 import { ChangePlanDialog } from "./ChangePlanDialog";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
+import { TrialSection } from "./TrialSection";
+import { DunningSection } from "./DunningSection";
 
 interface OrgUsageTabProps {
   organizationId: string;
@@ -52,7 +55,7 @@ interface UsageMetric {
 
 interface TimelineEvent {
   id: string;
-  type: "subscription_created" | "plan_change" | "status_change" | "invoice" | "subscription_canceled";
+  type: "subscription_created" | "plan_change" | "status_change" | "invoice" | "subscription_canceled" | "trial_extended" | "dunning_started";
   date: Date;
   title: string;
   description: string;
@@ -161,7 +164,8 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
         .eq("organization_id", organizationId)
         .in("action_type", [
           "subscription_created", "subscription_updated",
-          "subscription_canceled", "plan_changed"
+          "subscription_canceled", "plan_changed",
+          "trial_extended", "dunning_started", "dunning_canceled"
         ])
         .order("created_at", { ascending: false })
         .limit(20);
@@ -199,7 +203,9 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
           case "subscription_canceled":
             type = "subscription_canceled";
             title = "Subscription Canceled";
-            description = "Subscription was canceled";
+            description = metadata?.reason 
+              ? `Reason: ${metadata.reason}`
+              : "Subscription was canceled";
             break;
           case "subscription_updated":
             type = "status_change";
@@ -211,6 +217,23 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
             } else {
               description = "Subscription details were updated";
             }
+            break;
+          case "trial_extended":
+            type = "trial_extended";
+            title = "Trial Extended";
+            description = metadata?.extension_days 
+              ? `Extended by ${metadata.extension_days} days${metadata.reason ? ` - ${metadata.reason}` : ""}`
+              : "Trial period was extended";
+            break;
+          case "dunning_started":
+            type = "dunning_started";
+            title = "Dunning Started";
+            description = "Payment failed, dunning period began";
+            break;
+          case "dunning_canceled":
+            type = "subscription_canceled";
+            title = "Canceled (Dunning)";
+            description = "Subscription canceled due to failed payment";
             break;
         }
 
@@ -449,6 +472,10 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
         return { icon: Receipt, bgColor: "bg-purple-100", textColor: "text-purple-600" };
       case "subscription_canceled":
         return { icon: XCircle, bgColor: "bg-red-100", textColor: "text-red-600" };
+      case "trial_extended":
+        return { icon: Clock, bgColor: "bg-blue-100", textColor: "text-blue-600" };
+      case "dunning_started":
+        return { icon: AlertTriangle, bgColor: "bg-amber-100", textColor: "text-amber-600" };
       default:
         return { icon: History, bgColor: "bg-muted", textColor: "text-muted-foreground" };
     }
@@ -519,6 +546,18 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Trial Section - Show when trialing */}
+              {subscription.status === "trialing" && subscription.trial_ends_at && (
+                <TrialSection
+                  organizationId={organizationId}
+                  subscription={{
+                    id: subscription.id,
+                    trial_ends_at: subscription.trial_ends_at,
+                    current_period_start: subscription.current_period_start,
+                  }}
+                />
+              )}
 
               {/* Row 2: Period & Auto-Renew */}
               <div className="grid gap-4 sm:grid-cols-2">
@@ -592,6 +631,22 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Dunning Section - Show when past_due */}
+      {subscription?.status === "past_due" && subscription?.dunning_started_at && (
+        <DunningSection
+          organizationId={organizationId}
+          subscription={{
+            id: subscription.id,
+            status: subscription.status,
+            dunning_started_at: subscription.dunning_started_at,
+            dunning_ends_at: subscription.dunning_ends_at,
+            dunning_attempts: subscription.dunning_attempts,
+            last_dunning_attempt_at: subscription.last_dunning_attempt_at,
+            plan: subscription.plan,
+          }}
+        />
+      )}
 
       {/* Section B: Usage Alerts */}
       {alertableFeatures.length > 0 && (
