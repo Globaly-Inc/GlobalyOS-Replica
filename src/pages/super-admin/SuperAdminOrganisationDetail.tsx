@@ -109,8 +109,7 @@ export default function SuperAdminOrganisationDetail() {
     queryFn: async () => {
       if (!orgId) return null;
 
-      const [members, employees, wikiPages, chatSpaces, events, offices] = await Promise.all([
-        supabase.from("organization_members").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+      const [employees, wikiPages, chatSpaces, events, offices] = await Promise.all([
         supabase.from("employees").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("wiki_pages").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
         supabase.from("chat_spaces").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
@@ -119,8 +118,7 @@ export default function SuperAdminOrganisationDetail() {
       ]);
 
       return {
-        members: members.count || 0,
-        employees: employees.count || 0,
+        users: employees.count || 0,
         wikiPages: wikiPages.count || 0,
         chatSpaces: chatSpaces.count || 0,
         events: events.count || 0,
@@ -273,8 +271,7 @@ export default function SuperAdminOrganisationDetail() {
   }
 
   const statsConfig = [
-    { key: "members", label: "Members", icon: Users, color: "bg-primary/10 text-primary" },
-    { key: "employees", label: "Employees", icon: Briefcase, color: "bg-blue-100 text-blue-600" },
+    { key: "users", label: "Users", icon: Users, color: "bg-primary/10 text-primary" },
     { key: "offices", label: "Offices", icon: MapPin, color: "bg-orange-100 text-orange-600" },
     { key: "wikiPages", label: "Wiki Pages", icon: FileText, color: "bg-emerald-100 text-emerald-600" },
     { key: "chatSpaces", label: "Chat Spaces", icon: MessageSquare, color: "bg-purple-100 text-purple-600" },
@@ -392,7 +389,7 @@ export default function SuperAdminOrganisationDetail() {
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {statsConfig.map((stat) => {
             const Icon = stat.icon;
             const value = stats?.[stat.key as keyof typeof stats] || 0;
@@ -401,7 +398,7 @@ export default function SuperAdminOrganisationDetail() {
                 key={stat.key}
                 className="cursor-pointer hover:shadow-md transition-all hover:border-primary/20"
                 onClick={() => {
-                  if (stat.key === "members" || stat.key === "employees") setActiveTab("members");
+                  if (stat.key === "users") setActiveTab("users");
                   else if (stat.key === "offices") setActiveTab("offices");
                   else if (stat.key === "wikiPages" || stat.key === "chatSpaces" || stat.key === "events") setActiveTab("usage");
                 }}
@@ -435,11 +432,11 @@ export default function SuperAdminOrganisationDetail() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger
-                  value="members"
+                  value="users"
                   className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
                 >
                   <Users className="h-4 w-4" />
-                  Members
+                  Users
                 </TabsTrigger>
                 <TabsTrigger
                   value="offices"
@@ -626,7 +623,7 @@ export default function SuperAdminOrganisationDetail() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="members" className="mt-0">
+              <TabsContent value="users" className="mt-0">
                 <OrgMembersTab organizationId={orgId!} />
               </TabsContent>
 

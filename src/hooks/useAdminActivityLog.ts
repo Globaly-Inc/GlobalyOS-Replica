@@ -15,6 +15,7 @@ export type AdminActionType =
   | 'coupon_removed'
   | 'feature_enabled'
   | 'feature_disabled'
+  | 'member_added'
   | 'member_removed'
   | 'member_role_changed'
   | 'trial_extended';
