@@ -11,7 +11,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { 
   Loader2, 
-  Database, 
   BarChart3, 
   CreditCard,
   ChevronDown,
@@ -28,6 +27,12 @@ import {
   Settings,
   XCircle,
   CheckCircle,
+  History,
+  Plus,
+  ArrowUpDown,
+  Receipt,
+  Calendar,
+  DollarSign,
 } from "lucide-react";
 import { ChangePlanDialog } from "./ChangePlanDialog";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
@@ -45,19 +50,36 @@ interface UsageMetric {
   icon: React.ReactNode;
 }
 
+interface TimelineEvent {
+  id: string;
+  type: "subscription_created" | "plan_change" | "status_change" | "invoice" | "subscription_canceled";
+  date: Date;
+  title: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+}
+
 export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
   const queryClient = useQueryClient();
   const { logActivity } = useAdminActivityLog();
-  const [limitsOpen, setLimitsOpen] = useState(false);
   const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Fetch organization's full subscription details
+  // Fetch organization's full subscription details with plan pricing
   const { data: subscription, isLoading: subLoading } = useQuery({
     queryKey: ["org-subscription-full", organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("*")
+        .select(`
+          *,
+          subscription_plans:plan (
+            name,
+            monthly_price,
+            annual_price,
+            currency
+          )
+        `)
         .eq("organization_id", organizationId)
         .maybeSingle();
       if (error) throw error;
@@ -126,6 +148,107 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
     enabled: !!organizationId,
   });
 
+  // Fetch subscription history timeline
+  const { data: timelineEvents } = useQuery({
+    queryKey: ["subscription-timeline", organizationId],
+    queryFn: async () => {
+      const events: TimelineEvent[] = [];
+
+      // Fetch activity logs
+      const { data: activityLogs } = await supabase
+        .from("super_admin_activity_logs")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .in("action_type", [
+          "subscription_created", "subscription_updated",
+          "subscription_canceled", "plan_changed"
+        ])
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      // Fetch invoices
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      // Map activity logs to timeline events
+      activityLogs?.forEach((log) => {
+        let title = "";
+        let description = "";
+        let type: TimelineEvent["type"] = "status_change";
+
+        const changes = log.changes as Record<string, { from?: string; to?: string }> | null;
+        const metadata = log.metadata as Record<string, unknown> | null;
+
+        switch (log.action_type) {
+          case "subscription_created":
+            type = "subscription_created";
+            title = "Subscription Created";
+            description = `Started on "${metadata?.plan || "unknown"}" plan`;
+            break;
+          case "plan_changed":
+            type = "plan_change";
+            title = "Plan Changed";
+            description = changes?.plan 
+              ? `Changed from "${changes.plan.from}" to "${changes.plan.to}"`
+              : "Plan was updated";
+            break;
+          case "subscription_canceled":
+            type = "subscription_canceled";
+            title = "Subscription Canceled";
+            description = "Subscription was canceled";
+            break;
+          case "subscription_updated":
+            type = "status_change";
+            title = "Subscription Updated";
+            if (changes?.status) {
+              description = `Status changed from "${changes.status.from}" to "${changes.status.to}"`;
+            } else if (changes?.billing_cycle) {
+              description = `Billing cycle changed to "${changes.billing_cycle.to}"`;
+            } else {
+              description = "Subscription details were updated";
+            }
+            break;
+        }
+
+        events.push({
+          id: log.id,
+          type,
+          date: new Date(log.created_at),
+          title,
+          description,
+          metadata: metadata || undefined,
+        });
+      });
+
+      // Map invoices to timeline events
+      invoices?.forEach((invoice) => {
+        const currency = (invoice.currency as string) || "USD";
+        const amount = invoice.amount || 0;
+        const formattedAmount = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency,
+        }).format(amount);
+
+        events.push({
+          id: invoice.id,
+          type: "invoice",
+          date: new Date(invoice.created_at),
+          title: `Invoice ${invoice.invoice_number || invoice.id.slice(0, 8)}`,
+          description: `${invoice.status} - ${formattedAmount}`,
+          metadata: { amount: invoice.amount, currency: invoice.currency, status: invoice.status },
+        });
+      });
+
+      // Sort by date descending
+      return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+    },
+    enabled: !!organizationId,
+  });
+
   // Update subscription mutation
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ status }: { status: string }) => {
@@ -148,6 +271,7 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
     onSuccess: () => {
       toast.success("Subscription updated");
       queryClient.invalidateQueries({ queryKey: ["org-subscription-full", organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-timeline", organizationId] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update subscription");
@@ -219,15 +343,40 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
     return limit.monthly_limit;
   };
 
-  const getOverageRate = (feature: string): number | null => {
-    const limit = planLimits?.find(l => l.feature === feature);
-    return limit?.overage_rate || null;
-  };
-
   const hasAlertSent = (feature: string, threshold: number): boolean => {
     return usageAlerts?.some(
       (a) => a.feature === feature && a.threshold_percent === threshold
     ) || false;
+  };
+
+  const formatPrice = () => {
+    const planData = subscription?.subscription_plans as { 
+      name?: string; 
+      monthly_price?: number; 
+      annual_price?: number; 
+      currency?: string 
+    } | null;
+    
+    if (!planData) return "Custom";
+    
+    const price = subscription?.billing_cycle === "annual" 
+      ? planData.annual_price 
+      : planData.monthly_price;
+    
+    if (!price || price === 0) return "Custom";
+    
+    const currency = planData.currency || "USD";
+    const period = subscription?.billing_cycle === "annual" ? "/yr" : "/mo";
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+    }).format(price) + period;
+  };
+
+  const getCurrency = () => {
+    const planData = subscription?.subscription_plans as { currency?: string } | null;
+    return planData?.currency || "USD";
   };
 
   const usageMetrics: UsageMetric[] = [
@@ -288,6 +437,23 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
     );
   };
 
+  const getTimelineIcon = (type: TimelineEvent["type"]) => {
+    switch (type) {
+      case "subscription_created":
+        return { icon: Plus, bgColor: "bg-emerald-100", textColor: "text-emerald-600" };
+      case "plan_change":
+        return { icon: ArrowUpDown, bgColor: "bg-blue-100", textColor: "text-blue-600" };
+      case "status_change":
+        return { icon: RefreshCw, bgColor: "bg-amber-100", textColor: "text-amber-600" };
+      case "invoice":
+        return { icon: Receipt, bgColor: "bg-purple-100", textColor: "text-purple-600" };
+      case "subscription_canceled":
+        return { icon: XCircle, bgColor: "bg-red-100", textColor: "text-red-600" };
+      default:
+        return { icon: History, bgColor: "bg-muted", textColor: "text-muted-foreground" };
+    }
+  };
+
   // Get features approaching or at limit
   const alertableFeatures = usageMetrics.filter((m) => {
     if (m.limit === null) return false;
@@ -314,74 +480,80 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Section A: Subscription Overview */}
+      {/* Section A: Subscription Overview - Redesigned */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <CreditCard className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Current Subscription</CardTitle>
-                <CardDescription>Subscription details and billing information</CardDescription>
-              </div>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <CreditCard className="h-5 w-5 text-primary" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setChangePlanOpen(true)}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Change Plan
-              </Button>
-              {subscription && getStatusBadge(subscription.status)}
+            <div>
+              <CardTitle>Current Subscription</CardTitle>
+              <CardDescription>Subscription details and billing information</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {subscription ? (
-            <div className="space-y-4">
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-6">
+              {/* Row 1: Key Info Grid */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 p-4 bg-muted/30 rounded-lg">
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Plan</p>
-                  <div className="flex items-center gap-2">
-                    <Badge className="capitalize text-sm px-3 py-1">{subscription.plan}</Badge>
-                  </div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Plan</p>
+                  <Badge className="capitalize text-sm px-3 py-1">{subscription.plan}</Badge>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Billing Cycle</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
+                  {getStatusBadge(subscription.status)}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Billing Cycle</p>
                   <p className="font-medium capitalize">{subscription.billing_cycle}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Current Period</p>
-                  <p className="font-medium">{periodStart} - {periodEnd}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Auto-Renew</p>
-                  <p className="font-medium">
-                    {subscription.cancel_at_period_end ? (
-                      <span className="text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" />
-                        Canceling at period end
-                      </span>
-                    ) : (
-                      "Yes"
-                    )}
-                  </p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Price</p>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <p className="font-semibold">{formatPrice()}</p>
+                    <span className="text-xs text-muted-foreground">({getCurrency()})</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Subscription Actions */}
-              <Separator />
-              <div className="flex flex-wrap gap-2">
+              {/* Row 2: Period & Auto-Renew */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Current Period:</span>
+                  <span className="font-medium">{periodStart} - {periodEnd}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Auto-Renew:</span>
+                  {subscription.cancel_at_period_end ? (
+                    <span className="text-amber-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="h-4 w-4" />
+                      Canceling at period end
+                    </span>
+                  ) : (
+                    <span className="font-medium text-emerald-600">Yes</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 3: Action Buttons - All Aligned Together */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => setChangePlanOpen(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Change Plan
+                </Button>
                 {subscription.status === "active" && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => updateSubscriptionMutation.mutate({ status: "canceled" })}
                     disabled={updateSubscriptionMutation.isPending}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
                     Cancel Subscription
@@ -393,6 +565,7 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
                     size="sm"
                     onClick={() => updateSubscriptionMutation.mutate({ status: "active" })}
                     disabled={updateSubscriptionMutation.isPending}
+                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Activate Subscription
@@ -568,68 +741,61 @@ export function OrgUsageTab({ organizationId }: OrgUsageTabProps) {
         </CardContent>
       </Card>
 
-      {/* Section D: Plan Limits Reference (Collapsible) */}
-      {planLimits && planLimits.length > 0 && (
-        <Collapsible open={limitsOpen} onOpenChange={setLimitsOpen}>
+      {/* Section D: Subscription History Timeline (Collapsible) */}
+      {timelineEvents && timelineEvents.length > 0 && (
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-blue-100">
-                      <Database className="h-5 w-5 text-blue-600" />
+                      <History className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <CardTitle>Plan Limits Reference</CardTitle>
-                      <CardDescription>All limits and overage rates for the {subscription?.plan || "current"} plan</CardDescription>
+                      <CardTitle>Subscription History</CardTitle>
+                      <CardDescription>Timeline of plan changes and billing events</CardDescription>
                     </div>
                   </div>
-                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${limitsOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} />
                 </div>
               </CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="pt-0">
                 <Separator className="mb-4" />
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2 px-3 text-sm font-medium text-muted-foreground">Feature</th>
-                        <th className="text-right py-2 px-3 text-sm font-medium text-muted-foreground">Included</th>
-                        <th className="text-right py-2 px-3 text-sm font-medium text-muted-foreground">Overage Rate</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {planLimits.map((limit) => (
-                        <tr key={limit.id} className="border-b last:border-0">
-                          <td className="py-3 px-3">
-                            <span className="font-medium">{limit.feature_name || limit.feature}</span>
-                          </td>
-                          <td className="py-3 px-3 text-right">
-                            {limit.monthly_limit === -1 || limit.monthly_limit === null ? (
-                              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-0">
-                                <Infinity className="h-3 w-3 mr-1" /> Unlimited
-                              </Badge>
-                            ) : (
-                              <span className="font-medium">
-                                {limit.monthly_limit.toLocaleString()} {limit.unit}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3 px-3 text-right">
-                            {limit.overage_rate ? (
-                              <span className="text-muted-foreground">
-                                ${limit.overage_rate.toFixed(2)}/{limit.unit}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-1">
+                  {timelineEvents.map((event, index) => {
+                    const { icon: Icon, bgColor, textColor } = getTimelineIcon(event.type);
+                    const isLast = index === timelineEvents.length - 1;
+
+                    return (
+                      <div key={event.id} className="flex gap-4">
+                        {/* Timeline line and icon */}
+                        <div className="flex flex-col items-center">
+                          <div className={`p-2 rounded-full ${bgColor}`}>
+                            <Icon className={`h-4 w-4 ${textColor}`} />
+                          </div>
+                          {!isLast && (
+                            <div className="w-px h-full bg-border flex-1 min-h-8" />
+                          )}
+                        </div>
+
+                        {/* Event content */}
+                        <div className="flex-1 pb-6">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{event.title}</p>
+                              <p className="text-sm text-muted-foreground">{event.description}</p>
+                            </div>
+                            <time className="text-xs text-muted-foreground whitespace-nowrap">
+                              {format(event.date, "MMM d, yyyy")}
+                            </time>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </CollapsibleContent>
