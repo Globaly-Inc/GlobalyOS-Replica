@@ -30,7 +30,8 @@ import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity, Globe } from "lucide-react";
+import { formatTimezoneLabel } from "@/hooks/useTimezone";
 import { WORK_LOCATION_CONFIG, WorkLocation, WorkLocationDisplay } from "@/types/wfh";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
 import { AddWfhRequestDialog } from "@/components/dialogs/AddWfhRequestDialog";
@@ -816,62 +817,62 @@ const TeamMemberProfile = () => {
                       </Button>}
                   </div>
                   <div className="p-3">
-                    {employeeSchedule ? <div className="grid grid-cols-7 gap-1">
-                        {[{
-                    key: 'mon',
-                    label: 'M',
-                    working: true
-                  }, {
-                    key: 'tue',
-                    label: 'T',
-                    working: true
-                  }, {
-                    key: 'wed',
-                    label: 'W',
-                    working: true
-                  }, {
-                    key: 'thu',
-                    label: 'T',
-                    working: true
-                  }, {
-                    key: 'fri',
-                    label: 'F',
-                    working: true
-                  }, {
-                    key: 'sat',
-                    label: 'S',
-                    working: false
-                  }, {
-                    key: 'sun',
-                    label: 'S',
-                    working: false
-                  }].map(day => {
-                    const formatTime12 = (time: string) => {
-                      const [hours, minutes] = time.split(":");
-                      const hour = parseInt(hours);
-                      const hour12 = hour % 12 || 12;
-                      return `${hour12}:${minutes}`;
-                    };
-                    return <div key={day.key} className={`rounded p-1.5 text-center ${day.working ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'}`}>
-                              <p className={`text-[10px] font-medium ${day.working ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {employeeSchedule ? <>
+                      <div className="grid grid-cols-7 gap-1">
+                        {[
+                          { key: 'mon', label: 'M', dayNum: 1 },
+                          { key: 'tue', label: 'T', dayNum: 2 },
+                          { key: 'wed', label: 'W', dayNum: 3 },
+                          { key: 'thu', label: 'T', dayNum: 4 },
+                          { key: 'fri', label: 'F', dayNum: 5 },
+                          { key: 'sat', label: 'S', dayNum: 6 },
+                          { key: 'sun', label: 'S', dayNum: 0 },
+                        ].map(day => {
+                          const workDays = employeeSchedule.work_days || [1, 2, 3, 4, 5];
+                          const isWorking = workDays.includes(day.dayNum);
+                          const formatTime12 = (time: string) => {
+                            const [hours, minutes] = time.split(":");
+                            const hour = parseInt(hours);
+                            const hour12 = hour % 12 || 12;
+                            return `${hour12}:${minutes}`;
+                          };
+                          return (
+                            <div key={day.key} className={`rounded p-1.5 text-center ${isWorking ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'}`}>
+                              <p className={`text-[10px] font-medium ${isWorking ? 'text-primary' : 'text-muted-foreground'}`}>
                                 {day.label}
                               </p>
-                              {day.working ? <div className="mt-0.5">
+                              {isWorking ? (
+                                <div className="mt-0.5">
                                   <p className="text-[9px] font-semibold text-foreground leading-tight">
                                     {formatTime12(employeeSchedule.work_start_time)}
                                   </p>
                                   <p className="text-[9px] font-semibold text-foreground leading-tight">
                                     {formatTime12(employeeSchedule.work_end_time)}
                                   </p>
-                                </div> : <p className="text-[9px] text-muted-foreground mt-1">Off</p>}
-                            </div>;
-                  })}
-                      </div> : <div className="text-center py-2">
+                                </div>
+                              ) : (
+                                <p className="text-[9px] text-muted-foreground mt-1">Off</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {employeeSchedule.timezone && (
+                        <div className="mt-2 pt-2 border-t flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Globe className="h-3 w-3" />
+                          <span>{formatTimezoneLabel(employeeSchedule.timezone)}</span>
+                        </div>
+                      )}
+                    </> : (
+                      <div className="text-center py-2">
                         <p className="text-xs text-muted-foreground">No schedule configured</p>
-                        {isAdminOrHR && employee?.organization_id && <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" onClick={() => setEditScheduleOpen(true)}>
+                        {isAdminOrHR && employee?.organization_id && (
+                          <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" onClick={() => setEditScheduleOpen(true)}>
                             Set up schedule
-                          </Button>}
-                      </div>}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>}
