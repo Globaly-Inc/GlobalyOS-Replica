@@ -198,7 +198,7 @@ serve(async (req) => {
             <body>
               <div class="container">
                 <div class="header">
-                  <h1 style="margin: 0;">GlobalyOS</h1>
+                  <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 8px;" />
                   <p style="margin: 4px 0 0 0; opacity: 0.9;">Performance Review Update</p>
                 </div>
                 <div class="content">
