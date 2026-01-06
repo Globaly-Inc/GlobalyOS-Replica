@@ -22,6 +22,11 @@ export type AdminActionType =
   | 'member_removed'
   | 'member_role_changed'
   | 'trial_extended'
+  | 'trial_ended'
+  | 'dunning_started'
+  | 'dunning_payment_attempt'
+  | 'dunning_extended'
+  | 'dunning_canceled'
   | 'usage_alert_sent';
 
 export type EntityType =

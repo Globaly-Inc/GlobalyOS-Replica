@@ -6815,14 +6815,22 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          dunning_attempts: number | null
+          dunning_ends_at: string | null
+          dunning_started_at: string | null
           id: string
+          last_dunning_attempt_at: string | null
           organization_id: string
+          original_trial_ends_at: string | null
           payment_method_type: string | null
           plan: string
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           trial_ends_at: string | null
+          trial_extended_at: string | null
+          trial_extended_by: string | null
+          trial_extension_reason: string | null
           trial_starts_at: string | null
           updated_at: string
         }
@@ -6833,14 +6841,22 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          dunning_attempts?: number | null
+          dunning_ends_at?: string | null
+          dunning_started_at?: string | null
           id?: string
+          last_dunning_attempt_at?: string | null
           organization_id: string
+          original_trial_ends_at?: string | null
           payment_method_type?: string | null
           plan: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
+          trial_extended_at?: string | null
+          trial_extended_by?: string | null
+          trial_extension_reason?: string | null
           trial_starts_at?: string | null
           updated_at?: string
         }
@@ -6851,14 +6867,22 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          dunning_attempts?: number | null
+          dunning_ends_at?: string | null
+          dunning_started_at?: string | null
           id?: string
+          last_dunning_attempt_at?: string | null
           organization_id?: string
+          original_trial_ends_at?: string | null
           payment_method_type?: string | null
           plan?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
+          trial_extended_at?: string | null
+          trial_extended_by?: string | null
+          trial_extension_reason?: string | null
           trial_starts_at?: string | null
           updated_at?: string
         }
