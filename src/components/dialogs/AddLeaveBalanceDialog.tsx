@@ -153,7 +153,7 @@ export const AddLeaveBalanceDialog = ({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Leave Balance</DialogTitle>
+            <DialogTitle>Adjust Leave Balance</DialogTitle>
             <DialogDescription>
               Add or deduct leave days from the employee's balance. Use negative numbers to deduct.
             </DialogDescription>
