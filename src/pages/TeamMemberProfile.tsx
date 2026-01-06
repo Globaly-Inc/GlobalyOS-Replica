@@ -715,7 +715,7 @@ const TeamMemberProfile = () => {
                     </span>}
                   <span className="text-muted-foreground">·</span>
                   <Badge variant={userRole === 'owner' ? 'default' : userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
-                    {userRole === 'owner' ? 'Owner' : userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'User'}
+                    {userRole === 'owner' ? 'Owner' : userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Member'}
                   </Badge>
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                       <EditUserRoleDialog userId={employee.user_id} currentRole={userRole} onSuccess={loadUserRole} />

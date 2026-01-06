@@ -25,7 +25,7 @@ export interface OrganizationMember {
 
 export type OrganizationRole = 'owner' | 'admin' | 'member';
 
-export type AppRole = 'owner' | 'admin' | 'hr' | 'user';
+export type AppRole = 'owner' | 'admin' | 'hr' | 'member';
 
 export interface UserRole {
   id: string;

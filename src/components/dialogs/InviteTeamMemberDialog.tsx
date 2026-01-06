@@ -68,7 +68,7 @@ const inviteSchema = z.object({
   emergencyContactName: z.string().trim().max(100).optional(),
   emergencyContactPhone: z.string().trim().max(20).optional(),
   emergencyContactRelationship: z.string().trim().max(50).optional(),
-  role: z.enum(['admin', 'hr', 'user']),
+  role: z.enum(['admin', 'hr', 'member']),
   managerId: z.string().min(1, "Please select a manager"),
   officeId: z.string().min(1, "Please select an office"),
 });
@@ -114,7 +114,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
     dateOfBirth: "", street: "", city: "", postcode: "", state: "", country: "",
     department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
     remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
-    emergencyContactPhone: "", emergencyContactRelationship: "", role: "user",
+    emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
     managerId: "", officeId: "",
   });
 
@@ -139,7 +139,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       dateOfBirth: "", street: "", city: "", postcode: "", state: "", country: "",
       department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
       remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
-      emergencyContactPhone: "", emergencyContactRelationship: "", role: "user",
+      emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
       managerId: "", officeId: "",
     });
     setOpenSections(['personal']);
@@ -585,10 +585,10 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
               <AccordionContent className="pt-4 pb-6 space-y-4">
                 <div className="space-y-2">
                   <Label>Role <span className="text-destructive">*</span></Label>
-                  <Select value={formData.role} onValueChange={(v: 'admin' | 'hr' | 'user') => handleChange('role', v)}>
+                  <Select value={formData.role} onValueChange={(v: 'admin' | 'hr' | 'member') => handleChange('role', v)}>
                     <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
                       <SelectItem value="hr">HR Manager</SelectItem>
                       <SelectItem value="admin">Administrator</SelectItem>
                     </SelectContent>
@@ -596,7 +596,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                   <p className="text-sm text-muted-foreground">
                     {formData.role === 'admin' && "Full access to all features and settings"}
                     {formData.role === 'hr' && "Can manage employees, leave requests, and HR functions"}
-                    {formData.role === 'user' && "Standard access to view team and personal information"}
+                    {formData.role === 'member' && "Standard access to view team and personal information"}
                   </p>
                 </div>
               </AccordionContent>

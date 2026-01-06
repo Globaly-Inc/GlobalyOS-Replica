@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
 
-export type UserRole = 'owner' | 'admin' | 'hr' | 'user' | null;
+export type UserRole = 'owner' | 'admin' | 'hr' | 'member' | null;
 
 const fetchUserRole = async (orgId: string): Promise<UserRole> => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,10 +19,10 @@ const fetchUserRole = async (orgId: string): Promise<UserRole> => {
 
   if (error && error.code !== 'PGRST116') {
     console.error('Error checking role:', error);
-    return 'user';
+    return 'member';
   }
   
-  return (data?.role as UserRole) || 'user';
+  return (data?.role as UserRole) || 'member';
 };
 
 export const useUserRole = () => {
@@ -37,7 +37,7 @@ export const useUserRole = () => {
     gcTime: 10 * 60 * 1000,
   });
 
-  // Role hierarchy: owner > admin > hr > user
+  // Role hierarchy: owner > admin > hr > member
   const isOwner = role === 'owner';
   const isAdmin = role === 'admin' || role === 'owner';
   const isHR = role === 'hr' || role === 'admin' || role === 'owner';
@@ -46,6 +46,7 @@ export const useUserRole = () => {
     if (checkRole === 'owner') return role === 'owner';
     if (checkRole === 'admin') return role === 'admin' || role === 'owner';
     if (checkRole === 'hr') return role === 'hr' || role === 'admin' || role === 'owner';
+    if (checkRole === 'member') return true;
     return true;
   };
 

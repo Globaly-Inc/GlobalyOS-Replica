@@ -45,7 +45,7 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
   const [department, setDepartment] = useState("");
   const [joinDate, setJoinDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [officeId, setOfficeId] = useState("");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState("member");
 
   useEffect(() => {
     if (open && currentOrg) {
@@ -224,7 +224,7 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
     setDepartment("");
     setJoinDate(format(new Date(), "yyyy-MM-dd"));
     setOfficeId("");
-    setRole("user");
+    setRole("member");
   };
 
   return (
@@ -376,7 +376,7 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
                         <SelectItem value="hr">HR</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>

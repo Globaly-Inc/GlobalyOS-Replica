@@ -23,13 +23,13 @@ export const EditUserRoleDialog = ({
   onSuccess,
 }: EditUserRoleDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [role, setRole] = useState<AppRole>(currentRole || "user");
+  const [role, setRole] = useState<AppRole>(currentRole || "member");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
 
   useEffect(() => {
-    setRole(currentRole || "user");
+    setRole(currentRole || "member");
   }, [currentRole]);
 
   const handleSave = async () => {
@@ -90,7 +90,7 @@ export const EditUserRoleDialog = ({
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">Member</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
                 <SelectItem value="hr">HR</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="owner">Owner</SelectItem>

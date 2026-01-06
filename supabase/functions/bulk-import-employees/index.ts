@@ -57,7 +57,7 @@ async function sendWelcomeEmail(
 
   const appUrl = 'https://www.globalyos.com';
   const loginUrl = `${appUrl}/auth`;
-  const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'User';
+  const roleLabel = role === 'admin' ? 'Administrator' : role === 'hr' ? 'HR Manager' : 'Member';
 
   const emailHtml = `
     <!DOCTYPE html>
@@ -385,9 +385,9 @@ Deno.serve(async (req) => {
         }
 
         // Add user role if specified
-        const userRole = emp.role && ['admin', 'hr', 'user'].includes(emp.role.toLowerCase()) 
+        const userRole = emp.role && ['admin', 'hr', 'member'].includes(emp.role.toLowerCase()) 
           ? emp.role.toLowerCase() 
-          : 'user';
+          : 'member';
         
         const { error: roleError } = await supabase.from('user_roles').insert({
           user_id: createdUserId,

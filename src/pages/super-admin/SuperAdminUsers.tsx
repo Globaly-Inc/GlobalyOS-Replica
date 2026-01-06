@@ -290,7 +290,7 @@ const SuperAdminUsers = () => {
                   <SelectItem value="owner">Owner</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="hr">HR</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
                 </SelectContent>
               </Select>
 

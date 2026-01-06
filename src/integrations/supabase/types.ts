@@ -9327,7 +9327,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "hr" | "user" | "super_admin" | "owner"
+      app_role: "admin" | "hr" | "user" | "super_admin" | "owner" | "member"
       chat_space_access: "public" | "private"
       chat_space_access_scope: "company" | "offices" | "projects" | "members"
       chat_space_type: "collaboration" | "announcements"
@@ -9467,7 +9467,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "hr", "user", "super_admin", "owner"],
+      app_role: ["admin", "hr", "user", "super_admin", "owner", "member"],
       chat_space_access: ["public", "private"],
       chat_space_access_scope: ["company", "offices", "projects", "members"],
       chat_space_type: ["collaboration", "announcements"],
