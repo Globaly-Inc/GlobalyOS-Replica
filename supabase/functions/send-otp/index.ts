@@ -183,7 +183,7 @@ serve(async (req) => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; padding: 40px;">
                   <tr>
                     <td align="center" style="padding-bottom: 24px;">
-                      <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
+                      <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
                     </td>
                   </tr>
                   <tr>

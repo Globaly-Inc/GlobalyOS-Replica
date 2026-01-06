@@ -36,7 +36,7 @@ export const OTPEmail = ({
       <Container style={container}>
         <Section style={logoSection}>
           <Img 
-            src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png"
+            src="https://people.globalyhub.com/images/globalyos-icon.png"
             alt="GlobalyOS"
             width="64"
             height="64"

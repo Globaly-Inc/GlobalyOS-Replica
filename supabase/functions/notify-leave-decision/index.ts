@@ -171,7 +171,7 @@ serve(async (req: Request) => {
       <body>
         <div class="container">
           <div class="header">
-            <img src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/organization-logos/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
+            <img src="https://people.globalyhub.com/images/globalyos-icon.png" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 12px; margin-bottom: 12px;" />
             <h2 style="margin: 0;">${statusEmoji} Leave Request ${statusText}</h2>
           </div>
           <div class="content">
