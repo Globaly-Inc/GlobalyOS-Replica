@@ -18,6 +18,7 @@ interface EmployeeSchedule {
   break_start_time?: string;
   break_end_time?: string;
   work_days?: number[];
+  timezone?: string;
 }
 
 type HalfDayType = 'full' | 'first_half' | 'second_half' | null;
@@ -88,17 +89,7 @@ export const SelfCheckInCard = () => {
       }
 
       try {
-        // Get organization timezone
-        const { data: orgData } = await supabase
-          .from('organizations')
-          .select('timezone')
-          .eq('id', currentOrg.id)
-          .single();
-
-        const timezone = orgData?.timezone || 'Asia/Kathmandu';
-        setOrgTimezone(timezone);
-
-        // Get employee and schedule
+        // Get employee and schedule (with timezone)
         const { data: employee } = await supabase
           .from("employees")
           .select(`
@@ -110,7 +101,8 @@ export const SelfCheckInCard = () => {
               work_location,
               break_start_time,
               break_end_time,
-              work_days
+              work_days,
+              timezone
             )
           `)
           .eq("user_id", user.id)
@@ -141,6 +133,18 @@ export const SelfCheckInCard = () => {
         }
 
         setSchedule(empSchedule);
+
+        // Use schedule timezone, fall back to org timezone if not set
+        let timezone = empSchedule.timezone;
+        if (!timezone) {
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('timezone')
+            .eq('id', currentOrg.id)
+            .single();
+          timezone = orgData?.timezone || 'UTC';
+        }
+        setOrgTimezone(timezone);
 
         // Check if on approved leave today - use organization's local date
         const today = formatInTimeZone(new Date(), timezone, 'yyyy-MM-dd');
