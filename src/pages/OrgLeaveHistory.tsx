@@ -44,8 +44,6 @@ import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmplo
 import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel, getDateRangeDisplayLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
 import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearBalancesButton";
-import { useIncorrectBalances, useRepairBalances } from "@/services/useLeaveBalanceDataRepair";
-import { BalanceRepairDetailsDialog } from "@/components/leave/BalanceRepairDetailsDialog";
 
 type LeaveHistoryTab = 'analytics' | 'records' | 'pending';
 
@@ -102,59 +100,6 @@ const formatBalance = (balance: number | undefined) => {
   return <span className={roundedBalance > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>{roundedBalance}</span>;
 };
 
-// Balance Repair Banner Component
-const BalanceRepairBanner = ({ onRepairComplete }: { onRepairComplete: () => void }) => {
-  const { isOwner, isAdmin, isHR } = useUserRole();
-  const canEdit = isOwner || isAdmin || isHR;
-  const { data: incorrectBalances, isLoading } = useIncorrectBalances();
-  const repairMutation = useRepairBalances();
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
-  if (!canEdit || isLoading || !incorrectBalances?.length) return null;
-
-  return (
-    <>
-      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <div>
-            <p className="font-medium text-amber-800 dark:text-amber-200">
-              {incorrectBalances.length} balance{incorrectBalances.length > 1 ? 's' : ''} need{incorrectBalances.length === 1 ? 's' : ''} repair
-            </p>
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              These balances don't match their transaction logs and can be auto-fixed.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDetailsOpen(true)}
-            className="border-amber-300 text-amber-700 hover:bg-amber-100"
-          >
-            View Details
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => repairMutation.mutate(incorrectBalances, { onSuccess: onRepairComplete })}
-            disabled={repairMutation.isPending}
-            className="border-amber-300 text-amber-700 hover:bg-amber-100"
-          >
-            {repairMutation.isPending ? "Repairing..." : "Repair All"}
-          </Button>
-        </div>
-      </div>
-      <BalanceRepairDetailsDialog
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        incorrectBalances={incorrectBalances}
-        onRepairComplete={onRepairComplete}
-      />
-    </>
-  );
-};
 
 const OrgLeaveHistory = () => {
   const { currentOrg } = useOrganization();
@@ -948,9 +893,6 @@ const OrgLeaveHistory = () => {
           onComplete={loadData}
         />
       )}
-      
-      {/* Balance Data Repair Banner (for admins) - shown only if there are incorrect balances */}
-      <BalanceRepairBanner onRepairComplete={loadData} />
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
