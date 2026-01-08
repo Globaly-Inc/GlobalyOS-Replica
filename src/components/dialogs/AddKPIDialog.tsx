@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building, MapPin, FolderKanban, Target, Users, User, Check, ChevronsUpDown, Globe } from "lucide-react";
+import { Building, MapPin, FolderKanban, Target, Users, User, Check, ChevronsUpDown, Globe, Calendar, CalendarDays } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/hooks/useAuth";
@@ -81,6 +82,7 @@ export function AddKPIDialog({
   const [description, setDescription] = useState("");
   const [targetValue, setTargetValue] = useState("");
   const [unit, setUnit] = useState("");
+  const [periodType, setPeriodType] = useState<"annual" | "quarterly">("quarterly");
   const [quarter, setQuarter] = useState(defaultQuarter);
   const [year, setYear] = useState(defaultYear);
 
@@ -249,11 +251,14 @@ export function AddKPIDialog({
     setParentKpiId(null);
     setEmployeeId(defaultEmployeeId || currentEmployee?.id || "");
     setKpiType(defaultType);
+    setPeriodType("quarterly");
   };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
 
+    const effectiveQuarter = periodType === "annual" ? null : quarter;
+    
     if (kpiType === "individual") {
       if (!employeeId) return;
       await createKpi.mutateAsync({
@@ -262,7 +267,7 @@ export function AddKPIDialog({
         description: description.trim() || undefined,
         targetValue: targetValue ? parseFloat(targetValue) : undefined,
         unit: unit.trim() || undefined,
-        quarter,
+        quarter: effectiveQuarter,
         year,
       });
     } else {
@@ -273,7 +278,7 @@ export function AddKPIDialog({
         description: description.trim() || undefined,
         targetValue: targetValue ? parseFloat(targetValue) : undefined,
         unit: unit.trim() || undefined,
-        quarter,
+        quarter: effectiveQuarter,
         year,
         scopeType,
         scopeDepartment: scopeType === "department" ? scopeValue : undefined,
@@ -648,36 +653,57 @@ export function AddKPIDialog({
           </div>
 
           {/* Period Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Quarter</Label>
-              <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4].map((q) => (
-                    <SelectItem key={q} value={q.toString()}>
-                      Q{q}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Year</Label>
-              <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
-                    <SelectItem key={y} value={y.toString()}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-3">
+            <Label>Period Type</Label>
+            <ToggleGroup
+              type="single"
+              value={periodType}
+              onValueChange={(v) => v && setPeriodType(v as "annual" | "quarterly")}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="annual" aria-label="Annual" className="gap-1.5">
+                <Calendar className="h-4 w-4" />
+                Annual
+              </ToggleGroupItem>
+              <ToggleGroupItem value="quarterly" aria-label="Quarterly" className="gap-1.5">
+                <CalendarDays className="h-4 w-4" />
+                Quarterly
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            <div className={periodType === "quarterly" ? "grid grid-cols-2 gap-4" : ""}>
+              {periodType === "quarterly" && (
+                <div className="space-y-2">
+                  <Label>Quarter</Label>
+                  <Select value={quarter.toString()} onValueChange={(v) => setQuarter(parseInt(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4].map((q) => (
+                        <SelectItem key={q} value={q.toString()}>
+                          Q{q}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Year</Label>
+                <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[getCurrentYear() - 1, getCurrentYear(), getCurrentYear() + 1].map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
