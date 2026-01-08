@@ -84,9 +84,11 @@ export function AddKPIDialog({
   // Determine allowed KPI types based on parent's scope
   const getAllowedTypes = (): ("individual" | "group")[] => {
     if (!parentKpi) return ["individual", "group"];
-    // Organization parent -> can create group or individual children
+    // Organization parent -> can create org, group, or individual children
     if (parentKpi.scopeType === "organization") return ["individual", "group"];
-    // Group parent (dept/office/project) -> can only create individual children
+    // Group parent (dept/office/project) -> can create group or individual children
+    if (["department", "office", "project"].includes(parentKpi.scopeType)) return ["individual", "group"];
+    // Individual parent -> can only create individual children
     return ["individual"];
   };
   const allowedTypes = getAllowedTypes();

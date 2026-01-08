@@ -91,7 +91,7 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
                 <Badge variant="secondary">{children.length}</Badge>
               )}
             </CardTitle>
-            {canEdit && kpi.scope_type !== 'individual' && (
+            {canEdit && (
               <div className="flex items-center gap-2">
                 <AddKPIDialog
                   parentKpi={{
