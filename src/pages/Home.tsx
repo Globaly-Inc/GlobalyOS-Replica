@@ -146,10 +146,20 @@ const Home = () => {
         checkEmployeeProfile(),
         loadLeaveData(),
         loadUpcomingEvents(),
-        loadUpcomingCalendarEvents(),
       ]);
+    }
+  }, [currentOrg?.id]);
 
-      // Set up real-time subscription for leave
+  // Separate effect for calendar events that depends on role and employee
+  useEffect(() => {
+    if (currentOrg?.id) {
+      loadUpcomingCalendarEvents();
+    }
+  }, [currentOrg?.id, isHR, currentEmployeeId]);
+
+  // Real-time subscription for leave
+  useEffect(() => {
+    if (currentOrg?.id) {
       const orgId = currentOrg.id;
       const leaveChannel = supabase.channel('home-leave').on('postgres_changes', {
         event: '*',
@@ -328,23 +338,62 @@ const Home = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const nextMonth = format(addDays(new Date(), 30), "yyyy-MM-dd");
     
+    // Get current employee's office for filtering (only needed for non-privileged users)
+    let employeeOfficeId: string | null = null;
+    if (!isHR && currentEmployeeId) {
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("office_id")
+        .eq("id", currentEmployeeId)
+        .single();
+      employeeOfficeId = empData?.office_id || null;
+    }
+    
+    // Fetch events with office relationships
     const { data: events } = await supabase
       .from("calendar_events")
-      .select("id, title, start_date, end_date, start_time, end_time, event_type")
+      .select(`
+        id, title, start_date, end_date, start_time, end_time, event_type,
+        applies_to_all_offices,
+        calendar_event_offices(office_id)
+      `)
       .eq("organization_id", currentOrg.id)
       .gte("start_date", today)
       .lte("start_date", nextMonth)
-      .order("start_date", { ascending: true })
-      .limit(5);
+      .order("start_date", { ascending: true });
     
-    if (events) {
-      const eventsWithDays = events.map(event => {
-        const eventDate = parseISO(event.start_date);
-        const daysUntil = Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-        return { ...event, daysUntil };
+    if (!events) return;
+    
+    // Filter events based on user role and office
+    let filteredEvents = events;
+    
+    if (!isHR && employeeOfficeId) {
+      // For regular members: only show events that apply to all offices 
+      // OR are specifically assigned to their office
+      filteredEvents = events.filter(event => {
+        if (event.applies_to_all_offices) return true;
+        const eventOfficeIds = event.calendar_event_offices?.map(o => o.office_id) || [];
+        return eventOfficeIds.includes(employeeOfficeId);
       });
-      setUpcomingCalendarEvents(eventsWithDays);
     }
+    
+    // Take top 5 and calculate days until
+    const eventsWithDays = filteredEvents.slice(0, 5).map(event => {
+      const eventDate = parseISO(event.start_date);
+      const daysUntil = Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return { 
+        id: event.id,
+        title: event.title,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        event_type: event.event_type,
+        daysUntil 
+      };
+    });
+    
+    setUpcomingCalendarEvents(eventsWithDays);
   };
 
   const loadLeaveData = async () => {
