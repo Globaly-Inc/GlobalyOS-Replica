@@ -120,12 +120,15 @@ export const AddLeaveBalanceDialog = ({
           employee_id: employeeId,
           organization_id: currentOrg?.id,
           leave_type: selectedLeaveType.name,
+          leave_type_id: leaveType,
           change_amount: changeAmount,
           previous_balance: previousBalance,
           new_balance: newBalance,
           reason: reason || null,
           created_by: currentEmployee.id,
-          effective_date: format(effectiveDate, "yyyy-MM-dd")
+          effective_date: format(effectiveDate, "yyyy-MM-dd"),
+          action: "manual_adjustment",
+          year: currentYear
         });
       if (logError) throw logError;
       toast.success("Leave balance updated successfully");
