@@ -572,7 +572,7 @@ interface CreateKpiInput {
   description?: string;
   targetValue?: number;
   unit?: string;
-  quarter: number;
+  quarter: number | null;
   year: number;
 }
 
@@ -653,7 +653,7 @@ interface CreateGroupKpiInput {
   description?: string;
   targetValue?: number;
   unit?: string;
-  quarter: number;
+  quarter: number | null;
   year: number;
   scopeType: 'department' | 'office' | 'project' | 'organization';
   scopeDepartment?: string;
