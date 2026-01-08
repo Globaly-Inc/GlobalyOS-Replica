@@ -574,6 +574,7 @@ interface CreateKpiInput {
   unit?: string;
   quarter: number | null;
   year: number;
+  parentKpiId?: string;
 }
 
 export const useCreateKpi = () => {
@@ -597,6 +598,7 @@ export const useCreateKpi = () => {
           quarter: input.quarter,
           year: input.year,
           scope_type: 'individual',
+          parent_kpi_id: input.parentKpiId || null,
         })
         .select('id')
         .single();
@@ -635,9 +637,13 @@ export const useCreateKpi = () => {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['team-kpis'] });
+      if (variables.parentKpiId) {
+        queryClient.invalidateQueries({ queryKey: ['kpi-hierarchy', variables.parentKpiId] });
+        queryClient.invalidateQueries({ queryKey: ['kpi-detail', variables.parentKpiId] });
+      }
       toast.success('KPI created');
     },
     onError: (error) => {

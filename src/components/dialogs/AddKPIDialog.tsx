@@ -46,12 +46,24 @@ import { cn } from "@/lib/utils";
 import { AIKPIAssist } from "@/components/AIKPIAssist";
 import { LinkedKpiSelector } from "@/components/kpi";
 
+interface ParentKpiContext {
+  id: string;
+  title: string;
+  scopeType: string;
+  quarter: number | null;
+  year: number;
+}
+
 interface AddKPIDialogProps {
   children: React.ReactNode;
   defaultQuarter?: number;
   defaultYear?: number;
   defaultType?: "individual" | "group";
   defaultEmployeeId?: string;
+  /** Parent KPI for child creation mode - preselects and locks the parent */
+  parentKpi?: ParentKpiContext;
+  /** Callback after successful creation */
+  onCreated?: () => void;
 }
 
 const getCurrentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
@@ -63,7 +75,21 @@ export function AddKPIDialog({
   defaultYear = getCurrentYear(),
   defaultType = "individual",
   defaultEmployeeId,
+  parentKpi,
+  onCreated,
 }: AddKPIDialogProps) {
+  // Child creation mode - parent is preselected and locked
+  const isChildMode = !!parentKpi;
+  
+  // Determine allowed KPI types based on parent's scope
+  const getAllowedTypes = (): ("individual" | "group")[] => {
+    if (!parentKpi) return ["individual", "group"];
+    // Organization parent -> can create group or individual children
+    if (parentKpi.scopeType === "organization") return ["individual", "group"];
+    // Group parent (dept/office/project) -> can only create individual children
+    return ["individual"];
+  };
+  const allowedTypes = getAllowedTypes();
   const [open, setOpen] = useState(false);
   const { currentOrg } = useOrganization();
   const { user } = useAuth();
@@ -72,12 +98,14 @@ export function AddKPIDialog({
   const createGroupKpi = useCreateGroupKpi();
 
   // Form state
-  const [kpiType, setKpiType] = useState<"individual" | "group">(defaultType);
+  const [kpiType, setKpiType] = useState<"individual" | "group">(
+    isChildMode && allowedTypes.length === 1 ? allowedTypes[0] : defaultType
+  );
   const [employeeId, setEmployeeId] = useState<string>("");
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [scopeType, setScopeType] = useState<"department" | "office" | "project" | "organization">("department");
   const [scopeValue, setScopeValue] = useState<string>("");
-  const [parentKpiId, setParentKpiId] = useState<string | null>(null);
+  const [parentKpiId, setParentKpiId] = useState<string | null>(parentKpi?.id || null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetValue, setTargetValue] = useState("");
@@ -248,9 +276,9 @@ export function AddKPIDialog({
     setTargetValue("");
     setUnit("");
     setScopeValue("");
-    setParentKpiId(null);
+    setParentKpiId(parentKpi?.id || null);
     setEmployeeId(defaultEmployeeId || currentEmployee?.id || "");
-    setKpiType(defaultType);
+    setKpiType(isChildMode && allowedTypes.length === 1 ? allowedTypes[0] : defaultType);
     setPeriodType("quarterly");
   };
 
@@ -258,6 +286,7 @@ export function AddKPIDialog({
     if (!title.trim()) return;
 
     const effectiveQuarter = periodType === "annual" ? null : quarter;
+    const effectiveParentKpiId = isChildMode ? parentKpi?.id : parentKpiId;
     
     if (kpiType === "individual") {
       if (!employeeId) return;
@@ -269,6 +298,7 @@ export function AddKPIDialog({
         unit: unit.trim() || undefined,
         quarter: effectiveQuarter,
         year,
+        parentKpiId: effectiveParentKpiId || undefined,
       });
     } else {
       // Group or Organization KPI
@@ -284,12 +314,13 @@ export function AddKPIDialog({
         scopeDepartment: scopeType === "department" ? scopeValue : undefined,
         scopeOfficeId: scopeType === "office" ? scopeValue : undefined,
         scopeProjectId: scopeType === "project" ? scopeValue : undefined,
-        parentKpiId: parentKpiId || undefined,
+        parentKpiId: effectiveParentKpiId || undefined,
       });
     }
 
     resetForm();
     setOpen(false);
+    onCreated?.();
   };
 
   const scopeOptions = [
@@ -352,26 +383,42 @@ export function AddKPIDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Add KPI
+            {isChildMode ? "Add Child KPI" : "Add KPI"}
           </DialogTitle>
           <DialogDescription>
-            Create a new KPI for an individual or a group.
+            {isChildMode 
+              ? `Create a new KPI linked to "${parentKpi?.title}"`
+              : "Create a new KPI for an individual or a group."
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Parent KPI Info (Child mode only) */}
+          {isChildMode && parentKpi && (
+            <div className="p-3 bg-muted/50 rounded-lg border space-y-1">
+              <Label className="text-xs text-muted-foreground">Parent KPI</Label>
+              <p className="font-medium text-sm">{parentKpi.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {parentKpi.quarter ? `Q${parentKpi.quarter} ${parentKpi.year}` : parentKpi.year}
+              </p>
+            </div>
+          )}
+
           {/* KPI Type Toggle */}
           <div className="space-y-2">
             <Label>KPI Type</Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setKpiType("individual")}
+                onClick={() => allowedTypes.includes("individual") && setKpiType("individual")}
+                disabled={!allowedTypes.includes("individual")}
                 className={cn(
                   "flex items-center gap-2 p-3 rounded-lg border-2 transition-colors text-left",
                   kpiType === "individual"
                     ? "border-primary bg-primary/5"
-                    : "border-muted hover:border-muted-foreground/30"
+                    : "border-muted hover:border-muted-foreground/30",
+                  !allowedTypes.includes("individual") && "opacity-50 cursor-not-allowed"
                 )}
               >
                 <User className="h-5 w-5 text-blue-600" />
@@ -382,21 +429,24 @@ export function AddKPIDialog({
               </button>
               <button
                 type="button"
-                onClick={() => canCreateGroup && setKpiType("group")}
-                disabled={!canCreateGroup}
+                onClick={() => canCreateGroup && allowedTypes.includes("group") && setKpiType("group")}
+                disabled={!canCreateGroup || !allowedTypes.includes("group")}
                 className={cn(
                   "flex items-center gap-2 p-3 rounded-lg border-2 transition-colors text-left",
                   kpiType === "group"
                     ? "border-primary bg-primary/5"
                     : "border-muted hover:border-muted-foreground/30",
-                  !canCreateGroup && "opacity-50 cursor-not-allowed"
+                  (!canCreateGroup || !allowedTypes.includes("group")) && "opacity-50 cursor-not-allowed"
                 )}
               >
                 <Users className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-sm font-medium">Group</p>
                   <p className="text-xs text-muted-foreground">
-                    {canCreateGroup ? "Assign to a team" : "Admin/HR only"}
+                    {!allowedTypes.includes("group") 
+                      ? "Not available for this parent"
+                      : canCreateGroup ? "Assign to a team" : "Admin/HR only"
+                    }
                   </p>
                 </div>
               </button>
@@ -554,8 +604,8 @@ export function AddKPIDialog({
                 </div>
               )}
 
-              {/* Parent KPI Selector (for non-organization scopes) */}
-              {scopeType !== "organization" && (
+              {/* Parent KPI Selector (for non-organization scopes) - hidden in child mode */}
+              {scopeType !== "organization" && !isChildMode && (
                 <LinkedKpiSelector
                   scopeType={scopeType}
                   quarter={quarter}
@@ -567,8 +617,8 @@ export function AddKPIDialog({
             </>
           )}
 
-          {/* Parent KPI Selector for Individual KPIs */}
-          {kpiType === "individual" && employeeId && (
+          {/* Parent KPI Selector for Individual KPIs - hidden in child mode */}
+          {kpiType === "individual" && employeeId && !isChildMode && (
             <LinkedKpiSelector
               scopeType="individual"
               quarter={quarter}
