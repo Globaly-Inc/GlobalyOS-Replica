@@ -25,6 +25,7 @@ import { useUnlinkKpi, useToggleAutoRollup } from "@/services/useKpi";
 import type { KpiWithHierarchy, KpiChild } from "@/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { LinkChildKpiDialog } from "./LinkChildKpiDialog";
+import { AddKPIDialog } from "@/components/dialogs/AddKPIDialog";
 
 // Helper component for dynamic icons
 const DynamicIcon = ({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) => {
@@ -91,14 +92,30 @@ export function LinkedKpisSection({ kpi, canEdit }: LinkedKpisSectionProps) {
               )}
             </CardTitle>
             {canEdit && kpi.scope_type !== 'individual' && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowLinkDialog(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Link Child
-              </Button>
+              <div className="flex items-center gap-2">
+                <AddKPIDialog
+                  parentKpi={{
+                    id: kpi.id,
+                    title: kpi.title,
+                    scopeType: kpi.scope_type,
+                    quarter: kpi.quarter,
+                    year: kpi.year,
+                  }}
+                >
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add New
+                  </Button>
+                </AddKPIDialog>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowLinkDialog(true)}
+                >
+                  <Link2 className="h-4 w-4 mr-1" />
+                  Link Existing
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
