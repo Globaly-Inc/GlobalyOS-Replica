@@ -187,6 +187,37 @@ export const useRepairBalances = () => {
 };
 
 /**
+ * Repair a single incorrect balance
+ */
+export const useRepairSingleBalance = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (balance: IncorrectBalance) => {
+      const { error } = await supabase
+        .from("leave_type_balances")
+        .update({ 
+          balance: balance.correctBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", balance.balanceId);
+
+      if (error) throw error;
+      return balance;
+    },
+    onSuccess: (balance) => {
+      queryClient.invalidateQueries({ queryKey: ["incorrect-leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      toast.success(`Repaired ${balance.employeeName} - ${balance.leaveTypeName}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to repair balance");
+    },
+  });
+};
+
+/**
  * Get summary stats for balance health
  */
 export const useBalanceHealthStats = (year?: number) => {
