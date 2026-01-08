@@ -836,18 +836,15 @@ const Home = () => {
                     const daysLabel = event.daysUntil === 0 ? "Today" : event.daysUntil === 1 ? "Tomorrow" : `In ${event.daysUntil} days`;
                     
                     return (
-                      <div key={event.id} className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-muted">
-                        <div className="flex items-center gap-3">
-                          <div className={`h-2 w-2 rounded-full ${
-                            event.event_type === 'holiday' ? 'bg-red-500' : 
-                            event.event_type === 'event' ? 'bg-blue-500' : 'bg-primary'
-                          }`} />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{event.title}</p>
-                            <p className="text-xs text-muted-foreground">{dateDisplay}</p>
-                          </div>
+                      <div key={event.id} className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
+                        <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                          event.event_type === 'holiday' ? 'bg-red-500' : 
+                          event.event_type === 'event' ? 'bg-blue-500' : 'bg-primary'
+                        }`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{event.title}</p>
+                          <p className="text-xs text-muted-foreground">{dateDisplay} · {daysLabel}</p>
                         </div>
-                        <span className="text-xs text-muted-foreground">{daysLabel}</span>
                       </div>
                     );
                   })}
