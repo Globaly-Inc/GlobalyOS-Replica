@@ -330,6 +330,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
           avatarUrl,
           organizationId: currentOrg?.id,
           isNewHire: formData.isNewHire !== 'false',
+          employmentType: 'full-time', // Default for new hires
         },
       });
 

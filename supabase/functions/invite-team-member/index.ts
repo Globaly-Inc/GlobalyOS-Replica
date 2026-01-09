@@ -39,6 +39,9 @@ interface InviteRequest {
   managerId?: string;
   officeId?: string;
   organizationId: string;
+  isNewHire?: boolean;
+  employmentType?: string;
+  gender?: string;
 }
 
 // Generate a 6-digit OTP code
@@ -139,7 +142,8 @@ serve(async (req: Request) => {
       position, department, joinDate, idNumber, taxNumber,
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
-      avatarUrl, role, managerId, officeId, organizationId
+      avatarUrl, role, managerId, officeId, organizationId,
+      isNewHire = true, employmentType = 'full-time', gender
     } = data;
 
     // Validate required fields (postcode is now optional)
@@ -198,7 +202,8 @@ serve(async (req: Request) => {
     console.log('Created auth user:', userId);
 
     // Create employee record with active status
-    const { error: employeeError } = await supabase
+    const effectiveJoinDate = joinDate || new Date().toISOString().split('T')[0];
+    const { data: employeeData, error: employeeError } = await supabase
       .from('employees')
       .insert({
         user_id: userId,
@@ -206,7 +211,7 @@ serve(async (req: Request) => {
         position: position.trim(),
         department: department.trim(),
         status: 'active',
-        join_date: joinDate || new Date().toISOString().split('T')[0],
+        join_date: effectiveJoinDate,
         date_of_birth: dateOfBirth || null,
         phone: phone?.trim() || null,
         street: street?.trim() || null,
@@ -224,7 +229,52 @@ serve(async (req: Request) => {
         emergency_contact_relationship: emergencyContactRelationship?.trim() || null,
         manager_id: managerId || null,
         office_id: officeId || null,
-      });
+        is_new_hire: isNewHire,
+        employment_type: employmentType,
+        gender: gender || null,
+      })
+      .select('id')
+      .single();
+
+    if (employeeError) {
+      console.error('Error creating employee:', employeeError);
+      console.error('Employee data attempted:', { userId, organizationId, position, department, effectiveJoinDate });
+      // Cleanup: delete the auth user if employee creation fails
+      await supabase.auth.admin.deleteUser(userId);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create employee record', details: employeeError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const employeeId = employeeData?.id;
+    console.log('Created employee:', employeeId);
+
+    // Create initial position history record (source of truth for positions)
+    if (employeeId) {
+      const { error: positionHistoryError } = await supabase
+        .from('position_history')
+        .insert({
+          employee_id: employeeId,
+          organization_id: organizationId,
+          position: position.trim(),
+          department: department.trim(),
+          salary: remuneration ? parseFloat(remuneration) : null,
+          manager_id: managerId || null,
+          effective_date: effectiveJoinDate,
+          change_type: 'hire',
+          employment_type: employmentType,
+          is_current: true,
+          notes: 'Initial position on hire',
+        });
+
+      if (positionHistoryError) {
+        console.error('Error creating position history:', positionHistoryError);
+        // Continue anyway - position history can be added later
+      } else {
+        console.log('Created initial position history for employee:', employeeId);
+      }
+    }
 
     // Update profile with avatar URL if provided
     if (avatarUrl) {
@@ -232,16 +282,6 @@ serve(async (req: Request) => {
         .from('profiles')
         .update({ avatar_url: avatarUrl })
         .eq('id', userId);
-    }
-
-    if (employeeError) {
-      console.error('Error creating employee:', employeeError);
-      // Cleanup: delete the auth user if employee creation fails
-      await supabase.auth.admin.deleteUser(userId);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create employee record' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     // Save position to positions table for future use (ignore if already exists)
