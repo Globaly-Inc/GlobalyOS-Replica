@@ -904,18 +904,23 @@ function TaskItem({
   const selectedEmployee = employees.find((e: any) => e.id === task.assignee_id);
   
   return (
-    <div className={cn(
-      "flex items-center gap-3 p-3 rounded-lg border transition-colors group",
-      isCompleted ? "bg-muted/50 border-muted" : "bg-background hover:bg-muted/30"
-    )}>
-      <Checkbox 
-        checked={isCompleted}
-        onCheckedChange={() => onToggle(task.id, task.status)}
-        disabled={disabled}
-        className={cn(
-          isCompleted && "data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-        )}
-      />
+    <div 
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-lg border transition-colors group cursor-pointer",
+        isCompleted ? "bg-muted/50 border-muted" : "bg-background hover:bg-muted/30"
+      )}
+      onClick={() => onView(task)}
+    >
+      <div onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={isCompleted}
+          onCheckedChange={() => onToggle(task.id, task.status)}
+          disabled={disabled}
+          className={cn(
+            isCompleted && "data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+          )}
+        />
+      </div>
       <div className="flex-1 min-w-0">
         <p className={cn(
           "font-medium text-sm",
@@ -932,6 +937,7 @@ function TaskItem({
 
       {/* Inline Due Date Picker */}
       {!disabled ? (
+        <div onClick={(e) => e.stopPropagation()}>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -955,6 +961,7 @@ function TaskItem({
             />
           </PopoverContent>
         </Popover>
+        </div>
       ) : task.due_date ? (
         <span className="text-xs whitespace-nowrap text-muted-foreground">
           {format(new Date(task.due_date), 'd MMM yyyy')}
@@ -963,6 +970,7 @@ function TaskItem({
 
       {/* Inline Assignee Selector */}
       {!disabled ? (
+        <div onClick={(e) => e.stopPropagation()}>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -1024,6 +1032,7 @@ function TaskItem({
             </Command>
           </PopoverContent>
         </Popover>
+        </div>
       ) : task.assignee ? (
         <Avatar className="h-6 w-6 flex-shrink-0">
           <AvatarImage src={task.assignee.profiles?.avatar_url || undefined} />
@@ -1033,38 +1042,6 @@ function TaskItem({
         </Avatar>
       ) : null}
       
-      {/* Inline action icons - always visible */}
-      {!disabled && (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-primary"
-            onClick={() => onView(task)}
-            title="View Details"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-primary"
-            onClick={() => onEdit(task)}
-            title="Edit Task"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(task.id)}
-            title="Delete Task"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
