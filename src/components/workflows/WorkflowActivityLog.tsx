@@ -2,9 +2,7 @@ import { useWorkflowActivityLogs } from "@/services/useWorkflowActivityLogs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Play,
@@ -17,12 +15,10 @@ import {
   Trash2,
   Pencil,
   Zap,
-  ChevronDown,
   History,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import type { WorkflowActivityType } from "@/types/workflow";
 
 const activityConfig: Record<
@@ -46,116 +42,101 @@ interface WorkflowActivityLogProps {
 }
 
 export function WorkflowActivityLog({ workflowId }: WorkflowActivityLogProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const { data: logs, isLoading } = useWorkflowActivityLogs(workflowId);
 
   if (!workflowId) return null;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors pb-3">
-            <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Activity Log
-              </span>
-              <div className="flex items-center gap-2">
-                {logs && logs.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {logs.length}
-                  </Badge>
-                )}
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                    isOpen && "rotate-180"
-                  )}
-                />
-              </div>
-            </CardTitle>
-          </CardHeader>
-        </CollapsibleTrigger>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center justify-between text-base">
+          <span className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Activity Log
+          </span>
+          {logs && logs.length > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {logs.length}
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <div className="space-y-1.5 flex-1">
-                      <Skeleton className="h-4 w-1/3" />
-                      <Skeleton className="h-3 w-2/3" />
+      <CardContent className="pt-0">
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !logs || logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No activity recorded yet.
+          </p>
+        ) : (
+          <ScrollArea className="max-h-80 pr-4">
+            <div className="space-y-4">
+              {logs.map((log) => {
+                const config = activityConfig[log.action_type as WorkflowActivityType] || {
+                  icon: History,
+                  color: "text-muted-foreground",
+                  label: log.action_type,
+                };
+                const Icon = config.icon;
+                const employeeProfile = (log.employee as any)?.profiles;
+
+                return (
+                  <div key={log.id} className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8 border flex-shrink-0">
+                      {employeeProfile?.avatar_url ? (
+                        <AvatarImage src={employeeProfile.avatar_url} />
+                      ) : null}
+                      <AvatarFallback className="text-xs bg-muted">
+                        {employeeProfile?.full_name
+                          ?.split(" ")
+                          .map((n: string) => n[0])
+                          .join("")
+                          .slice(0, 2) || "SY"}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">
+                          {employeeProfile?.full_name || "System"}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={cn("text-xs gap-1 py-0", config.color)}
+                        >
+                          <Icon className="h-3 w-3" />
+                          {config.label}
+                        </Badge>
+                      </div>
+
+                      {log.description && (
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {log.description}
+                        </p>
+                      )}
+
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : !logs || logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No activity recorded yet.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-80 pr-4">
-                <div className="space-y-4">
-                  {logs.map((log) => {
-                    const config = activityConfig[log.action_type as WorkflowActivityType] || {
-                      icon: History,
-                      color: "text-muted-foreground",
-                      label: log.action_type,
-                    };
-                    const Icon = config.icon;
-                    const employeeProfile = (log.employee as any)?.profiles;
-
-                    return (
-                      <div key={log.id} className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8 border flex-shrink-0">
-                          {employeeProfile?.avatar_url ? (
-                            <AvatarImage src={employeeProfile.avatar_url} />
-                          ) : null}
-                          <AvatarFallback className="text-xs bg-muted">
-                            {employeeProfile?.full_name
-                              ?.split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                              .slice(0, 2) || "SY"}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">
-                              {employeeProfile?.full_name || "System"}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={cn("text-xs gap-1 py-0", config.color)}
-                            >
-                              <Icon className="h-3 w-3" />
-                              {config.label}
-                            </Badge>
-                          </div>
-
-                          {log.description && (
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {log.description}
-                            </p>
-                          )}
-
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
   );
 }
