@@ -616,11 +616,22 @@ export function TaskDetailSheet({
                 <div>
                   <Textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     onBlur={handleDescriptionBlur}
                     placeholder="Task description..."
-                    rows={description ? 4 : 1}
-                    className={description ? "" : "min-h-[38px] resize-none"}
+                    className="min-h-[38px] resize-none overflow-hidden"
+                    style={{ height: description ? 'auto' : '38px' }}
+                    ref={(el) => {
+                      if (el && description) {
+                        el.style.height = 'auto';
+                        el.style.height = `${el.scrollHeight}px`;
+                      }
+                    }}
                   />
                 </div>
 
