@@ -9743,6 +9743,7 @@ export type Database = {
       }
       workflow_templates: {
         Row: {
+          auto_advance_stages: boolean | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -9754,6 +9755,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          auto_advance_stages?: boolean | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -9765,6 +9767,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          auto_advance_stages?: boolean | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null

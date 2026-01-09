@@ -335,6 +335,35 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
         </CardContent>
       </Card>
 
+      {/* Settings Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-advance" className="text-sm font-medium">
+                Auto-advance stages
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Automatically move to the next stage when all tasks are completed
+              </p>
+            </div>
+            <Switch
+              id="auto-advance"
+              checked={template.auto_advance_stages ?? false}
+              onCheckedChange={(checked) => {
+                updateTemplate.mutate({
+                  templateId: template.id,
+                  updates: { auto_advance_stages: checked },
+                });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stages & Tasks Section */}
       <Card>
         <CardHeader className="pb-3">

@@ -102,7 +102,7 @@ export function useUpdateWorkflowTemplate() {
   return useMutation({
     mutationFn: async (data: {
       templateId: string;
-      updates: { name?: string; description?: string; is_default?: boolean };
+      updates: { name?: string; description?: string; is_default?: boolean; auto_advance_stages?: boolean };
     }) => {
       const { error } = await supabase
         .from("workflow_templates")
