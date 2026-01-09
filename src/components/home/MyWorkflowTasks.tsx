@@ -81,15 +81,6 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
     setIsSheetOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'in_progress':
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">In Progress</Badge>;
-      case 'pending':
-      default:
-        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Pending</Badge>;
-    }
-  };
 
   return (
     <>
@@ -107,6 +98,7 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
           {pendingTasks.slice(0, 5).map((task: any) => {
             const workflow = task.workflow as any;
             const employee = workflow?.employee as any;
+            const stage = task.stage as any;
             const isOnboarding = workflow?.type === 'onboarding';
             
             return (
@@ -120,10 +112,21 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                     <span className="font-medium text-sm">{task.title}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                    {getStatusBadge(task.status)}
                     <Badge variant={isOnboarding ? "default" : "secondary"} className="text-xs">
                       {isOnboarding ? 'Onboarding' : 'Offboarding'}
                     </Badge>
+                    {stage && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs"
+                        style={{ 
+                          borderColor: stage.color || undefined,
+                          color: stage.color || undefined
+                        }}
+                      >
+                        {stage.name}
+                      </Badge>
+                    )}
                     {employee && (
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />

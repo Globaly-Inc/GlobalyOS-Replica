@@ -247,6 +247,7 @@ export const useMyWorkflowTasks = (employeeId?: string) => {
         .from("employee_workflow_tasks")
         .select(`
           *,
+          stage:workflow_stages!inner(id, name, color),
           workflow:employee_workflows!inner(
             id, type, target_date,
             employee:employees!employee_workflows_employee_id_fkey!inner(
