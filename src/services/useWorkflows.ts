@@ -17,7 +17,111 @@ import type {
   WorkflowTaskStatus,
   AssetStatus,
   KnowledgeTransferStatus,
+  WorkflowStatus,
+  WorkflowType,
+  WorkflowStage,
+  WorkflowTrigger,
 } from "@/types/workflow";
+
+// Re-export realtime hooks
+export { useWorkflowRealtime, useWorkflowDetailRealtime } from "./useWorkflowRealtime";
+
+// Fetch all organization workflows with employee details
+export const useAllWorkflows = (filters?: {
+  status?: WorkflowStatus | 'all';
+  type?: WorkflowType | 'all';
+  search?: string;
+}) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ["all-workflows", currentOrg?.id, filters],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      
+      let query = supabase
+        .from("employee_workflows")
+        .select(`
+          *,
+          employee:employees!employee_workflows_employee_id_fkey(
+            id,
+            position,
+            profiles!inner(full_name, avatar_url)
+          ),
+          template:workflow_templates(name),
+          tasks:employee_workflow_tasks(id, status, stage_id)
+        `)
+        .eq("organization_id", currentOrg.id)
+        .order("created_at", { ascending: false });
+      
+      // Apply status filter
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq("status", filters.status);
+      }
+      
+      // Apply type filter
+      if (filters?.type && filters.type !== 'all') {
+        query = query.eq("type", filters.type);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Filter by search (employee name) client-side
+      let results = data || [];
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase();
+        results = results.filter((w: any) => 
+          w.employee?.profiles?.full_name?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      return results;
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+// Workflow Stages
+export const useWorkflowStages = (templateId?: string) => {
+  return useQuery({
+    queryKey: ["workflow-stages", templateId],
+    queryFn: async () => {
+      if (!templateId) return [];
+      
+      const { data, error } = await supabase
+        .from("workflow_stages")
+        .select("*")
+        .eq("template_id", templateId)
+        .order("sort_order");
+      
+      if (error) throw error;
+      return data as WorkflowStage[];
+    },
+    enabled: !!templateId,
+  });
+};
+
+// Workflow Triggers
+export const useWorkflowTriggers = () => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ["workflow-triggers", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("workflow_triggers")
+        .select("*")
+        .eq("organization_id", currentOrg.id);
+      
+      if (error) throw error;
+      return data as WorkflowTrigger[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
 
 // Workflow Templates
 export const useWorkflowTemplates = (type?: 'onboarding' | 'offboarding') => {

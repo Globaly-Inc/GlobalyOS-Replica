@@ -2372,6 +2372,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           sort_order: number | null
+          stage_id: string | null
           status: string | null
           title: string
           updated_at: string | null
@@ -2391,6 +2392,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           sort_order?: number | null
+          stage_id?: string | null
           status?: string | null
           title: string
           updated_at?: string | null
@@ -2410,6 +2412,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           sort_order?: number | null
+          stage_id?: string | null
           status?: string | null
           title?: string
           updated_at?: string | null
@@ -2463,6 +2466,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
             referencedColumns: ["id"]
           },
           {
@@ -9409,6 +9419,57 @@ export type Database = {
           },
         ]
       }
+      workflow_stages: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_template_tasks: {
         Row: {
           assignee_id: string | null
@@ -9421,6 +9482,7 @@ export type Database = {
           is_required: boolean | null
           organization_id: string
           sort_order: number | null
+          stage_id: string | null
           template_id: string
           title: string
         }
@@ -9435,6 +9497,7 @@ export type Database = {
           is_required?: boolean | null
           organization_id: string
           sort_order?: number | null
+          stage_id?: string | null
           template_id: string
           title: string
         }
@@ -9449,6 +9512,7 @@ export type Database = {
           is_required?: boolean | null
           organization_id?: string
           sort_order?: number | null
+          stage_id?: string | null
           template_id?: string
           title?: string
         }
@@ -9472,6 +9536,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_template_tasks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
             referencedColumns: ["id"]
           },
           {
@@ -9534,6 +9605,53 @@ export type Database = {
           },
           {
             foreignKeyName: "workflow_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_triggers: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          organization_id: string
+          trigger_condition: string
+          trigger_event: string
+          trigger_field: string
+          trigger_value: string | null
+          updated_at: string | null
+          workflow_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          organization_id: string
+          trigger_condition: string
+          trigger_event: string
+          trigger_field: string
+          trigger_value?: string | null
+          updated_at?: string | null
+          workflow_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          organization_id?: string
+          trigger_condition?: string
+          trigger_event?: string
+          trigger_field?: string
+          trigger_value?: string | null
+          updated_at?: string | null
+          workflow_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_triggers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
