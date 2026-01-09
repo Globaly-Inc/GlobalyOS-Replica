@@ -12,3 +12,4 @@ export * from './useWiki';
 export * from './useKpi';
 export * from './useNotifications';
 export * from './usePayroll';
+export * from './useWorkflows';

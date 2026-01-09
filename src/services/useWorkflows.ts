@@ -113,26 +113,31 @@ export const useEmployeeWorkflowTasks = (workflowId: string | undefined) => {
   });
 };
 
-export const useMyWorkflowTasks = () => {
+export const useMyWorkflowTasks = (employeeId?: string) => {
   const { currentOrg } = useOrganization();
 
   return useQuery({
-    queryKey: ["my-workflow-tasks", currentOrg?.id],
+    queryKey: ["my-workflow-tasks", currentOrg?.id, employeeId],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       
-      // Get current user's employee ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      // Use provided employeeId or get current user's employee ID
+      let targetEmployeeId = employeeId;
       
-      const { data: employee } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("organization_id", currentOrg.id)
-        .single();
-      
-      if (!employee) return [];
+      if (!targetEmployeeId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+        
+        const { data: employee } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", currentOrg.id)
+          .single();
+        
+        if (!employee) return [];
+        targetEmployeeId = employee.id;
+      }
       
       const { data, error } = await supabase
         .from("employee_workflow_tasks")
@@ -146,7 +151,7 @@ export const useMyWorkflowTasks = () => {
             )
           )
         `)
-        .eq("assignee_id", employee.id)
+        .eq("assignee_id", targetEmployeeId)
         .eq("organization_id", currentOrg.id)
         .in("status", ["pending", "in_progress"])
         .order("due_date");
@@ -155,6 +160,100 @@ export const useMyWorkflowTasks = () => {
       return data;
     },
     enabled: !!currentOrg?.id,
+  });
+};
+
+// Complete a workflow task
+export const useCompleteWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      completedBy,
+      notes,
+    }: {
+      taskId: string;
+      completedBy: string;
+      notes?: string;
+    }) => {
+      const updateData: Record<string, unknown> = { 
+        status: 'completed',
+        completed_by: completedBy,
+        completed_at: new Date().toISOString(),
+      };
+      
+      if (notes !== undefined) {
+        updateData.notes = notes;
+      }
+      
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update(updateData)
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["my-workflow-tasks"] });
+      toast.success("Task completed");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to complete task");
+    },
+  });
+};
+
+// Delete a workflow template task
+export const useDeleteWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase
+        .from("workflow_template_tasks")
+        .delete()
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-template-tasks"] });
+      toast.success("Task deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete task");
+    },
+  });
+};
+
+// Update workflow template task
+export const useUpdateWorkflowTemplateTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      updates,
+    }: {
+      taskId: string;
+      updates: Partial<WorkflowTemplateTask>;
+    }) => {
+      const { error } = await supabase
+        .from("workflow_template_tasks")
+        .update(updates)
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-template-tasks"] });
+      toast.success("Task updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update task");
+    },
   });
 };
 

@@ -109,13 +109,13 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormDataType>({
+  const [formData, setFormData] = useState<FormDataType & { isNewHire?: string }>({
     email: "", personalEmail: "", phone: "", firstName: "", lastName: "",
     dateOfBirth: "", street: "", city: "", postcode: "", state: "", country: "",
     department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
     remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
     emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
-    managerId: "", officeId: "",
+    managerId: "", officeId: "", isNewHire: "true",
   });
 
   useEffect(() => {
@@ -140,7 +140,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
       remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
       emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
-      managerId: "", officeId: "",
+      managerId: "", officeId: "", isNewHire: "true",
     });
     setOpenSections(['personal']);
     setCompletedSections(new Set());
@@ -329,6 +329,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
           fullName: `${validated.firstName} ${validated.lastName}`,
           avatarUrl,
           organizationId: currentOrg?.id,
+          isNewHire: formData.isNewHire !== 'false',
         },
       });
 
@@ -552,6 +553,25 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                       <SelectContent className="bg-popover">{currencies.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input type="text" inputMode="numeric" value={formData.remuneration ? Number(formData.remuneration).toLocaleString() : ""} onChange={(e) => { const v = e.target.value.replace(/,/g, ''); if (v === '' || /^\d*$/.test(v)) handleChange('remuneration', v); }} placeholder="Annual salary" className="flex-1" />
+                  </div>
+                </div>
+                
+                {/* New Hire Checkbox */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <input
+                    type="checkbox"
+                    id="isNewHire"
+                    checked={formData.isNewHire !== 'false'}
+                    onChange={(e) => handleChange('isNewHire', e.target.checked ? 'true' : 'false')}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="isNewHire" className="font-medium cursor-pointer">
+                      New hire (requires onboarding)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Uncheck for existing employees being added to the system
+                    </p>
                   </div>
                 </div>
               </AccordionContent>
