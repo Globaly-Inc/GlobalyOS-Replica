@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
-import { Settings, UserPlus, UserMinus, CheckCircle2, Plus } from "lucide-react";
+import { Settings, UserPlus, UserMinus, CheckCircle2, Plus, ClipboardPlus } from "lucide-react";
 import { useAllWorkflows, useWorkflowRealtime, useWorkflowTemplates } from "@/services/useWorkflows";
 import { WorkflowKanbanBoard } from "@/components/workflows/WorkflowKanbanBoard";
 import { StartWorkflowDialog } from "@/components/workflows/StartWorkflowDialog";
+import { AddTaskToWorkflowDialog } from "@/components/workflows/AddTaskToWorkflowDialog";
 import { WorkflowCard } from "@/components/workflows/WorkflowCard";
 import { OrgLink } from "@/components/OrgLink";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -25,6 +26,7 @@ export default function Workflows() {
   const { orgCode: navOrgCode } = useOrgNavigation();
   const [activeTab, setActiveTab] = useState<TabValue>("onboarding");
   const [showStartDialog, setShowStartDialog] = useState(false);
+  const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
 
   // Enable realtime updates
   useWorkflowRealtime();
@@ -92,6 +94,10 @@ export default function Workflows() {
           <Button onClick={() => setShowStartDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Start Workflow
+          </Button>
+          <Button onClick={() => setShowAddTaskDialog(true)}>
+            <ClipboardPlus className="h-4 w-4 mr-2" />
+            Add Task
           </Button>
         </div>
       </div>
@@ -186,6 +192,12 @@ export default function Workflows() {
       <StartWorkflowDialog
         open={showStartDialog}
         onOpenChange={setShowStartDialog}
+      />
+
+      {/* Add Task Dialog */}
+      <AddTaskToWorkflowDialog
+        open={showAddTaskDialog}
+        onOpenChange={setShowAddTaskDialog}
       />
     </div>
   );
