@@ -744,7 +744,7 @@ function TaskItem({
           "text-xs whitespace-nowrap",
           isCompleted ? "text-muted-foreground" : "text-muted-foreground"
         )}>
-          Due: {format(new Date(task.due_date), 'MMM d')}
+          {format(new Date(task.due_date), 'd MMM yyyy')}
         </span>
       )}
       {task.assignee && (
@@ -756,9 +756,9 @@ function TaskItem({
         </Avatar>
       )}
       
-      {/* Inline action icons */}
+      {/* Inline action icons - always visible */}
       {!disabled && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
