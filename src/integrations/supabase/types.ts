@@ -9938,39 +9938,83 @@ export type Database = {
         Args: { _org_id: string }
         Returns: string
       }
-      get_employee_for_viewer: {
-        Args: { target_employee_id: string }
-        Returns: {
-          emp_bank_details: string
-          emp_city: string
-          emp_country: string
-          emp_created_at: string
-          emp_date_of_birth: string
-          emp_department: string
-          emp_emergency_contact_name: string
-          emp_emergency_contact_phone: string
-          emp_emergency_contact_relationship: string
-          emp_id: string
-          emp_id_number: string
-          emp_join_date: string
-          emp_manager_id: string
-          emp_office_id: string
-          emp_organization_id: string
-          emp_personal_email: string
-          emp_phone: string
-          emp_position: string
-          emp_postcode: string
-          emp_remuneration: number
-          emp_remuneration_currency: string
-          emp_salary: number
-          emp_state: string
-          emp_status: string
-          emp_street: string
-          emp_superpowers: string[]
-          emp_tax_number: string
-          emp_user_id: string
-        }[]
-      }
+      get_employee_for_viewer:
+        | {
+            Args: { p_employee_id: string; p_viewer_id: string }
+            Returns: {
+              emp_bank_details: string
+              emp_city: string
+              emp_contract_end_date: string
+              emp_country: string
+              emp_created_at: string
+              emp_date_of_birth: string
+              emp_department: string
+              emp_emergency_contact_name: string
+              emp_emergency_contact_phone: string
+              emp_emergency_contact_relationship: string
+              emp_gender: string
+              emp_id: string
+              emp_id_number: string
+              emp_is_new_hire: boolean
+              emp_join_date: string
+              emp_last_working_day: string
+              emp_manager_id: string
+              emp_office_id: string
+              emp_organization_id: string
+              emp_personal_email: string
+              emp_phone: string
+              emp_position: string
+              emp_position_effective_date: string
+              emp_postcode: string
+              emp_remuneration: number
+              emp_remuneration_currency: string
+              emp_resignation_submitted_at: string
+              emp_salary: number
+              emp_state: string
+              emp_status: string
+              emp_street: string
+              emp_superpowers: string[]
+              emp_tax_number: string
+              emp_updated_at: string
+              emp_user_id: string
+              profile_avatar_url: string
+              profile_email: string
+              profile_full_name: string
+            }[]
+          }
+        | {
+            Args: { target_employee_id: string }
+            Returns: {
+              emp_bank_details: string
+              emp_city: string
+              emp_country: string
+              emp_created_at: string
+              emp_date_of_birth: string
+              emp_department: string
+              emp_emergency_contact_name: string
+              emp_emergency_contact_phone: string
+              emp_emergency_contact_relationship: string
+              emp_id: string
+              emp_id_number: string
+              emp_join_date: string
+              emp_manager_id: string
+              emp_office_id: string
+              emp_organization_id: string
+              emp_personal_email: string
+              emp_phone: string
+              emp_position: string
+              emp_postcode: string
+              emp_remuneration: number
+              emp_remuneration_currency: string
+              emp_salary: number
+              emp_state: string
+              emp_status: string
+              emp_street: string
+              emp_superpowers: string[]
+              emp_tax_number: string
+              emp_user_id: string
+            }[]
+          }
       get_organization_usage:
         | {
             Args: { _billing_period?: string; _organization_id: string }
