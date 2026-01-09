@@ -780,6 +780,13 @@ const Home = () => {
               <AllPendingLeavesCard />
             </Suspense>
 
+            {/* My Workflow Tasks */}
+            {currentEmployeeId && (
+              <Suspense fallback={<CardSkeleton />}>
+                <MyWorkflowTasks employeeId={currentEmployeeId} />
+              </Suspense>
+            )}
+
             {/* People on Leave Today */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -957,13 +964,6 @@ const Home = () => {
             <Suspense fallback={<CardSkeleton />}>
               <UserHelpRequests />
             </Suspense>
-
-            {/* My Workflow Tasks */}
-            {currentEmployeeId && (
-              <Suspense fallback={<CardSkeleton />}>
-                <MyWorkflowTasks employeeId={currentEmployeeId} />
-              </Suspense>
-            )}
           </div>
         </div>
       </div>
