@@ -14,16 +14,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Home, MapPin, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock } from "lucide-react";
+import { Home, MapPin, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, WifiOff, TimerOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRemoteAttendance } from "@/services/useWfh";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { getLocation, getLocationErrorTitle, getLocationErrorInstructions, type LocationErrorType } from "@/utils/geolocation";
 
 interface RemoteCheckInDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeout";
 
 export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogProps) => {
   const { user } = useAuth();
@@ -32,7 +35,8 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [sessionCount, setSessionCount] = useState(0);
   const [maxSessions, setMaxSessions] = useState(3);
-  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied">("pending");
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("pending");
+  const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -40,10 +44,11 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false);
   const [earlyCheckoutReason, setEarlyCheckoutReason] = useState("");
   const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
+  const [retryingLocation, setRetryingLocation] = useState(false);
 
   const remoteAttendanceMutation = useRemoteAttendance();
 
-  // Request location
+  // Request location using the improved utility
   useEffect(() => {
     if (!open) return;
 
@@ -51,20 +56,19 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     setUserLocation(null);
     setLocationName("");
     setResult(null);
+    setLocationErrorType(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const coords = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        setUserLocation(coords);
+    const requestLocation = async () => {
+      const locationResult = await getLocation();
+
+      if (locationResult.success && locationResult.coords) {
+        setUserLocation(locationResult.coords);
         setLocationStatus("granted");
 
         // Get location name
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
           );
           if (response.ok) {
             const data = await response.json();
@@ -75,12 +79,20 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
         } catch {
           setLocationName("Location detected");
         }
-      },
-      () => {
-        setLocationStatus("denied");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+      } else {
+        // Map error type to status
+        setLocationErrorType(locationResult.error || null);
+        if (locationResult.error === 'permission_denied') {
+          setLocationStatus("denied");
+        } else if (locationResult.error === 'timeout') {
+          setLocationStatus("timeout");
+        } else {
+          setLocationStatus("unavailable");
+        }
+      }
+    };
+
+    requestLocation();
   }, [open]);
 
   // Get current attendance status and fetch schedule + org settings
@@ -160,6 +172,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
       setEmployeeSchedule(null);
       setShowEarlyCheckoutWarning(false);
       setEarlyCheckoutReason("");
+      setRetryingLocation(false);
     }
   }, [open, result?.success, queryClient]);
 
@@ -216,22 +229,59 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     setEarlyCheckoutReason("");
   };
 
-  const handleRetryLocation = () => {
+  const handleRetryLocation = async () => {
+    setRetryingLocation(true);
     setLocationStatus("pending");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLocationStatus("granted");
-      },
-      () => {
+    setLocationErrorType(null);
+
+    const locationResult = await getLocation();
+
+    if (locationResult.success && locationResult.coords) {
+      setUserLocation(locationResult.coords);
+      setLocationStatus("granted");
+
+      // Get location name
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const city = data.address?.city || data.address?.town || data.address?.village || "";
+          const state = data.address?.state || "";
+          setLocationName([city, state].filter(Boolean).join(", ") || "Location detected");
+        }
+      } catch {
+        setLocationName("Location detected");
+      }
+    } else {
+      setLocationErrorType(locationResult.error || null);
+      if (locationResult.error === 'permission_denied') {
         setLocationStatus("denied");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+      } else if (locationResult.error === 'timeout') {
+        setLocationStatus("timeout");
+      } else {
+        setLocationStatus("unavailable");
+      }
+    }
+
+    setRetryingLocation(false);
   };
+
+  const getLocationErrorIcon = () => {
+    switch (locationStatus) {
+      case "denied":
+        return <AlertTriangle className="h-12 w-12 text-amber-500" />;
+      case "unavailable":
+        return <WifiOff className="h-12 w-12 text-amber-500" />;
+      case "timeout":
+        return <TimerOff className="h-12 w-12 text-amber-500" />;
+      default:
+        return <AlertTriangle className="h-12 w-12 text-amber-500" />;
+    }
+  };
+
+  const showLocationError = locationStatus === "denied" || locationStatus === "unavailable" || locationStatus === "timeout";
 
   return (
     <>
@@ -260,23 +310,38 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
             {!loading && locationStatus === "pending" && (
               <div className="flex flex-col items-center justify-center py-8 gap-4">
                 <MapPin className="h-12 w-12 text-primary animate-pulse" />
-                <p className="text-muted-foreground text-center">Requesting location access...</p>
+                <p className="text-muted-foreground text-center">
+                  {retryingLocation ? "Retrying location..." : "Getting your location..."}
+                </p>
                 <p className="text-xs text-muted-foreground text-center">
-                  Please allow location access when prompted
+                  This may take a few seconds
                 </p>
               </div>
             )}
 
-            {!loading && locationStatus === "denied" && (
+            {!loading && showLocationError && (
               <div className="flex flex-col items-center justify-center py-8 gap-4">
-                <AlertTriangle className="h-12 w-12 text-amber-500" />
-                <p className="text-center font-medium">Location Access Required</p>
+                {getLocationErrorIcon()}
+                <p className="text-center font-medium">
+                  {locationErrorType ? getLocationErrorTitle(locationErrorType) : "Location Access Required"}
+                </p>
                 <p className="text-xs text-muted-foreground text-center max-w-[280px]">
-                  Location access is required for remote check-in. Please enable location permissions.
+                  {locationErrorType ? getLocationErrorInstructions(locationErrorType) : "Location access is required for remote check-in."}
                 </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleRetryLocation}>
-                    Try Again
+                  <Button 
+                    variant="outline" 
+                    onClick={handleRetryLocation}
+                    disabled={retryingLocation}
+                  >
+                    {retryingLocation ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Retrying...
+                      </>
+                    ) : (
+                      "Try Again"
+                    )}
                   </Button>
                   <Button variant="ghost" onClick={() => onOpenChange(false)}>
                     Cancel
