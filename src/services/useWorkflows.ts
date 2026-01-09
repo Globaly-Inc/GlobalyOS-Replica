@@ -512,7 +512,48 @@ export const useMoveToNextStage = () => {
       workflowId: string;
       nextStageId: string | null; // null = complete workflow
     }) => {
+      // Get current workflow details for logging
+      const { data: workflow } = await supabase
+        .from("employee_workflows")
+        .select("current_stage_id, organization_id")
+        .eq("id", workflowId)
+        .single();
+      
+      if (!workflow) throw new Error("Workflow not found");
+      
+      // Get current employee
+      const { data: { user } } = await supabase.auth.getUser();
+      let employeeId: string | null = null;
+      if (user) {
+        const { data: emp } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+        employeeId = emp?.id || null;
+      }
+
+      // Get stage names for logging
+      let oldStageName = "Unknown";
+      let newStageName = "Completed";
+      
+      if (workflow.current_stage_id) {
+        const { data: oldStage } = await supabase
+          .from("workflow_stages")
+          .select("name")
+          .eq("id", workflow.current_stage_id)
+          .single();
+        oldStageName = oldStage?.name || "Unknown";
+      }
+      
       if (nextStageId) {
+        const { data: newStage } = await supabase
+          .from("workflow_stages")
+          .select("name")
+          .eq("id", nextStageId)
+          .single();
+        newStageName = newStage?.name || "Unknown";
+
         // Move to next stage
         const { error } = await supabase
           .from("employee_workflows")
@@ -520,6 +561,19 @@ export const useMoveToNextStage = () => {
           .eq("id", workflowId);
         
         if (error) throw error;
+
+        // Log stage change
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: workflow.organization_id,
+          employee_id: employeeId,
+          action_type: 'stage_changed',
+          entity_type: 'stage',
+          entity_id: nextStageId,
+          old_value: { stage_id: workflow.current_stage_id, stage_name: oldStageName },
+          new_value: { stage_id: nextStageId, stage_name: newStageName },
+          description: `Moved from "${oldStageName}" to "${newStageName}"`,
+        }]);
       } else {
         // Complete workflow
         const { error } = await supabase
@@ -532,12 +586,26 @@ export const useMoveToNextStage = () => {
           .eq("id", workflowId);
         
         if (error) throw error;
+
+        // Log workflow completion
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: workflow.organization_id,
+          employee_id: employeeId,
+          action_type: 'workflow_completed',
+          entity_type: 'workflow',
+          entity_id: workflowId,
+          old_value: { stage_name: oldStageName },
+          new_value: { status: 'completed' },
+          description: `Workflow completed from "${oldStageName}"`,
+        }]);
       }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
       queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs"] });
       
       if (variables.nextStageId) {
         toast.success("Moved to next stage");

@@ -222,3 +222,37 @@ export interface ProrationPreview {
   exceeded: boolean;
   exceededBy: number;
 }
+
+// Workflow Activity Logging
+export type WorkflowActivityType = 
+  | 'workflow_started'
+  | 'stage_changed'
+  | 'workflow_completed'
+  | 'task_completed'
+  | 'task_uncompleted'
+  | 'task_assigned'
+  | 'task_added'
+  | 'task_deleted'
+  | 'task_updated'
+  | 'auto_advanced';
+
+export interface WorkflowActivityLog {
+  id: string;
+  workflow_id: string;
+  organization_id: string;
+  employee_id: string | null;
+  action_type: WorkflowActivityType;
+  entity_type: 'workflow' | 'task' | 'stage' | null;
+  entity_id: string | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  description: string | null;
+  created_at: string;
+  employee?: {
+    id: string;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  } | null;
+}

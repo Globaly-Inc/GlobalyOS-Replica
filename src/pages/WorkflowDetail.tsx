@@ -45,8 +45,9 @@ import { cn } from "@/lib/utils";
 import { AddWorkflowTaskDialog } from "@/components/workflows/AddWorkflowTaskDialog";
 import { EditWorkflowTaskDialog } from "@/components/workflows/EditWorkflowTaskDialog";
 import { CompleteStageDialog } from "@/components/workflows/CompleteStageDialog";
-import { MoveToNextStageDialog } from "@/components/workflows/MoveToNextStageDialog";
+import { MoveStageDialog } from "@/components/workflows/MoveStageDialog";
 import { TaskDetailSheet } from "@/components/workflows/TaskDetailSheet";
+import { WorkflowActivityLog } from "@/components/workflows/WorkflowActivityLog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,9 +97,17 @@ export default function WorkflowDetail() {
   const [completeStageDialogOpen, setCompleteStageDialogOpen] = useState(false);
   const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[]; nextStageId: string | null } | null>(null);
   
-  // Move to next stage dialog state
+  // Move stage dialog state
   const [moveStageDialogOpen, setMoveStageDialogOpen] = useState(false);
-  const [stageToMove, setStageToMove] = useState<{ id: string; name: string; nextStageId: string | null; nextStageName: string | null; pendingCount: number } | null>(null);
+  const [stageToMove, setStageToMove] = useState<{ 
+    id: string; 
+    name: string; 
+    previousStageId: string | null; 
+    previousStageName: string | null;
+    nextStageId: string | null; 
+    nextStageName: string | null; 
+    pendingTasks: { id: string; title: string }[];
+  } | null>(null);
   
   // Task detail sheet state
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
@@ -289,18 +298,78 @@ export default function WorkflowDetail() {
     });
   };
 
-  const handleOpenMoveStageDialog = (stageId: string, stageName: string, stageTasks: any[], nextStageId: string | null, nextStageName: string | null) => {
-    const pendingCount = stageTasks.filter(t => t.status !== 'completed').length;
-    setStageToMove({ id: stageId, name: stageName, nextStageId, nextStageName, pendingCount });
+  const handleOpenMoveStageDialog = (
+    stageId: string, 
+    stageName: string, 
+    stageTasks: any[], 
+    stageIndex: number
+  ) => {
+    const pendingTasks = stageTasks.filter(t => t.status !== 'completed').map(t => ({ id: t.id, title: t.title }));
+    const prevStage = stageIndex > 0 ? tasksByStage[stageIndex - 1].stage : null;
+    const nextStage = stageIndex < tasksByStage.length - 1 ? tasksByStage[stageIndex + 1].stage : null;
+    
+    setStageToMove({ 
+      id: stageId, 
+      name: stageName, 
+      previousStageId: prevStage?.id || null,
+      previousStageName: prevStage?.name || null,
+      nextStageId: nextStage?.id || null, 
+      nextStageName: nextStage?.name || null, 
+      pendingTasks,
+    });
     setMoveStageDialogOpen(true);
   };
 
-  const handleMoveToNextStage = () => {
+  const handleMoveToPreviousStage = () => {
+    if (!stageToMove?.previousStageId || !workflow) return;
+    
+    moveToNextStage.mutate({
+      workflowId: workflow.id,
+      nextStageId: stageToMove.previousStageId,
+    }, {
+      onSuccess: () => {
+        setMoveStageDialogOpen(false);
+        setStageToMove(null);
+      }
+    });
+  };
+
+  const handleCompleteAndMoveToNext = () => {
+    if (!stageToMove || !currentEmployee || !workflow) return;
+    
+    completeStage.mutate({
+      workflowId: workflow.id,
+      taskIds: stageToMove.pendingTasks.map(t => t.id),
+      completedBy: currentEmployee.id,
+      nextStageId: stageToMove.nextStageId,
+    }, {
+      onSuccess: () => {
+        setMoveStageDialogOpen(false);
+        setStageToMove(null);
+      }
+    });
+  };
+
+  const handleSkipToNextStage = () => {
     if (!stageToMove || !workflow) return;
     
     moveToNextStage.mutate({
       workflowId: workflow.id,
       nextStageId: stageToMove.nextStageId,
+    }, {
+      onSuccess: () => {
+        setMoveStageDialogOpen(false);
+        setStageToMove(null);
+      }
+    });
+  };
+
+  const handleCompleteWorkflow = () => {
+    if (!stageToMove || !workflow) return;
+    
+    moveToNextStage.mutate({
+      workflowId: workflow.id,
+      nextStageId: null,
     }, {
       onSuccess: () => {
         setMoveStageDialogOpen(false);
@@ -510,16 +579,16 @@ export default function WorkflowDetail() {
                 </Badge>
 
 
-                {/* Move to Next Stage Button (without completing tasks) */}
-                {isActive && isCurrent && (nextStageId || pendingTasks.length > 0) && (
+                {/* Move Stage Button */}
+                {isActive && isCurrent && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => handleOpenMoveStageDialog(stage.id, stage.name, stageTasks, nextStageId, nextStageName)}
+                    onClick={() => handleOpenMoveStageDialog(stage.id, stage.name, stageTasks, index)}
                   >
                     <ChevronRight className="h-4 w-4 mr-1" />
-                    {nextStageId ? "Move to Next Stage" : "Complete Workflow"}
+                    Move Stage
                   </Button>
                 )}
 
@@ -624,6 +693,9 @@ export default function WorkflowDetail() {
         </Card>
       )}
 
+      {/* Activity Log */}
+      <WorkflowActivityLog workflowId={workflowId} />
+
       {/* Add Task Dialog */}
       <AddWorkflowTaskDialog
         open={addTaskDialogOpen}
@@ -689,16 +761,20 @@ export default function WorkflowDetail() {
         />
       )}
 
-      {/* Move to Next Stage Dialog */}
+      {/* Move Stage Dialog */}
       {stageToMove && (
-        <MoveToNextStageDialog
+        <MoveStageDialog
           open={moveStageDialogOpen}
           onOpenChange={setMoveStageDialogOpen}
-          onConfirm={handleMoveToNextStage}
-          stageName={stageToMove.name}
-          nextStageName={stageToMove.nextStageName}
-          pendingTaskCount={stageToMove.pendingCount}
-          isLoading={moveToNextStage.isPending}
+          currentStageName={stageToMove.name}
+          previousStage={stageToMove.previousStageId ? { id: stageToMove.previousStageId, name: stageToMove.previousStageName! } : null}
+          nextStage={stageToMove.nextStageId ? { id: stageToMove.nextStageId, name: stageToMove.nextStageName! } : null}
+          pendingTasks={stageToMove.pendingTasks}
+          onMoveToPrevious={handleMoveToPreviousStage}
+          onMoveToNextWithComplete={handleCompleteAndMoveToNext}
+          onMoveToNextSkip={handleSkipToNextStage}
+          onCompleteWorkflow={handleCompleteWorkflow}
+          isLoading={moveToNextStage.isPending || completeStage.isPending}
         />
       )}
 
