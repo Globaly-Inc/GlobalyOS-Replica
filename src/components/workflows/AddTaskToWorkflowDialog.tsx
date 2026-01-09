@@ -61,6 +61,8 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
   const [isRequired, setIsRequired] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
 
   const addTaskMutation = useAddWorkflowTask();
 
@@ -163,6 +165,7 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
       setDueDate(undefined);
       setIsRequired(false);
       setEmployeeSearch("");
+      setAssigneeSearch("");
     }
   }, [open]);
 
@@ -361,26 +364,75 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Assign To</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp: any) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={emp.profiles?.avatar_url} />
-                          <AvatarFallback>
-                            <User className="h-3 w-3" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{emp.profiles?.full_name}</span>
+              <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-start"
+                  >
+                    {assigneeId ? (
+                      (() => {
+                        const selectedAssignee = employees.find((e: any) => e.id === assigneeId);
+                        return selectedAssignee ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={selectedAssignee.profiles?.avatar_url} />
+                              <AvatarFallback>
+                                <User className="h-3 w-3" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{selectedAssignee.profiles?.full_name}</span>
+                          </div>
+                        ) : "Select assignee";
+                      })()
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Search className="h-4 w-4" />
+                        <span>Search assignee...</span>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search team members..."
+                      value={assigneeSearch}
+                      onValueChange={setAssigneeSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No team members found.</CommandEmpty>
+                      <CommandGroup>
+                        {employees
+                          .filter((emp: any) =>
+                            emp.profiles?.full_name?.toLowerCase().includes(assigneeSearch.toLowerCase())
+                          )
+                          .map((emp: any) => (
+                            <CommandItem
+                              key={emp.id}
+                              value={emp.profiles?.full_name}
+                              onSelect={() => {
+                                setAssigneeId(emp.id);
+                                setAssigneePopoverOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={emp.profiles?.avatar_url} />
+                                  <AvatarFallback>
+                                    <User className="h-3 w-3" />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{emp.profiles?.full_name}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
