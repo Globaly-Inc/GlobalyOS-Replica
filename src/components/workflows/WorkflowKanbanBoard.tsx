@@ -32,35 +32,22 @@ export function WorkflowKanbanBoard({
   const { orgCode } = useParams<{ orgCode: string }>();
   const { data: stages, isLoading: stagesLoading } = useWorkflowStages(templateId);
 
-  // Determine current stage for each workflow based on task completion
+  // Determine current stage for each workflow using explicit current_stage_id
   const getWorkflowCurrentStage = (workflow: WorkflowKanbanCardData, stages: WorkflowStage[]): string | null => {
-    if (!workflow.tasks?.length || !stages?.length) return null;
-
-    // Group tasks by stage
-    const tasksByStage = new Map<string | null, { total: number; completed: number }>();
+    // If workflow is completed, return "completed"
+    if (workflow.status === 'completed') return "completed";
     
-    for (const task of workflow.tasks) {
-      const stageId = task.stage_id;
-      if (!tasksByStage.has(stageId)) {
-        tasksByStage.set(stageId, { total: 0, completed: 0 });
-      }
-      const stageTasks = tasksByStage.get(stageId)!;
-      stageTasks.total++;
-      if (task.status === "completed") {
-        stageTasks.completed++;
-      }
+    // Use explicit current_stage_id if set
+    if ((workflow as any).current_stage_id) {
+      return (workflow as any).current_stage_id;
     }
 
-    // Find the first stage with incomplete tasks (following sort order)
-    for (const stage of stages) {
-      const stageTasks = tasksByStage.get(stage.id);
-      if (stageTasks && stageTasks.completed < stageTasks.total) {
-        return stage.id;
-      }
+    // Fallback: return first stage if no current_stage_id is set
+    if (stages?.length) {
+      return stages[0].id;
     }
 
-    // All tasks complete - return last stage or "completed"
-    return "completed";
+    return null;
   };
 
   // Group workflows by their current stage

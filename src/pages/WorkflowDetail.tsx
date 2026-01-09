@@ -91,7 +91,7 @@ export default function WorkflowDetail() {
   
   // Complete stage dialog state
   const [completeStageDialogOpen, setCompleteStageDialogOpen] = useState(false);
-  const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[] } | null>(null);
+  const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[]; nextStageId: string | null } | null>(null);
   
   // Task detail sheet state
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
@@ -251,22 +251,28 @@ export default function WorkflowDetail() {
     });
   };
 
-  const handleOpenCompleteStageDialog = (stageId: string, stageName: string, stageTasks: any[]) => {
+  const handleOpenCompleteStageDialog = (stageId: string, stageName: string, stageTasks: any[], nextStageId: string | null) => {
     const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
-    if (pendingTasks.length === 0) return;
     
-    setStageToComplete({ id: stageId, name: stageName, tasks: pendingTasks });
+    setStageToComplete({ 
+      id: stageId, 
+      name: stageName, 
+      tasks: pendingTasks,
+      nextStageId,
+    });
     setCompleteStageDialogOpen(true);
   };
 
   const handleCompleteStage = () => {
-    if (!stageToComplete || !currentEmployee) return;
+    if (!stageToComplete || !currentEmployee || !workflow) return;
     
-    const pendingTaskIds = stageToComplete.tasks.map(t => t.id);
+    const pendingTaskIds = stageToComplete.tasks.map((t: any) => t.id);
     
     completeStage.mutate({
+      workflowId: workflow.id,
       taskIds: pendingTaskIds,
       completedBy: currentEmployee.id,
+      nextStageId: stageToComplete.nextStageId,
     }, {
       onSuccess: () => {
         setCompleteStageDialogOpen(false);
@@ -326,10 +332,10 @@ export default function WorkflowDetail() {
     tasks: tasks?.filter(t => t.stage_id === stage.id) ?? [],
   })) ?? [];
   
-  // Calculate current stage - first stage with incomplete tasks
-  const currentStageIndex = tasksByStage.findIndex(group => 
-    group.tasks.some(t => t.status !== 'completed')
-  );
+  // Calculate current stage using explicit current_stage_id
+  const currentStageIndex = workflow.current_stage_id 
+    ? tasksByStage.findIndex(group => group.stage.id === workflow.current_stage_id)
+    : (workflow.status === 'completed' ? -1 : 0); // Default to first stage if not set, or -1 if completed
   
   // Get employee info safely
   const employeeProfiles = (workflow.employee as any)?.profiles;
@@ -423,6 +429,8 @@ export default function WorkflowDetail() {
         const isCurrent = index === currentStageIndex || (currentStageIndex === -1 && index === 0);
         const isPending = !isCompleted && !isCurrent;
         const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
+        // Calculate next stage ID (null if this is the last stage)
+        const nextStageId = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.id : null;
 
         return (
           <Card 
@@ -468,10 +476,10 @@ export default function WorkflowDetail() {
                     variant="ghost"
                     size="sm"
                     className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
-                    onClick={() => handleOpenCompleteStageDialog(stage.id, stage.name, stageTasks)}
+                    onClick={() => handleOpenCompleteStageDialog(stage.id, stage.name, stageTasks, nextStageId)}
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" />
-                    Complete Stage
+                    {nextStageId ? "Complete Stage" : "Complete Workflow"}
                   </Button>
                 )}
 
@@ -632,6 +640,12 @@ export default function WorkflowDetail() {
           stageName={stageToComplete.name}
           pendingTasks={stageToComplete.tasks}
           isLoading={completeStage.isPending}
+          isFinalStage={!stageToComplete.nextStageId}
+          nextStageName={
+            stageToComplete.nextStageId
+              ? tasksByStage.find(s => s.stage.id === stageToComplete.nextStageId)?.stage.name
+              : undefined
+          }
         />
       )}
 
