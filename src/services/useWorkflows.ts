@@ -416,6 +416,75 @@ export const useUpdateWorkflowTask = () => {
   });
 };
 
+// Add a new task to an employee workflow
+export const useAddWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      workflowId,
+      employeeId,
+      organizationId,
+      stageId,
+      title,
+      description,
+      category,
+      assigneeId,
+      dueDate,
+      isRequired,
+    }: {
+      workflowId: string;
+      employeeId: string;
+      organizationId: string;
+      stageId: string | null;
+      title: string;
+      description?: string;
+      category: string;
+      assigneeId?: string;
+      dueDate?: string;
+      isRequired?: boolean;
+    }) => {
+      // Get max sort_order for this workflow
+      const { data: existingTasks } = await supabase
+        .from("employee_workflow_tasks")
+        .select("sort_order")
+        .eq("workflow_id", workflowId)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+
+      const nextSortOrder = (existingTasks?.[0]?.sort_order ?? 0) + 1;
+
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .insert({
+          workflow_id: workflowId,
+          employee_id: employeeId,
+          organization_id: organizationId,
+          stage_id: stageId,
+          title,
+          description: description || null,
+          category,
+          assignee_id: assigneeId || null,
+          due_date: dueDate || null,
+          is_required: isRequired ?? true,
+          status: 'pending',
+          sort_order: nextSortOrder,
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      toast.success("Task added successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to add task");
+    },
+  });
+};
+
 // Exit Interviews
 export const useExitInterview = (employeeId: string | undefined) => {
   return useQuery({
