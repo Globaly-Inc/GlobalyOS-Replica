@@ -857,12 +857,15 @@ function TaskItem({
               className="h-7 px-2 gap-1"
             >
               {task.assignee ? (
-                <Avatar className="h-5 w-5">
-                  <AvatarImage src={task.assignee.profiles?.avatar_url || undefined} />
-                  <AvatarFallback className="text-[10px]">
-                    {task.assignee.profiles?.full_name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <>
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={task.assignee.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">
+                      {task.assignee.profiles?.full_name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs">{task.assignee.profiles?.full_name?.split(' ')[0]}</span>
+                </>
               ) : (
                 <User className="h-4 w-4 text-muted-foreground" />
               )}
