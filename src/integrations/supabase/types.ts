@@ -273,6 +273,100 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_handovers: {
+        Row: {
+          asset_id: string | null
+          asset_name: string
+          assigned_date: string | null
+          category: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          organization_id: string
+          returned_date: string | null
+          status: string | null
+          updated_at: string | null
+          verified_by: string | null
+          workflow_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          asset_name: string
+          assigned_date?: string | null
+          category?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          returned_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          verified_by?: string | null
+          workflow_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          asset_name?: string
+          assigned_date?: string | null
+          category?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          returned_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          verified_by?: string | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_handovers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_handovers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_handovers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_handovers_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_handovers_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_handovers_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_hour_balances: {
         Row: {
           created_at: string
@@ -2263,11 +2357,217 @@ export type Database = {
           },
         ]
       }
+      employee_workflow_tasks: {
+        Row: {
+          assignee_id: string | null
+          category: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          employee_id: string
+          id: string
+          is_required: boolean | null
+          notes: string | null
+          organization_id: string
+          sort_order: number | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          workflow_id: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          category: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          employee_id: string
+          id?: string
+          is_required?: boolean | null
+          notes?: string | null
+          organization_id: string
+          sort_order?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          workflow_id: string
+        }
+        Update: {
+          assignee_id?: string | null
+          category?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          employee_id?: string
+          id?: string
+          is_required?: boolean | null
+          notes?: string | null
+          organization_id?: string
+          sort_order?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_workflow_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflow_tasks_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_workflows: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          start_date: string
+          status: string | null
+          target_date: string
+          template_id: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          start_date: string
+          status?: string | null
+          target_date: string
+          template_id?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          start_date?: string
+          status?: string | null
+          target_date?: string
+          template_id?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_workflows_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           bank_details: string | null
           checkin_exempt: boolean
           city: string | null
+          contract_end_date: string | null
           country: string | null
           created_at: string
           date_of_birth: string | null
@@ -2279,7 +2579,9 @@ export type Database = {
           gender: string | null
           id: string
           id_number: string | null
+          is_new_hire: boolean | null
           join_date: string
+          last_working_day: string | null
           legal_entity_id: string | null
           manager_id: string | null
           office_id: string | null
@@ -2292,6 +2594,7 @@ export type Database = {
           postcode: string | null
           remuneration: number | null
           remuneration_currency: string | null
+          resignation_submitted_at: string | null
           role_description: string | null
           role_description_generated_at: string | null
           salary: number | null
@@ -2308,6 +2611,7 @@ export type Database = {
           bank_details?: string | null
           checkin_exempt?: boolean
           city?: string | null
+          contract_end_date?: string | null
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -2319,7 +2623,9 @@ export type Database = {
           gender?: string | null
           id?: string
           id_number?: string | null
+          is_new_hire?: boolean | null
           join_date: string
+          last_working_day?: string | null
           legal_entity_id?: string | null
           manager_id?: string | null
           office_id?: string | null
@@ -2332,6 +2638,7 @@ export type Database = {
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
+          resignation_submitted_at?: string | null
           role_description?: string | null
           role_description_generated_at?: string | null
           salary?: number | null
@@ -2348,6 +2655,7 @@ export type Database = {
           bank_details?: string | null
           checkin_exempt?: boolean
           city?: string | null
+          contract_end_date?: string | null
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -2359,7 +2667,9 @@ export type Database = {
           gender?: string | null
           id?: string
           id_number?: string | null
+          is_new_hire?: boolean | null
           join_date?: string
+          last_working_day?: string | null
           legal_entity_id?: string | null
           manager_id?: string | null
           office_id?: string | null
@@ -2372,6 +2682,7 @@ export type Database = {
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
+          resignation_submitted_at?: string | null
           role_description?: string | null
           role_description_generated_at?: string | null
           salary?: number | null
@@ -2528,6 +2839,112 @@ export type Database = {
           },
         ]
       }
+      exit_interviews: {
+        Row: {
+          conducted_at: string | null
+          conducted_by: string | null
+          created_at: string | null
+          employee_id: string
+          feedback_compensation: string | null
+          feedback_culture: string | null
+          feedback_management: string | null
+          feedback_role: string | null
+          id: string
+          is_confidential: boolean | null
+          organization_id: string
+          overall_rating: number | null
+          reason_for_leaving: string | null
+          suggestions: string | null
+          updated_at: string | null
+          workflow_id: string | null
+          would_recommend: boolean | null
+          would_return: boolean | null
+        }
+        Insert: {
+          conducted_at?: string | null
+          conducted_by?: string | null
+          created_at?: string | null
+          employee_id: string
+          feedback_compensation?: string | null
+          feedback_culture?: string | null
+          feedback_management?: string | null
+          feedback_role?: string | null
+          id?: string
+          is_confidential?: boolean | null
+          organization_id: string
+          overall_rating?: number | null
+          reason_for_leaving?: string | null
+          suggestions?: string | null
+          updated_at?: string | null
+          workflow_id?: string | null
+          would_recommend?: boolean | null
+          would_return?: boolean | null
+        }
+        Update: {
+          conducted_at?: string | null
+          conducted_by?: string | null
+          created_at?: string | null
+          employee_id?: string
+          feedback_compensation?: string | null
+          feedback_culture?: string | null
+          feedback_management?: string | null
+          feedback_role?: string | null
+          id?: string
+          is_confidential?: boolean | null
+          organization_id?: string
+          overall_rating?: number | null
+          reason_for_leaving?: string | null
+          suggestions?: string | null
+          updated_at?: string | null
+          workflow_id?: string | null
+          would_recommend?: boolean | null
+          would_return?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exit_interviews_conducted_by_fkey"
+            columns: ["conducted_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exit_interviews_conducted_by_fkey"
+            columns: ["conducted_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exit_interviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exit_interviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exit_interviews_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exit_interviews_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_reactions: {
         Row: {
           created_at: string
@@ -2648,6 +3065,100 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_transfers: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          organization_id: string
+          recipient_id: string | null
+          scheduled_date: string | null
+          status: string | null
+          topic: string
+          updated_at: string | null
+          wiki_page_id: string | null
+          workflow_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          recipient_id?: string | null
+          scheduled_date?: string | null
+          status?: string | null
+          topic: string
+          updated_at?: string | null
+          wiki_page_id?: string | null
+          workflow_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          recipient_id?: string | null
+          scheduled_date?: string | null
+          status?: string | null
+          topic?: string
+          updated_at?: string | null
+          wiki_page_id?: string | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_transfers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_transfers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_transfers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_transfers_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_transfers_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_transfers_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
             referencedColumns: ["id"]
           },
         ]
@@ -8898,6 +9409,138 @@ export type Database = {
           },
         ]
       }
+      workflow_template_tasks: {
+        Row: {
+          assignee_id: string | null
+          assignee_type: string
+          category: string
+          created_at: string | null
+          description: string | null
+          due_days_offset: number | null
+          id: string
+          is_required: boolean | null
+          organization_id: string
+          sort_order: number | null
+          template_id: string
+          title: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          assignee_type: string
+          category: string
+          created_at?: string | null
+          description?: string | null
+          due_days_offset?: number | null
+          id?: string
+          is_required?: boolean | null
+          organization_id: string
+          sort_order?: number | null
+          template_id: string
+          title: string
+        }
+        Update: {
+          assignee_id?: string | null
+          assignee_type?: string
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          due_days_offset?: number | null
+          id?: string
+          is_required?: boolean | null
+          organization_id?: string
+          sort_order?: number | null
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_template_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_template_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_template_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_template_tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          organization_id: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          organization_id: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       attendance_summary: {
@@ -9051,6 +9694,14 @@ export type Database = {
     Functions: {
       admin_exists: { Args: never; Returns: boolean }
       calculate_kpi_rollup: { Args: { parent_id: string }; Returns: number }
+      calculate_prorated_leave_monthly: {
+        Args: {
+          p_default_days: number
+          p_end_date: string
+          p_start_date: string
+        }
+        Returns: number
+      }
       can_edit_wiki_item: {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean
