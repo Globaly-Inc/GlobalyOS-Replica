@@ -31,12 +31,15 @@ import {
   ArrowUpCircle,
   CalendarPlus,
   Edit,
-  Trash2
+  Trash2,
+  CheckCircle,
+  RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime, formatDate, formatDateRange } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLeaveBalanceRealtime } from "@/services/useLeaveRealtime";
 
 interface LeaveBalanceLog {
   id: string;
@@ -115,6 +118,48 @@ const ActionBadge = ({ action }: { action?: string }) => {
           Leave Taken
         </Badge>
       );
+    case "leave_approved":
+      return (
+        <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-950">
+          <TrendingDown className="h-3 w-3 mr-1" />
+          Leave Approved
+        </Badge>
+      );
+    case "leave_refund":
+      return (
+        <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50 dark:bg-green-950">
+          <ArrowUpCircle className="h-3 w-3 mr-1" />
+          Leave Refund
+        </Badge>
+      );
+    case "leave_modify":
+      return (
+        <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50 dark:bg-blue-950">
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Leave Modified
+        </Badge>
+      );
+    case "leave_type_change_refund":
+      return (
+        <Badge variant="outline" className="text-cyan-600 border-cyan-600 bg-cyan-50 dark:bg-cyan-950">
+          <ArrowUpCircle className="h-3 w-3 mr-1" />
+          Type Changed (Refund)
+        </Badge>
+      );
+    case "leave_type_change_deduct":
+      return (
+        <Badge variant="outline" className="text-purple-600 border-purple-600 bg-purple-50 dark:bg-purple-950">
+          <ArrowDownCircle className="h-3 w-3 mr-1" />
+          Type Changed (Deduct)
+        </Badge>
+      );
+    case "leave_delete_refund":
+      return (
+        <Badge variant="outline" className="text-orange-600 border-orange-600 bg-orange-50 dark:bg-orange-950">
+          <Trash2 className="h-3 w-3 mr-1" />
+          Delete Refund
+        </Badge>
+      );
     case "balance_deleted":
       return (
         <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50 dark:bg-red-950">
@@ -145,6 +190,9 @@ export const LeaveBalanceLogsDialog = ({
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; request: LeaveRequest | null }>({ open: false, request: null });
   const [canceling, setCanceling] = useState(false);
   const queryClient = useQueryClient();
+
+  // Subscribe to real-time balance updates
+  useLeaveBalanceRealtime(employeeId);
 
   const loadData = async () => {
     setLoading(true);

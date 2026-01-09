@@ -73,16 +73,11 @@ export const EditLeaveAdjustmentDialog = ({
         .eq("organization_id", currentOrg?.id)
         .maybeSingle();
 
-      // Calculate balance difference for recalculation
-      const balanceDiff = changeAmount - adjustment.change_amount;
-      const updatedNewBalance = adjustment.new_balance + balanceDiff;
-
       // Update the leave_balance_logs entry
       const { error: logError } = await supabase
         .from("leave_balance_logs")
         .update({
           change_amount: changeAmount,
-          new_balance: updatedNewBalance,
           reason: reason || null,
           effective_date: effectiveDate ? format(effectiveDate, "yyyy-MM-dd") : null,
           updated_by: currentEmployee?.id,
@@ -92,7 +87,8 @@ export const EditLeaveAdjustmentDialog = ({
 
       if (logError) throw logError;
 
-      // Recalculate leave_type_balances if balance changed
+      // If balance changed, recalculate from all logs for this leave type
+      const balanceDiff = changeAmount - adjustment.change_amount;
       if (balanceDiff !== 0 && employeeId) {
         // Get the leave_type_id from leave_types table
         const { data: leaveTypeData } = await supabase
@@ -105,26 +101,40 @@ export const EditLeaveAdjustmentDialog = ({
         if (leaveTypeData) {
           const currentYear = new Date().getFullYear();
           
-          // Get current balance
-          const { data: balanceData } = await supabase
+          // Recalculate balance from ALL logs for this employee/leave_type/year
+          const { data: allLogs } = await supabase
+            .from("leave_balance_logs")
+            .select("change_amount")
+            .eq("employee_id", employeeId)
+            .eq("leave_type_id", leaveTypeData.id)
+            .eq("year", currentYear);
+
+          const totalBalance = allLogs?.reduce((sum, log) => sum + (log.change_amount || 0), 0) || 0;
+
+          // Update or insert the balance
+          const { data: existingBalance } = await supabase
             .from("leave_type_balances")
-            .select("id, balance")
+            .select("id")
             .eq("employee_id", employeeId)
             .eq("leave_type_id", leaveTypeData.id)
             .eq("year", currentYear)
             .maybeSingle();
 
-          if (balanceData) {
-            // Update balance with the difference
-            const newBalance = balanceData.balance + balanceDiff;
-            const { error: balanceError } = await supabase
+          if (existingBalance) {
+            await supabase
               .from("leave_type_balances")
-              .update({ balance: newBalance })
-              .eq("id", balanceData.id);
-
-            if (balanceError) {
-              console.error("Error updating balance:", balanceError);
-            }
+              .update({ balance: totalBalance, updated_at: new Date().toISOString() })
+              .eq("id", existingBalance.id);
+          } else {
+            await supabase
+              .from("leave_type_balances")
+              .insert({
+                employee_id: employeeId,
+                leave_type_id: leaveTypeData.id,
+                organization_id: currentOrg?.id,
+                year: currentYear,
+                balance: totalBalance
+              });
           }
         }
       }

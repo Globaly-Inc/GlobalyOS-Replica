@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, TrendingUp, TrendingDown, Sun, Heart, Moon, Briefcase, Baby, Plane, CalendarX, Loader2, RefreshCw, History } from "lucide-react";
 import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
+import { useLeaveBalanceRealtime } from "@/services/useLeaveRealtime";
 import { toast } from "sonner";
 
 interface LeaveManagementProps {
@@ -41,6 +42,9 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const [initializing, setInitializing] = useState(false);
   const initBalances = useInitializeEmployeeBalances();
   const queryClient = useQueryClient();
+
+  // Subscribe to real-time balance updates
+  useLeaveBalanceRealtime(employeeId);
 
   // Fetch leave balances directly from leave_type_balances (the authoritative source)
   const { data: balances = [], refetch: refetchBalances } = useQuery({

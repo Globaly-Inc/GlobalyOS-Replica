@@ -49,7 +49,7 @@ export const EditLeaveRequestDialog = ({
   const { currentOrg } = useOrganization();
   const [loading, setLoading] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
-  const [leaveType, setLeaveType] = useState<string>("");
+  const [leaveTypeId, setLeaveTypeId] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [halfDayType, setHalfDayType] = useState<string>("full");
@@ -64,8 +64,10 @@ export const EditLeaveRequestDialog = ({
   }, [open, currentOrg?.id]);
 
   useEffect(() => {
-    if (request && open) {
-      setLeaveType(request.leave_type);
+    if (request && open && leaveTypes.length > 0) {
+      // Find matching leave type by name
+      const matchedType = leaveTypes.find(lt => lt.name === request.leave_type);
+      setLeaveTypeId(matchedType?.id || "");
       setStartDate(new Date(request.start_date));
       setEndDate(new Date(request.end_date));
       setHalfDayType(request.half_day_type);
@@ -73,7 +75,7 @@ export const EditLeaveRequestDialog = ({
       setStatus(request.status);
       setOriginalStatus(request.status);
     }
-  }, [request, open]);
+  }, [request, open, leaveTypes]);
 
   const loadLeaveTypes = async () => {
     if (!currentOrg) return;
@@ -100,7 +102,7 @@ export const EditLeaveRequestDialog = ({
     e.preventDefault();
     if (!request) return;
 
-    if (!leaveType || !startDate || !endDate) {
+    if (!leaveTypeId || !startDate || !endDate) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -109,6 +111,9 @@ export const EditLeaveRequestDialog = ({
       toast.error("End date must be after start date");
       return;
     }
+
+    // Get the selected leave type details
+    const selectedLeaveType = leaveTypes.find(lt => lt.id === leaveTypeId);
 
     setLoading(true);
     try {
@@ -124,7 +129,8 @@ export const EditLeaveRequestDialog = ({
         .maybeSingle();
 
       const updateData: any = {
-        leave_type: leaveType,
+        leave_type: selectedLeaveType?.name || request.leave_type,  // Text for display
+        leave_type_id: leaveTypeId,                                   // FK for trigger
         start_date: format(startDate, "yyyy-MM-dd"),
         end_date: format(endDate, "yyyy-MM-dd"),
         days_count: daysCount,
@@ -158,11 +164,12 @@ export const EditLeaveRequestDialog = ({
 
         if (employeeData?.user_id) {
           const editorName = (currentEmployee.profiles as any)?.full_name || "HR/Admin";
-          let notificationMessage = `Your ${leaveType} leave request was updated by ${editorName}`;
+          const leaveTypeName = selectedLeaveType?.name || request.leave_type;
+          let notificationMessage = `Your ${leaveTypeName} leave request was updated by ${editorName}`;
           
           // Add specific message if status changed
           if (status !== originalStatus) {
-            notificationMessage = `Your ${leaveType} leave request was ${status} by ${editorName}`;
+            notificationMessage = `Your ${leaveTypeName} leave request was ${status} by ${editorName}`;
           }
 
           await supabase.from("notifications").insert({
@@ -202,13 +209,13 @@ export const EditLeaveRequestDialog = ({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="leave-type">Leave Type *</Label>
-              <Select value={leaveType} onValueChange={setLeaveType}>
+              <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
                 <SelectTrigger id="leave-type">
                   <SelectValue placeholder="Select leave type" />
                 </SelectTrigger>
                 <SelectContent>
                   {leaveTypes.map((lt) => (
-                    <SelectItem key={lt.id} value={lt.name}>
+                    <SelectItem key={lt.id} value={lt.id}>
                       {lt.name} ({lt.category})
                     </SelectItem>
                   ))}
