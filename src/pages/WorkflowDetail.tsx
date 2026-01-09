@@ -509,18 +509,6 @@ export default function WorkflowDetail() {
                   {stageCompletedCount}/{stageTasks.length}
                 </Badge>
 
-                {/* Complete Stage Button */}
-                {isActive && isCurrent && !isCompleted && pendingTasks.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
-                    onClick={() => handleOpenCompleteStageDialog(stage.id, stage.name, stageTasks, nextStageId)}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                    {nextStageId ? "Complete Stage" : "Complete Workflow"}
-                  </Button>
-                )}
 
                 {/* Move to Next Stage Button (without completing tasks) */}
                 {isActive && isCurrent && (nextStageId || pendingTasks.length > 0) && (
