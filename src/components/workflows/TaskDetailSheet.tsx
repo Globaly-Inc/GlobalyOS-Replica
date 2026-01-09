@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,7 +54,8 @@ import {
   Plus,
   Square,
   CheckSquare,
-  RefreshCcw
+  RefreshCcw,
+  Filter
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -186,6 +193,13 @@ export function TaskDetailSheet({
   // Change workflow state
   const [isChangingWorkflow, setIsChangingWorkflow] = useState(false);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>("");
+  
+  // Activity filter state
+  const [activityFilter, setActivityFilter] = useState<'all' | 'comments' | 'updates'>('all');
+  
+  // Activity scroll ref for auto-scroll
+  const activityScrollRef = useRef<HTMLDivElement>(null);
+  const prevActivityCount = useRef(0);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
 
   // Populate form when task changes
@@ -352,6 +366,76 @@ export function TaskDetailSheet({
 
   // Enable real-time subscriptions for this task
   useTaskDetailRealtime(task?.id);
+
+  // Create unified activity timeline (chronological order - oldest first, newest at bottom)
+  const allActivities = useMemo(() => {
+    const activities: Array<{
+      type: 'log' | 'comment';
+      data: any;
+      timestamp: Date;
+      id: string;
+    }> = [];
+
+    // Add activity logs (excluding comment_added to avoid duplicates since comments are shown separately)
+    activityLogs
+      .filter((log: any) => log.action_type !== 'comment_added')
+      .forEach((log: any) => {
+        activities.push({
+          type: 'log',
+          data: log,
+          timestamp: new Date(log.created_at),
+          id: `log-${log.id}`,
+        });
+      });
+
+    // Add comments
+    comments.forEach((comment: any) => {
+      activities.push({
+        type: 'comment',
+        data: comment,
+        timestamp: new Date(comment.created_at),
+        id: `comment-${comment.id}`,
+      });
+    });
+
+    // Sort chronologically (oldest first, newest at bottom)
+    return activities.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }, [activityLogs, comments]);
+
+  // Filter activities based on selection
+  const filteredActivities = useMemo(() => {
+    if (activityFilter === 'all') return allActivities;
+    if (activityFilter === 'comments') return allActivities.filter(a => a.type === 'comment');
+    if (activityFilter === 'updates') return allActivities.filter(a => a.type === 'log');
+    return allActivities;
+  }, [allActivities, activityFilter]);
+
+  // Auto-scroll to bottom when sheet opens
+  useEffect(() => {
+    if (open && task?.id && activityScrollRef.current) {
+      setTimeout(() => {
+        if (activityScrollRef.current) {
+          activityScrollRef.current.scrollTop = activityScrollRef.current.scrollHeight;
+        }
+      }, 150);
+    }
+  }, [open, task?.id]);
+
+  // Auto-scroll when new activities are added (real-time updates)
+  useEffect(() => {
+    const currentCount = allActivities.length;
+    if (currentCount > prevActivityCount.current && activityScrollRef.current) {
+      setTimeout(() => {
+        if (activityScrollRef.current) {
+          activityScrollRef.current.scrollTo({
+            top: activityScrollRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+    prevActivityCount.current = currentCount;
+  }, [allActivities.length]);
 
   // Auto-save mutation
   const autoSave = useAutoSaveTaskField(employees);
@@ -1364,27 +1448,83 @@ export function TaskDetailSheet({
 
           {/* Right panel - Activity (1/3) */}
           <div className="w-1/3 flex flex-col bg-muted/30">
-            <div className="px-4 py-4 border-b bg-background">
+            <div className="px-4 py-4 border-b bg-background flex items-center justify-between">
               <h3 className="font-semibold flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Activity
+                {allActivities.length > 0 && (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {filteredActivities.length}
+                  </Badge>
+                )}
               </h3>
+              
+              {/* Filter Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-muted-foreground hover:text-foreground">
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="text-xs">
+                      {activityFilter === 'all' ? 'All' : activityFilter === 'comments' ? 'Comments' : 'Updates'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setActivityFilter('all')}>
+                    All Activity
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActivityFilter('comments')}>
+                    Comments Only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActivityFilter('updates')}>
+                    Updates Only
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             
-            <ScrollArea className="flex-1 px-4 py-4">
+            <div ref={activityScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-4">
-                {activityLoading ? (
+                {activityLoading || commentsLoading ? (
                   <div className="text-center py-4">
                     <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
                   </div>
-                ) : activityLogs.length === 0 && comments.length === 0 ? (
+                ) : filteredActivities.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No activity recorded yet.
+                    {activityFilter !== 'all' 
+                      ? `No ${activityFilter} yet.` 
+                      : 'No activity recorded yet.'}
                   </p>
                 ) : (
-                  <>
-                    {/* Activity logs */}
-                    {activityLogs.map((log: any) => {
+                  filteredActivities.map((activity) => {
+                    if (activity.type === 'comment') {
+                      const c = activity.data;
+                      return (
+                        <div key={activity.id} className="flex gap-3">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarImage src={c.employee?.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {c.employee?.profiles?.full_name?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0 bg-muted/50 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {c.employee?.profiles?.full_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap break-words">
+                              {c.content}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      // Render activity log entry
+                      const log = activity.data;
                       const activityConfig: Record<WorkflowActivityType, { icon: React.ElementType; color: string; label: string }> = {
                         workflow_started: { icon: UserCheck, color: "text-green-600", label: "Started" },
                         stage_changed: { icon: RefreshCcw, color: "text-blue-600", label: "Stage Changed" },
@@ -1415,7 +1555,7 @@ export function TaskDetailSheet({
                       const employeeProfile = (log.employee as any)?.profiles;
 
                       return (
-                        <div key={log.id} className="flex gap-3">
+                        <div key={activity.id} className="flex gap-3">
                           <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center", 
                             config.color.includes("green") ? "bg-green-500/10" :
                             config.color.includes("blue") ? "bg-blue-500/10" :
@@ -1440,38 +1580,11 @@ export function TaskDetailSheet({
                           </div>
                         </div>
                       );
-                    })}
-
-                    {/* Comments */}
-                    {commentsLoading ? null : (
-                      comments.map((c: any) => (
-                        <div key={c.id} className="flex gap-3">
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={c.employee?.profiles?.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {c.employee?.profiles?.full_name?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
-                                {c.employee?.profiles?.full_name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
-                              </span>
-                            </div>
-                            <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">
-                              {c.content}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </>
+                    }
+                  })
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Comment input */}
             <div className="p-4 border-t bg-background relative">
