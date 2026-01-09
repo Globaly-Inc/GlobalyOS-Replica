@@ -45,7 +45,8 @@ import {
   ListChecks,
   Plus,
   Square,
-  CheckSquare
+  CheckSquare,
+  RefreshCcw
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -176,6 +177,11 @@ export function TaskDetailSheet({
   const [isAddingChecklist, setIsAddingChecklist] = useState(false);
   const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
   const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
+  
+  // Change workflow state
+  const [isChangingWorkflow, setIsChangingWorkflow] = useState(false);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>("");
+  const [selectedStageId, setSelectedStageId] = useState<string>("");
 
   // Populate form when task changes
   useEffect(() => {
@@ -190,6 +196,9 @@ export function TaskDetailSheet({
       setIsEditingTitle(false);
       setIsAddingChecklist(false);
       setNewChecklistTitle("");
+      setIsChangingWorkflow(false);
+      setSelectedWorkflowId("");
+      setSelectedStageId("");
     }
   }, [task]);
 
@@ -202,7 +211,7 @@ export function TaskDetailSheet({
       
       const { data, error } = await supabase
         .from("employee_workflows")
-        .select("id, type, current_stage_id, template_id, status")
+        .select("id, type, current_stage_id, template_id, status, employee_id")
         .eq("id", workflowId)
         .single();
       
@@ -212,9 +221,40 @@ export function TaskDetailSheet({
     enabled: !!(task?.workflow_id || propWorkflowId) && open,
   });
 
+  // Fetch all active workflows for the same employee (for change workflow feature)
+  const { data: employeeWorkflows = [] } = useQuery({
+    queryKey: ["employee-active-workflows", workflowData?.employee_id],
+    queryFn: async () => {
+      if (!workflowData?.employee_id) return [];
+      
+      const { data, error } = await supabase
+        .from("employee_workflows")
+        .select(`
+          id, 
+          type, 
+          status, 
+          template_id,
+          workflow_templates!inner(id, name)
+        `)
+        .eq("employee_id", workflowData.employee_id)
+        .eq("organization_id", organizationId)
+        .in("status", ["active", "pending"]);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!workflowData?.employee_id && isChangingWorkflow,
+  });
+
   // Fetch stages for the workflow template
   const templateId = workflowData?.template_id || propTemplateId;
   const { data: stages = [] } = useWorkflowStages(templateId);
+
+  // Fetch stages for the selected workflow (when changing)
+  const selectedWorkflow = employeeWorkflows.find((w: any) => w.id === selectedWorkflowId);
+  const { data: selectedWorkflowStages = [] } = useWorkflowStages(
+    selectedWorkflowId ? selectedWorkflow?.template_id : undefined
+  );
 
   // Find current stage and navigation info
   const currentStage = stages.find((s: WorkflowStage) => s.id === task?.stage_id);
@@ -388,6 +428,50 @@ export function TaskDetailSheet({
       setIsRequired(checked);
       handleAutoSave('is_required', oldValue, checked);
     }
+  };
+
+  const handleStartChangeWorkflow = () => {
+    setSelectedWorkflowId(task?.workflow_id || propWorkflowId || "");
+    setSelectedStageId(task?.stage_id || "");
+    setIsChangingWorkflow(true);
+  };
+
+  const handleCancelChangeWorkflow = () => {
+    setIsChangingWorkflow(false);
+    setSelectedWorkflowId("");
+    setSelectedStageId("");
+  };
+
+  const handleSaveWorkflowChange = () => {
+    if (!selectedWorkflowId || !selectedStageId || !task?.id || !workflowData?.id) return;
+    
+    const oldWorkflow = employeeWorkflows.find((w: any) => w.id === task.workflow_id);
+    const newWorkflow = employeeWorkflows.find((w: any) => w.id === selectedWorkflowId);
+    const newStage = selectedWorkflowStages.find((s: WorkflowStage) => s.id === selectedStageId);
+    
+    autoSave.mutate({
+      taskId: task.id,
+      workflowId: workflowData.id,
+      organizationId,
+      employeeId: currentEmployee?.id,
+      field: 'workflow_stage',
+      oldValue: {
+        workflowId: task.workflow_id,
+        stageId: task.stage_id,
+        workflowType: oldWorkflow?.type === 'onboarding' ? 'Onboarding' : 'Offboarding',
+        stageName: currentStage?.name || 'Unknown',
+      },
+      newValue: {
+        workflowId: selectedWorkflowId,
+        stageId: selectedStageId,
+        workflowType: newWorkflow?.type === 'onboarding' ? 'Onboarding' : 'Offboarding',
+        stageName: newStage?.name || 'Unknown',
+      },
+    });
+    
+    setIsChangingWorkflow(false);
+    setSelectedWorkflowId("");
+    setSelectedStageId("");
   };
 
   const handleSaveTitle = () => {
@@ -639,55 +723,153 @@ export function TaskDetailSheet({
                 {workflowData && (
                   <div className="space-y-2">
                     <Label>Workflow & Stage</Label>
-                    <div className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={workflowData.type === 'onboarding' ? "default" : "secondary"}>
-                          {workflowData.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
-                        </Badge>
-                        {currentStage && (
-                          <Badge 
-                            variant="outline"
-                            style={{ 
-                              borderColor: currentStage.color || undefined,
-                              color: currentStage.color || undefined,
-                              backgroundColor: currentStage.color ? `${currentStage.color}15` : undefined
-                            }}
-                          >
-                            {currentStage.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleMoveToPreviousStage}
-                          disabled={!previousStage || moveToNextStage.isPending || workflowData.status === 'completed'}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Previous
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={isLastStage ? "default" : "outline"}
-                          onClick={handleMoveToNextStage}
-                          disabled={moveToNextStage.isPending || workflowData.status === 'completed'}
-                        >
-                          {moveToNextStage.isPending ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          ) : isLastStage ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Complete
-                            </>
-                          ) : (
-                            <>
-                              Next
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                      {isChangingWorkflow ? (
+                        <>
+                          {/* Change workflow inline edit mode */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Workflow</Label>
+                              <Select 
+                                value={selectedWorkflowId} 
+                                onValueChange={(v) => { 
+                                  setSelectedWorkflowId(v); 
+                                  setSelectedStageId(""); 
+                                }}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select workflow" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {employeeWorkflows.map((w: any) => (
+                                    <SelectItem key={w.id} value={w.id}>
+                                      <div className="flex items-center gap-2">
+                                        <Badge 
+                                          variant={w.type === 'onboarding' ? "default" : "secondary"}
+                                          className="text-xs px-1.5 py-0"
+                                        >
+                                          {w.type === 'onboarding' ? 'On' : 'Off'}
+                                        </Badge>
+                                        <span className="truncate">
+                                          {w.workflow_templates?.name || w.type}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Stage</Label>
+                              <Select 
+                                value={selectedStageId} 
+                                onValueChange={setSelectedStageId}
+                                disabled={!selectedWorkflowId}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select stage" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {selectedWorkflowStages.map((s: WorkflowStage) => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                      <div className="flex items-center gap-2">
+                                        <div 
+                                          className="w-2 h-2 rounded-full" 
+                                          style={{ backgroundColor: s.color || '#888' }}
+                                        />
+                                        {s.name}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelChangeWorkflow}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleSaveWorkflowChange}
+                              disabled={!selectedStageId || autoSave.isPending}
+                            >
+                              {autoSave.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : null}
+                              Save
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Default view */}
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={workflowData.type === 'onboarding' ? "default" : "secondary"}>
+                                {workflowData.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
+                              </Badge>
+                              {currentStage && (
+                                <Badge 
+                                  variant="outline"
+                                  style={{ 
+                                    borderColor: currentStage.color || undefined,
+                                    color: currentStage.color || undefined,
+                                    backgroundColor: currentStage.color ? `${currentStage.color}15` : undefined
+                                  }}
+                                >
+                                  {currentStage.name}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {workflowData.status !== 'completed' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleStartChangeWorkflow}
+                                >
+                                  <RefreshCcw className="h-4 w-4 mr-1" />
+                                  Change
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleMoveToPreviousStage}
+                                disabled={!previousStage || moveToNextStage.isPending || workflowData.status === 'completed'}
+                              >
+                                <ChevronLeft className="h-4 w-4 mr-1" />
+                                Previous
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={isLastStage ? "default" : "outline"}
+                                onClick={handleMoveToNextStage}
+                                disabled={moveToNextStage.isPending || workflowData.status === 'completed'}
+                              >
+                                {moveToNextStage.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : isLastStage ? (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Complete
+                                  </>
+                                ) : (
+                                  <>
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                     {/* Is Required */}
                     <div className="flex items-center space-x-2 pt-1">

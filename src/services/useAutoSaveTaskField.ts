@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { WorkflowTaskStatus } from "@/types/workflow";
 import type { Json } from "@/integrations/supabase/types";
 
-type FieldType = 'status' | 'description' | 'category' | 'assignee' | 'due_date' | 'is_required';
+type FieldType = 'status' | 'description' | 'category' | 'assignee' | 'due_date' | 'is_required' | 'workflow_stage';
 
 interface AutoSaveParams {
   taskId: string;
@@ -20,8 +20,20 @@ interface AutoSaveParams {
   newValue: unknown;
 }
 
+interface WorkflowStageChange {
+  workflowId: string;
+  stageId: string;
+  workflowType?: string;
+  stageName?: string;
+}
+
 // Get human-readable field descriptions
-function getFieldDescription(field: FieldType, oldValue: unknown, newValue: unknown, employees?: any[]): string {
+function getFieldDescription(
+  field: FieldType, 
+  oldValue: unknown, 
+  newValue: unknown, 
+  employees?: any[]
+): string {
   switch (field) {
     case 'status':
       return `Changed status from "${oldValue || 'None'}" to "${newValue}"`;
@@ -42,6 +54,19 @@ function getFieldDescription(field: FieldType, oldValue: unknown, newValue: unkn
     }
     case 'is_required':
       return newValue ? 'Marked task as required' : 'Marked task as optional';
+    case 'workflow_stage': {
+      const oldChange = oldValue as WorkflowStageChange | null;
+      const newChange = newValue as WorkflowStageChange;
+      const oldWorkflowType = oldChange?.workflowType || 'Unknown';
+      const oldStageName = oldChange?.stageName || 'Unknown';
+      const newWorkflowType = newChange?.workflowType || 'Unknown';
+      const newStageName = newChange?.stageName || 'Unknown';
+      
+      if (oldChange?.workflowId !== newChange.workflowId) {
+        return `Moved task from ${oldWorkflowType}/${oldStageName} to ${newWorkflowType}/${newStageName}`;
+      }
+      return `Moved task to ${newStageName} stage`;
+    }
     default:
       return `Updated ${field}`;
   }
@@ -60,8 +85,43 @@ export const useAutoSaveTaskField = (employees?: any[]) => {
       oldValue,
       newValue,
     }: AutoSaveParams) => {
+      // Special handling for workflow_stage changes
+      if (field === 'workflow_stage') {
+        const newChange = newValue as WorkflowStageChange;
+        
+        const updateData: Record<string, unknown> = {
+          workflow_id: newChange.workflowId,
+          stage_id: newChange.stageId,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: updateError } = await supabase
+          .from("employee_workflow_tasks")
+          .update(updateData)
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+
+        // Log activity
+        const description = getFieldDescription(field, oldValue, newValue, employees);
+        
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: newChange.workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId || null,
+          action_type: 'task_updated',
+          entity_type: 'task',
+          entity_id: taskId,
+          old_value: oldValue as Json,
+          new_value: newValue as Json,
+          description,
+        }]);
+
+        return { field, newValue };
+      }
+
       // Map field name to database column
-      const columnMap: Record<FieldType, string> = {
+      const columnMap: Record<Exclude<FieldType, 'workflow_stage'>, string> = {
         status: 'status',
         description: 'description',
         category: 'category',
@@ -71,7 +131,7 @@ export const useAutoSaveTaskField = (employees?: any[]) => {
       };
 
       const updateData: Record<string, unknown> = {
-        [columnMap[field]]: newValue,
+        [columnMap[field as Exclude<FieldType, 'workflow_stage'>]]: newValue,
         updated_at: new Date().toISOString(),
       };
 
@@ -113,9 +173,11 @@ export const useAutoSaveTaskField = (employees?: any[]) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs"] });
       queryClient.invalidateQueries({ queryKey: ["my-workflow-tasks"] });
       
-      // Only show toast for significant changes (status)
+      // Only show toast for significant changes (status, workflow_stage)
       if (result?.field === 'status') {
         toast.success(`Task ${result.newValue}`);
+      } else if (result?.field === 'workflow_stage') {
+        toast.success("Task moved successfully");
       }
     },
     onError: (error: Error) => {
