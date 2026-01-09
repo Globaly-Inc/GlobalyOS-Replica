@@ -598,8 +598,9 @@ export function TaskDetailSheet({
               )}
             </DialogHeader>
             
-            <ScrollArea className="flex-1 px-6 py-4">
-              <div className="space-y-5">
+          <ScrollArea className="flex-1">
+            <div className="px-6 py-4">
+              <div className="space-y-5 px-0.5">
                 {/* Description - Moved to top */}
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -1087,7 +1088,8 @@ export function TaskDetailSheet({
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
+          </ScrollArea>
 
             {/* Save button */}
             <div className="px-6 py-4 border-t">
