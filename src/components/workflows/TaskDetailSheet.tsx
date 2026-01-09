@@ -792,7 +792,10 @@ export function TaskDetailSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[70vw] w-[70vw] h-[80vh] max-h-[80vh] p-0 overflow-hidden">
+      <DialogContent 
+        className="max-w-[70vw] w-[70vw] h-[80vh] max-h-[80vh] p-0 overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex h-full">
           {/* Left panel - Task info (2/3) */}
           <div className="w-2/3 flex flex-col border-r">
