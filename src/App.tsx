@@ -71,6 +71,7 @@ const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const Workflows = lazy(() => import('./pages/Workflows'));
 const WorkflowDetail = lazy(() => import('./pages/WorkflowDetail'));
+const WorkflowTemplateSettings = lazy(() => import('./pages/WorkflowTemplateSettings'));
 const ManageOffices = lazy(() => import('./pages/ManageOffices'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -166,6 +167,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   
                   {/* Settings & Notifications */}
                   <Route path="settings" element={<OrgProtectedRoute><Settings /></OrgProtectedRoute>} />
+                  <Route path="settings/workflow/:templateId" element={<OrgProtectedRoute><WorkflowTemplateSettings /></OrgProtectedRoute>} />
                   <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
                   
