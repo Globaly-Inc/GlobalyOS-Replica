@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, GripVertical, Pencil, Trash2, UserPlus, UserMinus, CheckCircle2 } from "lucide-react";
-import { useWorkflowTemplates, useWorkflowTemplateTasks, useUpdateWorkflowTemplateTask, useDeleteWorkflowTask } from "@/services/useWorkflows";
+import { Plus, GripVertical, Pencil, Trash2, UserPlus, UserMinus, Settings2, Layers, Zap } from "lucide-react";
+import { useWorkflowTemplates, useWorkflowTemplateTasks, useUpdateWorkflowTemplateTask, useDeleteWorkflowTask, useWorkflowStages } from "@/services/useWorkflows";
+import { useSeedWorkflowData } from "@/services/useWorkflowMutations";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { WorkflowStageSettings } from "./WorkflowStageSettings";
+import { WorkflowTriggerSettings } from "./WorkflowTriggerSettings";
 
 interface WorkflowsSettingsProps {
   organizationId: string | undefined;
@@ -38,16 +41,26 @@ const ASSIGNEE_TYPES = [
 export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'onboarding' | 'offboarding'>('onboarding');
+  const [mainTab, setMainTab] = useState<'templates' | 'stages' | 'triggers'>('templates');
+  const [workflowType, setWorkflowType] = useState<'onboarding' | 'offboarding'>('onboarding');
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   
-  const { data: templates, isLoading: templatesLoading } = useWorkflowTemplates(activeTab);
+  const { data: templates, isLoading: templatesLoading } = useWorkflowTemplates(workflowType);
   const activeTemplate = templates?.find(t => t.is_default);
   const { data: tasks, isLoading: tasksLoading } = useWorkflowTemplateTasks(activeTemplate?.id);
+  const { data: stages } = useWorkflowStages(activeTemplate?.id);
   
   const updateTask = useUpdateWorkflowTemplateTask();
   const deleteTask = useDeleteWorkflowTask();
+  const seedData = useSeedWorkflowData();
+
+  // Seed default workflow data if templates don't exist
+  useEffect(() => {
+    if (organizationId && !templatesLoading && templates?.length === 0) {
+      seedData.mutate(organizationId);
+    }
+  }, [organizationId, templatesLoading, templates?.length]);
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -56,6 +69,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
     assignee_type: 'hr',
     due_days_offset: 0,
     is_required: true,
+    stage_id: '',
   });
 
   const handleAddTask = async () => {
@@ -70,6 +84,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
       assignee_type: newTask.assignee_type,
       due_days_offset: newTask.due_days_offset,
       is_required: newTask.is_required,
+      stage_id: newTask.stage_id || null,
       sort_order: (tasks?.length || 0) + 1,
     });
 
@@ -78,7 +93,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
     } else {
       toast({ title: "Task added" });
       setAddTaskOpen(false);
-      setNewTask({ title: '', description: '', category: 'documentation', assignee_type: 'hr', due_days_offset: 0, is_required: true });
+      setNewTask({ title: '', description: '', category: 'documentation', assignee_type: 'hr', due_days_offset: 0, is_required: true, stage_id: '' });
       queryClient.invalidateQueries({ queryKey: ['workflow-template-tasks'] });
     }
   };
@@ -95,6 +110,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
         assignee_type: editingTask.assignee_type,
         due_days_offset: editingTask.due_days_offset,
         is_required: editingTask.is_required,
+        stage_id: editingTask.stage_id || null,
       },
     }, {
       onSuccess: () => {
@@ -109,38 +125,79 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
     }
   };
 
+  const getStageName = (stageId: string | null) => {
+    if (!stageId) return null;
+    return stages?.find(s => s.id === stageId)?.name;
+  };
+
+  const getStageColor = (stageId: string | null) => {
+    if (!stageId) return null;
+    return stages?.find(s => s.id === stageId)?.color;
+  };
+
+  // Group tasks by stage
+  const groupedTasks = tasks?.reduce((acc, task) => {
+    const stageId = task.stage_id || 'uncategorized';
+    if (!acc[stageId]) acc[stageId] = [];
+    acc[stageId].push(task);
+    return acc;
+  }, {} as Record<string, typeof tasks>) || {};
+
+  const sortedStageIds = [
+    ...(stages?.map(s => s.id) || []),
+    ...(groupedTasks['uncategorized']?.length ? ['uncategorized'] : [])
+  ];
+
   if (!organizationId) return null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5" />
-          Workflow Templates
+          <Settings2 className="h-5 w-5" />
+          Workflow Settings
         </CardTitle>
         <CardDescription>
-          Configure onboarding and offboarding checklists for new and departing employees
+          Configure workflows, stages, tasks, and triggers for onboarding and offboarding
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="onboarding" className="gap-2">
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as any)}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="templates" className="gap-2">
               <UserPlus className="h-4 w-4" />
-              Onboarding
+              Templates & Tasks
             </TabsTrigger>
-            <TabsTrigger value="offboarding" className="gap-2">
-              <UserMinus className="h-4 w-4" />
-              Offboarding
+            <TabsTrigger value="stages" className="gap-2">
+              <Layers className="h-4 w-4" />
+              Stages
+            </TabsTrigger>
+            <TabsTrigger value="triggers" className="gap-2">
+              <Zap className="h-4 w-4" />
+              Triggers
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="space-y-4">
-            <div className="flex items-center justify-between">
+          {/* Templates & Tasks Tab */}
+          <TabsContent value="templates" className="space-y-4">
+            <Tabs value={workflowType} onValueChange={(v) => setWorkflowType(v as any)}>
+              <TabsList>
+                <TabsTrigger value="onboarding" className="gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Onboarding
+                </TabsTrigger>
+                <TabsTrigger value="offboarding" className="gap-2">
+                  <UserMinus className="h-4 w-4" />
+                  Offboarding
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="flex items-center justify-between mt-4">
               <div>
-                <h3 className="font-medium">{activeTab === 'onboarding' ? 'Onboarding' : 'Offboarding'} Tasks</h3>
+                <h3 className="font-medium">{workflowType === 'onboarding' ? 'Onboarding' : 'Offboarding'} Tasks</h3>
                 <p className="text-sm text-muted-foreground">
-                  {activeTab === 'onboarding' 
+                  {workflowType === 'onboarding' 
                     ? 'Tasks assigned when a new hire joins' 
                     : 'Tasks assigned when an employee departs'}
                 </p>
@@ -158,54 +215,85 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                 No tasks configured yet. Add your first task to get started.
               </div>
             ) : (
-              <div className="space-y-2">
-                {tasks?.map((task, index) => (
-                  <div 
-                    key={task.id} 
-                    className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
-                  >
-                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{task.title}</span>
-                        {task.is_required && (
-                          <Badge variant="secondary" className="text-xs">Required</Badge>
-                        )}
+              <div className="space-y-4">
+                {sortedStageIds.map(stageId => {
+                  const stageTasks = groupedTasks[stageId];
+                  if (!stageTasks?.length) return null;
+                  
+                  const stageName = stageId === 'uncategorized' ? 'Uncategorized' : getStageName(stageId);
+                  const stageColor = stageId === 'uncategorized' ? '#9CA3AF' : getStageColor(stageId);
+                  
+                  return (
+                    <div key={stageId} className="space-y-2">
+                      <div className="flex items-center gap-2 py-1">
+                        <div 
+                          className="w-2.5 h-2.5 rounded-full" 
+                          style={{ backgroundColor: stageColor || '#6366F1' }}
+                        />
+                        <span className="text-sm font-medium text-muted-foreground">{stageName}</span>
+                        <span className="text-xs text-muted-foreground">({stageTasks.length})</span>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {TASK_CATEGORIES.find(c => c.value === task.category)?.label}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          Assigned to: {ASSIGNEE_TYPES.find(a => a.value === task.assignee_type)?.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Due: {task.due_days_offset === 0 ? 'Same day' : 
-                                task.due_days_offset > 0 ? `+${task.due_days_offset} days` : 
-                                `${task.due_days_offset} days`}
-                        </span>
-                      </div>
+                      
+                      {stageTasks.map((task) => (
+                        <div 
+                          key={task.id} 
+                          className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 ml-4"
+                        >
+                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{task.title}</span>
+                              {task.is_required && (
+                                <Badge variant="secondary" className="text-xs">Required</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {TASK_CATEGORIES.find(c => c.value === task.category)?.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Assigned to: {ASSIGNEE_TYPES.find(a => a.value === task.assignee_type)?.label}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Due: {task.due_days_offset === 0 ? 'Same day' : 
+                                      task.due_days_offset > 0 ? `+${task.due_days_offset} days` : 
+                                      `${task.due_days_offset} days`}
+                              </span>
+                            </div>
+                          </div>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8"
+                            onClick={() => setEditingTask(task)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-8 w-8"
-                      onClick={() => setEditingTask(task)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+          </TabsContent>
+
+          {/* Stages Tab */}
+          <TabsContent value="stages">
+            <WorkflowStageSettings organizationId={organizationId} />
+          </TabsContent>
+
+          {/* Triggers Tab */}
+          <TabsContent value="triggers">
+            <WorkflowTriggerSettings organizationId={organizationId} />
           </TabsContent>
         </Tabs>
 
@@ -215,7 +303,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
             <DialogHeader>
               <DialogTitle>Add Task</DialogTitle>
               <DialogDescription>
-                Add a new task to the {activeTab} template
+                Add a new task to the {workflowType} template
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -237,6 +325,26 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label>Stage</Label>
+                  <Select value={newTask.stage_id} onValueChange={(v) => setNewTask({ ...newTask, stage_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="(No Stage)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Stage</SelectItem>
+                      {stages?.map(stage => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: stage.color || '#6366F1' }}
+                            />
+                            {stage.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>Category</Label>
                   <Select value={newTask.category} onValueChange={(v) => setNewTask({ ...newTask, category: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -247,6 +355,8 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Assign To</Label>
                   <Select value={newTask.assignee_type} onValueChange={(v) => setNewTask({ ...newTask, assignee_type: v })}>
@@ -258,8 +368,6 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Due Days Offset</Label>
                   <Input 
@@ -268,19 +376,19 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                     onChange={(e) => setNewTask({ ...newTask, due_days_offset: parseInt(e.target.value) || 0 })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {activeTab === 'onboarding' ? 'Days after join date' : 'Days before last day (use negative)'}
+                    {workflowType === 'onboarding' ? 'Days after join date' : 'Days before last day (use negative)'}
                   </p>
                 </div>
-                <div className="space-y-2 flex items-center gap-2 pt-6">
-                  <input 
-                    type="checkbox" 
-                    id="is_required"
-                    checked={newTask.is_required}
-                    onChange={(e) => setNewTask({ ...newTask, is_required: e.target.checked })}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="is_required">Required task</Label>
-                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="is_required"
+                  checked={newTask.is_required}
+                  onChange={(e) => setNewTask({ ...newTask, is_required: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="is_required">Required task</Label>
               </div>
             </div>
             <DialogFooter>
@@ -314,6 +422,26 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label>Stage</Label>
+                    <Select value={editingTask.stage_id || ''} onValueChange={(v) => setEditingTask({ ...editingTask, stage_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="(No Stage)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No Stage</SelectItem>
+                        {stages?.map(stage => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-2 h-2 rounded-full" 
+                                style={{ backgroundColor: stage.color || '#6366F1' }}
+                              />
+                              {stage.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Category</Label>
                     <Select value={editingTask.category} onValueChange={(v) => setEditingTask({ ...editingTask, category: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -324,6 +452,8 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Assign To</Label>
                     <Select value={editingTask.assignee_type} onValueChange={(v) => setEditingTask({ ...editingTask, assignee_type: v })}>
@@ -335,8 +465,6 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Due Days Offset</Label>
                     <Input 
@@ -345,16 +473,16 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
                       onChange={(e) => setEditingTask({ ...editingTask, due_days_offset: parseInt(e.target.value) || 0 })}
                     />
                   </div>
-                  <div className="space-y-2 flex items-center gap-2 pt-6">
-                    <input 
-                      type="checkbox" 
-                      id="edit_is_required"
-                      checked={editingTask.is_required}
-                      onChange={(e) => setEditingTask({ ...editingTask, is_required: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="edit_is_required">Required task</Label>
-                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="edit_is_required"
+                    checked={editingTask.is_required}
+                    onChange={(e) => setEditingTask({ ...editingTask, is_required: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="edit_is_required">Required task</Label>
                 </div>
               </div>
             )}
