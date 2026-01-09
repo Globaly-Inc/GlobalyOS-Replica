@@ -270,8 +270,8 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
             </Popover>
           </div>
 
-          {/* Workflow Selection (if employee has multiple) */}
-          {selectedEmployeeId && employeeWorkflows.length > 1 && (
+          {/* Workflow Selection */}
+          {selectedEmployeeId && (
             <div className="space-y-2">
               <Label>Workflow *</Label>
               <Select value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
@@ -290,12 +290,16 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
           )}
 
           {/* Stage Selection */}
-          {selectedWorkflowId && (
+          {selectedEmployeeId && (
             <div className="space-y-2">
               <Label>Stage *</Label>
-              <Select value={selectedStageId} onValueChange={setSelectedStageId}>
+              <Select 
+                value={selectedStageId} 
+                onValueChange={setSelectedStageId}
+                disabled={!selectedWorkflowId}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select stage" />
+                  <SelectValue placeholder={selectedWorkflowId ? "Select stage" : "Select workflow first"} />
                 </SelectTrigger>
                 <SelectContent>
                   {stages.map((stage) => (
