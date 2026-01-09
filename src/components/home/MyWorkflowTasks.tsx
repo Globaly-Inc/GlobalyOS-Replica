@@ -89,7 +89,7 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              My Workflow Tasks
+              My Tasks
               <Badge variant="secondary" className="text-xs">{pendingTasks.length}</Badge>
             </CardTitle>
           </div>
