@@ -30,6 +30,8 @@ import {
   UserCheck,
   Clock,
   CheckCircle2,
+  Circle,
+  CircleDashed,
   SkipForward,
   Pencil,
   X,
@@ -201,6 +203,21 @@ export function TaskDetailSheet({
       setSelectedStageId("");
     }
   }, [task]);
+
+  // Helper function to render status indicator icon
+  const getStatusIcon = (status: WorkflowTaskStatus) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />;
+      case 'in_progress':
+        return <Circle className="h-5 w-5 text-blue-500 fill-blue-500 flex-shrink-0" />;
+      case 'skipped':
+        return <CircleDashed className="h-5 w-5 text-amber-500 flex-shrink-0" />;
+      case 'pending':
+      default:
+        return <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+    }
+  };
 
   // Fetch workflow details to get type, current stage, and employee info
   const { data: workflowData } = useQuery({
@@ -651,6 +668,7 @@ export function TaskDetailSheet({
             <DialogHeader className="px-6 py-4 border-b">
               {isEditingTitle ? (
                 <div className="flex items-center gap-2">
+                  {getStatusIcon(task.status as WorkflowTaskStatus)}
                   <Input 
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
@@ -662,7 +680,7 @@ export function TaskDetailSheet({
                       }
                     }}
                     autoFocus
-                    className="text-xl font-semibold h-auto py-1"
+                    className="text-xl font-semibold h-auto py-1 flex-1"
                   />
                   <Button 
                     size="icon" 
@@ -694,6 +712,7 @@ export function TaskDetailSheet({
                   className="text-xl cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors"
                   onClick={() => setIsEditingTitle(true)}
                 >
+                  {getStatusIcon(task.status as WorkflowTaskStatus)}
                   {task.title}
                   <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
                 </DialogTitle>
