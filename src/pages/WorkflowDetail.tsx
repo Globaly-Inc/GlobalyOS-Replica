@@ -519,99 +519,134 @@ export default function WorkflowDetail() {
         </CardContent>
       </Card>
       
-      {/* Tasks by Stage */}
-      {tasksByStage.map(({ stage, tasks: stageTasks }, index) => {
-        const stageCompletedCount = stageTasks.filter(t => t.status === 'completed').length;
-        const isCompleted = stageTasks.length > 0 && stageCompletedCount === stageTasks.length;
-        const isCurrent = index === currentStageIndex || (currentStageIndex === -1 && index === 0);
-        const isPending = !isCompleted && !isCurrent;
-        const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
-        // Calculate next stage ID and name (null if this is the last stage)
-        const nextStageId = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.id : null;
-        const nextStageName = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.name : null;
+      {/* Two-column layout: Stages/Tasks (2/3) + Activity Log (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Stages & Tasks */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Tasks by Stage */}
+          {tasksByStage.map(({ stage, tasks: stageTasks }, index) => {
+            const stageCompletedCount = stageTasks.filter(t => t.status === 'completed').length;
+            const isCompleted = stageTasks.length > 0 && stageCompletedCount === stageTasks.length;
+            const isCurrent = index === currentStageIndex || (currentStageIndex === -1 && index === 0);
+            const isPending = !isCompleted && !isCurrent;
+            const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
+            // Calculate next stage ID and name (null if this is the last stage)
+            const nextStageId = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.id : null;
+            const nextStageName = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.name : null;
 
-        return (
-          <Card 
-            key={stage.id}
-            className={cn(
-              "transition-all duration-200 border-l-4",
-              isCompleted && "border-l-green-500 bg-green-50/30 dark:bg-green-950/10",
-              isCurrent && "border-l-primary bg-primary/5 shadow-md",
-              isPending && "border-l-muted-foreground/30"
-            )}
-          >
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                {/* Stage status icon */}
-                {isCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-                ) : isCurrent ? (
-                  <div className="h-5 w-5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0 animate-pulse" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground/50 flex-shrink-0" />
+            return (
+              <Card 
+                key={stage.id}
+                className={cn(
+                  "transition-all duration-200 border-l-4",
+                  isCompleted && "border-l-green-500 bg-green-50/30 dark:bg-green-950/10",
+                  isCurrent && "border-l-primary bg-primary/5 shadow-md",
+                  isPending && "border-l-muted-foreground/30"
                 )}
-                
-                <span className={cn(
-                  isCompleted && "text-green-700 dark:text-green-400",
-                  isPending && "text-muted-foreground"
-                )}>
-                  {stage.name}
-                </span>
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    {/* Stage status icon */}
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : isCurrent ? (
+                      <div className="h-5 w-5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0 animate-pulse" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground/50 flex-shrink-0" />
+                    )}
+                    
+                    <span className={cn(
+                      isCompleted && "text-green-700 dark:text-green-400",
+                      isPending && "text-muted-foreground"
+                    )}>
+                      {stage.name}
+                    </span>
 
-                {/* Current Stage Badge */}
-                {isCurrent && isActive && (
-                  <Badge 
-                    variant="default" 
-                    className="bg-primary text-primary-foreground text-xs"
-                  >
-                    Current Stage
-                  </Badge>
-                )}
-                
-                <Badge 
-                  variant={isCompleted ? "default" : "secondary"} 
-                  className={cn(
-                    "ml-auto",
-                    isCompleted && "bg-green-600 hover:bg-green-600"
+                    {/* Current Stage Badge */}
+                    {isCurrent && isActive && (
+                      <Badge 
+                        variant="default" 
+                        className="bg-primary text-primary-foreground text-xs"
+                      >
+                        Current Stage
+                      </Badge>
+                    )}
+                    
+                    <Badge 
+                      variant={isCompleted ? "default" : "secondary"} 
+                      className={cn(
+                        "ml-auto",
+                        isCompleted && "bg-green-600 hover:bg-green-600"
+                      )}
+                    >
+                      {stageCompletedCount}/{stageTasks.length}
+                    </Badge>
+
+
+                    {/* Move Stage Button */}
+                    {isActive && isCurrent && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handleOpenMoveStageDialog(stage.id, stage.name, stageTasks, index)}
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Move Stage
+                      </Button>
+                    )}
+
+                    {/* Add Task Button */}
+                    {isActive && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handleOpenAddTaskDialog(stage.id, stage.name)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Task
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {stageTasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tasks in this stage</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {stageTasks.map((task) => (
+                        <TaskItem 
+                          key={task.id} 
+                          task={task} 
+                          onToggle={handleTaskToggle}
+                          onView={(task) => {
+                            setSelectedTaskForDetail(task);
+                            setTaskDetailOpen(true);
+                          }}
+                          onEdit={handleOpenEditDialog}
+                          onDelete={handleOpenDeleteDialog}
+                          disabled={!isActive}
+                          organizationId={workflow.organization_id}
+                        />
+                      ))}
+                    </div>
                   )}
-                >
-                  {stageCompletedCount}/{stageTasks.length}
-                </Badge>
-
-
-                {/* Move Stage Button */}
-                {isActive && isCurrent && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => handleOpenMoveStageDialog(stage.id, stage.name, stageTasks, index)}
-                  >
-                    <ChevronRight className="h-4 w-4 mr-1" />
-                    Move Stage
-                  </Button>
-                )}
-
-                {/* Add Task Button */}
-                {isActive && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => handleOpenAddTaskDialog(stage.id, stage.name)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Task
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {stageTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks in this stage</p>
-              ) : (
-                <div className="space-y-2">
-                  {stageTasks.map((task) => (
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          
+          {/* No stages fallback - show all tasks if no stages defined */}
+          {(!stages || stages.length === 0) && tasks && tasks.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Tasks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-3">
+                  {tasks.map((task) => (
                     <TaskItem 
                       key={task.id} 
                       task={task} 
@@ -627,74 +662,49 @@ export default function WorkflowDetail() {
                     />
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
-      
-      
-      {/* No stages fallback - show all tasks if no stages defined */}
-      {(!stages || stages.length === 0) && tasks && tasks.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 mb-3">
-              {tasks.map((task) => (
-                <TaskItem 
-                  key={task.id} 
-                  task={task} 
-                  onToggle={handleTaskToggle}
-                  onView={(task) => {
-                    setSelectedTaskForDetail(task);
-                    setTaskDetailOpen(true);
-                  }}
-                  onEdit={handleOpenEditDialog}
-                  onDelete={handleOpenDeleteDialog}
-                  disabled={!isActive}
-                  organizationId={workflow.organization_id}
-                />
-              ))}
-            </div>
-            
-            {/* Add Task Button */}
-            {isActive && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-muted-foreground hover:text-foreground border border-dashed hover:border-primary/50"
-                onClick={() => handleOpenAddTaskDialog(null, "Tasks")}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Task
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                
+                {/* Add Task Button */}
+                {isActive && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground hover:text-foreground border border-dashed hover:border-primary/50"
+                    onClick={() => handleOpenAddTaskDialog(null, "Tasks")}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Task
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* No tasks at all - show empty state with add button */}
-      {(!tasks || tasks.length === 0) && (!stages || stages.length === 0) && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">No tasks in this workflow yet</p>
-            {isActive && (
-              <Button
-                variant="outline"
-                onClick={() => handleOpenAddTaskDialog(null, "Tasks")}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Task
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          {/* No tasks at all - show empty state with add button */}
+          {(!tasks || tasks.length === 0) && (!stages || stages.length === 0) && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground mb-4">No tasks in this workflow yet</p>
+                {isActive && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenAddTaskDialog(null, "Tasks")}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Task
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-      {/* Activity Log */}
-      <WorkflowActivityLog workflowId={workflowId} />
+        {/* Right column - Activity Log */}
+        <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-4">
+            <WorkflowActivityLog workflowId={workflowId} />
+          </div>
+        </div>
+      </div>
 
       {/* Add Task Dialog */}
       <AddWorkflowTaskDialog
