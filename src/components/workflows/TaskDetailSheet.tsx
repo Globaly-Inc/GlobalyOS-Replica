@@ -67,6 +67,7 @@ import {
   useUpdateTaskChecklist,
   useDeleteTaskChecklist,
 } from "@/services/useWorkflows";
+import { useAutoSaveTaskField } from "@/services/useAutoSaveTaskField";
 
 interface TaskDetailSheetProps {
   open: boolean;
@@ -279,51 +280,8 @@ export function TaskDetailSheet({
   const updateChecklist = useUpdateTaskChecklist();
   const deleteChecklist = useDeleteTaskChecklist();
 
-  // Update task mutation
-  const updateTask = useMutation({
-    mutationFn: async (data: {
-      status: WorkflowTaskStatus;
-      description?: string | null;
-      category: WorkflowTaskCategory;
-      assigneeId?: string | null;
-      dueDate?: string | null;
-      isRequired: boolean;
-    }) => {
-      if (!task?.id || !currentEmployee) return;
-      
-      const updateData: Record<string, unknown> = {
-        description: data.description,
-        category: data.category,
-        assignee_id: data.assigneeId,
-        due_date: data.dueDate,
-        is_required: data.isRequired,
-        status: data.status,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (data.status === "completed") {
-        updateData.completed_by = currentEmployee.id;
-        updateData.completed_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from("employee_workflow_tasks")
-        .update(updateData)
-        .eq("id", task.id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
-      toast.success("Task updated");
-      onTaskUpdate?.();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update task");
-    },
-  });
+  // Auto-save mutation
+  const autoSave = useAutoSaveTaskField(employees);
 
   // Add comment mutation
   const addComment = useMutation({
@@ -368,15 +326,68 @@ export function TaskDetailSheet({
     },
   });
 
-  const handleSave = () => {
-    updateTask.mutate({
-      status,
-      description: description.trim() || null,
-      category,
-      assigneeId: assigneeId && assigneeId !== "__none__" ? assigneeId : null,
-      dueDate: dueDate?.toISOString() || null,
-      isRequired,
+  // Auto-save handlers
+  const handleAutoSave = (field: 'status' | 'description' | 'category' | 'assignee' | 'due_date' | 'is_required', oldValue: unknown, newValue: unknown) => {
+    if (!task?.id || !workflowData?.id) return;
+    autoSave.mutate({
+      taskId: task.id,
+      workflowId: workflowData.id,
+      organizationId,
+      employeeId: currentEmployee?.id,
+      field,
+      oldValue,
+      newValue,
     });
+  };
+
+  const handleStatusChange = (newStatus: WorkflowTaskStatus) => {
+    if (newStatus !== status) {
+      const oldStatus = status;
+      setStatus(newStatus);
+      handleAutoSave('status', oldStatus, newStatus);
+    }
+  };
+
+  const handleDescriptionBlur = () => {
+    const newDesc = description.trim() || null;
+    const oldDesc = task?.description || null;
+    if (newDesc !== oldDesc) {
+      handleAutoSave('description', oldDesc, newDesc);
+    }
+  };
+
+  const handleCategoryChange = (newCategory: WorkflowTaskCategory) => {
+    if (newCategory !== category) {
+      const oldCategory = category;
+      setCategory(newCategory);
+      handleAutoSave('category', oldCategory, newCategory);
+    }
+  };
+
+  const handleAssigneeChange = (newAssigneeId: string) => {
+    const actualNewId = newAssigneeId === "__none__" ? null : newAssigneeId;
+    const actualOldId = assigneeId === "__none__" ? null : (assigneeId || null);
+    if (actualNewId !== actualOldId) {
+      setAssigneeId(newAssigneeId);
+      handleAutoSave('assignee', actualOldId, actualNewId);
+    }
+  };
+
+  const handleDueDateChange = (newDate: Date | undefined) => {
+    const newDateStr = newDate?.toISOString() || null;
+    const oldDateStr = dueDate?.toISOString() || null;
+    setDueDate(newDate);
+    if (newDateStr !== oldDateStr) {
+      handleAutoSave('due_date', oldDateStr, newDateStr);
+    }
+  };
+
+  const handleIsRequiredChange = (checked: boolean) => {
+    if (checked !== isRequired) {
+      const oldValue = isRequired;
+      setIsRequired(checked);
+      handleAutoSave('is_required', oldValue, checked);
+    }
   };
 
   const handleSaveTitle = () => {
@@ -607,6 +618,7 @@ export function TaskDetailSheet({
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleDescriptionBlur}
                     placeholder="Task description..."
                     rows={4}
                   />
@@ -673,7 +685,7 @@ export function TaskDetailSheet({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Status</Label>
-                    <Select value={status} onValueChange={(v) => setStatus(v as WorkflowTaskStatus)}>
+                    <Select value={status} onValueChange={(v) => handleStatusChange(v as WorkflowTaskStatus)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -695,7 +707,7 @@ export function TaskDetailSheet({
 
                   <div className="space-y-2">
                     <Label>Category</Label>
-                    <Select value={category} onValueChange={(v) => setCategory(v as WorkflowTaskCategory)}>
+                    <Select value={category} onValueChange={(v) => handleCategoryChange(v as WorkflowTaskCategory)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -714,7 +726,7 @@ export function TaskDetailSheet({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Assignee</Label>
-                    <Select value={assigneeId || "__none__"} onValueChange={setAssigneeId}>
+                    <Select value={assigneeId || "__none__"} onValueChange={handleAssigneeChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select assignee" />
                       </SelectTrigger>
@@ -756,7 +768,7 @@ export function TaskDetailSheet({
                         <Calendar
                           mode="single"
                           selected={dueDate}
-                          onSelect={setDueDate}
+                          onSelect={handleDueDateChange}
                           initialFocus
                         />
                       </PopoverContent>
@@ -769,7 +781,7 @@ export function TaskDetailSheet({
                   <Checkbox
                     id="detail-isRequired"
                     checked={isRequired}
-                    onCheckedChange={(checked) => setIsRequired(!!checked)}
+                    onCheckedChange={(checked) => handleIsRequiredChange(!!checked)}
                   />
                   <Label htmlFor="detail-isRequired" className="text-sm font-normal cursor-pointer">
                     This task is required
@@ -1091,17 +1103,6 @@ export function TaskDetailSheet({
             </div>
           </ScrollArea>
 
-            {/* Save button */}
-            <div className="px-6 py-4 border-t">
-              <Button 
-                onClick={handleSave} 
-                disabled={updateTask.isPending}
-                className="w-full"
-              >
-                {updateTask.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Save Changes
-              </Button>
-            </div>
           </div>
 
           {/* Right panel - Activity (1/3) */}
