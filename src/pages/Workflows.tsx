@@ -83,16 +83,16 @@ export default function Workflows() {
           subtitle="Track onboarding and offboarding progress across your organization"
         />
         <div className="flex items-center gap-2">
-          <Button onClick={() => setShowStartDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Start Workflow
-          </Button>
-          <OrgLink to="/settings">
+          <OrgLink to="/settings/workflows">
             <Button variant="outline" size="sm">
               <Settings className="h-4 w-4 mr-2" />
               Configure
             </Button>
           </OrgLink>
+          <Button onClick={() => setShowStartDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Start Workflow
+          </Button>
         </div>
       </div>
 
