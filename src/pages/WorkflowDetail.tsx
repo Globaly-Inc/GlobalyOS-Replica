@@ -15,11 +15,22 @@ import {
   CheckCircle2, 
   Calendar, 
   Circle,
-  Plus
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEmployeeWorkflowTasks, useUpdateWorkflowTask, useWorkflowDetailRealtime, useAddWorkflowTask } from "@/services/useWorkflows";
+import { 
+  useEmployeeWorkflowTasks, 
+  useUpdateWorkflowTask, 
+  useWorkflowDetailRealtime, 
+  useAddWorkflowTask,
+  useEditWorkflowTask,
+  useDeleteEmployeeWorkflowTask,
+  useCompleteStage
+} from "@/services/useWorkflows";
 import { format, differenceInDays } from "date-fns";
 import type { WorkflowType, WorkflowStatus, WorkflowTaskCategory } from "@/types/workflow";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -27,6 +38,24 @@ import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { AddWorkflowTaskDialog } from "@/components/workflows/AddWorkflowTaskDialog";
+import { EditWorkflowTaskDialog } from "@/components/workflows/EditWorkflowTaskDialog";
+import { CompleteStageDialog } from "@/components/workflows/CompleteStageDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function WorkflowDetail() {
   const { orgCode, workflowId } = useParams<{ orgCode: string; workflowId: string }>();
@@ -34,9 +63,22 @@ export default function WorkflowDetail() {
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode: navOrgCode } = useOrgNavigation();
   
+  // Add task dialog state
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const [selectedStageName, setSelectedStageName] = useState<string>("Other Tasks");
+  
+  // Edit task dialog state
+  const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<any>(null);
+  
+  // Delete task dialog state
+  const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  
+  // Complete stage dialog state
+  const [completeStageDialogOpen, setCompleteStageDialogOpen] = useState(false);
+  const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[] } | null>(null);
   
   // Enable realtime updates
   useWorkflowDetailRealtime(workflowId);
@@ -88,8 +130,28 @@ export default function WorkflowDetail() {
     enabled: !!workflow?.template_id,
   });
   
+  // Get current employee ID for completing tasks
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["current-employee-for-workflow"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      return data;
+    },
+  });
+  
   const updateTask = useUpdateWorkflowTask();
   const addTask = useAddWorkflowTask();
+  const editTask = useEditWorkflowTask();
+  const deleteTask = useDeleteEmployeeWorkflowTask();
+  const completeStage = useCompleteStage();
   
   const handleTaskToggle = (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
@@ -126,6 +188,68 @@ export default function WorkflowDetail() {
     }, {
       onSuccess: () => {
         setAddTaskDialogOpen(false);
+      }
+    });
+  };
+
+  const handleOpenEditDialog = (task: any) => {
+    setTaskToEdit(task);
+    setEditTaskDialogOpen(true);
+  };
+
+  const handleEditTask = (data: {
+    taskId: string;
+    title: string;
+    description?: string | null;
+    category: WorkflowTaskCategory;
+    assigneeId?: string | null;
+    dueDate?: string | null;
+    isRequired: boolean;
+  }) => {
+    editTask.mutate(data, {
+      onSuccess: () => {
+        setEditTaskDialogOpen(false);
+        setTaskToEdit(null);
+      }
+    });
+  };
+
+  const handleOpenDeleteDialog = (taskId: string) => {
+    setTaskToDelete(taskId);
+    setDeleteTaskDialogOpen(true);
+  };
+
+  const handleDeleteTask = () => {
+    if (!taskToDelete) return;
+    
+    deleteTask.mutate(taskToDelete, {
+      onSuccess: () => {
+        setDeleteTaskDialogOpen(false);
+        setTaskToDelete(null);
+      }
+    });
+  };
+
+  const handleOpenCompleteStageDialog = (stageId: string, stageName: string, stageTasks: any[]) => {
+    const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
+    if (pendingTasks.length === 0) return;
+    
+    setStageToComplete({ id: stageId, name: stageName, tasks: pendingTasks });
+    setCompleteStageDialogOpen(true);
+  };
+
+  const handleCompleteStage = () => {
+    if (!stageToComplete || !currentEmployee) return;
+    
+    const pendingTaskIds = stageToComplete.tasks.map(t => t.id);
+    
+    completeStage.mutate({
+      taskIds: pendingTaskIds,
+      completedBy: currentEmployee.id,
+    }, {
+      onSuccess: () => {
+        setCompleteStageDialogOpen(false);
+        setStageToComplete(null);
       }
     });
   };
@@ -280,6 +404,7 @@ export default function WorkflowDetail() {
         const isCompleted = stageTasks.length > 0 && stageCompletedCount === stageTasks.length;
         const isCurrent = index === currentStageIndex || (currentStageIndex === -1 && index === 0);
         const isPending = !isCompleted && !isCurrent;
+        const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
 
         return (
           <Card 
@@ -318,6 +443,19 @@ export default function WorkflowDetail() {
                 >
                   {stageCompletedCount}/{stageTasks.length}
                 </Badge>
+
+                {/* Complete Stage Button */}
+                {isActive && !isCompleted && pendingTasks.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
+                    onClick={() => handleOpenCompleteStageDialog(stage.id, stage.name, stageTasks)}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    Complete Stage
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -330,6 +468,8 @@ export default function WorkflowDetail() {
                       key={task.id} 
                       task={task} 
                       onToggle={handleTaskToggle}
+                      onEdit={handleOpenEditDialog}
+                      onDelete={handleOpenDeleteDialog}
                       disabled={!isActive}
                     />
                   ))}
@@ -373,6 +513,8 @@ export default function WorkflowDetail() {
                     key={task.id} 
                     task={task} 
                     onToggle={handleTaskToggle}
+                    onEdit={handleOpenEditDialog}
+                    onDelete={handleOpenDeleteDialog}
                     disabled={!isActive}
                   />
                 ))}
@@ -408,6 +550,8 @@ export default function WorkflowDetail() {
                   key={task.id} 
                   task={task} 
                   onToggle={handleTaskToggle}
+                  onEdit={handleOpenEditDialog}
+                  onDelete={handleOpenDeleteDialog}
                   disabled={!isActive}
                 />
               ))}
@@ -457,6 +601,50 @@ export default function WorkflowDetail() {
         stageName={selectedStageName}
         organizationId={workflow.organization_id}
       />
+
+      {/* Edit Task Dialog */}
+      <EditWorkflowTaskDialog
+        open={editTaskDialogOpen}
+        onOpenChange={setEditTaskDialogOpen}
+        onSubmit={handleEditTask}
+        isLoading={editTask.isPending}
+        organizationId={workflow.organization_id}
+        task={taskToEdit}
+      />
+
+      {/* Delete Task Confirmation */}
+      <AlertDialog open={deleteTaskDialogOpen} onOpenChange={setDeleteTaskDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The task will be permanently removed from this workflow.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTask.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTask}
+              disabled={deleteTask.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Complete Stage Dialog */}
+      {stageToComplete && (
+        <CompleteStageDialog
+          open={completeStageDialogOpen}
+          onOpenChange={setCompleteStageDialogOpen}
+          onConfirm={handleCompleteStage}
+          stageName={stageToComplete.name}
+          pendingTasks={stageToComplete.tasks}
+          isLoading={completeStage.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -488,18 +676,22 @@ function StatusBadge({ status }: { status: WorkflowStatus }) {
 
 function TaskItem({ 
   task, 
-  onToggle, 
+  onToggle,
+  onEdit,
+  onDelete,
   disabled 
 }: { 
   task: any; 
   onToggle: (id: string, status: string) => void;
+  onEdit: (task: any) => void;
+  onDelete: (taskId: string) => void;
   disabled?: boolean;
 }) {
   const isCompleted = task.status === 'completed';
   
   return (
     <div className={cn(
-      "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+      "flex items-center gap-3 p-3 rounded-lg border transition-colors group",
       isCompleted ? "bg-muted/50 border-muted" : "bg-background hover:bg-muted/30"
     )}>
       <Checkbox 
@@ -538,6 +730,34 @@ function TaskItem({
             {task.assignee.profiles?.full_name?.charAt(0)}
           </AvatarFallback>
         </Avatar>
+      )}
+      
+      {/* Actions dropdown */}
+      {!disabled && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(task)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Task
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => onDelete(task.id)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Task
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );
