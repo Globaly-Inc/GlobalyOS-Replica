@@ -118,9 +118,6 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-sm">{task.title}</span>
-                    {task.is_required && (
-                      <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">Required</Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     {getStatusBadge(task.status)}
