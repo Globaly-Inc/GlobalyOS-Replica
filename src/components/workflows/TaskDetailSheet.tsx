@@ -885,24 +885,37 @@ export function TaskDetailSheet({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Status</Label>
-                    <Select value={status} onValueChange={(v) => handleStatusChange(v as WorkflowTaskStatus)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((opt) => {
-                          const Icon = opt.icon;
-                          return (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                {opt.label}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select value={status} onValueChange={(v) => handleStatusChange(v as WorkflowTaskStatus)}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((opt) => {
+                            const Icon = opt.icon;
+                            return (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <div className="flex items-center gap-2">
+                                  <Icon className="h-4 w-4" />
+                                  {opt.label}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      {status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={() => handleStatusChange('completed')}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Complete
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
