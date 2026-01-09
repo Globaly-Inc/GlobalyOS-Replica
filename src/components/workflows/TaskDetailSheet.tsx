@@ -202,7 +202,7 @@ export function TaskDetailSheet({
     }
   }, [task]);
 
-  // Fetch workflow details to get type and current stage
+  // Fetch workflow details to get type, current stage, and employee info
   const { data: workflowData } = useQuery({
     queryKey: ["workflow-for-task", task?.workflow_id || propWorkflowId],
     queryFn: async () => {
@@ -211,7 +211,14 @@ export function TaskDetailSheet({
       
       const { data, error } = await supabase
         .from("employee_workflows")
-        .select("id, type, current_stage_id, template_id, status, employee_id")
+        .select(`
+          id, type, current_stage_id, template_id, status, employee_id,
+          employees!employee_workflows_employee_id_fkey(
+            id,
+            position,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
         .eq("id", workflowId)
         .single();
       
@@ -724,6 +731,24 @@ export function TaskDetailSheet({
                   <div className="space-y-2">
                     <Label>Workflow & Stage</Label>
                     <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                      {/* Employee Profile */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={workflowData.employees?.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {workflowData.employees?.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">
+                            {workflowData.employees?.profiles?.full_name || 'Unknown Employee'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {workflowData.employees?.position || 'No position'}
+                          </span>
+                        </div>
+                      </div>
+
                       {isChangingWorkflow ? (
                         <>
                           {/* Change workflow inline edit mode */}
@@ -807,9 +832,9 @@ export function TaskDetailSheet({
                         </>
                       ) : (
                         <>
-                          {/* Default view */}
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
+                          {/* Default view: badges + task required inline */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge variant={workflowData.type === 'onboarding' ? "default" : "secondary"}>
                                 {workflowData.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
                               </Badge>
@@ -825,62 +850,33 @@ export function TaskDetailSheet({
                                   {currentStage.name}
                                 </Badge>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2">
                               {workflowData.status !== 'completed' && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
+                                  className="h-7 px-2"
                                   onClick={handleStartChangeWorkflow}
                                 >
-                                  <RefreshCcw className="h-4 w-4 mr-1" />
+                                  <RefreshCcw className="h-3.5 w-3.5 mr-1" />
                                   Change
                                 </Button>
                               )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleMoveToPreviousStage}
-                                disabled={!previousStage || moveToNextStage.isPending || workflowData.status === 'completed'}
-                              >
-                                <ChevronLeft className="h-4 w-4 mr-1" />
-                                Previous
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={isLastStage ? "default" : "outline"}
-                                onClick={handleMoveToNextStage}
-                                disabled={moveToNextStage.isPending || workflowData.status === 'completed'}
-                              >
-                                {moveToNextStage.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                ) : isLastStage ? (
-                                  <>
-                                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                                    Complete
-                                  </>
-                                ) : (
-                                  <>
-                                    Next
-                                    <ChevronRight className="h-4 w-4 ml-1" />
-                                  </>
-                                )}
-                              </Button>
+                            </div>
+                            
+                            {/* Task required - inline */}
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="detail-isRequired"
+                                checked={isRequired}
+                                onCheckedChange={(checked) => handleIsRequiredChange(!!checked)}
+                              />
+                              <Label htmlFor="detail-isRequired" className="text-xs cursor-pointer whitespace-nowrap">
+                                Task required
+                              </Label>
                             </div>
                           </div>
                         </>
                       )}
-                    </div>
-                    {/* Is Required */}
-                    <div className="flex items-center space-x-2 pt-1">
-                      <Checkbox
-                        id="detail-isRequired"
-                        checked={isRequired}
-                        onCheckedChange={(checked) => handleIsRequiredChange(!!checked)}
-                      />
-                      <Label htmlFor="detail-isRequired" className="text-sm font-normal cursor-pointer">
-                        This task is required
-                      </Label>
                     </div>
                   </div>
                 )}
