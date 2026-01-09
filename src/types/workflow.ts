@@ -256,3 +256,15 @@ export interface WorkflowActivityLog {
     };
   } | null;
 }
+
+// Task Checklists
+export interface TaskChecklist {
+  id: string;
+  task_id: string;
+  organization_id: string;
+  title: string;
+  is_completed: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

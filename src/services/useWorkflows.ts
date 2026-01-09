@@ -1247,6 +1247,128 @@ export const useUpdateTaskTitle = () => {
   });
 };
 
+// Task Checklists
+export const useTaskChecklists = (taskId: string | null) => {
+  return useQuery({
+    queryKey: ["workflow-task-checklists", taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+      
+      const { data, error } = await supabase
+        .from("workflow_task_checklists")
+        .select("*")
+        .eq("task_id", taskId)
+        .order("sort_order");
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useAddTaskChecklist = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      organizationId,
+      title,
+    }: {
+      taskId: string;
+      organizationId: string;
+      title: string;
+    }) => {
+      // Get max sort_order for this task
+      const { data: existingItems } = await supabase
+        .from("workflow_task_checklists")
+        .select("sort_order")
+        .eq("task_id", taskId)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+
+      const nextSortOrder = (existingItems?.[0]?.sort_order ?? 0) + 1;
+
+      const { error } = await supabase
+        .from("workflow_task_checklists")
+        .insert({
+          task_id: taskId,
+          organization_id: organizationId,
+          title,
+          sort_order: nextSortOrder,
+        });
+      
+      if (error) throw error;
+      return { taskId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to add checklist item");
+    },
+  });
+};
+
+export const useUpdateTaskChecklist = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      checklistId,
+      taskId,
+      updates,
+    }: {
+      checklistId: string;
+      taskId: string;
+      updates: { title?: string; is_completed?: boolean };
+    }) => {
+      const { error } = await supabase
+        .from("workflow_task_checklists")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", checklistId);
+      
+      if (error) throw error;
+      return { taskId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update checklist item");
+    },
+  });
+};
+
+export const useDeleteTaskChecklist = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      checklistId,
+      taskId,
+    }: {
+      checklistId: string;
+      taskId: string;
+    }) => {
+      const { error } = await supabase
+        .from("workflow_task_checklists")
+        .delete()
+        .eq("id", checklistId);
+      
+      if (error) throw error;
+      return { taskId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete checklist item");
+    },
+  });
+};
+
 // Proration Preview
 export const useProrationPreview = (employeeId: string | undefined, lastWorkingDay: string | undefined) => {
   const { currentOrg } = useOrganization();

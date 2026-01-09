@@ -21,6 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { 
   CalendarIcon, 
   Loader2, 
@@ -38,13 +39,19 @@ import {
   Trash2,
   FileText,
   Image as ImageIcon,
-  Upload
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Plus,
+  Square,
+  CheckSquare
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { WorkflowTaskCategory, WorkflowTaskStatus } from "@/types/workflow";
+import type { WorkflowTaskCategory, WorkflowTaskStatus, WorkflowStage } from "@/types/workflow";
 import MentionAutocomplete from "@/components/chat/MentionAutocomplete";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
@@ -53,6 +60,12 @@ import {
   useUploadTaskAttachment,
   useDeleteTaskAttachment,
   useUpdateTaskTitle,
+  useWorkflowStages,
+  useMoveToNextStage,
+  useTaskChecklists,
+  useAddTaskChecklist,
+  useUpdateTaskChecklist,
+  useDeleteTaskChecklist,
 } from "@/services/useWorkflows";
 
 interface TaskDetailSheetProps {
@@ -156,6 +169,12 @@ export function TaskDetailSheet({
   // Attachment state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Checklist state
+  const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [isAddingChecklist, setIsAddingChecklist] = useState(false);
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
+  const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
 
   // Populate form when task changes
   useEffect(() => {
@@ -168,8 +187,45 @@ export function TaskDetailSheet({
       setIsRequired(task.is_required ?? true);
       setEditedTitle(task.title);
       setIsEditingTitle(false);
+      setIsAddingChecklist(false);
+      setNewChecklistTitle("");
     }
   }, [task]);
+
+  // Fetch workflow details to get type and current stage
+  const { data: workflowData } = useQuery({
+    queryKey: ["workflow-for-task", task?.workflow_id || propWorkflowId],
+    queryFn: async () => {
+      const workflowId = task?.workflow_id || propWorkflowId;
+      if (!workflowId) return null;
+      
+      const { data, error } = await supabase
+        .from("employee_workflows")
+        .select("id, type, current_stage_id, template_id, status")
+        .eq("id", workflowId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!(task?.workflow_id || propWorkflowId) && open,
+  });
+
+  // Fetch stages for the workflow template
+  const templateId = workflowData?.template_id || propTemplateId;
+  const { data: stages = [] } = useWorkflowStages(templateId);
+
+  // Find current stage and navigation info
+  const currentStage = stages.find((s: WorkflowStage) => s.id === task?.stage_id);
+  const currentStageIndex = stages.findIndex((s: WorkflowStage) => s.id === task?.stage_id);
+  const previousStage = currentStageIndex > 0 ? stages[currentStageIndex - 1] : null;
+  const nextStage = currentStageIndex >= 0 && currentStageIndex < stages.length - 1 
+    ? stages[currentStageIndex + 1] 
+    : null;
+  const isLastStage = currentStageIndex === stages.length - 1;
+
+  // Stage navigation mutation
+  const moveToNextStage = useMoveToNextStage();
 
   // Fetch employees for assignee selection
   const { data: employees = [] } = useQuery({
@@ -216,6 +272,12 @@ export function TaskDetailSheet({
   const uploadAttachment = useUploadTaskAttachment();
   const deleteAttachment = useDeleteTaskAttachment();
   const updateTitle = useUpdateTaskTitle();
+
+  // Fetch checklists
+  const { data: checklists = [], isLoading: checklistsLoading } = useTaskChecklists(task?.id || null);
+  const addChecklist = useAddTaskChecklist();
+  const updateChecklist = useUpdateTaskChecklist();
+  const deleteChecklist = useDeleteTaskChecklist();
 
   // Update task mutation
   const updateTask = useMutation({
@@ -375,6 +437,60 @@ export function TaskDetailSheet({
     handleFileSelect(e.dataTransfer.files);
   };
 
+  // Checklist handlers
+  const handleAddChecklist = () => {
+    if (!newChecklistTitle.trim() || !task?.id) return;
+    addChecklist.mutate({
+      taskId: task.id,
+      organizationId,
+      title: newChecklistTitle.trim(),
+    });
+    setNewChecklistTitle("");
+    setIsAddingChecklist(false);
+  };
+
+  const handleToggleChecklist = (checklistId: string, currentStatus: boolean) => {
+    if (!task?.id) return;
+    updateChecklist.mutate({
+      checklistId,
+      taskId: task.id,
+      updates: { is_completed: !currentStatus },
+    });
+  };
+
+  const handleUpdateChecklistTitle = () => {
+    if (!editingChecklistId || !editingChecklistTitle.trim() || !task?.id) return;
+    updateChecklist.mutate({
+      checklistId: editingChecklistId,
+      taskId: task.id,
+      updates: { title: editingChecklistTitle.trim() },
+    });
+    setEditingChecklistId(null);
+    setEditingChecklistTitle("");
+  };
+
+  const handleDeleteChecklist = (checklistId: string) => {
+    if (!task?.id) return;
+    deleteChecklist.mutate({ checklistId, taskId: task.id });
+  };
+
+  // Stage navigation handlers
+  const handleMoveToPreviousStage = () => {
+    if (!previousStage || !workflowData?.id) return;
+    moveToNextStage.mutate({
+      workflowId: workflowData.id,
+      nextStageId: previousStage.id,
+    });
+  };
+
+  const handleMoveToNextStage = () => {
+    if (!workflowData?.id) return;
+    moveToNextStage.mutate({
+      workflowId: workflowData.id,
+      nextStageId: nextStage?.id || null,
+    });
+  };
+
   // Mention handling
   const handleCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -419,6 +535,8 @@ export function TaskDetailSheet({
   const closeMention = useCallback(() => {
     setMentionState({ isOpen: false, searchText: '', triggerIndex: -1 });
   }, []);
+
+  const completedChecklistCount = checklists.filter((c: any) => c.is_completed).length;
 
   if (!task) return null;
 
@@ -482,6 +600,74 @@ export function TaskDetailSheet({
             
             <ScrollArea className="flex-1 px-6 py-4">
               <div className="space-y-5">
+                {/* Description - Moved to top */}
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Task description..."
+                    rows={4}
+                  />
+                </div>
+
+                {/* Workflow & Stage Row */}
+                {workflowData && (
+                  <div className="space-y-2">
+                    <Label>Workflow & Stage</Label>
+                    <div className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={workflowData.type === 'onboarding' ? "default" : "secondary"}>
+                          {workflowData.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
+                        </Badge>
+                        {currentStage && (
+                          <Badge 
+                            variant="outline"
+                            style={{ 
+                              borderColor: currentStage.color || undefined,
+                              color: currentStage.color || undefined,
+                              backgroundColor: currentStage.color ? `${currentStage.color}15` : undefined
+                            }}
+                          >
+                            {currentStage.name}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleMoveToPreviousStage}
+                          disabled={!previousStage || moveToNextStage.isPending || workflowData.status === 'completed'}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={isLastStage ? "default" : "outline"}
+                          onClick={handleMoveToNextStage}
+                          disabled={moveToNextStage.isPending || workflowData.status === 'completed'}
+                        >
+                          {moveToNextStage.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : isLastStage ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Complete
+                            </>
+                          ) : (
+                            <>
+                              Next
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Row 1: Status + Category */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -587,17 +773,6 @@ export function TaskDetailSheet({
                   <Label htmlFor="detail-isRequired" className="text-sm font-normal cursor-pointer">
                     This task is required
                   </Label>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Task description..."
-                    rows={4}
-                  />
                 </div>
 
                 {/* Attachments Section */}
@@ -736,6 +911,170 @@ export function TaskDetailSheet({
                       </>
                     )}
                   </div>
+                </div>
+
+                {/* Checklists Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <ListChecks className="h-4 w-4" />
+                      Checklists {checklists.length > 0 && `(${completedChecklistCount}/${checklists.length})`}
+                    </Label>
+                    {!isAddingChecklist && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsAddingChecklist(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {checklistsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* Existing checklist items */}
+                      {checklists.map((item: any) => (
+                        <div 
+                          key={item.id} 
+                          className="flex items-center gap-3 p-2 bg-muted/30 rounded-md group"
+                        >
+                          <button
+                            onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                            className="flex-shrink-0"
+                          >
+                            {item.is_completed ? (
+                              <CheckSquare className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Square className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
+                            )}
+                          </button>
+                          
+                          {editingChecklistId === item.id ? (
+                            <div className="flex-1 flex items-center gap-2">
+                              <Input
+                                value={editingChecklistTitle}
+                                onChange={(e) => setEditingChecklistTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleUpdateChecklistTitle();
+                                  if (e.key === 'Escape') {
+                                    setEditingChecklistId(null);
+                                    setEditingChecklistTitle("");
+                                  }
+                                }}
+                                autoFocus
+                                className="h-7 text-sm"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={handleUpdateChecklistTitle}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setEditingChecklistId(null);
+                                  setEditingChecklistTitle("");
+                                }}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span 
+                                className={cn(
+                                  "flex-1 text-sm cursor-pointer hover:text-primary transition-colors",
+                                  item.is_completed && "line-through text-muted-foreground"
+                                )}
+                                onClick={() => {
+                                  setEditingChecklistId(item.id);
+                                  setEditingChecklistTitle(item.title);
+                                }}
+                              >
+                                {item.title}
+                              </span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteChecklist(item.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add new checklist input */}
+                      {isAddingChecklist && (
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                          <Square className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          <Input
+                            value={newChecklistTitle}
+                            onChange={(e) => setNewChecklistTitle(e.target.value)}
+                            placeholder="Add checklist item..."
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleAddChecklist();
+                              if (e.key === 'Escape') {
+                                setIsAddingChecklist(false);
+                                setNewChecklistTitle("");
+                              }
+                            }}
+                            autoFocus
+                            className="h-7 text-sm flex-1"
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={handleAddChecklist}
+                            disabled={!newChecklistTitle.trim() || addChecklist.isPending}
+                          >
+                            {addChecklist.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setIsAddingChecklist(false);
+                              setNewChecklistTitle("");
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Empty state */}
+                      {checklists.length === 0 && !isAddingChecklist && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsAddingChecklist(true)}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Checklist Item
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Task metadata */}
