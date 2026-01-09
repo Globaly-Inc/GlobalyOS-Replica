@@ -16,6 +16,14 @@ import {
   Pencil,
   Zap,
   History,
+  MessageSquare,
+  ListPlus,
+  CheckSquare,
+  Square,
+  ListMinus,
+  Paperclip,
+  FileX,
+  Slash,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -34,7 +42,15 @@ const activityConfig: Record<
   task_added: { icon: Plus, color: "text-green-600", label: "Task Added" },
   task_deleted: { icon: Trash2, color: "text-red-600", label: "Task Deleted" },
   task_updated: { icon: Pencil, color: "text-blue-600", label: "Task Updated" },
+  task_skipped: { icon: Slash, color: "text-amber-600", label: "Task Skipped" },
   auto_advanced: { icon: Zap, color: "text-purple-600", label: "Auto Advanced" },
+  comment_added: { icon: MessageSquare, color: "text-blue-600", label: "Comment Added" },
+  checklist_added: { icon: ListPlus, color: "text-green-600", label: "Checklist Added" },
+  checklist_completed: { icon: CheckSquare, color: "text-green-600", label: "Checklist Completed" },
+  checklist_uncompleted: { icon: Square, color: "text-orange-600", label: "Checklist Reopened" },
+  checklist_deleted: { icon: ListMinus, color: "text-red-600", label: "Checklist Deleted" },
+  attachment_added: { icon: Paperclip, color: "text-blue-600", label: "Attachment Added" },
+  attachment_deleted: { icon: FileX, color: "text-red-600", label: "Attachment Deleted" },
 };
 
 interface WorkflowActivityLogProps {

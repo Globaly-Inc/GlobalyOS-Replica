@@ -234,7 +234,15 @@ export type WorkflowActivityType =
   | 'task_added'
   | 'task_deleted'
   | 'task_updated'
-  | 'auto_advanced';
+  | 'task_skipped'
+  | 'auto_advanced'
+  | 'comment_added'
+  | 'checklist_added'
+  | 'checklist_completed'
+  | 'checklist_uncompleted'
+  | 'checklist_deleted'
+  | 'attachment_added'
+  | 'attachment_deleted';
 
 export interface WorkflowActivityLog {
   id: string;

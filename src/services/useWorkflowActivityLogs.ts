@@ -33,6 +33,33 @@ export const useWorkflowActivityLogs = (workflowId: string | undefined) => {
   });
 };
 
+// Task-specific activity logs (chronological order from oldest to newest)
+export const useTaskActivityLogs = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ["task-activity-logs", taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+
+      const { data, error } = await supabase
+        .from("workflow_activity_logs")
+        .select(`
+          *,
+          employee:employees(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq("entity_id", taskId)
+        .eq("entity_type", "task")
+        .order("created_at", { ascending: true }); // Chronological order
+
+      if (error) throw error;
+      return data as WorkflowActivityLog[];
+    },
+    enabled: !!taskId,
+  });
+};
+
 export const useLogWorkflowActivity = () => {
   const queryClient = useQueryClient();
 
