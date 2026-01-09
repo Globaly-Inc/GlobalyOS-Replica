@@ -47,6 +47,12 @@ export interface Employee {
   // Position tracking
   position_effective_date: string | null;
   
+  // Offboarding
+  last_working_day: string | null;
+  contract_end_date: string | null;
+  resignation_submitted_at: string | null;
+  is_new_hire: boolean;
+  
   created_at: string;
   updated_at: string;
 }
