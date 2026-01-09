@@ -200,7 +200,9 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
       assignee_type: newTask.assignee_type,
       due_days_offset: newTask.due_days_offset,
       is_required: newTask.is_required,
-      stage_id: newTask.stage_id || addTaskToStageId || null,
+      stage_id: (newTask.stage_id && newTask.stage_id !== '__none__') 
+        ? newTask.stage_id 
+        : (addTaskToStageId || null),
       sort_order: (tasks?.length || 0) + 1,
     });
 
@@ -211,7 +213,7 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
       setAddTaskOpen(false);
       setAddTaskToStageId(null);
       setNewTask({ title: '', description: '', category: 'documentation', assignee_type: 'hr', due_days_offset: 0, is_required: true, stage_id: '' });
-      queryClient.invalidateQueries({ queryKey: ['workflow-template-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-template-tasks', templateId] });
     }
   };
 
@@ -625,10 +627,13 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Stage</Label>
-                <Select value={newTask.stage_id} onValueChange={(v) => setNewTask({ ...newTask, stage_id: v })}>
+                <Select 
+                  value={newTask.stage_id || '__none__'} 
+                  onValueChange={(v) => setNewTask({ ...newTask, stage_id: v === '__none__' ? '' : v })}
+                >
                   <SelectTrigger><SelectValue placeholder="(No Stage)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Stage</SelectItem>
+                    <SelectItem value="__none__">No Stage</SelectItem>
                     {stages.map(stage => (
                       <SelectItem key={stage.id} value={stage.id}>
                         <div className="flex items-center gap-2">
@@ -717,10 +722,13 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Stage</Label>
-                  <Select value={editingTask.stage_id || ''} onValueChange={(v) => setEditingTask({ ...editingTask, stage_id: v })}>
+                  <Select 
+                    value={editingTask.stage_id || '__none__'} 
+                    onValueChange={(v) => setEditingTask({ ...editingTask, stage_id: v === '__none__' ? '' : v })}
+                  >
                     <SelectTrigger><SelectValue placeholder="(No Stage)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Stage</SelectItem>
+                      <SelectItem value="__none__">No Stage</SelectItem>
                       {stages.map(stage => (
                         <SelectItem key={stage.id} value={stage.id}>
                           <div className="flex items-center gap-2">
