@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Clock, AlertCircle } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { MiniStageIndicator } from "./MiniStageIndicator";
+import type { WorkflowStage } from "@/types/workflow";
 
 export interface WorkflowKanbanCardData {
   id: string;
   type: string;
   status: string;
   target_date: string;
+  current_stage_id?: string | null;
   employee: {
     id: string;
     position: string | null;
@@ -28,10 +31,11 @@ export interface WorkflowKanbanCardData {
 
 interface WorkflowKanbanCardProps {
   workflow: WorkflowKanbanCardData;
+  stages?: WorkflowStage[];
   onClick?: () => void;
 }
 
-export function WorkflowKanbanCard({ workflow, onClick }: WorkflowKanbanCardProps) {
+export function WorkflowKanbanCard({ workflow, stages, onClick }: WorkflowKanbanCardProps) {
   const completedTasks = workflow.tasks?.filter(t => t.status === "completed").length ?? 0;
   const totalTasks = workflow.tasks?.length ?? 0;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -78,6 +82,17 @@ export function WorkflowKanbanCard({ workflow, onClick }: WorkflowKanbanCardProp
           </p>
         </div>
       </div>
+
+      {/* Stage Progress Indicator */}
+      {stages && stages.length > 0 && (
+        <div className="mt-2.5">
+          <MiniStageIndicator
+            stages={stages}
+            currentStageId={workflow.current_stage_id || null}
+            isCompleted={workflow.status === "completed"}
+          />
+        </div>
+      )}
 
       {/* Progress */}
       <div className="mt-3 space-y-1.5">
