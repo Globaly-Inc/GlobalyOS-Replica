@@ -69,6 +69,8 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
+const Workflows = lazy(() => import('./pages/Workflows'));
+const WorkflowDetail = lazy(() => import('./pages/WorkflowDetail'));
 const ManageOffices = lazy(() => import('./pages/ManageOffices'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -175,6 +177,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
                   <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><Payroll /></OrgProtectedRoute>} />
+                  <Route path="workflows" element={<OrgProtectedRoute><Workflows /></OrgProtectedRoute>} />
+                  <Route path="workflows/:workflowId" element={<OrgProtectedRoute><WorkflowDetail /></OrgProtectedRoute>} />
                   <Route path="my-payslips" element={<OrgProtectedRoute><MyPayslips /></OrgProtectedRoute>} />
                 </Route>
                 
