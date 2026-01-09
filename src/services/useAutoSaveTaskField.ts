@@ -5,7 +5,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { WorkflowTaskStatus } from "@/types/workflow";
+import type { WorkflowTaskStatus, WorkflowActivityType } from "@/types/workflow";
 import type { Json } from "@/integrations/supabase/types";
 
 type FieldType = 'status' | 'description' | 'category' | 'assignee' | 'due_date' | 'is_required' | 'workflow_stage';
@@ -72,6 +72,24 @@ function getFieldDescription(
   }
 }
 
+// Determine the specific action type based on field and value changes
+function getActionType(
+  field: FieldType,
+  oldValue: unknown,
+  newValue: unknown
+): WorkflowActivityType {
+  if (field === 'status') {
+    if (newValue === 'completed') return 'task_completed';
+    if (newValue === 'skipped') return 'task_skipped';
+    if (oldValue === 'completed' || oldValue === 'skipped') return 'task_uncompleted';
+    return 'task_updated';
+  }
+  if (field === 'assignee') {
+    return 'task_assigned';
+  }
+  return 'task_updated';
+}
+
 export const useAutoSaveTaskField = (employees?: any[]) => {
   const queryClient = useQueryClient();
 
@@ -104,12 +122,13 @@ export const useAutoSaveTaskField = (employees?: any[]) => {
 
         // Log activity
         const description = getFieldDescription(field, oldValue, newValue, employees);
+        const actionType = getActionType(field, oldValue, newValue);
         
         await supabase.from("workflow_activity_logs").insert([{
           workflow_id: newChange.workflowId,
           organization_id: organizationId,
           employee_id: employeeId || null,
-          action_type: 'task_updated',
+          action_type: actionType,
           entity_type: 'task',
           entity_id: taskId,
           old_value: oldValue as Json,
@@ -151,12 +170,13 @@ export const useAutoSaveTaskField = (employees?: any[]) => {
 
       // Log activity
       const description = getFieldDescription(field, oldValue, newValue, employees);
+      const actionType = getActionType(field, oldValue, newValue);
       
       await supabase.from("workflow_activity_logs").insert([{
         workflow_id: workflowId,
         organization_id: organizationId,
         employee_id: employeeId || null,
-        action_type: 'task_updated',
+        action_type: actionType,
         entity_type: 'task',
         entity_id: taskId,
         old_value: { [field]: oldValue } as Json,

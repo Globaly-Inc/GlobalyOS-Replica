@@ -1153,11 +1153,12 @@ export const useUploadTaskAttachment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ taskId, file, organizationId, employeeId }: {
+    mutationFn: async ({ taskId, file, organizationId, employeeId, workflowId }: {
       taskId: string;
       file: File;
       organizationId: string;
       employeeId: string;
+      workflowId?: string;
     }) => {
       const fileExt = file.name.split('.').pop();
       const filePath = `${organizationId}/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
@@ -1181,9 +1182,26 @@ export const useUploadTaskAttachment = () => {
         });
       
       if (dbError) throw dbError;
+
+      // Log activity if workflowId is provided
+      if (workflowId) {
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId,
+          action_type: 'attachment_added',
+          entity_type: 'task',
+          entity_id: taskId,
+          new_value: { file_name: file.name, file_size: file.size },
+          description: `Uploaded attachment "${file.name}"`,
+        }]);
+      }
+
+      return { taskId };
     },
-    onSuccess: (_, { taskId }) => {
-      queryClient.invalidateQueries({ queryKey: ["workflow-task-attachments", taskId] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-attachments", data.taskId] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
       toast.success("Attachment uploaded");
     },
     onError: (error: Error) => {
@@ -1196,10 +1214,14 @@ export const useDeleteTaskAttachment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ attachmentId, filePath, taskId }: {
+    mutationFn: async ({ attachmentId, filePath, taskId, fileName, workflowId, organizationId, employeeId }: {
       attachmentId: string;
       filePath: string;
       taskId: string;
+      fileName?: string;
+      workflowId?: string;
+      organizationId?: string;
+      employeeId?: string;
     }) => {
       await supabase.storage
         .from('workflow-task-attachments')
@@ -1211,11 +1233,26 @@ export const useDeleteTaskAttachment = () => {
         .eq('id', attachmentId);
       
       if (error) throw error;
+
+      // Log activity if workflowId is provided
+      if (workflowId && organizationId) {
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId || null,
+          action_type: 'attachment_deleted',
+          entity_type: 'task',
+          entity_id: taskId,
+          old_value: { file_name: fileName },
+          description: `Deleted attachment "${fileName || 'Unknown'}"`,
+        }]);
+      }
       
       return { taskId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-task-attachments", data.taskId] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
       toast.success("Attachment deleted");
     },
     onError: (error: Error) => {
@@ -1275,10 +1312,14 @@ export const useAddTaskChecklist = () => {
       taskId,
       organizationId,
       title,
+      workflowId,
+      employeeId,
     }: {
       taskId: string;
       organizationId: string;
       title: string;
+      workflowId?: string;
+      employeeId?: string;
     }) => {
       // Get max sort_order for this task
       const { data: existingItems } = await supabase
@@ -1300,10 +1341,26 @@ export const useAddTaskChecklist = () => {
         });
       
       if (error) throw error;
+
+      // Log activity
+      if (workflowId) {
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId || null,
+          action_type: 'checklist_added',
+          entity_type: 'task',
+          entity_id: taskId,
+          new_value: { title },
+          description: `Added checklist item "${title}"`,
+        }]);
+      }
+
       return { taskId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to add checklist item");
@@ -1319,10 +1376,20 @@ export const useUpdateTaskChecklist = () => {
       checklistId,
       taskId,
       updates,
+      title,
+      workflowId,
+      organizationId,
+      employeeId,
+      wasCompleted,
     }: {
       checklistId: string;
       taskId: string;
       updates: { title?: string; is_completed?: boolean };
+      title?: string;
+      workflowId?: string;
+      organizationId?: string;
+      employeeId?: string;
+      wasCompleted?: boolean;
     }) => {
       const { error } = await supabase
         .from("workflow_task_checklists")
@@ -1330,10 +1397,32 @@ export const useUpdateTaskChecklist = () => {
         .eq("id", checklistId);
       
       if (error) throw error;
+
+      // Log activity for completion changes
+      if (workflowId && organizationId && updates.is_completed !== undefined && updates.is_completed !== wasCompleted) {
+        const actionType = updates.is_completed ? 'checklist_completed' : 'checklist_uncompleted';
+        const description = updates.is_completed 
+          ? `Completed checklist item "${title || 'Unknown'}"` 
+          : `Reopened checklist item "${title || 'Unknown'}"`;
+        
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId || null,
+          action_type: actionType,
+          entity_type: 'task',
+          entity_id: taskId,
+          old_value: { is_completed: wasCompleted },
+          new_value: { is_completed: updates.is_completed, title },
+          description,
+        }]);
+      }
+
       return { taskId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update checklist item");
@@ -1348,9 +1437,17 @@ export const useDeleteTaskChecklist = () => {
     mutationFn: async ({
       checklistId,
       taskId,
+      title,
+      workflowId,
+      organizationId,
+      employeeId,
     }: {
       checklistId: string;
       taskId: string;
+      title?: string;
+      workflowId?: string;
+      organizationId?: string;
+      employeeId?: string;
     }) => {
       const { error } = await supabase
         .from("workflow_task_checklists")
@@ -1358,10 +1455,26 @@ export const useDeleteTaskChecklist = () => {
         .eq("id", checklistId);
       
       if (error) throw error;
+
+      // Log activity
+      if (workflowId && organizationId) {
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowId,
+          organization_id: organizationId,
+          employee_id: employeeId || null,
+          action_type: 'checklist_deleted',
+          entity_type: 'task',
+          entity_id: taskId,
+          old_value: { title },
+          description: `Deleted checklist item "${title || 'Unknown'}"`,
+        }]);
+      }
+
       return { taskId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workflow-task-checklists", data.taskId] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete checklist item");

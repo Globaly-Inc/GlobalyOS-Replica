@@ -71,6 +71,9 @@ import {
   useDeleteTaskChecklist,
 } from "@/services/useWorkflows";
 import { useAutoSaveTaskField } from "@/services/useAutoSaveTaskField";
+import { useTaskDetailRealtime } from "@/services/useTaskDetailRealtime";
+import { useTaskActivityLogs } from "@/services/useWorkflowActivityLogs";
+import type { WorkflowActivityType } from "@/types/workflow";
 
 interface TaskDetailSheetProps {
   open: boolean;
@@ -344,6 +347,12 @@ export function TaskDetailSheet({
   const updateChecklist = useUpdateTaskChecklist();
   const deleteChecklist = useDeleteTaskChecklist();
 
+  // Fetch task activity logs
+  const { data: activityLogs = [], isLoading: activityLoading } = useTaskActivityLogs(task?.id);
+
+  // Enable real-time subscriptions for this task
+  useTaskDetailRealtime(task?.id);
+
   // Auto-save mutation
   const autoSave = useAutoSaveTaskField(employees);
 
@@ -378,9 +387,24 @@ export function TaskDetailSheet({
         
         if (mentionError) console.error("Failed to insert mentions:", mentionError);
       }
+
+      // Log comment activity
+      if (workflowData?.id) {
+        await supabase.from("workflow_activity_logs").insert([{
+          workflow_id: workflowData.id,
+          organization_id: organizationId,
+          employee_id: currentEmployee.id,
+          action_type: 'comment_added',
+          entity_type: 'task',
+          entity_id: task.id,
+          new_value: { content },
+          description: 'Added a comment',
+        }]);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflow-task-comments", task?.id] });
+      queryClient.invalidateQueries({ queryKey: ["task-activity-logs", task?.id] });
       setComment("");
       setMentionIds([]);
       toast.success("Comment added");
@@ -524,14 +548,23 @@ export function TaskDetailSheet({
         file,
         organizationId,
         employeeId: currentEmployee.id,
+        workflowId: workflowData?.id,
       });
     }
     setSelectedFiles([]);
   };
 
-  const handleDeleteAttachment = (attachmentId: string, filePath: string) => {
+  const handleDeleteAttachment = (attachmentId: string, filePath: string, fileName?: string) => {
     if (!task?.id) return;
-    deleteAttachment.mutate({ attachmentId, filePath, taskId: task.id });
+    deleteAttachment.mutate({ 
+      attachmentId, 
+      filePath, 
+      taskId: task.id,
+      fileName,
+      workflowId: workflowData?.id,
+      organizationId,
+      employeeId: currentEmployee?.id,
+    });
   };
 
   const getAttachmentUrl = (filePath: string) => {
@@ -563,17 +596,24 @@ export function TaskDetailSheet({
       taskId: task.id,
       organizationId,
       title: newChecklistTitle.trim(),
+      workflowId: workflowData?.id,
+      employeeId: currentEmployee?.id,
     });
     setNewChecklistTitle("");
     setIsAddingChecklist(false);
   };
 
-  const handleToggleChecklist = (checklistId: string, currentStatus: boolean) => {
+  const handleToggleChecklist = (checklistId: string, currentStatus: boolean, title?: string) => {
     if (!task?.id) return;
     updateChecklist.mutate({
       checklistId,
       taskId: task.id,
       updates: { is_completed: !currentStatus },
+      title,
+      workflowId: workflowData?.id,
+      organizationId,
+      employeeId: currentEmployee?.id,
+      wasCompleted: currentStatus,
     });
   };
 
@@ -588,9 +628,16 @@ export function TaskDetailSheet({
     setEditingChecklistTitle("");
   };
 
-  const handleDeleteChecklist = (checklistId: string) => {
+  const handleDeleteChecklist = (checklistId: string, title?: string) => {
     if (!task?.id) return;
-    deleteChecklist.mutate({ checklistId, taskId: task.id });
+    deleteChecklist.mutate({ 
+      checklistId, 
+      taskId: task.id,
+      title,
+      workflowId: workflowData?.id,
+      organizationId,
+      employeeId: currentEmployee?.id,
+    });
   };
 
   // Stage navigation handlers
@@ -1063,7 +1110,7 @@ export function TaskDetailSheet({
                                     size="icon"
                                     variant="ghost"
                                     className="h-7 w-7 text-destructive hover:text-destructive"
-                                    onClick={() => handleDeleteAttachment(att.id, att.file_path)}
+                                    onClick={() => handleDeleteAttachment(att.id, att.file_path, att.file_name)}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
@@ -1176,7 +1223,7 @@ export function TaskDetailSheet({
                           className="flex items-center gap-3 p-2 bg-muted/30 rounded-md group"
                         >
                           <button
-                            onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                            onClick={() => handleToggleChecklist(item.id, item.is_completed, item.title)}
                             className="flex-shrink-0"
                           >
                             {item.is_completed ? (
@@ -1239,7 +1286,7 @@ export function TaskDetailSheet({
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteChecklist(item.id)}
+                                onClick={() => handleDeleteChecklist(item.id, item.title)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -1326,89 +1373,102 @@ export function TaskDetailSheet({
             
             <ScrollArea className="flex-1 px-4 py-4">
               <div className="space-y-4">
-                {/* Task created activity */}
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <UserCheck className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">
-                      <span className="font-medium">Task created</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {task.title}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Attachment activity */}
-                {attachments.map((att: any) => (
-                  <div key={`att-${att.id}`} className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <Paperclip className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-medium">{att.employee?.profiles?.full_name}</span>
-                        {" "}uploaded
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {att.file_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(att.created_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Completed activity */}
-                {task.completed_at && task.completed_by_employee && (
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-medium">{task.completed_by_employee.profiles?.full_name}</span>
-                        {" "}completed this task
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(task.completed_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Comments */}
-                {commentsLoading ? (
+                {activityLoading ? (
                   <div className="text-center py-4">
                     <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
                   </div>
+                ) : activityLogs.length === 0 && comments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No activity recorded yet.
+                  </p>
                 ) : (
-                  comments.map((c: any) => (
-                    <div key={c.id} className="flex gap-3">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={c.employee?.profiles?.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {c.employee?.profiles?.full_name?.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {c.employee?.profiles?.full_name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
-                          </span>
+                  <>
+                    {/* Activity logs */}
+                    {activityLogs.map((log: any) => {
+                      const activityConfig: Record<WorkflowActivityType, { icon: React.ElementType; color: string; label: string }> = {
+                        workflow_started: { icon: UserCheck, color: "text-green-600", label: "Started" },
+                        stage_changed: { icon: RefreshCcw, color: "text-blue-600", label: "Stage Changed" },
+                        workflow_completed: { icon: CheckCircle2, color: "text-green-600", label: "Completed" },
+                        task_completed: { icon: CheckCircle2, color: "text-green-600", label: "Completed" },
+                        task_uncompleted: { icon: RefreshCcw, color: "text-orange-600", label: "Reopened" },
+                        task_assigned: { icon: UserCheck, color: "text-teal-600", label: "Assigned" },
+                        task_added: { icon: Plus, color: "text-green-600", label: "Added" },
+                        task_deleted: { icon: Trash2, color: "text-red-600", label: "Deleted" },
+                        task_updated: { icon: Pencil, color: "text-blue-600", label: "Updated" },
+                        task_skipped: { icon: SkipForward, color: "text-amber-600", label: "Skipped" },
+                        auto_advanced: { icon: RefreshCcw, color: "text-purple-600", label: "Auto Advanced" },
+                        comment_added: { icon: MessageSquare, color: "text-blue-600", label: "Comment" },
+                        checklist_added: { icon: ListChecks, color: "text-green-600", label: "Checklist Added" },
+                        checklist_completed: { icon: CheckSquare, color: "text-green-600", label: "Checklist Done" },
+                        checklist_uncompleted: { icon: Square, color: "text-orange-600", label: "Checklist Reopened" },
+                        checklist_deleted: { icon: Trash2, color: "text-red-600", label: "Checklist Deleted" },
+                        attachment_added: { icon: Paperclip, color: "text-blue-600", label: "Attachment" },
+                        attachment_deleted: { icon: Trash2, color: "text-red-600", label: "Attachment Deleted" },
+                      };
+                      
+                      const config = activityConfig[log.action_type as WorkflowActivityType] || {
+                        icon: Clock,
+                        color: "text-muted-foreground",
+                        label: log.action_type,
+                      };
+                      const Icon = config.icon;
+                      const employeeProfile = (log.employee as any)?.profiles;
+
+                      return (
+                        <div key={log.id} className="flex gap-3">
+                          <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center", 
+                            config.color.includes("green") ? "bg-green-500/10" :
+                            config.color.includes("blue") ? "bg-blue-500/10" :
+                            config.color.includes("orange") ? "bg-orange-500/10" :
+                            config.color.includes("red") ? "bg-red-500/10" :
+                            config.color.includes("teal") ? "bg-teal-500/10" :
+                            config.color.includes("amber") ? "bg-amber-500/10" :
+                            config.color.includes("purple") ? "bg-purple-500/10" :
+                            "bg-muted"
+                          )}>
+                            <Icon className={cn("h-4 w-4", config.color)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm">
+                              <span className="font-medium">{employeeProfile?.full_name || 'System'}</span>
+                              {" "}
+                              <span className="text-muted-foreground">{log.description}</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">
-                          {c.content}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                      );
+                    })}
+
+                    {/* Comments */}
+                    {commentsLoading ? null : (
+                      comments.map((c: any) => (
+                        <div key={c.id} className="flex gap-3">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarImage src={c.employee?.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {c.employee?.profiles?.full_name?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {c.employee?.profiles?.full_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap break-words">
+                              {c.content}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
                 )}
               </div>
             </ScrollArea>
