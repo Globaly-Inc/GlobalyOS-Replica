@@ -21,7 +21,8 @@ import {
   Eye,
   CalendarIcon,
   User,
-  Search
+  Search,
+  ChevronRight
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +33,8 @@ import {
   useAddWorkflowTask,
   useEditWorkflowTask,
   useDeleteEmployeeWorkflowTask,
-  useCompleteStage
+  useCompleteStage,
+  useMoveToNextStage
 } from "@/services/useWorkflows";
 import { format, differenceInDays } from "date-fns";
 import type { WorkflowType, WorkflowStatus, WorkflowTaskCategory } from "@/types/workflow";
@@ -43,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { AddWorkflowTaskDialog } from "@/components/workflows/AddWorkflowTaskDialog";
 import { EditWorkflowTaskDialog } from "@/components/workflows/EditWorkflowTaskDialog";
 import { CompleteStageDialog } from "@/components/workflows/CompleteStageDialog";
+import { MoveToNextStageDialog } from "@/components/workflows/MoveToNextStageDialog";
 import { TaskDetailSheet } from "@/components/workflows/TaskDetailSheet";
 import {
   AlertDialog,
@@ -92,6 +95,10 @@ export default function WorkflowDetail() {
   // Complete stage dialog state
   const [completeStageDialogOpen, setCompleteStageDialogOpen] = useState(false);
   const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[]; nextStageId: string | null } | null>(null);
+  
+  // Move to next stage dialog state
+  const [moveStageDialogOpen, setMoveStageDialogOpen] = useState(false);
+  const [stageToMove, setStageToMove] = useState<{ id: string; name: string; nextStageId: string | null; nextStageName: string | null; pendingCount: number } | null>(null);
   
   // Task detail sheet state
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
@@ -169,6 +176,7 @@ export default function WorkflowDetail() {
   const editTask = useEditWorkflowTask();
   const deleteTask = useDeleteEmployeeWorkflowTask();
   const completeStage = useCompleteStage();
+  const moveToNextStage = useMoveToNextStage();
   
   const handleTaskToggle = (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
@@ -277,6 +285,26 @@ export default function WorkflowDetail() {
       onSuccess: () => {
         setCompleteStageDialogOpen(false);
         setStageToComplete(null);
+      }
+    });
+  };
+
+  const handleOpenMoveStageDialog = (stageId: string, stageName: string, stageTasks: any[], nextStageId: string | null, nextStageName: string | null) => {
+    const pendingCount = stageTasks.filter(t => t.status !== 'completed').length;
+    setStageToMove({ id: stageId, name: stageName, nextStageId, nextStageName, pendingCount });
+    setMoveStageDialogOpen(true);
+  };
+
+  const handleMoveToNextStage = () => {
+    if (!stageToMove || !workflow) return;
+    
+    moveToNextStage.mutate({
+      workflowId: workflow.id,
+      nextStageId: stageToMove.nextStageId,
+    }, {
+      onSuccess: () => {
+        setMoveStageDialogOpen(false);
+        setStageToMove(null);
       }
     });
   };
@@ -429,8 +457,9 @@ export default function WorkflowDetail() {
         const isCurrent = index === currentStageIndex || (currentStageIndex === -1 && index === 0);
         const isPending = !isCompleted && !isCurrent;
         const pendingTasks = stageTasks.filter(t => t.status !== 'completed');
-        // Calculate next stage ID (null if this is the last stage)
+        // Calculate next stage ID and name (null if this is the last stage)
         const nextStageId = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.id : null;
+        const nextStageName = index < tasksByStage.length - 1 ? tasksByStage[index + 1].stage.name : null;
 
         return (
           <Card 
@@ -481,7 +510,7 @@ export default function WorkflowDetail() {
                 </Badge>
 
                 {/* Complete Stage Button */}
-                {isActive && !isCompleted && pendingTasks.length > 0 && (
+                {isActive && isCurrent && !isCompleted && pendingTasks.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -490,6 +519,19 @@ export default function WorkflowDetail() {
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" />
                     {nextStageId ? "Complete Stage" : "Complete Workflow"}
+                  </Button>
+                )}
+
+                {/* Move to Next Stage Button (without completing tasks) */}
+                {isActive && isCurrent && (nextStageId || pendingTasks.length > 0) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => handleOpenMoveStageDialog(stage.id, stage.name, stageTasks, nextStageId, nextStageName)}
+                  >
+                    <ChevronRight className="h-4 w-4 mr-1" />
+                    {nextStageId ? "Move to Next Stage" : "Complete Workflow"}
                   </Button>
                 )}
 
@@ -656,6 +698,19 @@ export default function WorkflowDetail() {
               ? tasksByStage.find(s => s.stage.id === stageToComplete.nextStageId)?.stage.name
               : undefined
           }
+        />
+      )}
+
+      {/* Move to Next Stage Dialog */}
+      {stageToMove && (
+        <MoveToNextStageDialog
+          open={moveStageDialogOpen}
+          onOpenChange={setMoveStageDialogOpen}
+          onConfirm={handleMoveToNextStage}
+          stageName={stageToMove.name}
+          nextStageName={stageToMove.nextStageName}
+          pendingTaskCount={stageToMove.pendingCount}
+          isLoading={moveToNextStage.isPending}
         />
       )}
 

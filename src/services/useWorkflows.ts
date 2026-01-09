@@ -361,7 +361,7 @@ export const useUpdateWorkflowTemplateTask = () => {
   });
 };
 
-// Update workflow task
+// Update workflow task with optional auto-advance
 export const useUpdateWorkflowTask = () => {
   const queryClient = useQueryClient();
 
@@ -404,14 +404,149 @@ export const useUpdateWorkflowTask = () => {
         .eq("id", taskId);
       
       if (error) throw error;
+
+      // Check for auto-advance if task was completed
+      if (status === "completed") {
+        // Get task details including workflow and stage
+        const { data: task } = await supabase
+          .from("employee_workflow_tasks")
+          .select("workflow_id, stage_id")
+          .eq("id", taskId)
+          .single();
+
+        if (task?.workflow_id && task?.stage_id) {
+          // Get workflow with template auto_advance_stages setting
+          const { data: workflow } = await supabase
+            .from("employee_workflows")
+            .select(`
+              id,
+              current_stage_id,
+              template_id,
+              template:workflow_templates(auto_advance_stages)
+            `)
+            .eq("id", task.workflow_id)
+            .single();
+
+          const autoAdvance = (workflow?.template as any)?.auto_advance_stages;
+
+          // Only auto-advance if setting is enabled and task is in current stage
+          if (autoAdvance && workflow?.current_stage_id === task.stage_id) {
+            // Count remaining incomplete tasks in current stage
+            const { count } = await supabase
+              .from("employee_workflow_tasks")
+              .select("id", { count: "exact", head: true })
+              .eq("workflow_id", task.workflow_id)
+              .eq("stage_id", task.stage_id)
+              .neq("status", "completed");
+
+            if (count === 0) {
+              // All tasks complete - find next stage
+              const { data: stages } = await supabase
+                .from("workflow_stages")
+                .select("id, sort_order")
+                .eq("template_id", workflow.template_id!)
+                .order("sort_order");
+
+              const currentStageIdx = stages?.findIndex(s => s.id === workflow.current_stage_id) ?? -1;
+              const nextStage = stages?.[currentStageIdx + 1];
+
+              if (nextStage) {
+                // Move to next stage
+                await supabase
+                  .from("employee_workflows")
+                  .update({ current_stage_id: nextStage.id })
+                  .eq("id", workflow.id);
+                
+                return { autoAdvanced: true, nextStageName: "next stage" };
+              } else {
+                // Complete workflow
+                await supabase
+                  .from("employee_workflows")
+                  .update({ 
+                    current_stage_id: null,
+                    status: 'completed',
+                    completed_at: new Date().toISOString(),
+                  })
+                  .eq("id", workflow.id);
+                
+                return { autoAdvanced: true, workflowCompleted: true };
+              }
+            }
+          }
+        }
+      }
+
+      return { autoAdvanced: false };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["my-workflow-tasks"] });
-      toast.success("Task updated");
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      
+      if (result?.autoAdvanced) {
+        if (result.workflowCompleted) {
+          toast.success("All tasks complete - workflow completed!");
+        } else {
+          toast.success("All tasks complete - moved to next stage");
+        }
+      } else {
+        toast.success("Task updated");
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update task");
+    },
+  });
+};
+
+// Move workflow to next stage without completing tasks
+export const useMoveToNextStage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      workflowId,
+      nextStageId,
+    }: {
+      workflowId: string;
+      nextStageId: string | null; // null = complete workflow
+    }) => {
+      if (nextStageId) {
+        // Move to next stage
+        const { error } = await supabase
+          .from("employee_workflows")
+          .update({ current_stage_id: nextStageId })
+          .eq("id", workflowId);
+        
+        if (error) throw error;
+      } else {
+        // Complete workflow
+        const { error } = await supabase
+          .from("employee_workflows")
+          .update({ 
+            current_stage_id: null,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", workflowId);
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      
+      if (variables.nextStageId) {
+        toast.success("Moved to next stage");
+      } else {
+        toast.success("Workflow completed");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to move to next stage");
     },
   });
 };

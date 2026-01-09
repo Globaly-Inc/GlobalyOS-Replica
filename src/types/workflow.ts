@@ -52,6 +52,7 @@ export interface WorkflowTemplate {
   type: WorkflowType;
   description: string | null;
   is_default: boolean;
+  auto_advance_stages: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
