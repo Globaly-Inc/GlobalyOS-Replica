@@ -620,6 +620,7 @@ export function TaskDetailSheet({
                     onBlur={handleDescriptionBlur}
                     placeholder="Task description..."
                     rows={description ? 4 : 1}
+                    className={description ? "" : "min-h-[38px] resize-none"}
                   />
                 </div>
 
