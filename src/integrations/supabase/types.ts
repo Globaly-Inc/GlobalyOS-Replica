@@ -9616,6 +9616,54 @@ export type Database = {
           },
         ]
       }
+      workflow_task_checklists: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean
+          organization_id: string
+          sort_order: number
+          task_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          organization_id: string
+          sort_order?: number
+          task_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          organization_id?: string
+          sort_order?: number
+          task_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_checklists_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_checklists_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflow_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_task_comment_mentions: {
         Row: {
           comment_id: string
