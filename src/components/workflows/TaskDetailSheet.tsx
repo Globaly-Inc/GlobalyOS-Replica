@@ -1290,15 +1290,6 @@ export function TaskDetailSheet({
                   )}
                 </div>
 
-                {/* Task metadata */}
-                {task.completed_at && task.completed_by_employee && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      Completed by {task.completed_by_employee.profiles?.full_name} on{" "}
-                      {format(new Date(task.completed_at), "d MMM yyyy 'at' h:mm a")}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           </ScrollArea>
