@@ -619,7 +619,7 @@ export function TaskDetailSheet({
                     onChange={(e) => setDescription(e.target.value)}
                     onBlur={handleDescriptionBlur}
                     placeholder="Task description..."
-                    rows={4}
+                    rows={description ? 4 : 1}
                   />
                 </div>
 
