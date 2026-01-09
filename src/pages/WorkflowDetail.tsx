@@ -16,9 +16,9 @@ import {
   Calendar, 
   Circle,
   Plus,
-  MoreHorizontal,
   Pencil,
-  Trash2
+  Trash2,
+  Eye
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,12 +40,7 @@ import { cn } from "@/lib/utils";
 import { AddWorkflowTaskDialog } from "@/components/workflows/AddWorkflowTaskDialog";
 import { EditWorkflowTaskDialog } from "@/components/workflows/EditWorkflowTaskDialog";
 import { CompleteStageDialog } from "@/components/workflows/CompleteStageDialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { TaskDetailSheet } from "@/components/workflows/TaskDetailSheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +74,10 @@ export default function WorkflowDetail() {
   // Complete stage dialog state
   const [completeStageDialogOpen, setCompleteStageDialogOpen] = useState(false);
   const [stageToComplete, setStageToComplete] = useState<{ id: string; name: string; tasks: any[] } | null>(null);
+  
+  // Task detail sheet state
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<any>(null);
   
   // Enable realtime updates
   useWorkflowDetailRealtime(workflowId);
@@ -468,6 +467,10 @@ export default function WorkflowDetail() {
                       key={task.id} 
                       task={task} 
                       onToggle={handleTaskToggle}
+                      onView={(task) => {
+                        setSelectedTaskForDetail(task);
+                        setTaskDetailOpen(true);
+                      }}
                       onEdit={handleOpenEditDialog}
                       onDelete={handleOpenDeleteDialog}
                       disabled={!isActive}
@@ -513,6 +516,10 @@ export default function WorkflowDetail() {
                     key={task.id} 
                     task={task} 
                     onToggle={handleTaskToggle}
+                    onView={(task) => {
+                      setSelectedTaskForDetail(task);
+                      setTaskDetailOpen(true);
+                    }}
                     onEdit={handleOpenEditDialog}
                     onDelete={handleOpenDeleteDialog}
                     disabled={!isActive}
@@ -550,6 +557,10 @@ export default function WorkflowDetail() {
                   key={task.id} 
                   task={task} 
                   onToggle={handleTaskToggle}
+                  onView={(task) => {
+                    setSelectedTaskForDetail(task);
+                    setTaskDetailOpen(true);
+                  }}
                   onEdit={handleOpenEditDialog}
                   onDelete={handleOpenDeleteDialog}
                   disabled={!isActive}
@@ -645,6 +656,17 @@ export default function WorkflowDetail() {
           isLoading={completeStage.isPending}
         />
       )}
+
+      {/* Task Detail Sheet */}
+      <TaskDetailSheet
+        open={taskDetailOpen}
+        onOpenChange={setTaskDetailOpen}
+        task={selectedTaskForDetail}
+        organizationId={workflow.organization_id}
+        onTaskUpdate={() => {
+          setTaskDetailOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -677,12 +699,14 @@ function StatusBadge({ status }: { status: WorkflowStatus }) {
 function TaskItem({ 
   task, 
   onToggle,
+  onView,
   onEdit,
   onDelete,
   disabled 
 }: { 
   task: any; 
   onToggle: (id: string, status: string) => void;
+  onView: (task: any) => void;
   onEdit: (task: any) => void;
   onDelete: (taskId: string) => void;
   disabled?: boolean;
@@ -732,32 +756,37 @@ function TaskItem({
         </Avatar>
       )}
       
-      {/* Actions dropdown */}
+      {/* Inline action icons */}
       {!disabled && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(task)}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit Task
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onDelete(task.id)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Task
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-primary"
+            onClick={() => onView(task)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-primary"
+            onClick={() => onEdit(task)}
+            title="Edit Task"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(task.id)}
+            title="Delete Task"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       )}
     </div>
   );
