@@ -249,7 +249,7 @@ export const useMyWorkflowTasks = (employeeId?: string) => {
           *,
           workflow:employee_workflows!inner(
             id, type, target_date,
-            employee:employees!inner(
+            employee:employees!employee_workflows_employee_id_fkey!inner(
               id,
               profiles!inner(full_name, avatar_url)
             )
