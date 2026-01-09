@@ -575,34 +575,69 @@ export const useDeleteEmployeeWorkflowTask = () => {
   });
 };
 
-// Complete all tasks in a stage
+// Complete all tasks in a stage and advance workflow to next stage
 export const useCompleteStage = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
+      workflowId,
       taskIds,
       completedBy,
+      nextStageId,
     }: {
+      workflowId: string;
       taskIds: string[];
       completedBy: string;
+      nextStageId: string | null; // null means this is the final stage
     }) => {
-      const { error } = await supabase
-        .from("employee_workflow_tasks")
-        .update({
-          status: 'completed',
-          completed_by: completedBy,
-          completed_at: new Date().toISOString(),
-        })
-        .in("id", taskIds);
-      
-      if (error) throw error;
+      // 1. Complete all pending tasks in current stage
+      if (taskIds.length > 0) {
+        const { error: taskError } = await supabase
+          .from("employee_workflow_tasks")
+          .update({
+            status: 'completed',
+            completed_by: completedBy,
+            completed_at: new Date().toISOString(),
+          })
+          .in("id", taskIds);
+        
+        if (taskError) throw taskError;
+      }
+
+      // 2. Move workflow to next stage (or complete it)
+      if (nextStageId) {
+        // Move to next stage
+        const { error: workflowError } = await supabase
+          .from("employee_workflows")
+          .update({ current_stage_id: nextStageId })
+          .eq("id", workflowId);
+        
+        if (workflowError) throw workflowError;
+      } else {
+        // Final stage - complete the entire workflow
+        const { error: workflowError } = await supabase
+          .from("employee_workflows")
+          .update({ 
+            current_stage_id: null,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", workflowId);
+        
+        if (workflowError) throw workflowError;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
       queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
-      toast.success("Stage completed");
+      
+      if (variables.nextStageId) {
+        toast.success("Stage completed - workflow moved to next stage");
+      } else {
+        toast.success("Workflow completed successfully");
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to complete stage");

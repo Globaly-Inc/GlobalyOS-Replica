@@ -2489,6 +2489,7 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           created_by: string | null
+          current_stage_id: string | null
           employee_id: string
           id: string
           organization_id: string
@@ -2503,6 +2504,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          current_stage_id?: string | null
           employee_id: string
           id?: string
           organization_id: string
@@ -2517,6 +2519,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          current_stage_id?: string | null
           employee_id?: string
           id?: string
           organization_id?: string
@@ -2540,6 +2543,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_workflows_current_stage_id_fkey"
+            columns: ["current_stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
             referencedColumns: ["id"]
           },
           {
@@ -10056,16 +10066,27 @@ export type Database = {
         Args: { _folder_id?: string; _organization_id: string; _title?: string }
         Returns: string
       }
-      create_workflow_from_template: {
-        Args: {
-          p_created_by?: string
-          p_employee_id: string
-          p_organization_id: string
-          p_target_date: string
-          p_workflow_type: string
-        }
-        Returns: string
-      }
+      create_workflow_from_template:
+        | {
+            Args: {
+              p_created_by?: string
+              p_employee_id: string
+              p_organization_id: string
+              p_target_date: string
+              p_workflow_type: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_created_by?: string
+              p_employee_id: string
+              p_organization_id: string
+              p_target_date: string
+              p_workflow_type: string
+            }
+            Returns: string
+          }
       debug_can_insert_post: {
         Args: {
           _employee_id: string

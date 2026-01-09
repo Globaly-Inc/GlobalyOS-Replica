@@ -84,6 +84,7 @@ export interface EmployeeWorkflow {
   target_date: string;
   completed_at: string | null;
   created_by: string | null;
+  current_stage_id: string | null;
   created_at: string;
   updated_at: string;
 }
