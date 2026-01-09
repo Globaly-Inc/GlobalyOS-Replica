@@ -2,7 +2,7 @@
  * Workflow management type definitions
  */
 
-export type WorkflowType = 'onboarding' | 'offboarding';
+export type WorkflowType = 'onboarding' | 'offboarding' | 'recruiting' | 'promotion' | 'transfer' | 'custom';
 export type WorkflowStatus = 'active' | 'completed' | 'cancelled';
 export type WorkflowTaskStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
 export type WorkflowTaskCategory = 
@@ -18,6 +18,32 @@ export type AssigneeType = 'employee' | 'manager' | 'hr' | 'it' | 'specific_pers
 export type AssetCategory = 'hardware' | 'software' | 'access' | 'documents' | 'other';
 export type AssetStatus = 'assigned' | 'returned' | 'damaged' | 'missing';
 export type KnowledgeTransferStatus = 'scheduled' | 'completed' | 'cancelled';
+export type TriggerCondition = 'equals' | 'is_set' | 'is_not_null' | 'changed_to';
+
+export interface WorkflowStage {
+  id: string;
+  template_id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowTrigger {
+  id: string;
+  organization_id: string;
+  workflow_type: string;
+  trigger_event: string;
+  trigger_field: string;
+  trigger_condition: TriggerCondition;
+  trigger_value: string | null;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface WorkflowTemplate {
   id: string;
@@ -43,6 +69,7 @@ export interface WorkflowTemplateTask {
   due_days_offset: number;
   is_required: boolean;
   sort_order: number;
+  stage_id: string | null;
   created_at: string;
 }
 
@@ -77,6 +104,7 @@ export interface EmployeeWorkflowTask {
   completed_at: string | null;
   notes: string | null;
   sort_order: number;
+  stage_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +122,25 @@ export interface EmployeeWorkflowTaskWithAssignee extends EmployeeWorkflowTask {
       full_name: string;
     };
   } | null;
+}
+
+export interface WorkflowWithDetails extends EmployeeWorkflow {
+  employee: {
+    id: string;
+    position: string | null;
+    profiles: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  };
+  template?: {
+    name: string;
+  } | null;
+  tasks: {
+    id: string;
+    status: WorkflowTaskStatus;
+    stage_id: string | null;
+  }[];
 }
 
 export interface ExitInterview {
