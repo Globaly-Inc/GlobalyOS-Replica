@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useLeaveBalanceRealtime } from "@/services/useLeaveRealtime";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,9 @@ export const AddLeaveRequestDialog = ({
   const { currentOrg } = useOrganization();
   
   const queryClient = useQueryClient();
+
+  // Subscribe to real-time balance updates
+  useLeaveBalanceRealtime(employeeId);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

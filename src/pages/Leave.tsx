@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
+import { useLeaveBalanceRealtime } from "@/services/useLeaveRealtime";
 import { 
   CalendarDays, 
   Plus, 
@@ -89,6 +90,9 @@ const Leave = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!user?.id && !!currentOrg?.id,
   });
+
+  // Subscribe to real-time balance updates
+  useLeaveBalanceRealtime(employee?.id);
 
   // Fetch leave balances
   const { data: balances = [], isLoading: balancesLoading } = useQuery({

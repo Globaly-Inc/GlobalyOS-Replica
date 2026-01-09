@@ -85,6 +85,7 @@ export const AddLeaveBalanceDialog = ({
       const selectedLeaveType = leaveTypes.find(lt => lt.id === leaveType);
       if (!selectedLeaveType) throw new Error("Leave type not found");
 
+      // Get current balance to calculate new_balance for the log
       const { data: existingBalance } = await supabase
         .from("leave_type_balances")
         .select("id, balance")
@@ -92,28 +93,11 @@ export const AddLeaveBalanceDialog = ({
         .eq("leave_type_id", leaveType)
         .eq("year", currentYear)
         .maybeSingle();
+      
       const previousBalance = existingBalance?.balance || 0;
       const newBalance = previousBalance + changeAmount;
 
-      if (existingBalance) {
-        const { error: updateError } = await supabase
-          .from("leave_type_balances")
-          .update({ balance: newBalance })
-          .eq("id", existingBalance.id);
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from("leave_type_balances")
-          .insert({
-            employee_id: employeeId,
-            leave_type_id: leaveType,
-            organization_id: currentOrg?.id,
-            year: currentYear,
-            balance: newBalance
-          });
-        if (insertError) throw insertError;
-      }
-
+      // Only insert the log - the sync_balance_from_log trigger will handle the balance update
       const { error: logError } = await supabase
         .from("leave_balance_logs")
         .insert({
