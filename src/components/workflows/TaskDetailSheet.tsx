@@ -68,6 +68,8 @@ interface TaskDetailSheetProps {
     is_required?: boolean;
     status: string;
     notes?: string | null;
+    stage_id: string;
+    workflow_id?: string;
     assignee?: {
       id: string;
       profiles?: {
@@ -83,6 +85,8 @@ interface TaskDetailSheetProps {
     } | null;
   } | null;
   organizationId: string;
+  workflowId?: string;
+  templateId?: string;
   onTaskUpdate?: () => void;
 }
 
@@ -119,6 +123,8 @@ export function TaskDetailSheet({
   onOpenChange,
   task,
   organizationId,
+  workflowId: propWorkflowId,
+  templateId: propTemplateId,
   onTaskUpdate,
 }: TaskDetailSheetProps) {
   const queryClient = useQueryClient();

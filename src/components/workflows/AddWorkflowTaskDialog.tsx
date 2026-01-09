@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Circle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -38,11 +38,14 @@ interface AddWorkflowTaskDialogProps {
     assigneeId?: string;
     dueDate?: string;
     isRequired: boolean;
+    stageId: string;
   }) => void;
   isLoading?: boolean;
   stageId: string | null;
   stageName: string;
   organizationId: string;
+  templateId?: string;
+  stages?: Array<{ id: string; name: string; color?: string | null }>;
 }
 
 const CATEGORY_OPTIONS: { value: WorkflowTaskCategory; label: string }[] = [
@@ -61,8 +64,11 @@ export function AddWorkflowTaskDialog({
   onOpenChange,
   onSubmit,
   isLoading,
+  stageId: initialStageId,
   stageName,
   organizationId,
+  templateId,
+  stages: providedStages,
 }: AddWorkflowTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -70,6 +76,35 @@ export function AddWorkflowTaskDialog({
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [isRequired, setIsRequired] = useState(true);
+  const [selectedStageId, setSelectedStageId] = useState<string>("");
+
+  // Set initial stage when dialog opens
+  useEffect(() => {
+    if (open && initialStageId) {
+      setSelectedStageId(initialStageId);
+    } else if (open && providedStages && providedStages.length > 0 && !selectedStageId) {
+      setSelectedStageId(providedStages[0].id);
+    }
+  }, [open, initialStageId, providedStages, selectedStageId]);
+
+  // Fetch stages if not provided
+  const { data: fetchedStages = [] } = useQuery({
+    queryKey: ["workflow-stages-for-add", templateId],
+    queryFn: async () => {
+      if (!templateId) return [];
+      const { data, error } = await supabase
+        .from("workflow_stages")
+        .select("id, name, color")
+        .eq("template_id", templateId)
+        .order("sort_order");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!templateId && !providedStages && open,
+  });
+
+  const stages = providedStages || fetchedStages;
 
   // Fetch employees for assignee selection
   const { data: employees = [] } = useQuery({
@@ -90,15 +125,16 @@ export function AddWorkflowTaskDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !selectedStageId) return;
 
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
       category,
-      assigneeId: assigneeId || undefined,
+      assigneeId: assigneeId && assigneeId !== "__none__" ? assigneeId : undefined,
       dueDate: dueDate?.toISOString(),
       isRequired,
+      stageId: selectedStageId,
     });
 
     // Reset form
@@ -108,7 +144,10 @@ export function AddWorkflowTaskDialog({
     setAssigneeId("");
     setDueDate(undefined);
     setIsRequired(true);
+    setSelectedStageId(initialStageId || "");
   };
+
+  const selectedStageName = stages.find(s => s.id === selectedStageId)?.name || stageName;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,11 +155,39 @@ export function AddWorkflowTaskDialog({
         <DialogHeader>
           <DialogTitle>Add Task</DialogTitle>
           <DialogDescription>
-            Add a new task to the "{stageName}" stage
+            Add a new task to the "{selectedStageName}" stage
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Stage Selection - show if we have stages and no fixed stageId */}
+          {stages.length > 0 && (
+            <div className="space-y-2">
+              <Label>Stage *</Label>
+              <Select value={selectedStageId} onValueChange={setSelectedStageId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <Circle 
+                          className="h-3 w-3" 
+                          style={{ 
+                            fill: stage.color || 'currentColor',
+                            color: stage.color || 'currentColor'
+                          }} 
+                        />
+                        {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Title *</Label>
@@ -165,7 +232,7 @@ export function AddWorkflowTaskDialog({
           {/* Assignee */}
           <div className="space-y-2">
             <Label>Assign To</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <Select value={assigneeId || "__none__"} onValueChange={setAssigneeId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select assignee (optional)" />
               </SelectTrigger>
@@ -237,7 +304,7 @@ export function AddWorkflowTaskDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim() || isLoading}>
+            <Button type="submit" disabled={!title.trim() || !selectedStageId || isLoading}>
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add Task
             </Button>

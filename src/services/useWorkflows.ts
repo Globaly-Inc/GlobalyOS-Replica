@@ -436,7 +436,7 @@ export const useAddWorkflowTask = () => {
       workflowId: string;
       employeeId: string;
       organizationId: string;
-      stageId: string | null;
+      stageId: string; // Now required
       title: string;
       description?: string;
       category: string;
@@ -498,6 +498,9 @@ export const useEditWorkflowTask = () => {
       assigneeId,
       dueDate,
       isRequired,
+      stageId,
+      workflowId,
+      employeeId,
     }: {
       taskId: string;
       title: string;
@@ -506,18 +509,32 @@ export const useEditWorkflowTask = () => {
       assigneeId?: string | null;
       dueDate?: string | null;
       isRequired: boolean;
+      stageId: string; // Now required
+      workflowId?: string;
+      employeeId?: string;
     }) => {
+      const updateData: Record<string, unknown> = {
+        title,
+        description,
+        category,
+        assignee_id: assigneeId,
+        due_date: dueDate,
+        is_required: isRequired,
+        stage_id: stageId,
+        updated_at: new Date().toISOString(),
+      };
+
+      // If workflow is being changed, also update workflow_id and employee_id
+      if (workflowId) {
+        updateData.workflow_id = workflowId;
+      }
+      if (employeeId) {
+        updateData.employee_id = employeeId;
+      }
+
       const { error } = await supabase
         .from("employee_workflow_tasks")
-        .update({
-          title,
-          description,
-          category,
-          assignee_id: assigneeId,
-          due_date: dueDate,
-          is_required: isRequired,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", taskId);
       
       if (error) throw error;
