@@ -20,7 +20,8 @@ import {
   Trash2,
   Eye,
   CalendarIcon,
-  User
+  User,
+  Search
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 
 export default function WorkflowDetail() {
@@ -830,37 +832,43 @@ function TaskItem({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-1" align="end">
-            <div className="max-h-[200px] overflow-y-auto">
-              <button
-                className={cn(
-                  "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted",
-                  !task.assignee_id && "bg-muted"
-                )}
-                onClick={() => handleAssigneeChange("__none__")}
-              >
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Unassigned</span>
-              </button>
-              {employees.map((emp: any) => (
-                <button
-                  key={emp.id}
-                  className={cn(
-                    "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted",
-                    task.assignee_id === emp.id && "bg-muted"
-                  )}
-                  onClick={() => handleAssigneeChange(emp.id)}
-                >
-                  <Avatar className="h-5 w-5">
-                    <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                    <AvatarFallback className="text-[10px]">
-                      {emp.profiles?.full_name?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="truncate">{emp.profiles?.full_name}</span>
-                </button>
-              ))}
-            </div>
+          <PopoverContent className="w-[220px] p-0" align="end">
+            <Command>
+              <CommandInput placeholder="Search team members..." />
+              <CommandList>
+                <CommandEmpty>No team members found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="__unassigned__"
+                    onSelect={() => handleAssigneeChange("__none__")}
+                    className={cn(!task.assignee_id && "bg-muted")}
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Unassigned</span>
+                    </div>
+                  </CommandItem>
+                  {employees.map((emp: any) => (
+                    <CommandItem
+                      key={emp.id}
+                      value={emp.profiles?.full_name}
+                      onSelect={() => handleAssigneeChange(emp.id)}
+                      className={cn(task.assignee_id === emp.id && "bg-muted")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {emp.profiles?.full_name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{emp.profiles?.full_name}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           </PopoverContent>
         </Popover>
       ) : task.assignee ? (
