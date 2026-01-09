@@ -485,6 +485,114 @@ export const useAddWorkflowTask = () => {
   });
 };
 
+// Edit an employee workflow task
+export const useEditWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      title,
+      description,
+      category,
+      assigneeId,
+      dueDate,
+      isRequired,
+    }: {
+      taskId: string;
+      title: string;
+      description?: string | null;
+      category: string;
+      assigneeId?: string | null;
+      dueDate?: string | null;
+      isRequired: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update({
+          title,
+          description,
+          category,
+          assignee_id: assigneeId,
+          due_date: dueDate,
+          is_required: isRequired,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      toast.success("Task updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update task");
+    },
+  });
+};
+
+// Delete an employee workflow task
+export const useDeleteEmployeeWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .delete()
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      toast.success("Task deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete task");
+    },
+  });
+};
+
+// Complete all tasks in a stage
+export const useCompleteStage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskIds,
+      completedBy,
+    }: {
+      taskIds: string[];
+      completedBy: string;
+    }) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update({
+          status: 'completed',
+          completed_by: completedBy,
+          completed_at: new Date().toISOString(),
+        })
+        .in("id", taskIds);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      toast.success("Stage completed");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to complete stage");
+    },
+  });
+};
+
 // Exit Interviews
 export const useExitInterview = (employeeId: string | undefined) => {
   return useQuery({
