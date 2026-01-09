@@ -270,51 +270,50 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
             </Popover>
           </div>
 
-          {/* Workflow Selection */}
+          {/* Workflow and Stage Selection */}
           {selectedEmployeeId && (
-            <div className="space-y-2">
-              <Label>Workflow *</Label>
-              <Select value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select workflow" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employeeWorkflows.map((workflow) => (
-                    <SelectItem key={workflow.id} value={workflow.id}>
-                      {workflow.type.charAt(0).toUpperCase() + workflow.type.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Workflow *</Label>
+                <Select value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select workflow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employeeWorkflows.map((workflow) => (
+                      <SelectItem key={workflow.id} value={workflow.id}>
+                        {workflow.type.charAt(0).toUpperCase() + workflow.type.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Stage Selection */}
-          {selectedEmployeeId && (
-            <div className="space-y-2">
-              <Label>Stage *</Label>
-              <Select 
-                value={selectedStageId} 
-                onValueChange={setSelectedStageId}
-                disabled={!selectedWorkflowId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedWorkflowId ? "Select stage" : "Select workflow first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {stages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: stage.color || "#6b7280" }}
-                        />
-                        {stage.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label>Stage *</Label>
+                <Select 
+                  value={selectedStageId} 
+                  onValueChange={setSelectedStageId}
+                  disabled={!selectedWorkflowId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedWorkflowId ? "Select stage" : "Select workflow first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: stage.color || "#6b7280" }}
+                          />
+                          {stage.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -341,24 +340,25 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
             />
           </div>
 
-          {/* Category and Assignee */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Category */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
+          {/* Assignee and Due Date */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Assign To</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
@@ -382,33 +382,32 @@ export function AddTaskToWorkflowDialog({ open, onOpenChange }: AddTaskToWorkflo
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Due Date */}
-          <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dueDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? format(dueDate, "PPP") : "Select due date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={setDueDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dueDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? format(dueDate, "PPP") : "Select due date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate}
+                    onSelect={setDueDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           {/* Required Checkbox */}
