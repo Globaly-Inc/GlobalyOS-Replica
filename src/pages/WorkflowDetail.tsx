@@ -18,9 +18,11 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Eye
+  Eye,
+  CalendarIcon,
+  User
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   useEmployeeWorkflowTasks, 
@@ -51,6 +53,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { toast } from "sonner";
 
 export default function WorkflowDetail() {
   const { orgCode, workflowId } = useParams<{ orgCode: string; workflowId: string }>();
@@ -474,6 +490,7 @@ export default function WorkflowDetail() {
                       onEdit={handleOpenEditDialog}
                       onDelete={handleOpenDeleteDialog}
                       disabled={!isActive}
+                      organizationId={workflow.organization_id}
                     />
                   ))}
                 </div>
@@ -523,6 +540,7 @@ export default function WorkflowDetail() {
                     onEdit={handleOpenEditDialog}
                     onDelete={handleOpenDeleteDialog}
                     disabled={!isActive}
+                    organizationId={workflow.organization_id}
                   />
                 ))}
               </div>
@@ -564,6 +582,7 @@ export default function WorkflowDetail() {
                   onEdit={handleOpenEditDialog}
                   onDelete={handleOpenDeleteDialog}
                   disabled={!isActive}
+                  organizationId={workflow.organization_id}
                 />
               ))}
             </div>
@@ -702,7 +721,8 @@ function TaskItem({
   onView,
   onEdit,
   onDelete,
-  disabled 
+  disabled,
+  organizationId
 }: { 
   task: any; 
   onToggle: (id: string, status: string) => void;
@@ -710,8 +730,64 @@ function TaskItem({
   onEdit: (task: any) => void;
   onDelete: (taskId: string) => void;
   disabled?: boolean;
+  organizationId: string;
 }) {
+  const queryClient = useQueryClient();
   const isCompleted = task.status === 'completed';
+
+  // Fetch employees for assignee selection
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-for-inline-edit", organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, profiles!inner(full_name, avatar_url)")
+        .eq("organization_id", organizationId)
+        .eq("status", "active")
+        .order("created_at");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Mutation for inline updates
+  const updateTask = useMutation({
+    mutationFn: async (updates: { assignee_id?: string | null; due_date?: string | null }) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", task.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      toast.success("Task updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update task");
+    },
+  });
+
+  const handleAssigneeChange = (newAssigneeId: string) => {
+    updateTask.mutate({ 
+      assignee_id: newAssigneeId === "__none__" ? null : newAssigneeId 
+    });
+  };
+
+  const handleDueDateChange = (newDate: Date | undefined) => {
+    updateTask.mutate({ 
+      due_date: newDate ? newDate.toISOString() : null 
+    });
+  };
+
+  const selectedEmployee = employees.find((e: any) => e.id === task.assignee_id);
   
   return (
     <div className={cn(
@@ -739,22 +815,100 @@ function TaskItem({
           </p>
         )}
       </div>
-      {task.due_date && (
-        <span className={cn(
-          "text-xs whitespace-nowrap",
-          isCompleted ? "text-muted-foreground" : "text-muted-foreground"
-        )}>
+
+      {/* Inline Due Date Picker */}
+      {!disabled ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-7 px-2 text-xs whitespace-nowrap gap-1",
+                !task.due_date && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="h-3 w-3" />
+              {task.due_date ? format(new Date(task.due_date), 'd MMM yyyy') : "Set date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <CalendarPicker
+              mode="single"
+              selected={task.due_date ? new Date(task.due_date) : undefined}
+              onSelect={handleDueDateChange}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      ) : task.due_date ? (
+        <span className="text-xs whitespace-nowrap text-muted-foreground">
           {format(new Date(task.due_date), 'd MMM yyyy')}
         </span>
-      )}
-      {task.assignee && (
+      ) : null}
+
+      {/* Inline Assignee Selector */}
+      {!disabled ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 gap-1"
+            >
+              {task.assignee ? (
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={task.assignee.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="text-[10px]">
+                    {task.assignee.profiles?.full_name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <User className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-1" align="end">
+            <div className="max-h-[200px] overflow-y-auto">
+              <button
+                className={cn(
+                  "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted",
+                  !task.assignee_id && "bg-muted"
+                )}
+                onClick={() => handleAssigneeChange("__none__")}
+              >
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Unassigned</span>
+              </button>
+              {employees.map((emp: any) => (
+                <button
+                  key={emp.id}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted",
+                    task.assignee_id === emp.id && "bg-muted"
+                  )}
+                  onClick={() => handleAssigneeChange(emp.id)}
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">
+                      {emp.profiles?.full_name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{emp.profiles?.full_name}</span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : task.assignee ? (
         <Avatar className="h-6 w-6 flex-shrink-0">
           <AvatarImage src={task.assignee.profiles?.avatar_url || undefined} />
           <AvatarFallback className="text-xs">
             {task.assignee.profiles?.full_name?.charAt(0)}
           </AvatarFallback>
         </Avatar>
-      )}
+      ) : null}
       
       {/* Inline action icons - always visible */}
       {!disabled && (
