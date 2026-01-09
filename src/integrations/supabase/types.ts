@@ -2372,7 +2372,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           sort_order: number | null
-          stage_id: string | null
+          stage_id: string
           status: string | null
           title: string
           updated_at: string | null
@@ -2392,7 +2392,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           sort_order?: number | null
-          stage_id?: string | null
+          stage_id: string
           status?: string | null
           title: string
           updated_at?: string | null
@@ -2412,7 +2412,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           sort_order?: number | null
-          stage_id?: string | null
+          stage_id?: string
           status?: string | null
           title?: string
           updated_at?: string | null

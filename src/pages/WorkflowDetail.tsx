@@ -186,6 +186,7 @@ export default function WorkflowDetail() {
     assigneeId?: string;
     dueDate?: string;
     isRequired: boolean;
+    stageId: string;
   }) => {
     if (!workflow) return;
 
@@ -193,7 +194,7 @@ export default function WorkflowDetail() {
       workflowId: workflow.id,
       employeeId: workflow.employee_id,
       organizationId: workflow.organization_id,
-      stageId: selectedStageId,
+      stageId: data.stageId,
       title: data.title,
       description: data.description,
       category: data.category,
@@ -220,6 +221,9 @@ export default function WorkflowDetail() {
     assigneeId?: string | null;
     dueDate?: string | null;
     isRequired: boolean;
+    stageId: string;
+    workflowId?: string;
+    employeeId?: string;
   }) => {
     editTask.mutate(data, {
       onSuccess: () => {
@@ -319,9 +323,6 @@ export default function WorkflowDetail() {
     stage,
     tasks: tasks?.filter(t => t.stage_id === stage.id) ?? [],
   })) ?? [];
-  
-  // Tasks without a stage
-  const unstagedTasks = tasks?.filter(t => !t.stage_id) ?? [];
   
   // Calculate current stage - first stage with incomplete tasks
   const currentStageIndex = tasksByStage.findIndex(group => 
@@ -513,56 +514,8 @@ export default function WorkflowDetail() {
         );
       })}
       
-      {/* Unstaged Tasks */}
-      {(unstagedTasks.length > 0 || (stages && stages.length > 0 && isActive)) && (
-        <Card className="border-l-4 border-l-muted-foreground/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-3 text-lg">
-              <Circle className="h-5 w-5 text-muted-foreground/50 flex-shrink-0" />
-              <span className="text-muted-foreground">Other Tasks</span>
-              <Badge variant="secondary" className="ml-auto">
-                {unstagedTasks.filter(t => t.status === 'completed').length}/{unstagedTasks.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {unstagedTasks.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {unstagedTasks.map((task) => (
-                  <TaskItem 
-                    key={task.id} 
-                    task={task} 
-                    onToggle={handleTaskToggle}
-                    onView={(task) => {
-                      setSelectedTaskForDetail(task);
-                      setTaskDetailOpen(true);
-                    }}
-                    onEdit={handleOpenEditDialog}
-                    onDelete={handleOpenDeleteDialog}
-                    disabled={!isActive}
-                    organizationId={workflow.organization_id}
-                  />
-                ))}
-              </div>
-            )}
-            
-            {/* Add Task Button */}
-            {isActive && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-muted-foreground hover:text-foreground border border-dashed hover:border-primary/50"
-                onClick={() => handleOpenAddTaskDialog(null, "Other Tasks")}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Task
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
       
-      {/* No stages - show all tasks */}
+      {/* No stages fallback - show all tasks if no stages defined */}
       {(!stages || stages.length === 0) && tasks && tasks.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -630,6 +583,8 @@ export default function WorkflowDetail() {
         stageId={selectedStageId}
         stageName={selectedStageName}
         organizationId={workflow.organization_id}
+        templateId={workflow.template_id || undefined}
+        stages={stages?.map(s => ({ id: s.id, name: s.name, color: s.color })) || []}
       />
 
       {/* Edit Task Dialog */}
@@ -639,6 +594,8 @@ export default function WorkflowDetail() {
         onSubmit={handleEditTask}
         isLoading={editTask.isPending}
         organizationId={workflow.organization_id}
+        workflowId={workflow.id}
+        templateId={workflow.template_id || undefined}
         task={taskToEdit}
       />
 
@@ -682,6 +639,8 @@ export default function WorkflowDetail() {
         onOpenChange={setTaskDetailOpen}
         task={selectedTaskForDetail}
         organizationId={workflow.organization_id}
+        workflowId={workflow.id}
+        templateId={workflow.template_id || undefined}
         onTaskUpdate={() => {
           setTaskDetailOpen(false);
         }}
