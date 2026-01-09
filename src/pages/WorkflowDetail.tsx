@@ -471,13 +471,26 @@ export default function WorkflowDetail() {
                     Complete Stage
                   </Button>
                 )}
+
+                {/* Add Task Button */}
+                {isActive && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => handleOpenAddTaskDialog(stage.id, stage.name)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Task
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {stageTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-3">No tasks in this stage</p>
+                <p className="text-sm text-muted-foreground">No tasks in this stage</p>
               ) : (
-                <div className="space-y-2 mb-3">
+                <div className="space-y-2">
                   {stageTasks.map((task) => (
                     <TaskItem 
                       key={task.id} 
@@ -494,19 +507,6 @@ export default function WorkflowDetail() {
                     />
                   ))}
                 </div>
-              )}
-              
-              {/* Add Task Button */}
-              {isActive && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-muted-foreground hover:text-foreground border border-dashed hover:border-primary/50"
-                  onClick={() => handleOpenAddTaskDialog(stage.id, stage.name)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Task
-                </Button>
               )}
             </CardContent>
           </Card>
