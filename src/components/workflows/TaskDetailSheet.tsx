@@ -678,6 +678,17 @@ export function TaskDetailSheet({
                         </Button>
                       </div>
                     </div>
+                    {/* Is Required */}
+                    <div className="flex items-center space-x-2 pt-1">
+                      <Checkbox
+                        id="detail-isRequired"
+                        checked={isRequired}
+                        onCheckedChange={(checked) => handleIsRequiredChange(!!checked)}
+                      />
+                      <Label htmlFor="detail-isRequired" className="text-sm font-normal cursor-pointer">
+                        This task is required
+                      </Label>
+                    </div>
                   </div>
                 )}
 
@@ -775,19 +786,6 @@ export function TaskDetailSheet({
                     </Popover>
                   </div>
                 </div>
-
-                {/* Is Required */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="detail-isRequired"
-                    checked={isRequired}
-                    onCheckedChange={(checked) => handleIsRequiredChange(!!checked)}
-                  />
-                  <Label htmlFor="detail-isRequired" className="text-sm font-normal cursor-pointer">
-                    This task is required
-                  </Label>
-                </div>
-
                 {/* Attachments Section */}
                 <div className="space-y-3">
                   <Label className="flex items-center gap-2">
