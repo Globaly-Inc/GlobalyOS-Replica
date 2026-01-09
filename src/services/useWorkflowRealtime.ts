@@ -91,6 +91,18 @@ export const useWorkflowDetailRealtime = (workflowId?: string) => {
           queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks", workflowId] });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'workflow_activity_logs',
+          filter: `workflow_id=eq.${workflowId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs", workflowId] });
+        }
+      )
       .subscribe();
 
     return () => {
