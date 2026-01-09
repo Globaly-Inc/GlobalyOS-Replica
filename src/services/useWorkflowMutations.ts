@@ -1,7 +1,61 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/hooks/useOrganization";
 import type { WorkflowType, TriggerCondition } from "@/types/workflow";
+
+// ============ Start Workflow Mutation ============
+
+export function useStartWorkflow() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (data: {
+      employeeId: string;
+      templateId: string;
+      targetDate: string;
+      workflowType: "onboarding" | "offboarding";
+    }) => {
+      if (!currentOrg?.id) throw new Error("No organization found");
+
+      // Get current user for created_by
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id)
+        .single();
+
+      // Call the RPC function to create workflow from template
+      const { data: workflowId, error } = await supabase.rpc(
+        "create_workflow_from_template",
+        {
+          p_employee_id: data.employeeId,
+          p_organization_id: currentOrg.id,
+          p_target_date: data.targetDate,
+          p_workflow_type: data.workflowType,
+          p_created_by: employee?.id || undefined,
+        }
+      );
+
+      if (error) throw error;
+      return workflowId;
+    },
+    onSuccess: () => {
+      toast({ title: "Workflow started successfully" });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-workflows"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
 
 // ============ Template Mutations ============
 
