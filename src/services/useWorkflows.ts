@@ -868,6 +868,129 @@ export const useAddKnowledgeTransfer = () => {
   });
 };
 
+// Workflow Task Attachments
+export const useWorkflowTaskAttachments = (taskId: string | null) => {
+  return useQuery({
+    queryKey: ["workflow-task-attachments", taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const { data, error } = await supabase
+        .from("workflow_task_attachments")
+        .select(`
+          *,
+          employee:employees!workflow_task_attachments_employee_id_fkey(
+            id,
+            profiles!inner(full_name, avatar_url)
+          )
+        `)
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useUploadTaskAttachment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, file, organizationId, employeeId }: {
+      taskId: string;
+      file: File;
+      organizationId: string;
+      employeeId: string;
+    }) => {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${organizationId}/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('workflow-task-attachments')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      const { error: dbError } = await supabase
+        .from('workflow_task_attachments')
+        .insert({
+          task_id: taskId,
+          organization_id: organizationId,
+          employee_id: employeeId,
+          file_name: file.name,
+          file_path: filePath,
+          file_type: file.type,
+          file_size: file.size,
+        });
+      
+      if (dbError) throw dbError;
+    },
+    onSuccess: (_, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-attachments", taskId] });
+      toast.success("Attachment uploaded");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to upload attachment");
+    },
+  });
+};
+
+export const useDeleteTaskAttachment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ attachmentId, filePath, taskId }: {
+      attachmentId: string;
+      filePath: string;
+      taskId: string;
+    }) => {
+      await supabase.storage
+        .from('workflow-task-attachments')
+        .remove([filePath]);
+      
+      const { error } = await supabase
+        .from('workflow_task_attachments')
+        .delete()
+        .eq('id', attachmentId);
+      
+      if (error) throw error;
+      
+      return { taskId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-task-attachments", data.taskId] });
+      toast.success("Attachment deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete attachment");
+    },
+  });
+};
+
+export const useUpdateTaskTitle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, title }: { taskId: string; title: string }) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      toast.success("Title updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update title");
+    },
+  });
+};
+
 // Proration Preview
 export const useProrationPreview = (employeeId: string | undefined, lastWorkingDay: string | undefined) => {
   const { currentOrg } = useOrganization();

@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -20,7 +21,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { 
   CalendarIcon, 
   Loader2, 
@@ -29,7 +29,16 @@ import {
   UserCheck,
   Clock,
   CheckCircle2,
-  SkipForward
+  SkipForward,
+  Pencil,
+  X,
+  Check,
+  Paperclip,
+  Download,
+  Trash2,
+  FileText,
+  Image as ImageIcon,
+  Upload
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -39,6 +48,12 @@ import type { WorkflowTaskCategory, WorkflowTaskStatus } from "@/types/workflow"
 import MentionAutocomplete from "@/components/chat/MentionAutocomplete";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
+import {
+  useWorkflowTaskAttachments,
+  useUploadTaskAttachment,
+  useDeleteTaskAttachment,
+  useUpdateTaskTitle,
+} from "@/services/useWorkflows";
 
 interface TaskDetailSheetProps {
   open: boolean;
@@ -88,6 +103,17 @@ const STATUS_OPTIONS: { value: WorkflowTaskStatus; label: string; icon: React.El
   { value: "skipped", label: "Skipped", icon: SkipForward },
 ];
 
+const isImageFile = (fileType: string | null) => {
+  return fileType?.startsWith('image/') || false;
+};
+
+const formatFileSize = (bytes: number | null) => {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export function TaskDetailSheet({
   open,
   onOpenChange,
@@ -98,6 +124,7 @@ export function TaskDetailSheet({
   const queryClient = useQueryClient();
   const { data: currentEmployee } = useCurrentEmployee();
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [status, setStatus] = useState<WorkflowTaskStatus>("pending");
@@ -107,6 +134,10 @@ export function TaskDetailSheet({
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [isRequired, setIsRequired] = useState(true);
   
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  
   // Comment state
   const [comment, setComment] = useState("");
   const [mentionIds, setMentionIds] = useState<string[]>([]);
@@ -115,6 +146,10 @@ export function TaskDetailSheet({
     searchText: "",
     triggerIndex: -1,
   });
+  
+  // Attachment state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Populate form when task changes
   useEffect(() => {
@@ -125,6 +160,8 @@ export function TaskDetailSheet({
       setAssigneeId(task.assignee_id || "");
       setDueDate(task.due_date ? new Date(task.due_date) : undefined);
       setIsRequired(task.is_required ?? true);
+      setEditedTitle(task.title);
+      setIsEditingTitle(false);
     }
   }, [task]);
 
@@ -167,6 +204,12 @@ export function TaskDetailSheet({
     },
     enabled: !!task?.id && open,
   });
+
+  // Fetch attachments
+  const { data: attachments = [], isLoading: attachmentsLoading } = useWorkflowTaskAttachments(task?.id || null);
+  const uploadAttachment = useUploadTaskAttachment();
+  const deleteAttachment = useDeleteTaskAttachment();
+  const updateTitle = useUpdateTaskTitle();
 
   // Update task mutation
   const updateTask = useMutation({
@@ -219,7 +262,6 @@ export function TaskDetailSheet({
     mutationFn: async ({ content, mentions }: { content: string; mentions: string[] }) => {
       if (!task?.id || !currentEmployee) return;
       
-      // Insert comment
       const { data: commentData, error: commentError } = await supabase
         .from("workflow_task_comments")
         .insert({
@@ -233,7 +275,6 @@ export function TaskDetailSheet({
       
       if (commentError) throw commentError;
 
-      // Insert mentions if any
       if (mentions.length > 0 && commentData) {
         const mentionInserts = mentions.map(empId => ({
           comment_id: commentData.id,
@@ -270,9 +311,62 @@ export function TaskDetailSheet({
     });
   };
 
+  const handleSaveTitle = () => {
+    if (!editedTitle.trim() || !task?.id) return;
+    updateTitle.mutate({ taskId: task.id, title: editedTitle.trim() });
+    setIsEditingTitle(false);
+  };
+
   const handleAddComment = () => {
     if (!comment.trim()) return;
     addComment.mutate({ content: comment.trim(), mentions: mentionIds });
+  };
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleUploadFiles = async () => {
+    if (!task?.id || !currentEmployee || selectedFiles.length === 0) return;
+    
+    for (const file of selectedFiles) {
+      await uploadAttachment.mutateAsync({
+        taskId: task.id,
+        file,
+        organizationId,
+        employeeId: currentEmployee.id,
+      });
+    }
+    setSelectedFiles([]);
+  };
+
+  const handleDeleteAttachment = (attachmentId: string, filePath: string) => {
+    if (!task?.id) return;
+    deleteAttachment.mutate({ attachmentId, filePath, taskId: task.id });
+  };
+
+  const getAttachmentUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('workflow-task-attachments').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileSelect(e.dataTransfer.files);
   };
 
   // Mention handling
@@ -329,102 +423,152 @@ export function TaskDetailSheet({
           {/* Left panel - Task info (2/3) */}
           <div className="w-2/3 flex flex-col border-r">
             <DialogHeader className="px-6 py-4 border-b">
-              <DialogTitle className="text-xl">{task.title}</DialogTitle>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTitle();
+                      if (e.key === 'Escape') {
+                        setEditedTitle(task.title);
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                    autoFocus
+                    className="text-xl font-semibold h-auto py-1"
+                  />
+                  <Button 
+                    size="icon" 
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={handleSaveTitle}
+                    disabled={updateTitle.isPending}
+                  >
+                    {updateTitle.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditedTitle(task.title);
+                      setIsEditingTitle(false);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <DialogTitle 
+                  className="text-xl cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors"
+                  onClick={() => setIsEditingTitle(true)}
+                >
+                  {task.title}
+                  <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+                </DialogTitle>
+              )}
             </DialogHeader>
             
             <ScrollArea className="flex-1 px-6 py-4">
               <div className="space-y-5">
-                {/* Status */}
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={status} onValueChange={(v) => setStatus(v as WorkflowTaskStatus)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map((opt) => {
-                        const Icon = opt.icon;
-                        return (
+                {/* Row 1: Status + Category */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={status} onValueChange={(v) => setStatus(v as WorkflowTaskStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((opt) => {
+                          const Icon = opt.icon;
+                          return (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4" />
+                                {opt.label}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={category} onValueChange={(v) => setCategory(v as WorkflowTaskCategory)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORY_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Row 2: Assignee + Due Date */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Assignee</Label>
+                    <Select value={assigneeId || "__none__"} onValueChange={setAssigneeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No assignee</SelectItem>
+                        {employees.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id}>
                             <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4" />
-                              {opt.label}
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {emp.profiles?.full_name?.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {emp.profiles?.full_name}
                             </div>
                           </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Assignee */}
-                <div className="space-y-2">
-                  <Label>Assignee</Label>
-                  <Select value={assigneeId || "__none__"} onValueChange={setAssigneeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select assignee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No assignee</SelectItem>
-                      {employees.map((emp: any) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-5 w-5">
-                              <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {emp.profiles?.full_name?.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {emp.profiles?.full_name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Due Date */}
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !dueDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? format(dueDate, "PPP") : "Select due date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={setDueDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Category */}
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select value={category} onValueChange={(v) => setCategory(v as WorkflowTaskCategory)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Label>Due Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dueDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dueDate ? format(dueDate, "d MMM yyyy") : "Select due date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dueDate}
+                          onSelect={setDueDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 {/* Is Required */}
@@ -450,12 +594,150 @@ export function TaskDetailSheet({
                   />
                 </div>
 
+                {/* Attachments Section */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    Attachments {attachments.length > 0 && `(${attachments.length})`}
+                  </Label>
+                  
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-lg p-4 transition-colors",
+                      isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+                    )}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    {attachmentsLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <>
+                        {/* Existing attachments */}
+                        {attachments.length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            {attachments.map((att: any) => (
+                              <div 
+                                key={att.id} 
+                                className="flex items-center gap-3 p-2 bg-muted/50 rounded-md group"
+                              >
+                                <div className="flex-shrink-0 w-8 h-8 rounded bg-background flex items-center justify-center">
+                                  {isImageFile(att.file_type) ? (
+                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{att.file_name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(att.file_size)} • {att.employee?.profiles?.full_name}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => window.open(getAttachmentUrl(att.file_path), '_blank')}
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteAttachment(att.id, att.file_path)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Selected files preview */}
+                        {selectedFiles.length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            <p className="text-xs text-muted-foreground font-medium">Ready to upload:</p>
+                            {selectedFiles.map((file, index) => (
+                              <div 
+                                key={index} 
+                                className="flex items-center gap-3 p-2 bg-primary/5 rounded-md border border-primary/20"
+                              >
+                                <div className="flex-shrink-0 w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+                                  {file.type.startsWith('image/') ? (
+                                    <ImageIcon className="h-4 w-4 text-primary" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 text-primary" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{file.name}</p>
+                                  <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              size="sm"
+                              onClick={handleUploadFiles}
+                              disabled={uploadAttachment.isPending}
+                              className="w-full"
+                            >
+                              {uploadAttachment.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4 mr-2" />
+                              )}
+                              Upload {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''}
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Drop zone / Add button */}
+                        <div className="text-center">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => handleFileSelect(e.target.files)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Paperclip className="h-4 w-4 mr-2" />
+                            Add Attachment
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            or drag and drop files here
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 {/* Task metadata */}
                 {task.completed_at && task.completed_by_employee && (
                   <div className="pt-2 border-t">
                     <p className="text-sm text-muted-foreground">
                       Completed by {task.completed_by_employee.profiles?.full_name} on{" "}
-                      {format(new Date(task.completed_at), "PPP 'at' p")}
+                      {format(new Date(task.completed_at), "d MMM yyyy 'at' h:mm a")}
                     </p>
                   </div>
                 )}
@@ -500,6 +782,27 @@ export function TaskDetailSheet({
                     </p>
                   </div>
                 </div>
+
+                {/* Attachment activity */}
+                {attachments.map((att: any) => (
+                  <div key={`att-${att.id}`} className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                      <Paperclip className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        <span className="font-medium">{att.employee?.profiles?.full_name}</span>
+                        {" "}uploaded
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {att.file_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(att.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
 
                 {/* Completed activity */}
                 {task.completed_at && task.completed_by_employee && (
