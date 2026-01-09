@@ -459,6 +459,16 @@ export default function WorkflowDetail() {
                 )}>
                   {stage.name}
                 </span>
+
+                {/* Current Stage Badge */}
+                {isCurrent && isActive && (
+                  <Badge 
+                    variant="default" 
+                    className="bg-primary text-primary-foreground text-xs"
+                  >
+                    Current Stage
+                  </Badge>
+                )}
                 
                 <Badge 
                   variant={isCompleted ? "default" : "secondary"} 
