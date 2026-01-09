@@ -613,8 +613,7 @@ export function TaskDetailSheet({
             <div className="px-6 py-4">
               <div className="space-y-5 px-0.5">
                 {/* Description - Moved to top */}
-                <div className="space-y-2">
-                  <Label>Description</Label>
+                <div>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
