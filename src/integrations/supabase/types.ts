@@ -9470,6 +9470,118 @@ export type Database = {
           },
         ]
       }
+      workflow_task_comment_mentions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          mentioned_employee_id: string
+          organization_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          mentioned_employee_id: string
+          organization_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          mentioned_employee_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_comment_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comment_mentions_mentioned_employee_id_fkey"
+            columns: ["mentioned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comment_mentions_mentioned_employee_id_fkey"
+            columns: ["mentioned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comment_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_task_comments: {
+        Row: {
+          content: string
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_comments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflow_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_template_tasks: {
         Row: {
           assignee_id: string | null
