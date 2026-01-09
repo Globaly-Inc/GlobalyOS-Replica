@@ -46,6 +46,7 @@ const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeav
 const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard").then(m => ({ default: m.NotCheckedInCard })));
 const UserHelpRequests = lazy(() => import("@/components/home/UserHelpRequests").then(m => ({ default: m.UserHelpRequests })));
 const DailyHoroscope = lazy(() => import("@/components/home/DailyHoroscope").then(m => ({ default: m.DailyHoroscope })));
+const MyWorkflowTasks = lazy(() => import("@/components/home/MyWorkflowTasks").then(m => ({ default: m.MyWorkflowTasks })));
 
 type DateFilter = "all" | "today" | "week" | "month";
 
@@ -956,6 +957,13 @@ const Home = () => {
             <Suspense fallback={<CardSkeleton />}>
               <UserHelpRequests />
             </Suspense>
+
+            {/* My Workflow Tasks */}
+            {currentEmployeeId && (
+              <Suspense fallback={<CardSkeleton />}>
+                <MyWorkflowTasks employeeId={currentEmployeeId} />
+              </Suspense>
+            )}
           </div>
         </div>
       </div>
