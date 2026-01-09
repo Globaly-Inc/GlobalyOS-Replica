@@ -9470,6 +9470,71 @@ export type Database = {
           },
         ]
       }
+      workflow_task_attachments: {
+        Row: {
+          created_at: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          organization_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_attachments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_attachments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflow_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_task_comment_mentions: {
         Row: {
           comment_id: string
