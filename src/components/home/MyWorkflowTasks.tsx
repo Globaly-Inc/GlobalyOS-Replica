@@ -111,7 +111,7 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-sm">{task.title}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant={isOnboarding ? "default" : "secondary"} className="text-xs">
                       {isOnboarding ? 'Onboarding' : 'Offboarding'}
                     </Badge>
@@ -127,18 +127,6 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                         {stage.name}
                       </Badge>
                     )}
-                    {employee && (
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        <OrgLink 
-                          to={`/team/${employee.id}`} 
-                          className="hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {employee.profiles?.full_name}
-                        </OrgLink>
-                      </div>
-                    )}
                     {task.due_date && (
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -146,6 +134,18 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                       </div>
                     )}
                   </div>
+                  {employee && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <User className="h-3 w-3" />
+                      <OrgLink 
+                        to={`/team/${employee.id}`} 
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {employee.profiles?.full_name}
+                      </OrgLink>
+                    </div>
+                  )}
                 </div>
                 <Button 
                   size="sm" 
