@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, UserPlus, UserMinus, Loader2 } from "lucide-react";
+import { CalendarIcon, UserPlus, UserMinus, Loader2, Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useWorkflowTemplates } from "@/services/useWorkflows";
@@ -42,11 +50,14 @@ export function StartWorkflowDialog({ open, onOpenChange }: StartWorkflowDialogP
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [targetDate, setTargetDate] = useState<Date>(addDays(new Date(), 7));
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
 
   const { data: employeesData, isLoading: employeesLoading } = useEmployees({ status: "active" });
   const employees = (employeesData || []) as any[];
   const { data: templates, isLoading: templatesLoading } = useWorkflowTemplates(workflowType);
   const startWorkflow = useStartWorkflow();
+  
+  const selectedEmployee = employees?.find((emp) => emp.id === selectedEmployeeId);
 
   // Set default template when templates load
   const defaultTemplate = templates?.find(t => t.is_default) || templates?.[0];
@@ -115,33 +126,72 @@ export function StartWorkflowDialog({ open, onOpenChange }: StartWorkflowDialogP
           {/* Employee Selection */}
           <div className="space-y-2">
             <Label>Employee</Label>
-            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {employeesLoading ? (
-                  <div className="p-2 text-center text-muted-foreground">Loading...</div>
-                ) : (
-                  employees?.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {emp.profiles?.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{emp.profiles?.full_name}</span>
-                        {emp.position && (
-                          <span className="text-muted-foreground">• {emp.position}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={employeePopoverOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedEmployee ? (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={selectedEmployee.profiles?.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {selectedEmployee.profiles?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{selectedEmployee.profiles?.full_name}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Select an employee...</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search employees..." />
+                  <CommandList>
+                    <CommandEmpty>No employee found.</CommandEmpty>
+                    <CommandGroup>
+                      {employeesLoading ? (
+                        <div className="p-2 text-center text-muted-foreground">Loading...</div>
+                      ) : (
+                        employees?.map((emp) => (
+                          <CommandItem
+                            key={emp.id}
+                            value={emp.profiles?.full_name || emp.id}
+                            onSelect={() => {
+                              setSelectedEmployeeId(emp.id);
+                              setEmployeePopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedEmployeeId === emp.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <Avatar className="h-6 w-6 mr-2">
+                              <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {emp.profiles?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{emp.profiles?.full_name}</span>
+                            {emp.position && (
+                              <span className="text-muted-foreground ml-1">• {emp.position}</span>
+                            )}
+                          </CommandItem>
+                        ))
+                      )}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Template Selection */}
