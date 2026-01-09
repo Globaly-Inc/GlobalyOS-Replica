@@ -127,6 +127,20 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                         {stage.name}
                       </Badge>
                     )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                    {employee && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <OrgLink 
+                          to={`/team/${employee.id}`} 
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {employee.profiles?.full_name}
+                        </OrgLink>
+                      </div>
+                    )}
                     {task.due_date && (
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -134,18 +148,6 @@ export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
                       </div>
                     )}
                   </div>
-                  {employee && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      <User className="h-3 w-3" />
-                      <OrgLink 
-                        to={`/team/${employee.id}`} 
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {employee.profiles?.full_name}
-                      </OrgLink>
-                    </div>
-                  )}
                 </div>
                 <Button 
                   size="sm" 
