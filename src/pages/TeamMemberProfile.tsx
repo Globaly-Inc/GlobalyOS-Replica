@@ -28,9 +28,10 @@ import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
+import { SetResignationDialog } from "@/components/dialogs/SetResignationDialog";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
-import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity, Globe } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity, Globe, UserX } from "lucide-react";
 import { formatTimezoneLabel } from "@/hooks/useTimezone";
 import { WORK_LOCATION_CONFIG, WorkLocation, WorkLocationDisplay } from "@/types/wfh";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
@@ -52,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { icons } from "lucide-react";
 import { ProfileActivityFeed } from "@/components/feed/ProfileActivityFeed";
 import { PositionAIDescription } from "@/components/PositionAIDescription";
+import { OffboardingPanel } from "@/components/workflows/OffboardingPanel";
 import { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 interface EmployeeProject {
@@ -112,6 +114,7 @@ const TeamMemberProfile = () => {
   const [wfhDialogOpen, setWfhDialogOpen] = useState(false);
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
   const [editingCurrentPosition, setEditingCurrentPosition] = useState(false);
+  const [resignationDialogOpen, setResignationDialogOpen] = useState(false);
 
   // Get current position from position history (source of truth)
   const currentPosition = positionHistory.find(p => p.is_current);
@@ -390,6 +393,7 @@ const TeamMemberProfile = () => {
         bank_details,
         position_effective_date,
         gender,
+        last_working_day,
         profiles!inner(
           full_name,
           email,
@@ -628,6 +632,18 @@ const TeamMemberProfile = () => {
             </Button>
           </OrgLink>
           <div className="flex items-center gap-2">
+            {/* Set Resignation Button - Admin/HR for active employees without resignation date */}
+            {isAdminOrHR && !isOwnProfile && employee.status === 'active' && !employee.last_working_day && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setResignationDialogOpen(true)}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <UserX className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Set Resignation</span>
+              </Button>
+            )}
             {isAdmin && !isOwnProfile && <div className="hidden sm:block">
                 <DeleteTeamMemberDialog employeeId={id!} employeeName={employee.profiles.full_name} userId={employee.user_id} />
               </div>}
@@ -666,6 +682,10 @@ const TeamMemberProfile = () => {
                   {currentLeave && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
                       <Palmtree className="h-3 w-3" />
                       On {currentLeave.leave_type}
+                    </Badge>}
+                  {employee.last_working_day && <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20 flex items-center gap-1">
+                      <UserX className="h-3 w-3" />
+                      Last day: {format(new Date(employee.last_working_day), "MMM d, yyyy")}
                     </Badge>}
                 </div>
                 
@@ -1238,6 +1258,25 @@ const TeamMemberProfile = () => {
                 </div>
               </Card>}
 
+            {/* Offboarding Panel - Admin/HR or when last_working_day is set */}
+            {employee.last_working_day && canViewLeaveAndAttendance && (
+              <Card className="overflow-hidden order-4 lg:order-none border-orange-200 dark:border-orange-800/50">
+                <div className="flex items-center justify-between px-5 py-4 bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-200 dark:border-orange-800/50">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <UserX className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    Offboarding
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <OffboardingPanel 
+                    employeeId={id!} 
+                    lastWorkingDay={employee.last_working_day}
+                    canEdit={isAdminOrHR}
+                  />
+                </div>
+              </Card>
+            )}
+
             {/* Attendance Tracking - Admin/HR, own profile, or manager */}
             {canViewLeaveAndAttendance && <Card className="overflow-hidden order-5 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
@@ -1317,6 +1356,8 @@ const TeamMemberProfile = () => {
       {isAdminOrHR && <EditStatusDialog open={editStatusOpen} onOpenChange={setEditStatusOpen} employeeId={id!} currentStatus={employee?.status || 'invited'} onSuccess={loadEmployee} />}
 
       {isAdminOrHR && employee?.organization_id && <EditScheduleDialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen} employeeId={id!} organizationId={employee.organization_id} currentSchedule={employeeSchedule} onSuccess={loadEmployeeSchedule} />}
+
+      {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} onSuccess={loadEmployee} />}
     </>;
 };
 export default TeamMemberProfile;
