@@ -38,7 +38,7 @@ import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
-import { EMOJI_LIST } from '@/lib/emojis';
+import EmojiPicker from "@/components/ui/EmojiPicker";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const ALLOWED_FILE_TYPES = [
@@ -557,8 +557,14 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               </Popover>
 
               {/* Emoji */}
-              <Popover>
-                <PopoverTrigger asChild>
+              <EmojiPicker
+                onSelect={insertEmoji}
+                showSearch={true}
+                showRecent={true}
+                showCategories={true}
+                align="start"
+                side="top"
+                trigger={
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -569,23 +575,8 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   >
                     <Smile className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-64 p-2">
-                  <div className="grid grid-cols-6 gap-1">
-                    {EMOJI_LIST.map((emoji) => (
-                      <Button
-                        key={emoji}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                        onClick={() => insertEmoji(emoji)}
-                      >
-                        {emoji}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                }
+              />
 
               {/* Mention */}
               <Button 
