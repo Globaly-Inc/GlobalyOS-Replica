@@ -33,6 +33,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { 
   useMessages, 
+  useLoadOlderMessages,
   useTogglePinMessage, 
   useTypingUsers, 
   useMarkAsRead,
@@ -48,6 +49,7 @@ import {
   useLeaveSpace,
   useUpdateSpaceNotification,
 } from "@/services/useChat";
+import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPreferences";
@@ -97,8 +99,8 @@ const shouldGroupMessages = (currentMsg: ChatMessage, prevMsg: ChatMessage | nul
 
 const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMessageId }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
+  const initialScrollDoneRef = useRef(false);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -116,11 +118,10 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const leaveConversation = useLeaveConversation();
   const leaveSpace = useLeaveSpace();
   const updateSpaceNotification = useUpdateSpaceNotification();
+  const loadOlderMessages = useLoadOlderMessages();
   
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [isAtBottom, setIsAtBottom] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showAddMembersDialog, setShowAddMembersDialog] = useState(false);
@@ -132,6 +133,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -142,6 +144,41 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
   const { data: replyCounts = {} } = useMessageReplyCounts(conversationId, spaceId);
+
+  // Load older messages callback
+  const handleLoadOlderMessages = useCallback(() => {
+    if (messages.length > 0 && hasMoreMessages && !loadOlderMessages.isPending) {
+      const oldestMessage = messages[0];
+      loadOlderMessages.mutate(
+        { 
+          conversationId: conversationId || undefined, 
+          spaceId: spaceId || undefined, 
+          beforeDate: oldestMessage.created_at 
+        },
+        {
+          onSuccess: (result) => {
+            setHasMoreMessages(result.hasMore);
+            preserveScrollPosition();
+          }
+        }
+      );
+    }
+  }, [messages, hasMoreMessages, loadOlderMessages, conversationId, spaceId]);
+
+  // Infinite scroll hook
+  const {
+    scrollContainerRef,
+    scrollToBottom,
+    preserveScrollPosition,
+    isAtBottom,
+    showScrollToBottom,
+    handleScroll,
+  } = useChatInfiniteScroll({
+    onLoadMore: handleLoadOlderMessages,
+    hasMore: hasMoreMessages,
+    isLoading: loadOlderMessages.isPending,
+    threshold: 200,
+  });
   
   // Check if current user is a space admin
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
@@ -180,30 +217,14 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
     composerRef.current?.addFiles(files);
   }, []);
 
-  // Scroll to bottom function
-  const scrollToBottom = useCallback(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }
-  }, []);
-
-  // Handle scroll events to show/hide scroll to bottom button
-  const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const atBottom = distanceFromBottom < 100;
-    
-    setIsAtBottom(atBottom);
-    setShowScrollToBottom(!atBottom);
-  }, []);
-
-  // Mark as read when viewing conversation
+  // Mark as read when viewing conversation - immediate execution
   useEffect(() => {
     if (conversationId || spaceId) {
       markAsRead.mutate({ conversationId: conversationId || undefined, spaceId: spaceId || undefined });
     }
+    // Reset scroll tracking for new conversations
+    initialScrollDoneRef.current = false;
+    setHasMoreMessages(true);
   }, [conversationId, spaceId]);
 
   // Subscribe to typing indicator changes
@@ -457,29 +478,35 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
 
   // Auto-scroll to bottom on new messages only if already at bottom
   useEffect(() => {
-    if (isAtBottom) {
+    if (isAtBottom && messages.length > 0) {
       scrollToBottom();
     }
-  }, [messages, isAtBottom, scrollToBottom]);
+  }, [messages.length, isAtBottom, scrollToBottom]);
 
-  // Initial scroll to bottom or to highlighted message
+  // Initial scroll to bottom when messages first load
   useEffect(() => {
-    if (highlightMessageId) {
-      // Wait for messages to render, then scroll to the highlighted message
-      setTimeout(() => {
-        const messageElement = document.getElementById(`message-${highlightMessageId}`);
-        if (messageElement) {
-          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          messageElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-          setTimeout(() => {
-            messageElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-          }, 2500);
-        }
-      }, 100);
-    } else {
-      scrollToBottom();
+    if (messages.length > 0 && !initialScrollDoneRef.current && !isLoading) {
+      if (highlightMessageId) {
+        // Wait for messages to render, then scroll to the highlighted message
+        setTimeout(() => {
+          const messageElement = document.getElementById(`message-${highlightMessageId}`);
+          if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            messageElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+            setTimeout(() => {
+              messageElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+            }, 2500);
+          }
+        }, 100);
+      } else {
+        // Scroll to bottom on initial load
+        setTimeout(() => {
+          scrollToBottom();
+        }, 50);
+      }
+      initialScrollDoneRef.current = true;
     }
-  }, [conversationId, spaceId, highlightMessageId, scrollToBottom]);
+  }, [messages.length, isLoading, highlightMessageId, scrollToBottom]);
 
   const getInitials = (name: string) => {
     return name
@@ -798,6 +825,20 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </div>
             ) : (
               <div className="space-y-1">
+                {/* Loading older messages indicator */}
+                {loadOlderMessages.isPending && (
+                  <div className="flex justify-center py-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                      Loading older messages...
+                    </div>
+                  </div>
+                )}
+                {!hasMoreMessages && messages.length > 0 && (
+                  <div className="flex justify-center py-4">
+                    <span className="text-xs text-muted-foreground">Beginning of conversation</span>
+                  </div>
+                )}
                 {Object.entries(groupedMessages).map(([date, dateMessages]) => (
                   <div key={date}>
                     <DateSeparator date={dateMessages[0].created_at} />
