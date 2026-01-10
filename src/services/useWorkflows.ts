@@ -1586,3 +1586,163 @@ export const useProrationPreview = (employeeId: string | undefined, lastWorkingD
     enabled: !!employeeId && !!lastWorkingDay && !!currentOrg?.id,
   });
 };
+
+// Cancel/Archive a workflow (sets status to 'cancelled')
+export const useCancelWorkflow = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (workflowId: string) => {
+      // Get workflow details for logging
+      const { data: workflow } = await supabase
+        .from("employee_workflows")
+        .select("organization_id")
+        .eq("id", workflowId)
+        .single();
+      
+      if (!workflow) throw new Error("Workflow not found");
+      
+      // Get current employee for logging
+      const { data: { user } } = await supabase.auth.getUser();
+      let employeeId: string | null = null;
+      if (user) {
+        const { data: emp } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+        employeeId = emp?.id || null;
+      }
+      
+      const { error } = await supabase
+        .from("employee_workflows")
+        .update({ status: 'cancelled' as const })
+        .eq("id", workflowId);
+      
+      if (error) throw error;
+      
+      // Log the action
+      await supabase.from("workflow_activity_logs").insert([{
+        workflow_id: workflowId,
+        organization_id: workflow.organization_id,
+        employee_id: employeeId,
+        action_type: 'workflow_completed',
+        entity_type: 'workflow',
+        entity_id: workflowId,
+        old_value: { status: 'active' },
+        new_value: { status: 'cancelled' },
+        description: 'Workflow cancelled',
+      }]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs"] });
+      toast.success("Workflow cancelled successfully");
+    },
+    onError: (error: Error) => {
+      console.error("Failed to cancel workflow:", error);
+      toast.error("Failed to cancel workflow");
+    }
+  });
+};
+
+// Reactivate a cancelled workflow (sets status to 'active')
+export const useReactivateWorkflow = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (workflowId: string) => {
+      // Get workflow details for logging
+      const { data: workflow } = await supabase
+        .from("employee_workflows")
+        .select("organization_id, template_id")
+        .eq("id", workflowId)
+        .single();
+      
+      if (!workflow) throw new Error("Workflow not found");
+      
+      // Get first stage to set as current
+      let firstStageId: string | null = null;
+      if (workflow.template_id) {
+        const { data: stages } = await supabase
+          .from("workflow_stages")
+          .select("id")
+          .eq("template_id", workflow.template_id)
+          .order("sort_order")
+          .limit(1);
+        firstStageId = stages?.[0]?.id || null;
+      }
+      
+      // Get current employee for logging
+      const { data: { user } } = await supabase.auth.getUser();
+      let employeeId: string | null = null;
+      if (user) {
+        const { data: emp } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+        employeeId = emp?.id || null;
+      }
+      
+      const { error } = await supabase
+        .from("employee_workflows")
+        .update({ 
+          status: 'active' as const,
+          current_stage_id: firstStageId,
+          completed_at: null,
+        })
+        .eq("id", workflowId);
+      
+      if (error) throw error;
+      
+      // Log the action
+      await supabase.from("workflow_activity_logs").insert([{
+        workflow_id: workflowId,
+        organization_id: workflow.organization_id,
+        employee_id: employeeId,
+        action_type: 'workflow_started',
+        entity_type: 'workflow',
+        entity_id: workflowId,
+        old_value: { status: 'cancelled' },
+        new_value: { status: 'active' },
+        description: 'Workflow reactivated',
+      }]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs"] });
+      toast.success("Workflow reactivated successfully");
+    },
+    onError: (error: Error) => {
+      console.error("Failed to reactivate workflow:", error);
+      toast.error("Failed to reactivate workflow");
+    }
+  });
+};
+
+// Permanently delete a workflow
+export const useDeleteWorkflow = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (workflowId: string) => {
+      const { error } = await supabase
+        .from("employee_workflows")
+        .delete()
+        .eq("id", workflowId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      toast.success("Workflow deleted permanently");
+    },
+    onError: (error: Error) => {
+      console.error("Failed to delete workflow:", error);
+      toast.error("Failed to delete workflow");
+    }
+  });
+};
