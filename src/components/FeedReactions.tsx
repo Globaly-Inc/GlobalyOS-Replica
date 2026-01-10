@@ -8,7 +8,9 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { Smile } from "lucide-react";
 
-const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 const MAX_VISIBLE_AVATARS = 6;
 
 interface ReactionUser {
@@ -298,7 +300,7 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="start">
           <div className="flex gap-1">
-            {EMOJI_OPTIONS.map((emoji) => (
+            {QUICK_REACTION_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => toggleReaction(emoji)}

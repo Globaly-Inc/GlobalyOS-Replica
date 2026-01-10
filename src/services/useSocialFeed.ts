@@ -1164,7 +1164,8 @@ export interface Reaction {
   };
 }
 
-export const EMOJI_OPTIONS = ['👍', '❤️', '🎉', '👏', '🔥', '💯', '😂', '🤔'];
+// Re-export from centralized library for backward compatibility
+export { EMOJI_OPTIONS, QUICK_REACTION_EMOJIS } from '@/lib/emojis';
 
 export const usePostReactions = (postId: string) => {
   return useQuery({

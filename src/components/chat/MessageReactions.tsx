@@ -34,7 +34,9 @@ interface MessageReactionsProps {
   isOwn: boolean;
 }
 
-const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 const MAX_VISIBLE_AVATARS = 4;
 
 const MessageReactions = ({
@@ -116,7 +118,7 @@ const MessageReactions = ({
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="start">
             <div className="flex gap-1">
-              {EMOJI_OPTIONS.map(emoji => (
+              {QUICK_REACTION_EMOJIS.map(emoji => (
                 <Button
                   key={emoji}
                   variant="ghost"
@@ -250,7 +252,7 @@ const MessageReactions = ({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="start">
           <div className="flex gap-1 flex-wrap max-w-[180px]">
-            {EMOJI_OPTIONS.map(emoji => {
+            {QUICK_REACTION_EMOJIS.map(emoji => {
               const hasReacted = localReactions[emoji]?.users.some(
                 u => u.id === currentEmployeeId
               );
