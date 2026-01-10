@@ -1121,6 +1121,14 @@ export function TaskDetailSheet({
                           })}
                         </SelectContent>
                       </Select>
+                      {status !== "completed" && status !== "skipped" && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleStatusChange("completed")}
+                        >
+                          Complete
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
