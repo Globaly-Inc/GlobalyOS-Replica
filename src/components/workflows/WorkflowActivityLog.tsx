@@ -96,7 +96,7 @@ export function WorkflowActivityLog({ workflowId }: WorkflowActivityLogProps) {
             No activity recorded yet.
           </p>
         ) : (
-          <ScrollArea className="max-h-80 pr-4">
+          <ScrollArea className="max-h-[28rem] pr-4">
             <div className="space-y-4">
               {logs.map((log) => {
                 const config = activityConfig[log.action_type as WorkflowActivityType] || {
