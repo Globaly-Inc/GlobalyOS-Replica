@@ -23,7 +23,10 @@ import {
   CalendarIcon,
   User,
   Search,
-  ChevronRight
+  ChevronRight,
+  Archive,
+  ArchiveRestore,
+  MapPin
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,8 +38,17 @@ import {
   useEditWorkflowTask,
   useDeleteEmployeeWorkflowTask,
   useCompleteStage,
-  useMoveToNextStage
+  useMoveToNextStage,
+  useCancelWorkflow,
+  useReactivateWorkflow,
+  useDeleteWorkflow
 } from "@/services/useWorkflows";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { format, differenceInDays } from "date-fns";
 import type { WorkflowType, WorkflowStatus, WorkflowTaskCategory } from "@/types/workflow";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -117,6 +129,10 @@ export default function WorkflowDetail() {
   // Show archived tasks filter
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   
+  // Archive/Delete workflow dialog state
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [deleteWorkflowDialogOpen, setDeleteWorkflowDialogOpen] = useState(false);
+  
   // Enable realtime updates
   useWorkflowDetailRealtime(workflowId);
   
@@ -190,6 +206,9 @@ export default function WorkflowDetail() {
   const deleteTask = useDeleteEmployeeWorkflowTask();
   const completeStage = useCompleteStage();
   const moveToNextStage = useMoveToNextStage();
+  const cancelWorkflow = useCancelWorkflow();
+  const reactivateWorkflow = useReactivateWorkflow();
+  const deleteWorkflowMutation = useDeleteWorkflow();
   
   const handleTaskToggle = (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
@@ -382,6 +401,33 @@ export default function WorkflowDetail() {
     });
   };
   
+  // Archive/Cancel workflow handler
+  const handleArchiveWorkflow = () => {
+    if (!workflow) return;
+    
+    cancelWorkflow.mutate(workflow.id, {
+      onSuccess: () => setArchiveDialogOpen(false)
+    });
+  };
+  
+  // Reactivate workflow handler
+  const handleReactivateWorkflow = () => {
+    if (!workflow) return;
+    reactivateWorkflow.mutate(workflow.id);
+  };
+  
+  // Delete workflow handler
+  const handleDeleteWorkflow = () => {
+    if (!workflow) return;
+    
+    deleteWorkflowMutation.mutate(workflow.id, {
+      onSuccess: () => {
+        setDeleteWorkflowDialogOpen(false);
+        navigate(`/org/${orgCode}/workflows`);
+      }
+    });
+  };
+  
   // Loading state
   if (roleLoading || workflowLoading) {
     return (
@@ -444,7 +490,18 @@ export default function WorkflowDetail() {
   const employeeAvatar = employeeProfiles?.avatar_url;
   const employeePosition = (workflow.employee as any)?.position;
 
+  // Calculate current stage name
+  const currentStageName = workflow.current_stage_id 
+    ? stages?.find(s => s.id === workflow.current_stage_id)?.name || 'Unknown Stage'
+    : workflow.status === 'completed' 
+      ? 'Completed' 
+      : workflow.status === 'cancelled'
+        ? 'Cancelled'
+        : stages?.[0]?.name || 'Not Started';
+
   const isActive = workflow.status === 'active';
+  const isCancelled = workflow.status === 'cancelled';
+  const canDelete = isOwner || isAdmin;
   
   return (
     <div className="space-y-4 md:space-y-6">
@@ -458,70 +515,179 @@ export default function WorkflowDetail() {
         Back to Workflows
       </Button>
       
-      {/* Header Card */}
+      {/* Header Card - Compact Two-Row Layout */}
       <Card className="border-l-4" style={{ borderLeftColor: workflow.type === 'onboarding' ? '#3b82f6' : '#f97316' }}>
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <Avatar className="h-16 w-16 border-2 border-background shadow-md">
-              <AvatarImage src={employeeAvatar || undefined} />
-              <AvatarFallback className="text-lg bg-primary/10">
-                {employeeName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">
+        <CardContent className="py-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            {/* LEFT SECTION: Employee Info */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar className="h-12 w-12 shrink-0 border-2 border-background shadow-sm">
+                <AvatarImage src={employeeAvatar || undefined} />
+                <AvatarFallback className="text-base bg-primary/10">
+                  {employeeName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="min-w-0 flex-1">
+                {/* Row 1: Name */}
+                <h1 className="text-xl font-bold truncate">
                   {employeeName}
                 </h1>
-                <StatusBadge status={workflow.status as WorkflowStatus} />
-              </div>
-              
-              <p className="text-muted-foreground">
-                {employeePosition || 'No position'}
-              </p>
-              
-              <div className="flex items-center gap-4 mt-3 flex-wrap">
-                <Badge variant="outline" className={`gap-1 ${typeColor}`}>
-                  <TypeIcon className="h-3 w-3" />
-                  {workflow.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
-                </Badge>
                 
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  {workflow.type === 'onboarding' ? 'Started' : 'Last Day'}:{' '}
-                  {format(new Date(workflow.target_date), 'MMM d, yyyy')}
+                {/* Row 2: Position + Type Badge + Status Badge */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap mt-0.5">
+                  <span className="truncate">{employeePosition || 'No position'}</span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <Badge variant="outline" className={`gap-1 ${typeColor} text-xs py-0`}>
+                    <TypeIcon className="h-3 w-3" />
+                    {workflow.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
+                  </Badge>
+                  <StatusBadge status={workflow.status as WorkflowStatus} />
+                </div>
+                
+                {/* Row 3: Date + Days Remaining */}
+                <div className="flex items-center gap-2 text-sm mt-1">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {format(new Date(workflow.target_date), 'MMM d, yyyy')}
+                  </span>
+                  {daysRemaining !== null && workflow.status === 'active' && (
+                    <span className={cn(
+                      "text-sm",
+                      daysRemaining <= 3 ? 'text-destructive font-medium' : 'text-muted-foreground'
+                    )}>
+                      · {daysRemaining > 0 ? `${daysRemaining}d left` : 
+                         daysRemaining === 0 ? 'Due today' : 
+                         `${Math.abs(daysRemaining)}d overdue`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* RIGHT SECTION: Workflow Info + Actions */}
+            <div className="flex flex-col items-start md:items-end gap-1 shrink-0 md:min-w-[220px] border-t md:border-t-0 pt-3 md:pt-0">
+              {/* Row 1: Workflow Name + Action Buttons */}
+              <div className="flex items-center gap-2 w-full md:justify-end">
+                <span className="font-semibold text-sm md:text-base truncate flex-1 md:flex-none md:text-right">
+                  {workflow.template?.name || 'Workflow'}
                 </span>
                 
-                {daysRemaining !== null && workflow.status === 'active' && (
-                  <span className={`text-sm ${daysRemaining <= 3 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                    {daysRemaining > 0 ? `${daysRemaining} days remaining` : 
-                     daysRemaining === 0 ? 'Due today' : 
-                     `${Math.abs(daysRemaining)} days overdue`}
-                  </span>
+                {/* Archive/Reactivate Button */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => isCancelled 
+                          ? handleReactivateWorkflow() 
+                          : setArchiveDialogOpen(true)
+                        }
+                        disabled={cancelWorkflow.isPending || reactivateWorkflow.isPending}
+                      >
+                        {isCancelled 
+                          ? <ArchiveRestore className="h-4 w-4" />
+                          : <Archive className="h-4 w-4" />
+                        }
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {isCancelled ? 'Reactivate Workflow' : 'Cancel Workflow'}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                {/* Delete Button (Owner/Admin only) */}
+                {canDelete && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteWorkflowDialogOpen(true)}
+                          disabled={deleteWorkflowMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Permanently</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
+              
+              {/* Row 2: Current Stage */}
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="truncate">{currentStageName}</span>
+              </div>
+              
+              {/* Row 3: Slim Progress Bar */}
+              <div className="flex items-center gap-2 w-full mt-1">
+                <Progress 
+                  value={progressPercent} 
+                  className={cn(
+                    "h-1.5 flex-1",
+                    progressPercent === 100 && "[&>div]:bg-green-500"
+                  )} 
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {completedTasks}/{totalTasks} ({progressPercent}%)
+                </span>
+              </div>
             </div>
-          </div>
-          
-          {/* Progress */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-sm text-muted-foreground">
-                {completedTasks}/{totalTasks} tasks ({progressPercent}%)
-              </span>
-            </div>
-            <Progress 
-              value={progressPercent} 
-              className={cn(
-                "h-2",
-                progressPercent === 100 && "[&>div]:bg-green-500"
-              )} 
-            />
           </div>
         </CardContent>
       </Card>
+      
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the workflow as cancelled. All tasks will remain but 
+              no further progress can be made. You can reactivate it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Active</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleArchiveWorkflow}
+              disabled={cancelWorkflow.isPending}
+            >
+              {cancelWorkflow.isPending ? 'Cancelling...' : 'Cancel Workflow'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteWorkflowDialogOpen} onOpenChange={setDeleteWorkflowDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Workflow Permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this workflow and all associated tasks, 
+              checklists, and activity logs. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteWorkflow}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteWorkflowMutation.isPending}
+            >
+              {deleteWorkflowMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* Two-column layout: Stages/Tasks (2/3) + Activity Log (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
