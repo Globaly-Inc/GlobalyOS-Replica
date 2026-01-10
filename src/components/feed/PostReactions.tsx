@@ -1,11 +1,12 @@
 /**
  * Post Reactions Component
  * Emoji reactions with avatar stacking, overflow popover, and optimistic updates
+ * Features full emoji picker with search, categories, and recently used
  */
 
 import { useState, useEffect } from 'react';
 import { usePostReactions, useTogglePostReaction, Reaction } from '@/services/useSocialFeed';
-import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { QUICK_REACTION_EMOJIS, ALL_EMOJIS } from '@/lib/emojis';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
@@ -42,6 +43,7 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: reactions = [] } = usePostReactions(postId);
   const toggleReaction = useTogglePostReaction();
+  const { addRecentEmoji } = useRecentEmojis();
   
   // Local state for optimistic updates
   const [localReactions, setLocalReactions] = useState<Reaction[]>([]);
@@ -51,19 +53,27 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
     setLocalReactions(reactions);
   }, [reactions]);
 
-  // Group reactions by emoji with user details
-  const groupedReactions: GroupedReaction[] = QUICK_REACTION_EMOJIS.map(emoji => {
-    const emojiReactions = localReactions.filter(r => r.emoji === emoji);
-    return {
-      emoji,
-      users: emojiReactions.map(r => ({
-        id: r.employee_id,
-        name: r.employee?.profiles?.full_name || 'Unknown',
-        avatar: r.employee?.profiles?.avatar_url || null,
-      })),
-      hasCurrentUser: emojiReactions.some(r => r.employee_id === currentEmployee?.id),
-    };
-  }).filter(g => g.users.length > 0);
+  // Group reactions by emoji with user details - include ALL used emojis, not just quick reactions
+  const groupedReactions: GroupedReaction[] = (() => {
+    const usedEmojis = new Set(localReactions.map(r => r.emoji));
+    return Array.from(usedEmojis).map(emoji => {
+      const emojiReactions = localReactions.filter(r => r.emoji === emoji);
+      return {
+        emoji,
+        users: emojiReactions.map(r => ({
+          id: r.employee_id,
+          name: r.employee?.profiles?.full_name || 'Unknown',
+          avatar: r.employee?.profiles?.avatar_url || null,
+        })),
+        hasCurrentUser: emojiReactions.some(r => r.employee_id === currentEmployee?.id),
+      };
+    });
+  })();
+
+  // Get emojis that current user has reacted with
+  const reactedEmojis = localReactions
+    .filter(r => r.employee_id === currentEmployee?.id)
+    .map(r => r.emoji);
 
   const handleToggle = (emoji: string) => {
     if (!currentEmployee?.id) return;
@@ -71,6 +81,11 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
     const hasReacted = localReactions.some(
       r => r.emoji === emoji && r.employee_id === currentEmployee.id
     );
+    
+    // Track in recently used (only when adding)
+    if (!hasReacted) {
+      addRecentEmoji(emoji);
+    }
     
     // Optimistic update
     if (hasReacted) {
@@ -200,9 +215,16 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
         </div>
       ))}
 
-      {/* Add reaction button */}
-      <Popover>
-        <PopoverTrigger asChild>
+      {/* Add reaction button - Full emoji picker with search & categories */}
+      <EmojiPicker
+        onSelect={handleToggle}
+        reactedEmojis={reactedEmojis}
+        showSearch
+        showRecent
+        showCategories
+        align="start"
+        side="top"
+        trigger={
           <Button
             variant="ghost"
             size="sm"
@@ -210,31 +232,8 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
           >
             <SmilePlus className="h-4 w-4 text-muted-foreground" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="start">
-          <div className="flex gap-1 flex-wrap max-w-[200px]">
-            {QUICK_REACTION_EMOJIS.map(emoji => {
-              const hasReacted = localReactions.some(
-                r => r.emoji === emoji && r.employee_id === currentEmployee?.id
-              );
-              return (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-8 w-8 p-0 text-lg hover:bg-muted rounded-full",
-                    hasReacted && "bg-primary/10 ring-1 ring-primary/30"
-                  )}
-                  onClick={() => handleToggle(emoji)}
-                >
-                  {emoji}
-                </Button>
-              );
-            })}
-          </div>
-        </PopoverContent>
-      </Popover>
+        }
+      />
     </div>
   );
 };

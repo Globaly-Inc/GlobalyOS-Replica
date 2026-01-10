@@ -1,7 +1,7 @@
 /**
  * Chat Message Reactions Component
  * Emoji reactions with avatar stacking, overflow popover, and optimistic updates
- * (Matches Social Feed reaction UI pattern)
+ * Features full emoji picker with search, categories, and recently used
  */
 
 import { useState, useEffect } from "react";
@@ -15,6 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SmilePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 
 interface ReactionUser {
   id: string;
@@ -34,9 +37,6 @@ interface MessageReactionsProps {
   isOwn: boolean;
 }
 
-import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
-import { EmojiPicker } from '@/components/ui/EmojiPicker';
-import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 const MAX_VISIBLE_AVATARS = 4;
 
 const MessageReactions = ({
@@ -45,6 +45,7 @@ const MessageReactions = ({
   onToggleReaction,
   isOwn,
 }: MessageReactionsProps) => {
+  const { addRecentEmoji } = useRecentEmojis();
   const reactionList = Object.values(reactions);
   
   // Local state for optimistic updates
@@ -64,9 +65,19 @@ const MessageReactions = ({
       .slice(0, 2);
   };
 
+  // Get emojis that current user has reacted with
+  const reactedEmojis = Object.values(localReactions)
+    .filter(r => r.users.some(u => u.id === currentEmployeeId))
+    .map(r => r.emoji);
+
   const handleToggle = (emoji: string) => {
     const reaction = localReactions[emoji];
     const hasReacted = reaction?.users.some(u => u.id === currentEmployeeId);
+    
+    // Track in recently used (only when adding)
+    if (!hasReacted) {
+      addRecentEmoji(emoji);
+    }
     
     // Optimistic update
     if (hasReacted) {
@@ -105,9 +116,16 @@ const MessageReactions = ({
   if (localReactionList.length === 0) {
     return (
       <div className="flex items-center justify-start">
-        {/* Add reaction button when no reactions exist */}
-        <Popover>
-          <PopoverTrigger asChild>
+        {/* Add reaction button when no reactions exist - Full picker */}
+        <EmojiPicker
+          onSelect={handleToggle}
+          reactedEmojis={reactedEmojis}
+          showSearch
+          showRecent
+          showCategories
+          align="start"
+          side="top"
+          trigger={
             <Button
               variant="ghost"
               size="sm"
@@ -115,23 +133,8 @@ const MessageReactions = ({
             >
               <SmilePlus className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" align="start">
-            <div className="flex gap-1">
-              {QUICK_REACTION_EMOJIS.map(emoji => (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-lg hover:bg-muted rounded-full"
-                  onClick={() => handleToggle(emoji)}
-                >
-                  {emoji}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+          }
+        />
       </div>
     );
   }
@@ -239,9 +242,16 @@ const MessageReactions = ({
         );
       })}
 
-      {/* Add reaction button */}
-      <Popover>
-        <PopoverTrigger asChild>
+      {/* Add reaction button - Full emoji picker with search & categories */}
+      <EmojiPicker
+        onSelect={handleToggle}
+        reactedEmojis={reactedEmojis}
+        showSearch
+        showRecent
+        showCategories
+        align="start"
+        side="top"
+        trigger={
           <Button
             variant="ghost"
             size="sm"
@@ -249,31 +259,8 @@ const MessageReactions = ({
           >
             <SmilePlus className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="start">
-          <div className="flex gap-1 flex-wrap max-w-[180px]">
-            {QUICK_REACTION_EMOJIS.map(emoji => {
-              const hasReacted = localReactions[emoji]?.users.some(
-                u => u.id === currentEmployeeId
-              );
-              return (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-8 w-8 p-0 text-lg hover:bg-muted rounded-full",
-                    hasReacted && "bg-primary/10 ring-1 ring-primary/30"
-                  )}
-                  onClick={() => handleToggle(emoji)}
-                >
-                  {emoji}
-                </Button>
-              );
-            })}
-          </div>
-        </PopoverContent>
-      </Popover>
+        }
+      />
     </div>
   );
 };
