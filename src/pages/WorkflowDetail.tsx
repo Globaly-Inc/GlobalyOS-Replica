@@ -882,9 +882,21 @@ function TaskItem({
     enabled: !!organizationId,
   });
 
+  // Category options with emojis
+  const CATEGORY_OPTIONS: { value: WorkflowTaskCategory; label: string; emoji: string }[] = [
+    { value: "documentation", label: "Documentation", emoji: "📄" },
+    { value: "equipment", label: "Equipment", emoji: "🖥️" },
+    { value: "training", label: "Training", emoji: "📚" },
+    { value: "access", label: "Access", emoji: "🔑" },
+    { value: "exit_interview", label: "Exit Interview", emoji: "💬" },
+    { value: "asset_return", label: "Asset Return", emoji: "📦" },
+    { value: "knowledge_transfer", label: "Knowledge Transfer", emoji: "🧠" },
+    { value: "other", label: "Other", emoji: "📋" },
+  ];
+
   // Mutation for inline updates
   const updateTask = useMutation({
-    mutationFn: async (updates: { assignee_id?: string | null; due_date?: string | null }) => {
+    mutationFn: async (updates: { assignee_id?: string | null; due_date?: string | null; category?: string }) => {
       const { error } = await supabase
         .from("employee_workflow_tasks")
         .update({
@@ -916,6 +928,12 @@ function TaskItem({
       due_date: newDate ? newDate.toISOString() : null 
     });
   };
+
+  const handleCategoryChange = (newCategory: string) => {
+    updateTask.mutate({ category: newCategory });
+  };
+
+  const currentCategory = CATEGORY_OPTIONS.find(c => c.value === task.category);
 
   const selectedEmployee = employees.find((e: any) => e.id === task.assignee_id);
   
@@ -950,6 +968,45 @@ function TaskItem({
           </p>
         )}
       </div>
+
+      {/* Inline Category Selector */}
+      {!disabled ? (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs whitespace-nowrap gap-1"
+              >
+                <span>{currentCategory?.emoji || "📋"}</span>
+                <span className="hidden sm:inline">{currentCategory?.label || "Category"}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-1" align="end">
+              <div className="space-y-0.5">
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <Button
+                    key={cat.value}
+                    variant={task.category === cat.value ? "secondary" : "ghost"}
+                    size="sm"
+                    className="w-full justify-start gap-2 h-8"
+                    onClick={() => handleCategoryChange(cat.value)}
+                  >
+                    <span>{cat.emoji}</span>
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      ) : (
+        <span className="text-xs whitespace-nowrap text-muted-foreground flex items-center gap-1">
+          <span>{currentCategory?.emoji || "📋"}</span>
+          <span className="hidden sm:inline">{currentCategory?.label}</span>
+        </span>
+      )}
 
       {/* Inline Due Date Picker */}
       {!disabled ? (
