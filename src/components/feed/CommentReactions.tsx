@@ -4,7 +4,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useCommentReactions, useToggleCommentReaction, Reaction, EMOJI_OPTIONS } from '@/services/useSocialFeed';
+import { useCommentReactions, useToggleCommentReaction, Reaction } from '@/services/useSocialFeed';
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -213,7 +216,7 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="start">
           <div className="flex gap-1">
-            {EMOJI_OPTIONS.map((emoji) => (
+            {QUICK_REACTION_EMOJIS.map((emoji) => (
               <Button
                 key={emoji}
                 variant="ghost"

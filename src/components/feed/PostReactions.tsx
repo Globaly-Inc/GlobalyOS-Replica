@@ -4,7 +4,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { usePostReactions, useTogglePostReaction, EMOJI_OPTIONS, Reaction } from '@/services/useSocialFeed';
+import { usePostReactions, useTogglePostReaction, Reaction } from '@/services/useSocialFeed';
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +52,7 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
   }, [reactions]);
 
   // Group reactions by emoji with user details
-  const groupedReactions: GroupedReaction[] = EMOJI_OPTIONS.map(emoji => {
+  const groupedReactions: GroupedReaction[] = QUICK_REACTION_EMOJIS.map(emoji => {
     const emojiReactions = localReactions.filter(r => r.emoji === emoji);
     return {
       emoji,
@@ -210,7 +213,7 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="start">
           <div className="flex gap-1 flex-wrap max-w-[200px]">
-            {EMOJI_OPTIONS.map(emoji => {
+            {QUICK_REACTION_EMOJIS.map(emoji => {
               const hasReacted = localReactions.some(
                 r => r.emoji === emoji && r.employee_id === currentEmployee?.id
               );

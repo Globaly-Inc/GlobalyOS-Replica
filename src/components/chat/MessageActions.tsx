@@ -25,7 +25,7 @@ import {
 import { MoreVertical, Pin, Pencil, Trash2, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
 
 interface MessageActionsProps {
   messageId: string;
@@ -64,7 +64,7 @@ const MessageActions = ({
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" side="top" align="center">
             <div className="flex gap-1">
-              {EMOJI_OPTIONS.map((emoji) => (
+              {QUICK_REACTION_EMOJIS.slice(0, 6).map((emoji) => (
                 <Button
                   key={emoji}
                   variant="ghost"
