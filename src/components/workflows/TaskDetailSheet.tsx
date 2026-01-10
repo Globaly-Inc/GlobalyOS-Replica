@@ -202,10 +202,9 @@ export function TaskDetailSheet({
   const prevActivityCount = useRef(0);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
 
-  // Populate form when task changes
+  // Populate form when task changes - sync all fields including status instantly
   useEffect(() => {
     if (task) {
-      setStatus((task.status as WorkflowTaskStatus) || "pending");
       setDescription(task.description || "");
       setCategory((task.category as WorkflowTaskCategory) || "other");
       setAssigneeId(task.assignee_id || "");
@@ -219,7 +218,14 @@ export function TaskDetailSheet({
       setSelectedWorkflowId("");
       setSelectedStageId("");
     }
-  }, [task]);
+  }, [task?.id, task?.description, task?.category, task?.assignee_id, task?.due_date, task?.is_required, task?.title]);
+
+  // Sync status separately to ensure instant real-time updates
+  useEffect(() => {
+    if (task?.status) {
+      setStatus((task.status as WorkflowTaskStatus) || "pending");
+    }
+  }, [task?.status]);
 
   // Helper function to render status indicator icon
   const getStatusIcon = (status: WorkflowTaskStatus) => {
@@ -802,7 +808,31 @@ export function TaskDetailSheet({
             <DialogHeader className="px-6 py-4 border-b">
               {isEditingTitle ? (
                 <div className="flex items-center gap-2">
-                  {getStatusIcon(task.status as WorkflowTaskStatus)}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {getStatusIcon(status)}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {STATUS_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={() => handleStatusChange(opt.value)}
+                            className={cn(status === opt.value && "bg-accent")}
+                          >
+                            <Icon className="h-4 w-4 mr-2" />
+                            {opt.label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Input 
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
@@ -842,13 +872,42 @@ export function TaskDetailSheet({
                   </Button>
                 </div>
               ) : (
-                <DialogTitle 
-                  className="text-xl cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors"
-                  onClick={() => setIsEditingTitle(true)}
-                >
-                  {getStatusIcon(task.status as WorkflowTaskStatus)}
-                  {task.title}
-                  <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {getStatusIcon(status)}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {STATUS_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={() => handleStatusChange(opt.value)}
+                            className={cn(status === opt.value && "bg-accent")}
+                          >
+                            <Icon className="h-4 w-4 mr-2" />
+                            {opt.label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <span 
+                    className={cn(
+                      "cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors",
+                      status === 'completed' && "line-through text-muted-foreground"
+                    )}
+                    onClick={() => setIsEditingTitle(true)}
+                  >
+                    {task.title}
+                    <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+                  </span>
                 </DialogTitle>
               )}
             </DialogHeader>
