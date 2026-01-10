@@ -2431,6 +2431,7 @@ export type Database = {
           due_date: string | null
           employee_id: string
           id: string
+          is_archived: boolean | null
           is_required: boolean | null
           notes: string | null
           organization_id: string
@@ -2451,6 +2452,7 @@ export type Database = {
           due_date?: string | null
           employee_id: string
           id?: string
+          is_archived?: boolean | null
           is_required?: boolean | null
           notes?: string | null
           organization_id: string
@@ -2471,6 +2473,7 @@ export type Database = {
           due_date?: string | null
           employee_id?: string
           id?: string
+          is_archived?: boolean | null
           is_required?: boolean | null
           notes?: string | null
           organization_id?: string

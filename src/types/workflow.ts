@@ -107,6 +107,7 @@ export interface EmployeeWorkflowTask {
   notes: string | null;
   sort_order: number;
   stage_id: string | null;
+  is_archived?: boolean;
   created_at: string;
   updated_at: string;
 }

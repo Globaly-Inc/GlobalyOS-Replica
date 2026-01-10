@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
@@ -113,6 +114,9 @@ export default function WorkflowDetail() {
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<any>(null);
   
+  // Show archived tasks filter
+  const [showArchivedTasks, setShowArchivedTasks] = useState(false);
+  
   // Enable realtime updates
   useWorkflowDetailRealtime(workflowId);
   
@@ -143,7 +147,7 @@ export default function WorkflowDetail() {
   });
   
   // Fetch workflow tasks
-  const { data: tasks } = useEmployeeWorkflowTasks(workflowId);
+  const { data: tasks } = useEmployeeWorkflowTasks(workflowId, showArchivedTasks);
   
   // Fetch stages for this workflow's template
   const { data: stages } = useQuery({
@@ -523,6 +527,18 @@ export default function WorkflowDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - Stages & Tasks */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Show archived tasks toggle */}
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="show-archived" 
+              checked={showArchivedTasks} 
+              onCheckedChange={(checked) => setShowArchivedTasks(!!checked)} 
+            />
+            <Label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer">
+              Show archived tasks
+            </Label>
+          </div>
+
           {/* Tasks by Stage */}
           {tasksByStage.map(({ stage, tasks: stageTasks }, index) => {
             const stageCompletedCount = stageTasks.filter(t => t.status === 'completed').length;
