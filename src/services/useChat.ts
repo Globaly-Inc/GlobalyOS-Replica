@@ -184,6 +184,8 @@ export const useSpaceMembers = (spaceId: string | null) => {
   });
 };
 
+const MESSAGE_PAGE_SIZE = 50;
+
 export const useMessages = (conversationId: string | null, spaceId: string | null) => {
   return useQuery({
     queryKey: ['chat-messages', conversationId, spaceId],
@@ -211,7 +213,8 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
           )
         `)
         .is('reply_to_id', null) // Only get top-level messages, not replies
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MESSAGE_PAGE_SIZE);
 
       if (conversationId) {
         query = query.eq('conversation_id', conversationId);
@@ -224,15 +227,91 @@ export const useMessages = (conversationId: string | null, spaceId: string | nul
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data || []).map((msg: any) => ({
+      // Reverse to show oldest first in UI (most recent at bottom)
+      return ((data || []).map((msg: any) => ({
         ...msg,
         sender: msg.employees,
         attachments: msg.chat_attachments || [],
-        // Parse call_log_data if it exists
         call_log_data: msg.call_log_data || undefined,
-      })) as ChatMessage[];
+      })) as ChatMessage[]).reverse();
     },
     enabled: !!conversationId || !!spaceId,
+  });
+};
+
+// Load older messages for infinite scroll
+export const useLoadOlderMessages = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      spaceId, 
+      beforeDate 
+    }: { 
+      conversationId?: string; 
+      spaceId?: string; 
+      beforeDate: string;
+    }) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          employees:sender_id (
+            id,
+            user_id,
+            position,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          ),
+          chat_attachments (
+            id,
+            file_name,
+            file_path,
+            file_type,
+            file_size,
+            created_at
+          )
+        `)
+        .is('reply_to_id', null)
+        .lt('created_at', beforeDate)
+        .order('created_at', { ascending: false })
+        .limit(MESSAGE_PAGE_SIZE);
+
+      if (conversationId) {
+        query = query.eq('conversation_id', conversationId);
+      } else if (spaceId) {
+        query = query.eq('space_id', spaceId);
+      } else {
+        return { messages: [], hasMore: false };
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const messages = ((data || []).map((msg: any) => ({
+        ...msg,
+        sender: msg.employees,
+        attachments: msg.chat_attachments || [],
+        call_log_data: msg.call_log_data || undefined,
+      })) as ChatMessage[]).reverse();
+
+      return {
+        messages,
+        hasMore: (data || []).length >= MESSAGE_PAGE_SIZE,
+      };
+    },
+    onSuccess: (result, variables) => {
+      const { conversationId, spaceId } = variables;
+      
+      // Prepend older messages to the existing cache
+      queryClient.setQueryData<ChatMessage[]>(
+        ['chat-messages', conversationId || null, spaceId || null],
+        (oldData = []) => [...result.messages, ...oldData]
+      );
+    },
   });
 };
 
