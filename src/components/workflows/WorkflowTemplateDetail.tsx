@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,13 @@ import {
   useToggleWorkflowTrigger,
 } from "@/services/useWorkflowMutations";
 import { EditTriggerDialog } from "./EditTriggerDialog";
+import { TaskStatusManagement } from "./TaskStatusManagement";
+import { TaskCategoryManagement } from "./TaskCategoryManagement";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import type { WorkflowStage, WorkflowTrigger } from "@/types/workflow";
+import { useWorkflowTaskStatuses, useWorkflowTaskCategories, useSeedWorkflowTaskDefaults } from "@/services/useWorkflowStatusCategories";
 
 interface WorkflowTemplateDetailProps {
   organizationId: string;
@@ -85,8 +88,19 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
   const { data: stages = [] } = useWorkflowStages(templateId);
   const { data: tasks = [] } = useWorkflowTemplateTasks(templateId);
   const { data: allTriggers = [] } = useWorkflowTriggers();
+  const { data: customStatuses = [] } = useWorkflowTaskStatuses(templateId);
+  const { data: customCategories = [] } = useWorkflowTaskCategories(templateId);
+  
+  const seedDefaults = useSeedWorkflowTaskDefaults();
   
   const trigger = allTriggers.find(t => t.workflow_type === template?.type);
+  
+  // Seed defaults on first load if no statuses/categories exist
+  useEffect(() => {
+    if (template && customStatuses.length === 0 && customCategories.length === 0) {
+      seedDefaults.mutate({ templateId, organizationId });
+    }
+  }, [template, customStatuses.length, customCategories.length, templateId, organizationId]);
   
   const deleteTemplate = useDeleteWorkflowTemplate();
   const updateTemplate = useUpdateWorkflowTemplate();
@@ -363,6 +377,12 @@ export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowT
           </div>
         </CardContent>
       </Card>
+
+      {/* Task Statuses Management */}
+      <TaskStatusManagement templateId={templateId} organizationId={organizationId} />
+
+      {/* Task Categories Management */}
+      <TaskCategoryManagement templateId={templateId} organizationId={organizationId} />
 
       {/* Stages & Tasks Section */}
       <Card>

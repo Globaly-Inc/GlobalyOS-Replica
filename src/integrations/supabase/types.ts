@@ -9682,6 +9682,57 @@ export type Database = {
           },
         ]
       }
+      workflow_task_categories: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          is_default: boolean | null
+          name: string
+          organization_id: string
+          sort_order: number | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          organization_id: string
+          sort_order?: number | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string
+          sort_order?: number | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_categories_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_task_checklists: {
         Row: {
           created_at: string
@@ -9838,6 +9889,60 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "employee_workflow_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_task_statuses: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          organization_id: string
+          parent_status: string
+          sort_order: number | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          organization_id: string
+          parent_status: string
+          sort_order?: number | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string
+          parent_status?: string
+          sort_order?: number | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_task_statuses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_task_statuses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -10511,6 +10616,10 @@ export type Database = {
       }
       seed_default_workflow_data: {
         Args: { org_id: string }
+        Returns: undefined
+      }
+      seed_workflow_task_defaults: {
+        Args: { p_organization_id: string; p_template_id: string }
         Returns: undefined
       }
       soft_delete_comment: { Args: { _comment_id: string }; Returns: boolean }

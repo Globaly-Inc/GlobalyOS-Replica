@@ -91,6 +91,13 @@ import {
   useArchiveWorkflowTask,
   useDeleteEmployeeWorkflowTask,
 } from "@/services/useWorkflows";
+import {
+  useWorkflowTaskStatuses,
+  useWorkflowTaskCategories,
+  type WorkflowTaskStatusCustom,
+  type WorkflowTaskCategoryCustom,
+  type ParentTaskStatus,
+} from "@/services/useWorkflowStatusCategories";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAutoSaveTaskField } from "@/services/useAutoSaveTaskField";
 import { useTaskDetailRealtime } from "@/services/useTaskDetailRealtime";
@@ -133,18 +140,25 @@ interface TaskDetailSheetProps {
   onTaskUpdate?: () => void;
 }
 
-const CATEGORY_OPTIONS: { value: WorkflowTaskCategory; label: string }[] = [
-  { value: "documentation", label: "Documentation" },
-  { value: "equipment", label: "Equipment" },
-  { value: "training", label: "Training" },
-  { value: "access", label: "Access & Permissions" },
-  { value: "exit_interview", label: "Exit Interview" },
-  { value: "asset_return", label: "Asset Return" },
-  { value: "knowledge_transfer", label: "Knowledge Transfer" },
-  { value: "other", label: "Other" },
+const DEFAULT_CATEGORY_OPTIONS: { value: WorkflowTaskCategory; label: string; emoji: string }[] = [
+  { value: "documentation", label: "Documentation", emoji: "📄" },
+  { value: "equipment", label: "Equipment", emoji: "🖥️" },
+  { value: "training", label: "Training", emoji: "📚" },
+  { value: "access", label: "Access & Permissions", emoji: "🔑" },
+  { value: "exit_interview", label: "Exit Interview", emoji: "💬" },
+  { value: "asset_return", label: "Asset Return", emoji: "📦" },
+  { value: "knowledge_transfer", label: "Knowledge Transfer", emoji: "🧠" },
+  { value: "other", label: "Other", emoji: "📋" },
 ];
 
-const STATUS_OPTIONS: { value: WorkflowTaskStatus; label: string; icon: React.ElementType }[] = [
+const PARENT_STATUS_OPTIONS: { value: ParentTaskStatus; label: string; color: string }[] = [
+  { value: "not_started", label: "Not Started", color: "#6B7280" },
+  { value: "in_progress", label: "In Progress", color: "#3B82F6" },
+  { value: "completed", label: "Completed", color: "#22C55E" },
+  { value: "on_hold", label: "On Hold", color: "#F97316" },
+];
+
+const DEFAULT_STATUS_OPTIONS: { value: WorkflowTaskStatus; label: string; icon: React.ElementType }[] = [
   { value: "pending", label: "Pending", icon: Clock },
   { value: "completed", label: "Completed", icon: CheckCircle2 },
   { value: "skipped", label: "Skipped", icon: SkipForward },
@@ -868,7 +882,7 @@ export function TaskDetailSheet({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          {STATUS_OPTIONS.map((opt) => {
+                          {DEFAULT_STATUS_OPTIONS.map((opt) => {
                             const Icon = opt.icon;
                             return (
                               <DropdownMenuItem
@@ -933,7 +947,7 @@ export function TaskDetailSheet({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          {STATUS_OPTIONS.map((opt) => {
+                          {DEFAULT_STATUS_OPTIONS.map((opt) => {
                             const Icon = opt.icon;
                             return (
                               <DropdownMenuItem
@@ -978,9 +992,12 @@ export function TaskDetailSheet({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CATEGORY_OPTIONS.map((opt) => (
+                        {DEFAULT_CATEGORY_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
+                            <span className="flex items-center gap-2">
+                              <span>{opt.emoji}</span>
+                              {opt.label}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1108,7 +1125,7 @@ export function TaskDetailSheet({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {STATUS_OPTIONS.map((opt) => {
+                          {DEFAULT_STATUS_OPTIONS.map((opt) => {
                             const Icon = opt.icon;
                             return (
                               <SelectItem key={opt.value} value={opt.value}>
