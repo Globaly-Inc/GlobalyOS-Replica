@@ -189,13 +189,13 @@ export const useEmployeeWorkflows = (employeeId: string | undefined) => {
   });
 };
 
-export const useEmployeeWorkflowTasks = (workflowId: string | undefined) => {
+export const useEmployeeWorkflowTasks = (workflowId: string | undefined, includeArchived = false) => {
   return useQuery({
-    queryKey: ["employee-workflow-tasks", workflowId],
+    queryKey: ["employee-workflow-tasks", workflowId, includeArchived],
     queryFn: async () => {
       if (!workflowId) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("employee_workflow_tasks")
         .select(`
           *,
@@ -210,10 +210,41 @@ export const useEmployeeWorkflowTasks = (workflowId: string | undefined) => {
         .eq("workflow_id", workflowId)
         .order("sort_order");
       
+      if (!includeArchived) {
+        query = query.eq("is_archived", false);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as EmployeeWorkflowTaskWithAssignee[];
     },
     enabled: !!workflowId,
+  });
+};
+
+// Archive/Unarchive a workflow task
+export const useArchiveWorkflowTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, isArchived }: { taskId: string; isArchived: boolean }) => {
+      const { error } = await supabase
+        .from("employee_workflow_tasks")
+        .update({ is_archived: isArchived })
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["my-workflow-tasks"] });
+      toast.success(variables.isArchived ? "Task archived" : "Task unarchived");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update task");
+    },
   });
 };
 

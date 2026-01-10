@@ -5,6 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,7 +65,9 @@ import {
   Square,
   CheckSquare,
   RefreshCcw,
-  Filter
+  Filter,
+  Archive,
+  ArchiveRestore
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -76,7 +88,10 @@ import {
   useAddTaskChecklist,
   useUpdateTaskChecklist,
   useDeleteTaskChecklist,
+  useArchiveWorkflowTask,
+  useDeleteEmployeeWorkflowTask,
 } from "@/services/useWorkflows";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useAutoSaveTaskField } from "@/services/useAutoSaveTaskField";
 import { useTaskDetailRealtime } from "@/services/useTaskDetailRealtime";
 import { useTaskActivityLogs } from "@/services/useWorkflowActivityLogs";
@@ -97,6 +112,7 @@ interface TaskDetailSheetProps {
     notes?: string | null;
     stage_id: string;
     workflow_id?: string;
+    is_archived?: boolean;
     assignee?: {
       id: string;
       profiles?: {
@@ -156,8 +172,12 @@ export function TaskDetailSheet({
 }: TaskDetailSheetProps) {
   const queryClient = useQueryClient();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { isOwner, isAdmin } = useUserRole();
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Form state
   const [status, setStatus] = useState<WorkflowTaskStatus>("pending");
@@ -366,6 +386,10 @@ export function TaskDetailSheet({
   const addChecklist = useAddTaskChecklist();
   const updateChecklist = useUpdateTaskChecklist();
   const deleteChecklist = useDeleteTaskChecklist();
+
+  // Archive and delete mutations
+  const archiveTask = useArchiveWorkflowTask();
+  const deleteTask = useDeleteEmployeeWorkflowTask();
 
   // Fetch task activity logs
   const { data: activityLogs = [], isLoading: activityLoading } = useTaskActivityLogs(task?.id);
@@ -618,6 +642,28 @@ export function TaskDetailSheet({
     setIsEditingTitle(false);
   };
 
+  const handleArchiveTask = () => {
+    if (!task?.id) return;
+    const newArchivedState = !task.is_archived;
+    archiveTask.mutate({ taskId: task.id, isArchived: newArchivedState }, {
+      onSuccess: () => {
+        if (newArchivedState) {
+          onOpenChange(false);
+        }
+      }
+    });
+  };
+
+  const handleDeleteTask = () => {
+    if (!task?.id) return;
+    deleteTask.mutate(task.id, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false);
+        onOpenChange(false);
+      }
+    });
+  };
+
   const handleAddComment = () => {
     if (!comment.trim()) return;
     addComment.mutate({ content: comment.trim(), mentions: mentionIds });
@@ -797,6 +843,7 @@ export function TaskDetailSheet({
   if (!task) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="max-w-[70vw] w-[70vw] h-[80vh] max-h-[80vh] p-0 overflow-hidden"
@@ -806,110 +853,172 @@ export function TaskDetailSheet({
           {/* Left panel - Task info (2/3) */}
           <div className="w-2/3 flex flex-col border-r">
             <DialogHeader className="px-6 py-4 border-b">
-              {isEditingTitle ? (
-                <div className="flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button 
-                        className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {getStatusIcon(status)}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {STATUS_OPTIONS.map((opt) => {
-                        const Icon = opt.icon;
-                        return (
-                          <DropdownMenuItem
-                            key={opt.value}
-                            onClick={() => handleStatusChange(opt.value)}
-                            className={cn(status === opt.value && "bg-accent")}
+              <div className="flex items-center justify-between w-full">
+                {/* Left side: Status + Title */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {isEditingTitle ? (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button 
+                            className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Icon className="h-4 w-4 mr-2" />
-                            {opt.label}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Input 
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveTitle();
-                      if (e.key === 'Escape') {
-                        setEditedTitle(task.title);
-                        setIsEditingTitle(false);
-                      }
-                    }}
-                    autoFocus
-                    className="text-xl font-semibold h-auto py-1 flex-1"
-                  />
-                  <Button 
-                    size="icon" 
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={handleSaveTitle}
-                    disabled={updateTitle.isPending}
-                  >
-                    {updateTitle.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button 
-                    size="icon" 
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setEditedTitle(task.title);
-                      setIsEditingTitle(false);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                            {getStatusIcon(status)}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {STATUS_OPTIONS.map((opt) => {
+                            const Icon = opt.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={opt.value}
+                                onClick={() => handleStatusChange(opt.value)}
+                                className={cn(status === opt.value && "bg-accent")}
+                              >
+                                <Icon className="h-4 w-4 mr-2" />
+                                {opt.label}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Input 
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveTitle();
+                          if (e.key === 'Escape') {
+                            setEditedTitle(task.title);
+                            setIsEditingTitle(false);
+                          }
+                        }}
+                        autoFocus
+                        className="text-xl font-semibold h-auto py-1 flex-1"
+                      />
+                      <Button 
+                        size="icon" 
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={handleSaveTitle}
+                        disabled={updateTitle.isPending}
+                      >
+                        {updateTitle.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setEditedTitle(task.title);
+                          setIsEditingTitle(false);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <DialogTitle className="text-xl flex items-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button 
+                            className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {getStatusIcon(status)}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {STATUS_OPTIONS.map((opt) => {
+                            const Icon = opt.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={opt.value}
+                                onClick={() => handleStatusChange(opt.value)}
+                                className={cn(status === opt.value && "bg-accent")}
+                              >
+                                <Icon className="h-4 w-4 mr-2" />
+                                {opt.label}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <span 
+                        className={cn(
+                          "cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors truncate",
+                          status === 'completed' && "line-through text-muted-foreground",
+                          task.is_archived && "opacity-60"
+                        )}
+                        onClick={() => setIsEditingTitle(true)}
+                      >
+                        {task.title}
+                        <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
+                      </span>
+                      {task.is_archived && (
+                        <Badge variant="secondary" className="ml-2 flex-shrink-0">
+                          <Archive className="h-3 w-3 mr-1" />
+                          Archived
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                  )}
                 </div>
-              ) : (
-                <DialogTitle className="text-xl flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button 
-                        className="focus:outline-none hover:scale-110 transition-transform cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {getStatusIcon(status)}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {STATUS_OPTIONS.map((opt) => {
-                        const Icon = opt.icon;
-                        return (
-                          <DropdownMenuItem
-                            key={opt.value}
-                            onClick={() => handleStatusChange(opt.value)}
-                            className={cn(status === opt.value && "bg-accent")}
-                          >
-                            <Icon className="h-4 w-4 mr-2" />
+
+                {/* Right side: Category + Archive + Delete */}
+                {!isEditingTitle && (
+                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                    {/* Category Dropdown */}
+                    <Select value={category} onValueChange={(v) => handleCategoryChange(v as WorkflowTaskCategory)}>
+                      <SelectTrigger className="w-[160px] h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORY_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
                             {opt.label}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <span 
-                    className={cn(
-                      "cursor-pointer group flex items-center gap-2 hover:text-primary transition-colors",
-                      status === 'completed' && "line-through text-muted-foreground"
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Archive/Unarchive Button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={handleArchiveTask}
+                      disabled={archiveTask.isPending}
+                      title={task.is_archived ? "Unarchive task" : "Archive task"}
+                    >
+                      {archiveTask.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : task.is_archived ? (
+                        <ArchiveRestore className="h-4 w-4" />
+                      ) : (
+                        <Archive className="h-4 w-4" />
+                      )}
+                    </Button>
+
+                    {/* Delete Button (Owner/Admin only) */}
+                    {(isOwner || isAdmin) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        title="Delete task"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
-                    onClick={() => setIsEditingTitle(true)}
-                  >
-                    {task.title}
-                    <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
-                  </span>
-                </DialogTitle>
-              )}
+                  </div>
+                )}
+              </div>
             </DialogHeader>
             
           <ScrollArea className="flex-1">
@@ -938,8 +1047,8 @@ export function TaskDetailSheet({
                   />
                 </div>
 
-                {/* Row 1: Assignee + Due Date */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Row 1: Assignee + Due Date + Status */}
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Assignee</Label>
                     <Select value={assigneeId || "__none__"} onValueChange={handleAssigneeChange}>
@@ -977,7 +1086,7 @@ export function TaskDetailSheet({
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dueDate ? format(dueDate, "d MMM yyyy") : "Select due date"}
+                          {dueDate ? format(dueDate, "d MMM yyyy") : "Select date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -990,10 +1099,7 @@ export function TaskDetailSheet({
                       </PopoverContent>
                     </Popover>
                   </div>
-                </div>
 
-                {/* Row 2: Status + Category */}
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Status</Label>
                     <div className="flex items-center gap-2">
@@ -1015,34 +1121,7 @@ export function TaskDetailSheet({
                           })}
                         </SelectContent>
                       </Select>
-                      {status !== 'completed' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => handleStatusChange('completed')}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Complete
-                        </Button>
-                      )}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select value={category} onValueChange={(v) => handleCategoryChange(v as WorkflowTaskCategory)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
 
@@ -1691,5 +1770,30 @@ export function TaskDetailSheet({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Task</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this task? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteTask}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleteTask.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : null}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
