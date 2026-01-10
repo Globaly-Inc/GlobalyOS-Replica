@@ -26,6 +26,7 @@ import type { ChatConversation, ActiveChat } from "@/types/chat";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import GlobalChatSearch from "./GlobalChatSearch";
 import BrowseSpacesDialog from "./BrowseSpacesDialog";
+import FavoritesSection from "./FavoritesSection";
 import type { GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
 
 interface ChatSidebarProps {
