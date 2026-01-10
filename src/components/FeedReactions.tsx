@@ -7,10 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { cn } from "@/lib/utils";
 import { Smile } from "lucide-react";
-
 import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { useRecentEmojis } from '@/hooks/useRecentEmojis';
+
 const MAX_VISIBLE_AVATARS = 6;
 
 interface ReactionUser {
@@ -38,6 +38,7 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const { currentOrg } = useOrganization();
+  const { addRecentEmoji } = useRecentEmojis();
 
   useEffect(() => {
     loadCurrentEmployee();
@@ -144,11 +145,19 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
     }
   }, [currentOrg, targetType, targetId]);
 
+  // Get emojis that current user has reacted with
+  const reactedEmojis = reactions.filter(r => r.hasReacted).map(r => r.emoji);
+
   // Optimistic update for instant UI feedback
   const toggleReaction = async (emoji: string) => {
     if (!currentEmployeeId || !currentOrg || loading) return;
     
     const existingReaction = reactions.find(r => r.emoji === emoji && r.hasReacted);
+    
+    // Track in recently used (only when adding)
+    if (!existingReaction) {
+      addRecentEmoji(emoji);
+    }
     
     // Optimistic update - immediately update UI
     setReactions(prev => {
@@ -287,8 +296,16 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
         </div>
       ))}
       
-      <Popover>
-        <PopoverTrigger asChild>
+      {/* Full emoji picker with search & categories */}
+      <EmojiPicker
+        onSelect={toggleReaction}
+        reactedEmojis={reactedEmojis}
+        showSearch
+        showRecent
+        showCategories
+        align="start"
+        side="top"
+        trigger={
           <Button 
             variant="ghost" 
             size="sm" 
@@ -297,22 +314,8 @@ export const FeedReactions = ({ targetType, targetId }: FeedReactionsProps) => {
           >
             <Smile className="h-4 w-4" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="start">
-          <div className="flex gap-1">
-            {QUICK_REACTION_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => toggleReaction(emoji)}
-                disabled={loading}
-                className="p-2 hover:bg-muted rounded-md transition-colors text-lg"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+        }
+      />
     </div>
   );
 };

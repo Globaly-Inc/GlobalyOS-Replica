@@ -1,6 +1,7 @@
 /**
  * Comment Reactions Component
  * Displays and manages emoji reactions on comments with avatar stacking
+ * Features full emoji picker with search, categories, and recently used
  */
 
 import { useState, useEffect } from 'react';
@@ -39,6 +40,7 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
   const { data: reactions = [], isLoading } = useCommentReactions(commentId);
   const { data: currentEmployee } = useCurrentEmployee();
   const toggleReaction = useToggleCommentReaction();
+  const { addRecentEmoji } = useRecentEmojis();
 
   const [localReactions, setLocalReactions] = useState<Reaction[]>([]);
   const [reactionsKey, setReactionsKey] = useState('');
@@ -75,6 +77,9 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
     return acc;
   }, [] as GroupedReaction[]);
 
+  // Get emojis that current user has reacted with
+  const reactedEmojis = groupedReactions.filter(g => g.hasReacted).map(g => g.emoji);
+
   const handleToggle = (emoji: string) => {
     if (!currentEmployee) return;
 
@@ -82,6 +87,11 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
     const hasExisting = localReactions.some(
       r => r.emoji === emoji && r.employee_id === currentEmployee.id
     );
+
+    // Track in recently used (only when adding)
+    if (!hasExisting) {
+      addRecentEmoji(emoji);
+    }
 
     if (hasExisting) {
       setLocalReactions(prev => 
@@ -203,9 +213,16 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
         );
       })}
 
-      {/* Add reaction button */}
-      <Popover>
-        <PopoverTrigger asChild>
+      {/* Add reaction button - Full emoji picker */}
+      <EmojiPicker
+        onSelect={handleToggle}
+        reactedEmojis={reactedEmojis}
+        showSearch
+        showRecent
+        showCategories
+        align="start"
+        side="top"
+        trigger={
           <Button
             variant="ghost"
             size="sm"
@@ -213,24 +230,8 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
           >
             <SmilePlus className="h-3.5 w-3.5" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="start">
-          <div className="flex gap-1">
-            {QUICK_REACTION_EMOJIS.map((emoji) => (
-              <Button
-                key={emoji}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 hover:bg-muted"
-                onClick={() => handleToggle(emoji)}
-              >
-                <span className="text-base">{emoji}</span>
-              </Button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+        }
+      />
     </div>
   );
 };
-
