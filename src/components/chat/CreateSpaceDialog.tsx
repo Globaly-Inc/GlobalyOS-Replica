@@ -8,8 +8,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Megaphone } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import { useCreateSpace } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ interface CreateSpaceDialogProps {
 const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDialogProps) => {
   const [name, setName] = useState("");
   const [iconUrl, setIconUrl] = useState<string | null>(null);
-  const [spaceType, setSpaceType] = useState<"collaboration" | "announcements">("collaboration");
+  const [description, setDescription] = useState("");
   const [accessScope, setAccessScope] = useState<AccessScope>("company");
   const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
@@ -62,8 +62,8 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     try {
       const space = await createSpace.mutateAsync({
         name: name.trim(),
+        description: description.trim() || undefined,
         iconUrl: iconUrl || undefined,
-        spaceType,
         accessScope,
         officeIds: accessScope === 'offices' ? selectedOfficeIds : undefined,
         projectIds: accessScope === 'projects' ? selectedProjectIds : undefined,
@@ -89,7 +89,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   const resetForm = () => {
     setName("");
     setIconUrl(null);
-    setSpaceType("collaboration");
+    setDescription("");
     setAccessScope("company");
     setSelectedOfficeIds([]);
     setSelectedProjectIds([]);
@@ -127,60 +127,21 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
               </p>
             </div>
 
-            {/* Space type */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-base font-semibold">What is this space for?</Label>
-                <p className="text-sm text-muted-foreground">
-                  Optimize your space with helpful settings.
-                </p>
-              </div>
-
-              <RadioGroup 
-                value={spaceType} 
-                onValueChange={(value) => setSpaceType(value as "collaboration" | "announcements")}
-                className="space-y-2"
-              >
-                <div 
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    spaceType === 'collaboration' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:bg-muted/50'
-                  }`}
-                  onClick={() => setSpaceType('collaboration')}
-                >
-                  <RadioGroupItem value="collaboration" id="collaboration" className="mt-1" />
-                  <Users className={`h-5 w-5 mt-0.5 ${spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <div className="flex-1">
-                    <Label htmlFor="collaboration" className="font-medium cursor-pointer">
-                      Collaboration
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Collaborate on projects, plans, or topics. Easily share files and organize conversations.
-                    </p>
-                  </div>
-                </div>
-
-                <div 
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    spaceType === 'announcements' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:bg-muted/50'
-                  }`}
-                  onClick={() => setSpaceType('announcements')}
-                >
-                  <RadioGroupItem value="announcements" id="announcements" className="mt-1" />
-                  <Megaphone className={`h-5 w-5 mt-0.5 ${spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <div className="flex-1">
-                    <Label htmlFor="announcements" className="font-medium cursor-pointer">
-                      Announcements
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Broadcast and share updates. Only admins can post.
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="What is this space about?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="resize-none"
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {description.length}/500
+              </p>
             </div>
 
             {/* Access settings */}
