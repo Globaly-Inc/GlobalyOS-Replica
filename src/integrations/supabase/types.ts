@@ -1184,6 +1184,69 @@ export type Database = {
           },
         ]
       }
+      chat_favorites: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          space_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          space_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          space_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_favorites_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_favorites_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_favorites_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_favorites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_favorites_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_mentions: {
         Row: {
           created_at: string

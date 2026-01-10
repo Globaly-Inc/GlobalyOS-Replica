@@ -335,6 +335,15 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
 
         <Separator className="mx-3" />
 
+        {/* Favorites Section */}
+        <FavoritesSection
+          activeChat={activeChat}
+          onSelectChat={onSelectChat}
+          onlineStatuses={onlineStatuses}
+        />
+
+        <Separator className="mx-3" />
+
         {/* Direct Messages */}
         <div className="px-3 py-3">
           <button 

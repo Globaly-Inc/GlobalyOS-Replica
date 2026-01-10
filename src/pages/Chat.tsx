@@ -1,23 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ConversationView from "@/components/chat/ConversationView";
-import ChatRightPanel from "@/components/chat/ChatRightPanel";
+import ChatRightPanelEnhanced from "@/components/chat/ChatRightPanelEnhanced";
 import ChatEmptyState from "@/components/chat/ChatEmptyState";
 import NewChatDialog from "@/components/chat/NewChatDialog";
 import CreateSpaceDialog from "@/components/chat/CreateSpaceDialog";
 import MentionsView from "@/components/chat/MentionsView";
 import StarredView from "@/components/chat/StarredView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
+import QuickSwitcher from "@/components/chat/QuickSwitcher";
+import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
 import type { ActiveChat } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Chat = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
   const [highlightMessageId, setHighlightMessageId] = useState<string | undefined>(undefined);
-  const [showRightPanel, setShowRightPanel] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(() => {
+    // Default to showing right panel on desktop
+    const stored = localStorage.getItem('chat-right-panel-visible');
+    return stored !== null ? stored === 'true' : true;
+  });
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const [recentChats, setRecentChats] = useState<ActiveChat[]>([]);
   const isMobile = useIsMobile();
+
+  // Keyboard shortcuts
+  useChatKeyboardShortcuts({
+    onQuickSwitcher: () => setQuickSwitcherOpen(true),
+    onNewMessage: () => setNewChatOpen(true),
+    onMentions: () => setActiveChat({ type: 'mentions', id: 'mentions', name: 'Mentions' }),
+    enabled: !isMobile,
+  });
+
+  // Persist right panel preference
+  useEffect(() => {
+    localStorage.setItem('chat-right-panel-visible', String(showRightPanel));
+  }, [showRightPanel]);
+
+  // Track recent chats
+  useEffect(() => {
+    if (activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred') {
+      setRecentChats(prev => {
+        const filtered = prev.filter(c => c.id !== activeChat.id);
+        return [activeChat, ...filtered].slice(0, 5);
+      });
+    }
+  }, [activeChat]);
 
   const handleSelectChat = (chat: ActiveChat, messageId?: string) => {
     setActiveChat(chat);
@@ -133,14 +164,12 @@ const Chat = () => {
         {renderMainContent()}
       </div>
 
-      {/* Right Panel - Pinned messages/resources */}
+      {/* Right Panel - Enhanced with all info */}
       {showRightPanelCondition && (
-        <div className="w-80 flex-shrink-0 border-l border-border h-full overflow-hidden">
-          <ChatRightPanel
-            activeChat={activeChat}
-            onClose={() => setShowRightPanel(false)}
-          />
-        </div>
+        <ChatRightPanelEnhanced
+          activeChat={activeChat}
+          onClose={() => setShowRightPanel(false)}
+        />
       )}
 
       {/* Dialogs */}
@@ -153,6 +182,12 @@ const Chat = () => {
         open={createSpaceOpen}
         onOpenChange={setCreateSpaceOpen}
         onSpaceCreated={handleChatCreated}
+      />
+      <QuickSwitcher
+        open={quickSwitcherOpen}
+        onOpenChange={setQuickSwitcherOpen}
+        onSelectChat={handleSelectChat}
+        recentChats={recentChats}
       />
     </div>
   );
