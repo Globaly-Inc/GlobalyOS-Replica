@@ -24,8 +24,7 @@ import {
 import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin, Reply, Copy, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const EMOJI_OPTIONS = ["👍", "❤️", "🎉", "👏", "🔥", "💯"];
+import EmojiPicker from "@/components/ui/EmojiPicker";
 
 interface MessageActionsToolbarProps {
   messageId: string;
@@ -117,31 +116,24 @@ const MessageActionsToolbar = ({
         )}
       >
         {/* Quick emoji reactions */}
-        <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-          <PopoverTrigger asChild>
+        <EmojiPicker
+          onSelect={(emoji) => {
+            onReact(emoji);
+            setShowEmojiPicker(false);
+          }}
+          open={showEmojiPicker}
+          onOpenChange={setShowEmojiPicker}
+          showSearch={true}
+          showRecent={true}
+          showCategories={true}
+          align="center"
+          side="top"
+          trigger={
             <Button variant="ghost" size="icon" className="h-7 w-7">
               <Smile className="h-3.5 w-3.5" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" side="top" align="center">
-            <div className="flex gap-1">
-              {EMOJI_OPTIONS.map((emoji) => (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                  onClick={() => {
-                    onReact(emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                >
-                  {emoji}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+          }
+        />
 
         {/* Reply in thread */}
         {onReply && (

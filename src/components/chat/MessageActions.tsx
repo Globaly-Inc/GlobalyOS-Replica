@@ -24,8 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MoreVertical, Pin, Pencil, Trash2, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
+import EmojiPicker from "@/components/ui/EmojiPicker";
 
 interface MessageActionsProps {
   messageId: string;
@@ -56,31 +55,24 @@ const MessageActions = ({
         isOwn ? "flex-row-reverse" : ""
       )}>
         {/* Quick emoji picker */}
-        <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-          <PopoverTrigger asChild>
+        <EmojiPicker
+          onSelect={(emoji) => {
+            onReact(emoji);
+            setShowEmojiPicker(false);
+          }}
+          open={showEmojiPicker}
+          onOpenChange={setShowEmojiPicker}
+          showSearch={true}
+          showRecent={true}
+          showCategories={true}
+          align="center"
+          side="top"
+          trigger={
             <Button variant="ghost" size="icon" className="h-6 w-6">
               <Smile className="h-3 w-3" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" side="top" align="center">
-            <div className="flex gap-1">
-              {QUICK_REACTION_EMOJIS.slice(0, 6).map((emoji) => (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                  onClick={() => {
-                    onReact(emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                >
-                  {emoji}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+          }
+        />
 
         {/* More options dropdown */}
         <DropdownMenu>
