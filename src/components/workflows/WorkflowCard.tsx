@@ -1,158 +1,117 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Card } from "@/components/ui/card";
-import { UserPlus, UserMinus, Clock, CheckCircle2, ChevronRight } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import type { WorkflowStatus, WorkflowType } from "@/types/workflow";
+import { Button } from "@/components/ui/button";
+import { 
+  UserPlus, 
+  UserMinus, 
+  GitBranch, 
+  ChevronRight, 
+  Zap,
+  Layers,
+  ListTodo 
+} from "lucide-react";
+import type { WorkflowType } from "@/types/workflow";
 
 interface WorkflowCardProps {
-  workflow: {
-    id: string;
-    type: WorkflowType;
-    status: WorkflowStatus;
-    start_date: string;
-    target_date: string;
-    completed_at: string | null;
-    employee: {
-      id: string;
-      position: string | null;
-      profiles: {
-        full_name: string;
-        avatar_url: string | null;
-      };
-    };
-    template?: { name: string } | null;
-    tasks: { id: string; status: string }[];
-  };
-  onClick?: () => void;
+  id: string;
+  name: string;
+  type: WorkflowType;
+  description: string | null;
+  isDefault: boolean;
+  stageCount: number;
+  taskCount: number;
+  triggerSummary: string | null;
+  triggerEnabled: boolean;
+  onView: () => void;
 }
 
-export function WorkflowCard({ workflow, onClick }: WorkflowCardProps) {
-  const completedTasks = workflow.tasks?.filter(t => t.status === 'completed').length ?? 0;
-  const totalTasks = workflow.tasks?.length ?? 0;
-  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  
-  const TypeIcon = workflow.type === 'onboarding' ? UserPlus : UserMinus;
-  const typeColor = workflow.type === 'onboarding' ? 'text-blue-600 bg-blue-50' : 'text-orange-600 bg-orange-50';
-  
-  const daysInfo = getDaysInfo(workflow);
-  
+const WORKFLOW_ICONS: Record<WorkflowType, typeof UserPlus> = {
+  onboarding: UserPlus,
+  offboarding: UserMinus,
+  recruiting: GitBranch,
+  promotion: GitBranch,
+  transfer: GitBranch,
+  custom: GitBranch,
+};
+
+const WORKFLOW_COLORS: Record<WorkflowType, string> = {
+  onboarding: "text-green-600",
+  offboarding: "text-orange-600",
+  recruiting: "text-blue-600",
+  promotion: "text-purple-600",
+  transfer: "text-cyan-600",
+  custom: "text-gray-600",
+};
+
+export function WorkflowCard({
+  name,
+  type,
+  description,
+  isDefault,
+  stageCount,
+  taskCount,
+  triggerSummary,
+  triggerEnabled,
+  onView,
+}: WorkflowCardProps) {
+  const Icon = WORKFLOW_ICONS[type] || GitBranch;
+  const iconColor = WORKFLOW_COLORS[type] || "text-gray-600";
+
   return (
-    <Card 
-      className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-4">
-        {/* Avatar */}
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={workflow.employee?.profiles?.avatar_url || undefined} />
-          <AvatarFallback>
-            {workflow.employee?.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </AvatarFallback>
-        </Avatar>
-        
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold truncate">
-              {workflow.employee?.profiles?.full_name}
-            </h3>
-            <Badge variant="outline" className={`gap-1 shrink-0 ${typeColor}`}>
-              <TypeIcon className="h-3 w-3" />
-              {workflow.type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
-            </Badge>
-          </div>
-          
-          <p className="text-sm text-muted-foreground truncate">
-            {workflow.employee?.position || 'No position'}
-          </p>
-          
-          <div className="flex items-center gap-4 mt-2">
-            <span className="text-xs text-muted-foreground">
-              {workflow.type === 'onboarding' ? 'Started' : 'Last Day'}:{' '}
-              {format(new Date(workflow.target_date), 'MMM d, yyyy')}
-            </span>
-            
-            <div className="flex-1 max-w-[200px]">
-              <div className="flex items-center gap-2">
-                <Progress value={progressPercent} className="h-1.5 flex-1" />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {completedTasks}/{totalTasks}
+    <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={onView}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className={`p-2 rounded-lg bg-muted ${iconColor}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold truncate">{name}</h3>
+                {isDefault && (
+                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                )}
+              </div>
+              {description && (
+                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                  {description}
+                </p>
+              )}
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Layers className="h-3.5 w-3.5" />
+                  {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
                 </span>
+                <span className="flex items-center gap-1">
+                  <ListTodo className="h-3.5 w-3.5" />
+                  {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
+                </span>
+                {triggerSummary && (
+                  <span className="flex items-center gap-1">
+                    <Zap className={`h-3.5 w-3.5 ${triggerEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                    <span className="truncate max-w-[150px]">{triggerSummary}</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            {triggerEnabled ? (
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                <Zap className="h-3 w-3 mr-1" />
+                Active
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Inactive
+              </Badge>
+            )}
+            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        
-        {/* Right side info */}
-        <div className="flex items-center gap-3 shrink-0">
-          {daysInfo && (
-            <span className={`text-sm ${daysInfo.urgent ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-              {daysInfo.text}
-            </span>
-          )}
-          
-          <StatusBadge status={workflow.status} />
-          
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </div>
-      </div>
+      </CardContent>
     </Card>
   );
-}
-
-function StatusBadge({ status }: { status: WorkflowStatus }) {
-  switch (status) {
-    case 'active':
-      return (
-        <Badge variant="outline" className="border-green-500 text-green-600 gap-1">
-          <Clock className="h-3 w-3" />
-          Active
-        </Badge>
-      );
-    case 'completed':
-      return (
-        <Badge className="bg-green-600 gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          Done
-        </Badge>
-      );
-    case 'cancelled':
-      return (
-        <Badge variant="secondary">Cancelled</Badge>
-      );
-    default:
-      return null;
-  }
-}
-
-function getDaysInfo(workflow: WorkflowCardProps['workflow']): { text: string; urgent: boolean } | null {
-  if (workflow.status === 'completed') {
-    if (workflow.completed_at) {
-      const daysAgo = differenceInDays(new Date(), new Date(workflow.completed_at));
-      return { text: `Completed ${daysAgo}d ago`, urgent: false };
-    }
-    return null;
-  }
-  
-  if (workflow.status === 'cancelled') {
-    return null;
-  }
-  
-  const daysRemaining = differenceInDays(new Date(workflow.target_date), new Date());
-  
-  if (daysRemaining < 0) {
-    return { text: `${Math.abs(daysRemaining)}d overdue`, urgent: true };
-  }
-  
-  if (daysRemaining === 0) {
-    return { text: 'Due today', urgent: true };
-  }
-  
-  if (daysRemaining <= 3) {
-    return { text: `${daysRemaining}d left`, urgent: true };
-  }
-  
-  return { text: `${daysRemaining}d left`, urgent: false };
 }

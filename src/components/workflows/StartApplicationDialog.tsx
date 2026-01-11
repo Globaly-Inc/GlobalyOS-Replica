@@ -40,12 +40,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type WorkflowTypeOption = "onboarding" | "offboarding";
 
-interface StartWorkflowDialogProps {
+interface StartApplicationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function StartWorkflowDialog({ open, onOpenChange }: StartWorkflowDialogProps) {
+export function StartApplicationDialog({ open, onOpenChange }: StartApplicationDialogProps) {
   const [workflowType, setWorkflowType] = useState<WorkflowTypeOption>("onboarding");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");

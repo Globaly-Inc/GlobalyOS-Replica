@@ -1,5 +1,15 @@
 /**
  * React Query hooks for workflow management
+ * 
+ * Terminology:
+ * - Workflow: A business process (stored in workflow_templates table)
+ * - Application: An instance of a Workflow for a person (stored in employee_workflows table)
+ * 
+ * Legacy hooks (useWorkflowTemplates, useEmployeeWorkflows, etc.) are preserved for backward compatibility.
+ * New code should use the new naming convention:
+ * - useWorkflows (was useWorkflowTemplates)
+ * - useApplications (was useEmployeeWorkflows)
+ * - useApplicationTasks (was useEmployeeWorkflowTasks)
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,10 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
 import type {
-  WorkflowTemplate,
-  WorkflowTemplateTask,
-  EmployeeWorkflow,
-  EmployeeWorkflowTaskWithAssignee,
+  Workflow,
+  WorkflowTask,
+  Application,
+  ApplicationTaskWithAssignee,
   ExitInterview,
   AssetHandover,
   KnowledgeTransferWithRecipient,
@@ -21,6 +31,11 @@ import type {
   WorkflowType,
   WorkflowStage,
   WorkflowTrigger,
+  // Legacy type aliases for backward compatibility
+  WorkflowTemplate,
+  WorkflowTemplateTask,
+  EmployeeWorkflow,
+  EmployeeWorkflowTaskWithAssignee,
 } from "@/types/workflow";
 
 // Re-export realtime hooks
@@ -123,8 +138,13 @@ export const useWorkflowTriggers = () => {
   });
 };
 
-// Workflow Templates
-export const useWorkflowTemplates = (type?: 'onboarding' | 'offboarding') => {
+// ============ Workflows (stored in workflow_templates table) ============
+
+/**
+ * Fetch all workflows for the current organization
+ * @param type - Optional filter by workflow type (onboarding, offboarding)
+ */
+export const useWorkflows = (type?: 'onboarding' | 'offboarding') => {
   const { currentOrg } = useOrganization();
 
   return useQuery({
@@ -144,13 +164,19 @@ export const useWorkflowTemplates = (type?: 'onboarding' | 'offboarding') => {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as WorkflowTemplate[];
+      return data as Workflow[];
     },
     enabled: !!currentOrg?.id,
   });
 };
 
-export const useWorkflowTemplateTasks = (templateId: string | undefined) => {
+/** @deprecated Use useWorkflows instead */
+export const useWorkflowTemplates = useWorkflows;
+
+/**
+ * Fetch tasks for a workflow definition
+ */
+export const useWorkflowTasks = (templateId: string | undefined) => {
   return useQuery({
     queryKey: ["workflow-template-tasks", templateId],
     queryFn: async () => {
@@ -163,14 +189,21 @@ export const useWorkflowTemplateTasks = (templateId: string | undefined) => {
         .order("sort_order");
       
       if (error) throw error;
-      return data as WorkflowTemplateTask[];
+      return data as WorkflowTask[];
     },
     enabled: !!templateId,
   });
 };
 
-// Employee Workflows
-export const useEmployeeWorkflows = (employeeId: string | undefined) => {
+/** @deprecated Use useWorkflowTasks instead */
+export const useWorkflowTemplateTasks = useWorkflowTasks;
+
+// ============ Applications (stored in employee_workflows table) ============
+
+/**
+ * Fetch applications for a specific employee
+ */
+export const useApplications = (employeeId: string | undefined) => {
   return useQuery({
     queryKey: ["employee-workflows", employeeId],
     queryFn: async () => {
@@ -183,13 +216,19 @@ export const useEmployeeWorkflows = (employeeId: string | undefined) => {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as EmployeeWorkflow[];
+      return data as Application[];
     },
     enabled: !!employeeId,
   });
 };
 
-export const useEmployeeWorkflowTasks = (workflowId: string | undefined, includeArchived = false) => {
+/** @deprecated Use useApplications instead */
+export const useEmployeeWorkflows = useApplications;
+
+/**
+ * Fetch tasks for an application instance
+ */
+export const useApplicationTasks = (workflowId: string | undefined, includeArchived = false) => {
   return useQuery({
     queryKey: ["employee-workflow-tasks", workflowId, includeArchived],
     queryFn: async () => {
@@ -216,11 +255,14 @@ export const useEmployeeWorkflowTasks = (workflowId: string | undefined, include
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as EmployeeWorkflowTaskWithAssignee[];
+      return data as ApplicationTaskWithAssignee[];
     },
     enabled: !!workflowId,
   });
 };
+
+/** @deprecated Use useApplicationTasks instead */
+export const useEmployeeWorkflowTasks = useApplicationTasks;
 
 // Archive/Unarchive a workflow task
 export const useArchiveWorkflowTask = () => {
