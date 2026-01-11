@@ -187,6 +187,11 @@ export default function WorkflowDetail() {
     enabled: !!workflow?.template_id,
   });
   
+  // Get stage IDs for note/attachment counts - must be before early returns to maintain hook order
+  const stageIds = useMemo(() => stages?.map(s => s.id) || [], [stages]);
+  const { data: noteCounts } = useStageNoteCounts(workflowId, stageIds);
+  const { data: attachmentCounts } = useStageAttachmentCounts(workflowId, stageIds);
+  
   // Get current employee ID for completing tasks
   const { data: currentEmployee } = useQuery({
     queryKey: ["current-employee-for-workflow"],
@@ -497,10 +502,6 @@ export default function WorkflowDetail() {
     tasks: tasks?.filter(t => t.stage_id === stage.id) ?? [],
   })) ?? [];
 
-  // Get stage IDs for note/attachment counts - memoize to prevent infinite re-renders
-  const stageIds = useMemo(() => stages?.map(s => s.id) || [], [stages]);
-  const { data: noteCounts } = useStageNoteCounts(workflowId, stageIds);
-  const { data: attachmentCounts } = useStageAttachmentCounts(workflowId, stageIds);
   
   // Calculate current stage using explicit current_stage_id
   const currentStageIndex = workflow.current_stage_id 
