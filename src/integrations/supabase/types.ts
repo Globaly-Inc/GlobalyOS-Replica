@@ -9566,6 +9566,213 @@ export type Database = {
           },
         ]
       }
+      workflow_stage_attachments: {
+        Row: {
+          created_at: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          organization_id: string
+          stage_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id: string
+          stage_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id?: string
+          stage_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stage_attachments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_attachments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_attachments_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_attachments_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_stage_note_mentions: {
+        Row: {
+          created_at: string
+          id: string
+          mentioned_employee_id: string
+          note_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mentioned_employee_id: string
+          note_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mentioned_employee_id?: string
+          note_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stage_note_mentions_mentioned_employee_id_fkey"
+            columns: ["mentioned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_note_mentions_mentioned_employee_id_fkey"
+            columns: ["mentioned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_note_mentions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stage_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_note_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_stage_notes: {
+        Row: {
+          content: string
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          parent_id: string | null
+          stage_id: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          parent_id?: string | null
+          stage_id: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          parent_id?: string | null
+          stage_id?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stage_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_notes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stage_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_notes_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_notes_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "employee_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_stages: {
         Row: {
           color: string | null
