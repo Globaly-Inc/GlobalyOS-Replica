@@ -8,9 +8,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Settings, UserPlus, UserMinus, CheckCircle2, Plus, ClipboardPlus } from "lucide-react";
 import { useAllWorkflows, useWorkflowRealtime, useWorkflowTemplates } from "@/services/useWorkflows";
 import { WorkflowKanbanBoard } from "@/components/workflows/WorkflowKanbanBoard";
-import { StartWorkflowDialog } from "@/components/workflows/StartWorkflowDialog";
+import { StartApplicationDialog } from "@/components/workflows/StartApplicationDialog";
 import { AddTaskToWorkflowDialog } from "@/components/workflows/AddTaskToWorkflowDialog";
-import { WorkflowCard } from "@/components/workflows/WorkflowCard";
+import { ApplicationCard } from "@/components/workflows/ApplicationCard";
 import { OrgLink } from "@/components/OrgLink";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
@@ -175,7 +175,7 @@ export default function Workflows() {
               ) : (
                 <div className="space-y-3">
                   {completedWorkflows.map((workflow: any) => (
-                    <WorkflowCard
+                    <ApplicationCard
                       key={workflow.id}
                       workflow={workflow}
                       onClick={() => handleWorkflowClick(workflow.id)}
@@ -188,8 +188,8 @@ export default function Workflows() {
         </CardContent>
       </Card>
 
-      {/* Start Workflow Dialog */}
-      <StartWorkflowDialog
+      {/* Start Application Dialog */}
+      <StartApplicationDialog
         open={showStartDialog}
         onOpenChange={setShowStartDialog}
       />

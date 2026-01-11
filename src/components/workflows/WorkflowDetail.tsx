@@ -49,7 +49,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { WorkflowStage, WorkflowTrigger } from "@/types/workflow";
 import { useWorkflowTaskStatuses, useWorkflowTaskCategories, useSeedWorkflowTaskDefaults } from "@/services/useWorkflowStatusCategories";
 
-interface WorkflowTemplateDetailProps {
+interface WorkflowDetailProps {
   organizationId: string;
   templateId: string;
 }
@@ -77,7 +77,7 @@ const STAGE_COLORS = [
   '#06B6D4', '#3B82F6', '#6B7280', '#1F2937'
 ];
 
-export function WorkflowTemplateDetail({ organizationId, templateId }: WorkflowTemplateDetailProps) {
+export function WorkflowDetail({ organizationId, templateId }: WorkflowDetailProps) {
   const navigate = useNavigate();
   const { orgCode } = useOrgNavigation();
   const { toast } = useToast();

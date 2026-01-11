@@ -1,5 +1,9 @@
 /**
  * Workflow management type definitions
+ * 
+ * Terminology:
+ * - Workflow: A business process (stages, tasks, triggers) - stored in workflow_templates table
+ * - Application: An instance of a Workflow applied to a Person - stored in employee_workflows table
  */
 
 export type WorkflowType = 'onboarding' | 'offboarding' | 'recruiting' | 'promotion' | 'transfer' | 'custom';
@@ -45,7 +49,11 @@ export interface WorkflowTrigger {
   updated_at: string;
 }
 
-export interface WorkflowTemplate {
+/**
+ * Workflow - A business process definition (stored in workflow_templates table)
+ * This represents the "template" or blueprint for a workflow process.
+ */
+export interface Workflow {
   id: string;
   organization_id: string;
   name: string;
@@ -58,7 +66,15 @@ export interface WorkflowTemplate {
   updated_at: string;
 }
 
-export interface WorkflowTemplateTask {
+/**
+ * @deprecated Use Workflow instead
+ */
+export type WorkflowTemplate = Workflow;
+
+/**
+ * WorkflowTask - A task definition within a Workflow (stored in workflow_template_tasks table)
+ */
+export interface WorkflowTask {
   id: string;
   template_id: string;
   organization_id: string;
@@ -74,7 +90,16 @@ export interface WorkflowTemplateTask {
   created_at: string;
 }
 
-export interface EmployeeWorkflow {
+/**
+ * @deprecated Use WorkflowTask instead
+ */
+export type WorkflowTemplateTask = WorkflowTask;
+
+/**
+ * Application - An instance of a Workflow applied to an employee (stored in employee_workflows table)
+ * This represents an active workflow being executed for a specific person.
+ */
+export interface Application {
   id: string;
   employee_id: string;
   organization_id: string;
@@ -90,7 +115,15 @@ export interface EmployeeWorkflow {
   updated_at: string;
 }
 
-export interface EmployeeWorkflowTask {
+/**
+ * @deprecated Use Application instead
+ */
+export type EmployeeWorkflow = Application;
+
+/**
+ * ApplicationTask - A task within an Application (stored in employee_workflow_tasks table)
+ */
+export interface ApplicationTask {
   id: string;
   workflow_id: string;
   organization_id: string;
@@ -112,7 +145,15 @@ export interface EmployeeWorkflowTask {
   updated_at: string;
 }
 
-export interface EmployeeWorkflowTaskWithAssignee extends EmployeeWorkflowTask {
+/**
+ * @deprecated Use ApplicationTask instead
+ */
+export type EmployeeWorkflowTask = ApplicationTask;
+
+/**
+ * ApplicationTaskWithAssignee - Application task with assignee details
+ */
+export interface ApplicationTaskWithAssignee extends ApplicationTask {
   assignee?: {
     id: string;
     profiles: {
@@ -127,7 +168,15 @@ export interface EmployeeWorkflowTaskWithAssignee extends EmployeeWorkflowTask {
   } | null;
 }
 
-export interface WorkflowWithDetails extends EmployeeWorkflow {
+/**
+ * @deprecated Use ApplicationTaskWithAssignee instead
+ */
+export type EmployeeWorkflowTaskWithAssignee = ApplicationTaskWithAssignee;
+
+/**
+ * ApplicationWithDetails - Application with employee and workflow information
+ */
+export interface ApplicationWithDetails extends Application {
   employee: {
     id: string;
     position: string | null;
@@ -145,6 +194,11 @@ export interface WorkflowWithDetails extends EmployeeWorkflow {
     stage_id: string | null;
   }[];
 }
+
+/**
+ * @deprecated Use ApplicationWithDetails instead
+ */
+export type WorkflowWithDetails = ApplicationWithDetails;
 
 export interface ExitInterview {
   id: string;

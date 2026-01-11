@@ -6,7 +6,7 @@ import { Plus, Settings2 } from "lucide-react";
 import { useWorkflowTemplates, useWorkflowTriggers } from "@/services/useWorkflows";
 import { useSeedWorkflowData } from "@/services/useWorkflowMutations";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { WorkflowTemplateCard } from "./WorkflowTemplateCard";
+import { WorkflowCard } from "./WorkflowCard";
 import { AddWorkflowDialog } from "./AddWorkflowDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -127,7 +127,7 @@ export function WorkflowsSettings({ organizationId }: WorkflowsSettingsProps) {
               const stats = templateStats[template.id] || { stageCount: 0, taskCount: 0 };
               
               return (
-                <WorkflowTemplateCard
+                <WorkflowCard
                   key={template.id}
                   id={template.id}
                   name={template.name}

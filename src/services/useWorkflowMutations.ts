@@ -4,9 +4,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import type { WorkflowType, TriggerCondition } from "@/types/workflow";
 
-// ============ Start Workflow Mutation ============
+// ============ Start Application Mutation ============
 
-export function useStartWorkflow() {
+/**
+ * Start a new Application (workflow instance for an employee)
+ */
+export function useStartApplication() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
@@ -47,7 +50,7 @@ export function useStartWorkflow() {
       return workflowId;
     },
     onSuccess: () => {
-      toast({ title: "Workflow started successfully" });
+      toast({ title: "Application started successfully" });
       queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
       queryClient.invalidateQueries({ queryKey: ["employee-workflows"] });
     },
@@ -57,9 +60,15 @@ export function useStartWorkflow() {
   });
 }
 
-// ============ Template Mutations ============
+/** @deprecated Use useStartApplication instead */
+export const useStartWorkflow = useStartApplication;
 
-export function useAddWorkflowTemplate() {
+// ============ Workflow Mutations (stored in workflow_templates table) ============
+
+/**
+ * Add a new Workflow definition
+ */
+export function useAddWorkflow() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -86,7 +95,7 @@ export function useAddWorkflowTemplate() {
       return template;
     },
     onSuccess: () => {
-      toast({ title: "Template created" });
+      toast({ title: "Workflow created" });
       queryClient.invalidateQueries({ queryKey: ["workflow-templates"] });
     },
     onError: (error: Error) => {
@@ -95,7 +104,13 @@ export function useAddWorkflowTemplate() {
   });
 }
 
-export function useUpdateWorkflowTemplate() {
+/** @deprecated Use useAddWorkflow instead */
+export const useAddWorkflowTemplate = useAddWorkflow;
+
+/**
+ * Update a Workflow definition
+ */
+export function useUpdateWorkflow() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -112,7 +127,7 @@ export function useUpdateWorkflowTemplate() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Template updated" });
+      toast({ title: "Workflow updated" });
       queryClient.invalidateQueries({ queryKey: ["workflow-templates"] });
     },
     onError: (error: Error) => {
@@ -121,7 +136,13 @@ export function useUpdateWorkflowTemplate() {
   });
 }
 
-export function useDeleteWorkflowTemplate() {
+/** @deprecated Use useUpdateWorkflow instead */
+export const useUpdateWorkflowTemplate = useUpdateWorkflow;
+
+/**
+ * Delete a Workflow definition
+ */
+export function useDeleteWorkflow() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -135,7 +156,7 @@ export function useDeleteWorkflowTemplate() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Template deleted" });
+      toast({ title: "Workflow deleted" });
       queryClient.invalidateQueries({ queryKey: ["workflow-templates"] });
     },
     onError: (error: Error) => {
@@ -143,6 +164,9 @@ export function useDeleteWorkflowTemplate() {
     },
   });
 }
+
+/** @deprecated Use useDeleteWorkflow instead */
+export const useDeleteWorkflowTemplate = useDeleteWorkflow;
 
 // ============ Stage Mutations ============
 

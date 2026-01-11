@@ -1,8 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
-import { WorkflowTemplateDetail } from "@/components/workflows/WorkflowTemplateDetail";
+import { WorkflowDetail } from "@/components/workflows/WorkflowDetail";
 
-export default function WorkflowTemplateSettings() {
+export default function WorkflowSettings() {
   const { templateId } = useParams<{ templateId: string }>();
   const { currentOrg } = useOrganization();
 
@@ -16,7 +16,7 @@ export default function WorkflowTemplateSettings() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
-      <WorkflowTemplateDetail organizationId={currentOrg.id} templateId={templateId} />
+      <WorkflowDetail organizationId={currentOrg.id} templateId={templateId} />
     </div>
   );
 }
