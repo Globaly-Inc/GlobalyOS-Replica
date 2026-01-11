@@ -13,5 +13,23 @@ export * from './useKpi';
 export * from './useNotifications';
 export * from './usePayroll';
 export * from './useWorkflows';
-export * from './useWorkflowMutations';
+export { 
+  useStartApplication, 
+  useStartWorkflow,
+  useAddWorkflow,
+  useAddWorkflowTemplate,
+  useUpdateWorkflow,
+  useUpdateWorkflowTemplate,
+  useDeleteWorkflow,
+  useDeleteWorkflowTemplate,
+  useAddWorkflowStage,
+  useUpdateWorkflowStage,
+  useDeleteWorkflowStage,
+  useReorderWorkflowStages,
+  useAddWorkflowTrigger,
+  useUpdateWorkflowTrigger,
+  useToggleWorkflowTrigger,
+  useDeleteWorkflowTrigger,
+  useSeedWorkflowData
+} from './useWorkflowMutations';
 export * from './useLeaveRealtime';
