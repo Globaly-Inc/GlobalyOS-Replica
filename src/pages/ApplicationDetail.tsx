@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -497,8 +497,8 @@ export default function WorkflowDetail() {
     tasks: tasks?.filter(t => t.stage_id === stage.id) ?? [],
   })) ?? [];
 
-  // Get stage IDs for note/attachment counts
-  const stageIds = stages?.map(s => s.id) || [];
+  // Get stage IDs for note/attachment counts - memoize to prevent infinite re-renders
+  const stageIds = useMemo(() => stages?.map(s => s.id) || [], [stages]);
   const { data: noteCounts } = useStageNoteCounts(workflowId, stageIds);
   const { data: attachmentCounts } = useStageAttachmentCounts(workflowId, stageIds);
   
