@@ -55,11 +55,11 @@ export default function Workflows() {
     
     // Group active applications by workflow template
     applications.forEach((app: any) => {
-      if (app.status === "active" && app.workflow_template_id) {
-        if (!byWorkflow[app.workflow_template_id]) {
-          byWorkflow[app.workflow_template_id] = [];
+      if (app.status === "active" && app.template_id) {
+        if (!byWorkflow[app.template_id]) {
+          byWorkflow[app.template_id] = [];
         }
-        byWorkflow[app.workflow_template_id].push(app);
+        byWorkflow[app.template_id].push(app);
       }
     });
     
