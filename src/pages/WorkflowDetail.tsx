@@ -41,7 +41,8 @@ import {
   useMoveToNextStage,
   useCancelWorkflow,
   useReactivateWorkflow,
-  useDeleteWorkflow
+  useDeleteWorkflow,
+  useCloseApplication
 } from "@/services/useWorkflows";
 import {
   Tooltip,
@@ -129,9 +130,10 @@ export default function WorkflowDetail() {
   // Show archived tasks filter
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   
-  // Archive/Delete workflow dialog state
+  // Archive/Delete/Close workflow dialog state
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [deleteWorkflowDialogOpen, setDeleteWorkflowDialogOpen] = useState(false);
+  const [closeAppDialogOpen, setCloseAppDialogOpen] = useState(false);
   
   // Enable realtime updates
   useWorkflowDetailRealtime(workflowId);
@@ -209,6 +211,7 @@ export default function WorkflowDetail() {
   const cancelWorkflow = useCancelWorkflow();
   const reactivateWorkflow = useReactivateWorkflow();
   const deleteWorkflowMutation = useDeleteWorkflow();
+  const closeApplication = useCloseApplication();
   
   const handleTaskToggle = (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
@@ -428,6 +431,19 @@ export default function WorkflowDetail() {
     });
   };
   
+  // Close application handler - complete all tasks
+  const handleCloseApplication = () => {
+    if (!workflow || !currentEmployee) return;
+    
+    closeApplication.mutate({
+      workflowId: workflow.id,
+      completedBy: currentEmployee.id,
+      organizationId: workflow.organization_id,
+    }, {
+      onSuccess: () => setCloseAppDialogOpen(false)
+    });
+  };
+  
   // Loading state
   if (roleLoading || workflowLoading) {
     return (
@@ -566,12 +582,48 @@ export default function WorkflowDetail() {
             </div>
             
             {/* RIGHT SECTION: Workflow Info + Actions */}
-            <div className="flex flex-col items-start md:items-end gap-1 shrink-0 md:min-w-[220px] border-t md:border-t-0 pt-3 md:pt-0">
-              {/* Row 1: Workflow Name + Action Buttons */}
-              <div className="flex items-center gap-2 w-full md:justify-end">
-                <span className="font-semibold text-sm md:text-base truncate flex-1 md:flex-none md:text-right">
+            <div className="flex flex-col items-start md:items-end gap-2 shrink-0 md:min-w-[280px] border-t md:border-t-0 pt-3 md:pt-0">
+              {/* Row 1: Workflow Name · Stage Name */}
+              <div className="flex items-center gap-2 text-sm md:text-base w-full md:justify-end">
+                <span className="font-semibold truncate">
                   {workflow.template?.name || 'Workflow'}
                 </span>
+                <span className="text-muted-foreground/50">·</span>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{currentStageName}</span>
+                </div>
+              </div>
+              
+              {/* Row 2: Progress Bar */}
+              <div className="flex items-center gap-2 w-full">
+                <Progress 
+                  value={progressPercent} 
+                  className={cn(
+                    "h-1.5 flex-1",
+                    progressPercent === 100 && "[&>div]:bg-green-500"
+                  )} 
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {completedTasks}/{totalTasks} ({progressPercent}%)
+                </span>
+              </div>
+              
+              {/* Row 3: Action Buttons */}
+              <div className="flex items-center gap-2 w-full md:justify-end">
+                {/* Close Application Button - Only show when active */}
+                {isActive && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    onClick={() => setCloseAppDialogOpen(true)}
+                    disabled={closeApplication.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Close Application
+                  </Button>
+                )}
                 
                 {/* Archive/Reactivate Button */}
                 <TooltipProvider>
@@ -619,26 +671,6 @@ export default function WorkflowDetail() {
                   </TooltipProvider>
                 )}
               </div>
-              
-              {/* Row 2: Current Stage */}
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                <span className="truncate">{currentStageName}</span>
-              </div>
-              
-              {/* Row 3: Slim Progress Bar */}
-              <div className="flex items-center gap-2 w-full mt-1">
-                <Progress 
-                  value={progressPercent} 
-                  className={cn(
-                    "h-1.5 flex-1",
-                    progressPercent === 100 && "[&>div]:bg-green-500"
-                  )} 
-                />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {completedTasks}/{totalTasks} ({progressPercent}%)
-                </span>
-              </div>
             </div>
           </div>
         </CardContent>
@@ -684,6 +716,29 @@ export default function WorkflowDetail() {
               disabled={deleteWorkflowMutation.isPending}
             >
               {deleteWorkflowMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Close Application Confirmation Dialog */}
+      <AlertDialog open={closeAppDialogOpen} onOpenChange={setCloseAppDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close Application?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark all remaining tasks as completed and close the application.
+              This action completes the entire workflow process.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCloseApplication}
+              disabled={closeApplication.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {closeApplication.isPending ? 'Closing...' : 'Close Application'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

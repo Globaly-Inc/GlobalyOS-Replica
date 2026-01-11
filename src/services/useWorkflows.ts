@@ -1746,3 +1746,69 @@ export const useDeleteWorkflow = () => {
     }
   });
 };
+
+// Close an application - complete all tasks and mark workflow as completed
+export const useCloseApplication = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      workflowId,
+      completedBy,
+      organizationId,
+    }: {
+      workflowId: string;
+      completedBy: string;
+      organizationId: string;
+    }) => {
+      // 1. Complete all non-completed tasks
+      const { error: taskError } = await supabase
+        .from("employee_workflow_tasks")
+        .update({
+          status: 'completed' as const,
+          completed_by: completedBy,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("workflow_id", workflowId)
+        .neq("status", "completed")
+        .neq("status", "skipped");
+      
+      if (taskError) throw taskError;
+
+      // 2. Mark workflow as completed
+      const { error: workflowError } = await supabase
+        .from("employee_workflows")
+        .update({ 
+          status: 'completed' as const,
+          current_stage_id: null,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", workflowId);
+      
+      if (workflowError) throw workflowError;
+
+      // 3. Log activity
+      await supabase.from("workflow_activity_logs").insert({
+        workflow_id: workflowId,
+        organization_id: organizationId,
+        employee_id: completedBy,
+        action_type: 'workflow_completed',
+        entity_type: 'workflow',
+        entity_id: workflowId,
+        description: 'Application closed - all tasks marked as completed',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-workflow-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-activity-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["my-workflow-tasks"] });
+      toast.success("Application closed successfully");
+    },
+    onError: (error: Error) => {
+      console.error("Failed to close application:", error);
+      toast.error(error.message || "Failed to close application");
+    },
+  });
+};
