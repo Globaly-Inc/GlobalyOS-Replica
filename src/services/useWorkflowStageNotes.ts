@@ -99,8 +99,11 @@ export function useStageNotes(workflowId: string | undefined, stageId: string | 
 
 // Get note counts per stage for a workflow
 export function useStageNoteCounts(workflowId: string | undefined, stageIds: string[]) {
+  // Create a stable key from the stageIds array
+  const stageIdsKey = stageIds.join(',');
+  
   return useQuery({
-    queryKey: ["stage-note-counts", workflowId, stageIds],
+    queryKey: ["stage-note-counts", workflowId, stageIdsKey],
     queryFn: async () => {
       if (!workflowId || stageIds.length === 0) return {};
 
@@ -290,8 +293,11 @@ export function useStageAttachments(workflowId: string | undefined, stageId: str
 
 // Get attachment counts per stage
 export function useStageAttachmentCounts(workflowId: string | undefined, stageIds: string[]) {
+  // Create a stable key from the stageIds array
+  const stageIdsKey = stageIds.join(',');
+  
   return useQuery({
-    queryKey: ["stage-attachment-counts", workflowId, stageIds],
+    queryKey: ["stage-attachment-counts", workflowId, stageIdsKey],
     queryFn: async () => {
       if (!workflowId || stageIds.length === 0) return {};
 
