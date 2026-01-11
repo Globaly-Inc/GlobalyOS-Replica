@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
-import { Settings, UserPlus, UserMinus, CheckCircle2, Plus, ClipboardPlus } from "lucide-react";
-import { useAllWorkflows, useWorkflowRealtime, useWorkflowTemplates } from "@/services/useWorkflows";
+import { Settings, CheckCircle2, Plus, ClipboardPlus, Workflow } from "lucide-react";
+import { useAllWorkflows, useWorkflowRealtime, useWorkflows } from "@/services/useWorkflows";
 import { WorkflowKanbanBoard } from "@/components/workflows/WorkflowKanbanBoard";
 import { StartApplicationDialog } from "@/components/workflows/StartApplicationDialog";
 import { AddTaskToWorkflowDialog } from "@/components/workflows/AddTaskToWorkflowDialog";
@@ -15,46 +15,62 @@ import { OrgLink } from "@/components/OrgLink";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { WorkflowType } from "@/types/workflow";
-
-type TabValue = "onboarding" | "offboarding" | "completed";
 
 export default function Workflows() {
   const navigate = useNavigate();
   const { orgCode } = useParams<{ orgCode: string }>();
   const { isOwner, isAdmin, isHR, loading: roleLoading } = useUserRole();
   const { orgCode: navOrgCode } = useOrgNavigation();
-  const [activeTab, setActiveTab] = useState<TabValue>("onboarding");
+  const [activeTab, setActiveTab] = useState<string>("completed");
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
 
   // Enable realtime updates
   useWorkflowRealtime();
 
-  // Fetch all workflows (we'll filter client-side for tabs)
-  const { data: allWorkflows, isLoading } = useAllWorkflows();
+  // Fetch all workflow definitions (templates)
+  const { data: workflowDefinitions, isLoading: workflowsLoading } = useWorkflows();
 
-  // Fetch templates to get template IDs for each type
-  const { data: onboardingTemplates } = useWorkflowTemplates("onboarding");
-  const { data: offboardingTemplates } = useWorkflowTemplates("offboarding");
+  // Fetch all applications (active workflow instances)
+  const { data: allApplications, isLoading: applicationsLoading } = useAllWorkflows();
 
-  // Get default template for each type
-  const defaultOnboardingTemplate = onboardingTemplates?.find(t => t.is_default) || onboardingTemplates?.[0];
-  const defaultOffboardingTemplate = offboardingTemplates?.find(t => t.is_default) || offboardingTemplates?.[0];
+  const isLoading = workflowsLoading || applicationsLoading;
 
-  // Filter workflows by type and status
-  const { onboardingWorkflows, offboardingWorkflows, completedWorkflows } = useMemo(() => {
-    const workflows = allWorkflows || [];
+  // Set first workflow as default tab when data loads
+  useEffect(() => {
+    if (workflowDefinitions?.length && activeTab === "completed") {
+      setActiveTab(workflowDefinitions[0].id);
+    }
+  }, [workflowDefinitions]);
+
+  // Group applications by workflow_template_id
+  const { applicationsByWorkflow, completedApplications } = useMemo(() => {
+    const applications = allApplications || [];
+    const byWorkflow: Record<string, any[]> = {};
+    
+    // Initialize for each workflow
+    workflowDefinitions?.forEach(w => {
+      byWorkflow[w.id] = [];
+    });
+    
+    // Group active applications by workflow template
+    applications.forEach((app: any) => {
+      if (app.status === "active" && app.workflow_template_id) {
+        if (!byWorkflow[app.workflow_template_id]) {
+          byWorkflow[app.workflow_template_id] = [];
+        }
+        byWorkflow[app.workflow_template_id].push(app);
+      }
+    });
+    
+    // Get all completed applications
+    const completed = applications.filter((app: any) => app.status === "completed");
+    
     return {
-      onboardingWorkflows: workflows.filter(
-        (w: any) => w.type === "onboarding" && w.status === "active"
-      ),
-      offboardingWorkflows: workflows.filter(
-        (w: any) => w.type === "offboarding" && w.status === "active"
-      ),
-      completedWorkflows: workflows.filter((w: any) => w.status === "completed"),
+      applicationsByWorkflow: byWorkflow,
+      completedApplications: completed,
     };
-  }, [allWorkflows]);
+  }, [allApplications, workflowDefinitions]);
 
   const handleWorkflowClick = (workflowId: string) => {
     navigate(`/org/${orgCode}/workflows/${workflowId}`);
@@ -105,56 +121,46 @@ export default function Workflows() {
       {/* Workflow Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="onboarding" className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                Onboarding
-                {onboardingWorkflows.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {onboardingWorkflows.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="offboarding" className="gap-2">
-                <UserMinus className="h-4 w-4" />
-                Offboarding
-                {offboardingWorkflows.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {offboardingWorkflows.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-6 flex-wrap h-auto gap-1">
+              {/* Dynamic workflow tabs */}
+              {workflowDefinitions?.map((workflow) => {
+                const count = applicationsByWorkflow[workflow.id]?.length || 0;
+                return (
+                  <TabsTrigger key={workflow.id} value={workflow.id} className="gap-2">
+                    <Workflow className="h-4 w-4" />
+                    {workflow.name}
+                    {count > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {count}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+              {/* Completed tab */}
               <TabsTrigger value="completed" className="gap-2">
                 <CheckCircle2 className="h-4 w-4" />
                 Completed
-                {completedWorkflows.length > 0 && (
+                {completedApplications.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
-                    {completedWorkflows.length}
+                    {completedApplications.length}
                   </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
 
-            {/* Onboarding Kanban */}
-            <TabsContent value="onboarding">
-              <WorkflowKanbanBoard
-                workflows={onboardingWorkflows}
-                templateId={defaultOnboardingTemplate?.id}
-                isLoading={isLoading}
-                onStartWorkflow={() => setShowStartDialog(true)}
-              />
-            </TabsContent>
-
-            {/* Offboarding Kanban */}
-            <TabsContent value="offboarding">
-              <WorkflowKanbanBoard
-                workflows={offboardingWorkflows}
-                templateId={defaultOffboardingTemplate?.id}
-                isLoading={isLoading}
-                onStartWorkflow={() => setShowStartDialog(true)}
-              />
-            </TabsContent>
+            {/* Dynamic workflow Kanban boards */}
+            {workflowDefinitions?.map((workflow) => (
+              <TabsContent key={workflow.id} value={workflow.id}>
+                <WorkflowKanbanBoard
+                  workflows={applicationsByWorkflow[workflow.id] || []}
+                  templateId={workflow.id}
+                  isLoading={isLoading}
+                  onStartWorkflow={() => setShowStartDialog(true)}
+                />
+              </TabsContent>
+            ))}
 
             {/* Completed List */}
             <TabsContent value="completed">
@@ -164,7 +170,7 @@ export default function Workflows() {
                     <Skeleton key={i} className="h-24 w-full" />
                   ))}
                 </div>
-              ) : completedWorkflows.length === 0 ? (
+              ) : completedApplications.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="font-medium text-lg">No completed workflows yet</h3>
@@ -174,11 +180,11 @@ export default function Workflows() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {completedWorkflows.map((workflow: any) => (
+                  {completedApplications.map((application: any) => (
                     <ApplicationCard
-                      key={workflow.id}
-                      workflow={workflow}
-                      onClick={() => handleWorkflowClick(workflow.id)}
+                      key={application.id}
+                      workflow={application}
+                      onClick={() => handleWorkflowClick(application.id)}
                     />
                   ))}
                 </div>
