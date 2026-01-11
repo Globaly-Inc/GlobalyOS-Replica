@@ -62,6 +62,8 @@ import { CompleteStageDialog } from "@/components/workflows/CompleteStageDialog"
 import { MoveStageDialog } from "@/components/workflows/MoveStageDialog";
 import { TaskDetailSheet } from "@/components/workflows/TaskDetailSheet";
 import { WorkflowActivityLog } from "@/components/workflows/WorkflowActivityLog";
+import { StageNotesPanel } from "@/components/workflows/StageNotesPanel";
+import { useStageNoteCounts, useStageAttachmentCounts } from "@/services/useWorkflowStageNotes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -494,6 +496,11 @@ export default function WorkflowDetail() {
     stage,
     tasks: tasks?.filter(t => t.stage_id === stage.id) ?? [],
   })) ?? [];
+
+  // Get stage IDs for note/attachment counts
+  const stageIds = stages?.map(s => s.id) || [];
+  const { data: noteCounts } = useStageNoteCounts(workflowId, stageIds);
+  const { data: attachmentCounts } = useStageAttachmentCounts(workflowId, stageIds);
   
   // Calculate current stage using explicit current_stage_id
   const currentStageIndex = workflow.current_stage_id 
@@ -869,6 +876,18 @@ export default function WorkflowDetail() {
                       ))}
                     </div>
                   )}
+                  
+                  {/* Stage Notes & Attachments Panel */}
+                  <div className="mt-3 border-t pt-3">
+                    <StageNotesPanel
+                      workflowId={workflow.id}
+                      stageId={stage.id}
+                      organizationId={workflow.organization_id}
+                      currentEmployeeId={currentEmployee?.id}
+                      noteCount={noteCounts?.[stage.id] || 0}
+                      attachmentCount={attachmentCounts?.[stage.id] || 0}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             );
