@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileIcon, Download, Trash2, Image as ImageIcon, FileText, Film, Music } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, Film, Music, FileIcon } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { getSignedAttachmentUrl, type StageAttachment } from "@/services/useWorkflowStageNotes";
 import { cn } from "@/lib/utils";
@@ -54,7 +53,6 @@ export function StageAttachmentList({
     try {
       const signedUrl = await getSignedAttachmentUrl(attachment.file_path);
       if (signedUrl) {
-        // Open in new tab or trigger download
         const link = document.createElement("a");
         link.href = signedUrl;
         link.download = attachment.file_name;
@@ -84,9 +82,7 @@ export function StageAttachmentList({
   };
 
   if (attachments.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground py-2">No attachments yet</p>
-    );
+    return null;
   }
 
   return (
@@ -96,59 +92,58 @@ export function StageAttachmentList({
           const IconComponent = getFileIcon(attachment.file_type);
           const isOwnAttachment = attachment.employee_id === currentEmployeeId;
           const uploaderName = attachment.employee?.profiles?.full_name || "Unknown";
-          const isImage = attachment.file_type?.startsWith("image/");
 
           return (
             <div
               key={attachment.id}
               className={cn(
-                "flex items-center gap-3 p-2 rounded-md border bg-muted/30",
-                "hover:bg-muted/50 transition-colors"
+                "flex items-start gap-3 p-3 rounded-lg border transition-colors",
+                "bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/50 dark:border-purple-800/30",
+                "hover:bg-purple-100/50 dark:hover:bg-purple-950/30"
               )}
             >
-              <div className={cn(
-                "shrink-0 h-10 w-10 rounded flex items-center justify-center",
-                isImage ? "bg-purple-100 dark:bg-purple-900/30" : "bg-blue-100 dark:bg-blue-900/30"
-              )}>
-                <IconComponent className={cn(
-                  "h-5 w-5",
-                  isImage ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"
-                )} />
+              {/* Icon */}
+              <div className="shrink-0 mt-0.5">
+                <Paperclip className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               </div>
 
+              {/* Content */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" title={attachment.file_name}>
                   {attachment.file_name}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   <span>{formatFileSize(attachment.file_size)}</span>
                   <span>·</span>
-                  <span>by {uploaderName}</span>
+                  <span className="font-medium text-foreground/80">{uploaderName}</span>
                   <span>·</span>
                   <span>{formatRelativeTime(attachment.created_at)}</span>
                 </div>
               </div>
 
+              {/* Actions */}
               <div className="flex items-center gap-1 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-purple-600"
                   onClick={() => handleDownload(attachment)}
                   disabled={downloading === attachment.id}
+                  title="Download"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
                 </Button>
 
                 {isOwnAttachment && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDeleteClick(attachment)}
                     disabled={isDeleting}
+                    title="Delete"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
