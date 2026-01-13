@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -594,9 +594,9 @@ const Signup = () => {
         {/* Sign in link */}
         <p className="text-center text-sm text-muted-foreground mt-6">
           Already have an account?{" "}
-          <a href="/auth" className="text-primary hover:underline font-medium">
+          <Link to="/auth" className="text-primary hover:underline font-medium">
             Sign in
-          </a>
+          </Link>
         </p>
       </div>
     </div>
