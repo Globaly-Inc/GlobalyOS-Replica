@@ -48,6 +48,8 @@ import { useErrorLogById } from '@/services/useErrorLogById';
 import { useUpdateErrorLogStatus } from '@/services/useErrorLogs';
 import ErrorResolutionAIDialog from '@/components/super-admin/ErrorResolutionAIDialog';
 import ErrorLogPDFExport from '@/components/super-admin/ErrorLogPDFExport';
+import LinkedTicketsCard from '@/components/super-admin/LinkedTicketsCard';
+import LinkErrorToTicketDialog from '@/components/super-admin/LinkErrorToTicketDialog';
 import type { ErrorLogStatus, ErrorSeverity, ConsoleEntry, NetworkRequest, Breadcrumb } from '@/types/errorLogs';
 
 const severityConfig: Record<ErrorSeverity, { label: string; icon: React.ElementType; className: string }> = {
@@ -93,6 +95,7 @@ const SuperAdminErrorLogDetail = () => {
   const [stackSectionOpen, setStackSectionOpen] = useState(true);
   const [metadataSectionOpen, setMetadataSectionOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [linkTicketDialogOpen, setLinkTicketDialogOpen] = useState(false);
 
   // Initialize form when log loads
   useEffect(() => {
