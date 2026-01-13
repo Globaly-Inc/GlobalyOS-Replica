@@ -38,7 +38,7 @@ import {
   Info,
   Loader2
 } from 'lucide-react';
-import { useAllErrorLogs, useUpdateErrorLogStatus, useBulkUpdateErrorLogStatus } from '@/services/useErrorLogs';
+import { useAllErrorLogs, useUpdateErrorLogStatus, useBulkUpdateErrorLogStatus, useErrorLogsRealtime } from '@/services/useErrorLogs';
 import type { ErrorLogFilters, ErrorLogStatus, ErrorSeverity, ErrorType } from '@/types/errorLogs';
 import { toast } from 'sonner';
 import ErrorLogDetailDialog from './ErrorLogDetailDialog';
@@ -64,6 +64,9 @@ const ErrorLogsTable = () => {
   const { data: logs, isLoading } = useAllErrorLogs(filters);
   const updateStatus = useUpdateErrorLogStatus();
   const bulkUpdateStatus = useBulkUpdateErrorLogStatus();
+  
+  // Enable realtime updates
+  useErrorLogsRealtime();
 
   const handleFilterChange = (key: keyof ErrorLogFilters, value: string | undefined) => {
     setFilters(prev => ({
