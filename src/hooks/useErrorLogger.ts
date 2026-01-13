@@ -16,11 +16,15 @@ export const useErrorLogger = () => {
       // Get organization ID from employee record if user exists
       let organizationId: string | null = null;
       if (user) {
-        const { data: employee } = await supabase
+        const { data: employee, error: employeeError } = await supabase
           .from('employees')
           .select('organization_id')
           .eq('user_id', user.id)
           .maybeSingle();
+        
+        if (employeeError) {
+          console.warn('[ErrorLogger] Failed to fetch employee org:', employeeError.message);
+        }
         organizationId = employee?.organization_id || null;
       }
       
@@ -32,8 +36,8 @@ export const useErrorLogger = () => {
       // Get browser info
       const browserInfo = getBrowserInfo(userAgent);
       
-      // Insert error log (fire and forget - don't block UI)
-      await supabase.from('user_error_logs').insert([{
+      // Insert error log and check for errors
+      const { error: insertError } = await supabase.from('user_error_logs').insert([{
         user_id: user?.id || null,
         organization_id: organizationId,
         error_type: params.errorType,
@@ -48,9 +52,13 @@ export const useErrorLogger = () => {
         user_agent: userAgent,
         metadata: (params.metadata || {}) as Json,
       }]);
+      
+      if (insertError) {
+        console.error('[ErrorLogger] Failed to insert error log:', insertError.message, insertError);
+      }
     } catch (error) {
       // Silent fail - don't cause more errors while logging errors
-      console.error('Failed to log error to database:', error);
+      console.error('[ErrorLogger] Unexpected error:', error);
     }
   }, []);
 
@@ -67,11 +75,15 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
     
     let organizationId: string | null = null;
     if (user) {
-      const { data: employee } = await supabase
+      const { data: employee, error: employeeError } = await supabase
         .from('employees')
         .select('organization_id')
         .eq('user_id', user.id)
         .maybeSingle();
+      
+      if (employeeError) {
+        console.warn('[ErrorLogger] Failed to fetch employee org:', employeeError.message);
+      }
       organizationId = employee?.organization_id || null;
     }
     
@@ -80,7 +92,7 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
     const deviceType = /Mobile|Android|iPhone|iPad/i.test(userAgent) ? 'mobile' : 'desktop';
     const browserInfo = getBrowserInfo(userAgent);
     
-    await supabase.from('user_error_logs').insert([{
+    const { error: insertError } = await supabase.from('user_error_logs').insert([{
       user_id: user?.id || null,
       organization_id: organizationId,
       error_type: params.errorType,
@@ -95,8 +107,12 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
       user_agent: userAgent,
       metadata: (params.metadata || {}) as Json,
     }]);
+    
+    if (insertError) {
+      console.error('[ErrorLogger] Failed to insert error log:', insertError.message, insertError);
+    }
   } catch (error) {
-    console.error('Failed to log error to database:', error);
+    console.error('[ErrorLogger] Unexpected error:', error);
   }
 };
 
