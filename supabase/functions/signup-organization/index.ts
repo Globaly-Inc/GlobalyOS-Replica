@@ -1,9 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import React from 'https://esm.sh/react@18.3.1';
+import { Resend } from 'https://esm.sh/resend@4.0.0';
+import { render } from 'https://esm.sh/@react-email/render@0.0.12';
+import { ConfirmationEmail } from './_templates/confirmation-email.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://globalyos.com';
 
 interface SignupRequest {
   organizationName: string;
@@ -121,8 +127,39 @@ Deno.serve(async (req) => {
 
     console.log(`Organization created: ${organization.id} - ${organizationName} (pending approval)`);
 
-    // TODO: Send notification email to super admins about new pending organization
-    // This would use Resend or similar email service
+    // Send confirmation email to the applicant
+    try {
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        const statusUrl = `${APP_BASE_URL}/pending-approval?email=${encodeURIComponent(ownerEmail)}`;
+
+        const html = render(
+          React.createElement(ConfirmationEmail, {
+            ownerName,
+            organizationName,
+            email: ownerEmail,
+            statusUrl,
+            plan,
+          })
+        );
+
+        const emailResult = await resend.emails.send({
+          from: 'GlobalyOS <onboarding@resend.dev>',
+          to: [ownerEmail],
+          subject: `Application Received - ${organizationName}`,
+          html,
+        });
+
+        console.log('Confirmation email sent successfully:', emailResult);
+      } else {
+        console.warn('RESEND_API_KEY not configured, skipping confirmation email');
+      }
+    } catch (emailError) {
+      // Don't fail the signup if email fails - just log the error
+      console.error('Failed to send confirmation email:', emailError);
+    }
 
     return new Response(
       JSON.stringify({ 
