@@ -66,6 +66,14 @@ interface Organization {
   trial_ends_at: string | null;
   userCount?: number;
   primaryAdmin?: string;
+  subscriptionPlan?: string; // from subscriptions table
+  subscriptionStatus?: string;
+}
+
+interface SubscriptionPlan {
+  id: string;
+  slug: string;
+  name: string;
 }
 
 const SuperAdminOrganisations = () => {
@@ -77,6 +85,7 @@ const SuperAdminOrganisations = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orgToDelete, setOrgToDelete] = useState<Organization | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [validPlans, setValidPlans] = useState<Map<string, string>>(new Map());
   
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -90,6 +99,27 @@ const SuperAdminOrganisations = () => {
 
   const fetchOrganizations = async () => {
     try {
+      // Fetch subscription plans for validation
+      const { data: plans } = await supabase
+        .from('subscription_plans')
+        .select('id, slug, name');
+      
+      const planMap = new Map<string, string>(
+        (plans || []).map((p: SubscriptionPlan) => [p.slug, p.name])
+      );
+      setValidPlans(planMap);
+
+      // Fetch all subscriptions
+      const { data: subscriptions } = await supabase
+        .from('subscriptions')
+        .select('organization_id, plan, status');
+      
+      const subMap = new Map(
+        (subscriptions || []).map((s: { organization_id: string; plan: string; status: string }) => 
+          [s.organization_id, { plan: s.plan, status: s.status }]
+        )
+      );
+
       const { data: orgs, error: orgsError } = await supabase
         .from('organizations')
         .select('*')
@@ -124,10 +154,15 @@ const SuperAdminOrganisations = () => {
             primaryAdmin = profile?.full_name || profile?.email || primaryAdmin;
           }
 
+          // Get subscription data
+          const subscription = subMap.get(org.id);
+
           return {
             ...org,
             userCount: count || 0,
             primaryAdmin,
+            subscriptionPlan: subscription?.plan,
+            subscriptionStatus: subscription?.status,
           };
         })
       );
@@ -392,6 +427,7 @@ const SuperAdminOrganisations = () => {
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
                     getStatusBadge={getStatusBadge}
+                    validPlans={validPlans}
                   />
                 </TabsContent>
                 <TabsContent value="pending" className="mt-4">
@@ -399,6 +435,7 @@ const SuperAdminOrganisations = () => {
                     organizations={filterOrganizations(organizations, 'pending')}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
                     onViewDetails={handleViewDetails}
+                    validPlans={validPlans}
                   />
                 </TabsContent>
                 <TabsContent value="active" className="mt-4">
@@ -409,6 +446,7 @@ const SuperAdminOrganisations = () => {
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
                     getStatusBadge={getStatusBadge}
+                    validPlans={validPlans}
                   />
                 </TabsContent>
                 <TabsContent value="inactive" className="mt-4">
@@ -419,6 +457,7 @@ const SuperAdminOrganisations = () => {
                     onDelete={(org) => { setOrgToDelete(org); setDeleteDialogOpen(true); }}
                     onReview={(org) => { setOrgToReview(org); setReviewDialogOpen(true); }}
                     getStatusBadge={getStatusBadge}
+                    validPlans={validPlans}
                   />
                 </TabsContent>
               </Tabs>
@@ -541,6 +580,21 @@ const SuperAdminOrganisations = () => {
   );
 };
 
+// Helper to get plan display info
+const getPlanDisplay = (org: Organization, validPlans: Map<string, string>) => {
+  // Prefer subscription plan over organization plan
+  const planSlug = org.subscriptionPlan || org.plan;
+  const planName = validPlans.get(planSlug);
+  const isSynced = !org.subscriptionPlan || org.plan === org.subscriptionPlan;
+  
+  return {
+    displayName: planName || planSlug,
+    isValid: !!planName,
+    isSynced,
+    slug: planSlug,
+  };
+};
+
 // Standard organizations table
 interface OrganizationsTableProps {
   organizations: Organization[];
@@ -549,6 +603,7 @@ interface OrganizationsTableProps {
   onDelete: (org: Organization) => void;
   onReview: (org: Organization) => void;
   getStatusBadge: (org: Organization) => JSX.Element;
+  validPlans: Map<string, string>;
 }
 
 const OrganizationsTable = ({ 
@@ -557,7 +612,8 @@ const OrganizationsTable = ({
   onToggleStatus, 
   onDelete,
   onReview,
-  getStatusBadge 
+  getStatusBadge,
+  validPlans,
 }: OrganizationsTableProps) => (
   <Table>
     <TableHeader>
@@ -573,35 +629,43 @@ const OrganizationsTable = ({
       </TableRow>
     </TableHeader>
     <TableBody>
-      {organizations.map((org) => (
-        <TableRow 
-          key={org.id} 
-          className="cursor-pointer hover:bg-muted/50"
-          onClick={() => onViewDetails(org)}
-        >
-          <TableCell>
-            <div className="flex items-center gap-3">
-              {org.logo_url ? (
-                <img
-                  src={org.logo_url}
-                  alt={org.name}
-                  className="h-8 w-8 rounded object-cover"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-                  <Building2 className="h-4 w-4 text-primary" />
-                </div>
-              )}
-              <span className="font-medium">{org.name}</span>
-            </div>
-          </TableCell>
-          <TableCell>
-            <code className="text-sm bg-muted px-2 py-1 rounded">
-              {org.slug}
-            </code>
-          </TableCell>
-          <TableCell onClick={(e) => e.stopPropagation()}>{getStatusBadge(org)}</TableCell>
-          <TableCell className="capitalize">{org.plan}</TableCell>
+      {organizations.map((org) => {
+        const planInfo = getPlanDisplay(org, validPlans);
+        return (
+          <TableRow 
+            key={org.id} 
+            className="cursor-pointer hover:bg-muted/50"
+            onClick={() => onViewDetails(org)}
+          >
+            <TableCell>
+              <div className="flex items-center gap-3">
+                {org.logo_url ? (
+                  <img
+                    src={org.logo_url}
+                    alt={org.name}
+                    className="h-8 w-8 rounded object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
+                    <Building2 className="h-4 w-4 text-primary" />
+                  </div>
+                )}
+                <span className="font-medium">{org.name}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <code className="text-sm bg-muted px-2 py-1 rounded">
+                {org.slug}
+              </code>
+            </TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>{getStatusBadge(org)}</TableCell>
+            <TableCell>
+              <span className={!planInfo.isValid ? 'text-amber-600' : ''}>
+                {planInfo.displayName}
+                {!planInfo.isValid && <span className="text-xs ml-1">(invalid)</span>}
+                {planInfo.isValid && !planInfo.isSynced && <span className="text-xs text-amber-500 ml-1">(out of sync)</span>}
+              </span>
+            </TableCell>
           <TableCell>{org.userCount}</TableCell>
           <TableCell className="max-w-[150px] truncate">{org.primaryAdmin}</TableCell>
           <TableCell>
@@ -642,7 +706,8 @@ const OrganizationsTable = ({
             </DropdownMenu>
           </TableCell>
         </TableRow>
-      ))}
+        );
+      })}
       {organizations.length === 0 && (
         <TableRow>
           <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
@@ -659,9 +724,10 @@ interface PendingOrganizationsTableProps {
   organizations: Organization[];
   onReview: (org: Organization) => void;
   onViewDetails: (org: Organization) => void;
+  validPlans: Map<string, string>;
 }
 
-const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: PendingOrganizationsTableProps) => (
+const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails, validPlans }: PendingOrganizationsTableProps) => (
   <Table>
     <TableHeader>
       <TableRow>
@@ -676,30 +742,33 @@ const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: P
       </TableRow>
     </TableHeader>
     <TableBody>
-      {organizations.map((org) => (
-        <TableRow 
-          key={org.id}
-          className="cursor-pointer hover:bg-muted/50"
-          onClick={() => onViewDetails(org)}
-        >
-          <TableCell>
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded bg-amber-100 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-amber-600" />
+      {organizations.map((org) => {
+        const planInfo = getPlanDisplay(org, validPlans);
+        return (
+          <TableRow 
+            key={org.id}
+            className="cursor-pointer hover:bg-muted/50"
+            onClick={() => onViewDetails(org)}
+          >
+            <TableCell>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded bg-amber-100 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <span className="font-medium">{org.name}</span>
+                  <p className="text-xs text-muted-foreground">{org.slug}</p>
+                </div>
               </div>
-              <div>
-                <span className="font-medium">{org.name}</span>
-                <p className="text-xs text-muted-foreground">{org.slug}</p>
-              </div>
-            </div>
-          </TableCell>
-          <TableCell>{org.owner_name || 'N/A'}</TableCell>
-          <TableCell className="max-w-[180px] truncate">{org.owner_email || 'N/A'}</TableCell>
-          <TableCell>
-            <Badge variant="outline" className="capitalize">
-              {org.plan} ({org.billing_cycle || 'monthly'})
-            </Badge>
-          </TableCell>
+            </TableCell>
+            <TableCell>{org.owner_name || 'N/A'}</TableCell>
+            <TableCell className="max-w-[180px] truncate">{org.owner_email || 'N/A'}</TableCell>
+            <TableCell>
+              <Badge variant="outline" className={!planInfo.isValid ? 'border-amber-300 bg-amber-50' : ''}>
+                {planInfo.displayName} ({org.billing_cycle || 'monthly'})
+                {!planInfo.isValid && <span className="text-xs ml-1">(invalid)</span>}
+              </Badge>
+            </TableCell>
           <TableCell>{org.company_size || 'N/A'}</TableCell>
           <TableCell>{org.industry || 'N/A'}</TableCell>
           <TableCell>{formatDistanceToNow(new Date(org.created_at), { addSuffix: true })}</TableCell>
@@ -714,7 +783,8 @@ const PendingOrganizationsTable = ({ organizations, onReview, onViewDetails }: P
             </div>
           </TableCell>
         </TableRow>
-      ))}
+        );
+      })}
       {organizations.length === 0 && (
         <TableRow>
           <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
