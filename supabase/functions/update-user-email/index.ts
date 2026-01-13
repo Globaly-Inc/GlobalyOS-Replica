@@ -46,7 +46,7 @@ serve(async (req) => {
       .eq("user_id", requestingUser.id);
     
     const isAuthorized = roles?.some(r => 
-      r.role === "admin" || r.role === "hr" || r.role === "super_admin"
+      r.role === "admin" || r.role === "hr" || r.role === "super_admin" || r.role === "owner"
     );
     if (!isAuthorized) {
       console.log("Authorization failed for user:", requestingUser.id, "Roles:", roles);
