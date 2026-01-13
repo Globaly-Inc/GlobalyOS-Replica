@@ -143,7 +143,7 @@ serve(async (req: Request) => {
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
       avatarUrl, role, managerId, officeId, organizationId,
-      isNewHire = true, employmentType = 'full-time', gender
+      isNewHire = true, employmentType = 'employee', gender
     } = data;
 
     // Validate required fields (postcode is now optional)
