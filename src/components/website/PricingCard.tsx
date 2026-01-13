@@ -90,7 +90,7 @@ export const PricingCard = ({
           "w-full",
           popular && "bg-gradient-to-r from-primary to-accent hover:opacity-90"
         )}
-        onClick={() => navigate("/auth")}
+        onClick={() => navigate("/signup")}
       >
         {ctaText}
       </Button>
