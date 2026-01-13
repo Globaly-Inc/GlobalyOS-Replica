@@ -1,6 +1,6 @@
 import React from 'react';
-
 import { Button } from '@/components/ui/button';
+import { logErrorToDatabase } from '@/hooks/useErrorLogger';
 
 type AppErrorBoundaryProps = {
   children: React.ReactNode;
@@ -23,6 +23,16 @@ export default class AppErrorBoundary extends React.Component<
   componentDidCatch(error: Error) {
     // eslint-disable-next-line no-console
     console.error('App render error:', error);
+    
+    // Log critical render error to database
+    logErrorToDatabase({
+      errorType: 'runtime',
+      severity: 'critical',
+      errorMessage: error.message,
+      errorStack: error.stack,
+      componentName: 'AppErrorBoundary',
+      actionAttempted: 'Page render',
+    });
   }
 
   private hardReload = async () => {

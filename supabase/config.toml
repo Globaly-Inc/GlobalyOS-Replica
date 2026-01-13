@@ -191,3 +191,6 @@ verify_jwt = false
 
 [functions.backfill-not-checked-in]
 verify_jwt = false
+
+[functions.notify-critical-error]
+verify_jwt = false

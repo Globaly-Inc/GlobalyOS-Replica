@@ -4,6 +4,8 @@
  */
 
 import { toast } from 'sonner';
+import { logErrorToDatabase } from '@/hooks/useErrorLogger';
+import type { ErrorType } from '@/types/errorLogs';
 
 /**
  * Extract a user-friendly message from various error types
@@ -88,22 +90,40 @@ function parseErrorMessage(message: string): string {
 /**
  * Show an error toast with proper formatting
  * Extracts the actual error message and displays it to the user
+ * Optionally logs to database for Super Admin monitoring
  * 
  * @param error - The error object/string to display
  * @param fallback - Fallback message if error can't be parsed
- * @param options - Additional options (log: whether to console.error)
+ * @param options - Additional options (log: whether to console.error, logToDb: whether to log to database)
  * @returns The displayed error message
  */
 export function showErrorToast(
   error: unknown,
   fallback: string,
-  options?: { log?: boolean }
+  options?: { 
+    log?: boolean;
+    logToDb?: boolean;
+    componentName?: string;
+    actionAttempted?: string;
+    errorType?: ErrorType;
+  }
 ): string {
   const message = getErrorMessage(error, fallback);
   
   // Log the error with full details for debugging (default: true)
   if (options?.log !== false) {
     console.error(`${fallback}:`, error);
+  }
+  
+  // Log to database if enabled (default: true for production errors)
+  if (options?.logToDb !== false) {
+    logErrorToDatabase({
+      errorType: options?.errorType || 'runtime',
+      errorMessage: message,
+      errorStack: error instanceof Error ? error.stack : undefined,
+      componentName: options?.componentName,
+      actionAttempted: options?.actionAttempted || fallback,
+    });
   }
   
   toast.error(message);
