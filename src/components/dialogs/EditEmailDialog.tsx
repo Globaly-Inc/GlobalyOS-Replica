@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { invokeEdgeFunction } from "@/lib/edgeFunctionUtils";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface EditEmailDialogProps {
   userId: string;
@@ -21,31 +22,35 @@ export const EditEmailDialog = ({
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState(currentEmail);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleSave = async () => {
     if (!email.trim()) {
-      toast({ title: "Email is required", variant: "destructive" });
+      toast.error("Email is required");
       return;
     }
     
     setLoading(true);
     try {
-      const response = await supabase.functions.invoke("update-user-email", {
-        body: { userId, newEmail: email.trim() },
+      const { error } = await invokeEdgeFunction("update-user-email", {
+        userId,
+        newEmail: email.trim(),
+      }, {
+        componentName: "EditEmailDialog",
+        actionAttempted: "Update company email",
       });
 
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+      if (error) {
+        throw error;
+      }
 
-      toast({ title: "Email updated successfully" });
+      toast.success("Email updated successfully");
       setOpen(false);
       onSuccess();
-    } catch (error: any) {
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive",
+    } catch (error) {
+      showErrorToast(error, "Failed to update company email", {
+        componentName: "EditEmailDialog",
+        actionAttempted: "Update company email",
+        errorType: "edge_function",
       });
     } finally {
       setLoading(false);
