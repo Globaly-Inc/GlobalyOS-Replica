@@ -99,6 +99,7 @@ const SuperAdminBlogEditor = lazy(() => import('./pages/super-admin/SuperAdminBl
 const SuperAdminCustomerSuccess = lazy(() => import('./pages/super-admin/SuperAdminCustomerSuccess'));
 const SuperAdminDocumentation = lazy(() => import('./pages/super-admin/SuperAdminDocumentation'));
 const SuperAdminErrorLogs = lazy(() => import('./pages/super-admin/SuperAdminErrorLogs'));
+const SuperAdminErrorLogDetail = lazy(() => import('./pages/super-admin/SuperAdminErrorLogDetail'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
 const queryClient = new QueryClient();
 const PageLoader = () => <div className="min-h-screen flex items-center justify-center bg-background">
@@ -233,6 +234,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/error-logs" element={<SuperAdminProtectedRoute>
                     <SuperAdminErrorLogs />
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/error-logs/:errorId" element={<SuperAdminProtectedRoute>
+                    <SuperAdminErrorLogDetail />
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/plans/new" element={<SuperAdminProtectedRoute>
                     <SuperAdminPlanEditor />
