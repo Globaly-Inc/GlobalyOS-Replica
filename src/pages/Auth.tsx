@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Mail, AlertCircle, UserX } from "lucide-react";
+import { Mail, AlertCircle, UserX, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -181,8 +181,8 @@ const Auth = () => {
       // Handle error responses - check data.error first since edge function returns errors in body
       const errorMessage = response.data?.error || response.error?.message;
       if (errorMessage) {
-        // Check if this is an "account not found" error
-        const isAccountNotFound = errorMessage.toLowerCase().includes('no account found') || errorMessage.toLowerCase().includes('user not found');
+        // Check if this is an "account not found" error (explicit flag or message content)
+        const isAccountNotFound = response.data?.accountNotFound || errorMessage.toLowerCase().includes('no account found') || errorMessage.toLowerCase().includes('user not found');
         if (isAccountNotFound) {
           setAccountNotFound(true);
         } else {
@@ -236,7 +236,8 @@ const Auth = () => {
     setTurnstileToken(null);
     setAccountNotFound(false);
   };
-  const AccountNotFoundMessage = () => <div className="space-y-4">
+  const AccountNotFoundMessage = () => (
+    <div className="space-y-4">
       <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
         <UserX className="h-5 w-5" />
         <AlertTitle className="font-semibold">Account Not Found</AlertTitle>
@@ -250,23 +251,35 @@ const Auth = () => {
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-2">
             <span className="text-primary font-bold">1.</span>
-            <span>Check if you entered the correct email address</span>
+            <span>
+              <strong>New organization?</strong> Create your account first
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary font-bold">2.</span>
-            <span>Contact your HR administrator or manager to be added to the system</span>
+            <span>
+              <strong>Already signed up?</strong> Check your email for approval status
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary font-bold">3.</span>
-            <span>If you received an invitation email, use the link provided in that email</span>
+            <span>
+              <strong>Team member?</strong> Contact your HR admin to be added to the system
+            </span>
           </li>
         </ul>
       </div>
+
+      <Button className="w-full" onClick={() => navigate('/signup')}>
+        <Building2 className="mr-2 h-4 w-4" />
+        Sign up for free
+      </Button>
       
       <Button variant="outline" className="w-full" onClick={resetOtpFlow}>
         Try a different email
       </Button>
-    </div>;
+    </div>
+  );
   const handleTurnstileVerify = (token: string) => {
     setTurnstileToken(token);
   };
@@ -327,6 +340,16 @@ const Auth = () => {
                 {loading ? "Sending..." : "Send OTP"}
               </Button>
             </form>
+
+            {/* Sign up link */}
+            <div className="text-center pt-2">
+              <p className="text-sm text-muted-foreground">
+                Don't have an account?{" "}
+                <Link to="/signup" className="text-primary font-medium hover:underline">
+                  Sign up for free
+                </Link>
+              </p>
+            </div>
 
             {/* Security badges */}
             <div className="pt-4">

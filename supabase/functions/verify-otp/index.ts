@@ -304,7 +304,9 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          error: 'No account found with this email. Please contact your administrator to be added to the system.'
+          error: 'No account found with this email.',
+          accountNotFound: true,
+          suggestion: 'If you want to create a new organization, please sign up first. If you are a team member, contact your HR administrator.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
