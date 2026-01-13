@@ -27,7 +27,7 @@ const SuperAdminErrorLogs = () => {
       });
       
       // Refetch error logs
-      await queryClient.invalidateQueries({ queryKey: ['all-error-logs'] });
+      await queryClient.invalidateQueries({ queryKey: ['error-logs'] });
       
       toast.success('Test error logged successfully. Refresh the table to see it.');
     } catch (error) {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { 
+import type {
   ErrorLog, 
   ErrorLogFilters, 
   ErrorLogStatus,
@@ -358,4 +359,40 @@ export const useBulkUpdateErrorLogStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['error-log-stats'] });
     },
   });
+};
+
+/**
+ * Real-time subscription for error logs
+ * Invalidates all related queries on INSERT, UPDATE, DELETE
+ */
+export const useErrorLogsRealtime = () => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('error-logs-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_error_logs',
+        },
+        (payload) => {
+          console.log('Error log realtime update:', payload.eventType);
+          // Invalidate all error-related queries
+          queryClient.invalidateQueries({ queryKey: ['error-logs'] });
+          queryClient.invalidateQueries({ queryKey: ['error-log-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['error-trend'] });
+          queryClient.invalidateQueries({ queryKey: ['errors-by-type'] });
+          queryClient.invalidateQueries({ queryKey: ['top-errors'] });
+          queryClient.invalidateQueries({ queryKey: ['errors-by-org'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 };
