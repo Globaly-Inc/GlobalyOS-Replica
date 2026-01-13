@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import React from 'https://esm.sh/react@18.3.1'
+import { Resend } from 'https://esm.sh/resend@4.0.0'
+import { render } from 'https://esm.sh/@react-email/render@0.0.12'
+import { RejectionEmail } from './_templates/rejection-email.tsx'
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
+const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://www.globalyos.com'
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,8 +92,9 @@ serve(async (req) => {
       throw new Error(`Failed to reject organization: ${updateError.message}`);
     }
 
-    // Send rejection email (optional - implement later)
-    // await sendRejectionEmail(org.owner_email, org.name, reason);
+    // Send rejection email
+    const ownerName = org.owner_name || org.owner_email?.split('@')[0] || 'there';
+    await sendRejectionEmail(org.owner_email, ownerName, org.name, reason.trim());
 
     return new Response(
       JSON.stringify({ success: true, message: "Organization rejected" }),
@@ -100,3 +108,33 @@ serve(async (req) => {
     );
   }
 });
+
+async function sendRejectionEmail(email: string, ownerName: string, organizationName: string, reason: string) {
+  try {
+    const signupUrl = `${APP_BASE_URL}/signup`;
+    
+    const html = render(
+      React.createElement(RejectionEmail, {
+        ownerName,
+        organizationName,
+        reason,
+        signupUrl,
+      })
+    );
+
+    const { data, error } = await resend.emails.send({
+      from: 'GlobalyOS <onboarding@resend.dev>',
+      to: [email],
+      subject: `Update on your GlobalyOS application`,
+      html,
+    });
+
+    if (error) {
+      console.error('Error sending rejection email:', error);
+    } else {
+      console.log('Rejection email sent successfully:', data);
+    }
+  } catch (err) {
+    console.error('Failed to send rejection email:', err);
+  }
+}

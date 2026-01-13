@@ -11,7 +11,13 @@ import {
   Mail, 
   RefreshCw,
   ArrowLeft,
-  Building2
+  Building2,
+  Shield,
+  Users,
+  Zap,
+  MessageCircle,
+  CalendarDays,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,8 +78,8 @@ const PendingApproval = () => {
       case 'approved':
         return {
           icon: CheckCircle2,
-          title: "Application Approved!",
-          description: "Your organization has been approved. Redirecting to sign in...",
+          title: "Welcome to GlobalyOS! 🎉",
+          description: "Your organization has been approved. Check your email for login details!",
           color: "text-success",
           bgColor: "bg-success/10",
           borderColor: "border-success/20",
@@ -90,11 +96,11 @@ const PendingApproval = () => {
       default:
         return {
           icon: Clock,
-          title: "Pending Approval",
-          description: "Your application is being reviewed by our team.",
-          color: "text-warning",
-          bgColor: "bg-warning/10",
-          borderColor: "border-warning/20",
+          title: "Application Submitted Successfully!",
+          description: "Thank you for signing up. Our team is reviewing your application.",
+          color: "text-primary",
+          bgColor: "bg-primary/10",
+          borderColor: "border-primary/20",
         };
     }
   };
@@ -102,142 +108,215 @@ const PendingApproval = () => {
   const config = getStatusConfig();
   const StatusIcon = config.icon;
 
+  const features = [
+    { icon: Users, label: "Team Management", desc: "Org chart, profiles, departments" },
+    { icon: CalendarDays, label: "Attendance & Leave", desc: "Track time and absences" },
+    { icon: MessageCircle, label: "Team Communication", desc: "Posts, announcements, chat" },
+    { icon: Zap, label: "Performance Tracking", desc: "KPIs, OKRs, reviews" },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8">
-        {/* Status Icon */}
-        <div className="flex justify-center mb-6">
-          <div className={cn(
-            "w-20 h-20 rounded-full flex items-center justify-center",
-            config.bgColor
-          )}>
-            <StatusIcon className={cn("h-10 w-10", config.color)} />
-          </div>
-        </div>
-
-        {/* Status Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-2">{config.title}</h1>
-          <p className="text-muted-foreground">{config.description}</p>
-        </div>
-
-        {/* Organization Info */}
-        {organizationName && (
-          <div className={cn(
-            "rounded-lg p-4 mb-6 border",
-            config.bgColor,
-            config.borderColor
-          )}>
-            <div className="flex items-center gap-3">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">{organizationName}</p>
-                <p className="text-sm text-muted-foreground">{email}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Pending State */}
-        {status === 'pending' && (
-          <div className="space-y-4">
-            {/* Timeline */}
-            <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-medium mb-3">What happens next?</h3>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Application Submitted</p>
-                    <p className="text-xs text-muted-foreground">Your details have been received</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-warning/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock className="h-4 w-4 text-warning" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Under Review</p>
-                    <p className="text-xs text-muted-foreground">Usually within 24 hours</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-muted-foreground">Email Notification</p>
-                    <p className="text-xs text-muted-foreground">You'll receive login details</p>
-                  </div>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="max-w-4xl mx-auto">
+          {/* Main Status Card */}
+          <Card className="p-8 md:p-10 mb-8">
+            {/* Status Icon */}
+            <div className="flex justify-center mb-6">
+              <div className={cn(
+                "w-24 h-24 rounded-full flex items-center justify-center",
+                config.bgColor
+              )}>
+                <StatusIcon className={cn("h-12 w-12", config.color)} />
               </div>
             </div>
 
-            {/* Check Status Button */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={checkStatus}
-              disabled={checking}
-            >
-              {checking ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Check Status
-                </>
-              )}
-            </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Status updates automatically every 30 seconds
-            </p>
-          </div>
-        )}
-
-        {/* Approved State */}
-        {status === 'approved' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2">
-              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Redirecting to sign in...</span>
+            {/* Status Title */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-3">{config.title}</h1>
+              <p className="text-lg text-muted-foreground max-w-md mx-auto">{config.description}</p>
             </div>
-            <Button className="w-full" onClick={() => navigate('/auth')}>
-              Sign In Now
-            </Button>
-          </div>
-        )}
 
-        {/* Rejected State */}
-        {status === 'rejected' && (
-          <div className="space-y-4">
-            <Button variant="outline" className="w-full" onClick={() => navigate('/signup')}>
+            {/* Organization Info */}
+            {organizationName && (
+              <div className={cn(
+                "rounded-xl p-5 mb-8 border max-w-md mx-auto",
+                config.bgColor,
+                config.borderColor
+              )}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-3 rounded-lg", config.bgColor)}>
+                    <Building2 className={cn("h-6 w-6", config.color)} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-lg">{organizationName}</p>
+                    <p className="text-sm text-muted-foreground">{email}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pending State */}
+            {status === 'pending' && (
+              <div className="space-y-6">
+                {/* Timeline */}
+                <div className="bg-muted/50 rounded-xl p-6 max-w-lg mx-auto">
+                  <h3 className="font-semibold text-lg mb-4 text-center">What happens next?</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <p className="font-medium">Application Submitted</p>
+                        <p className="text-sm text-muted-foreground">Your details have been received</p>
+                      </div>
+                      <Badge variant="secondary" className="shrink-0">Done</Badge>
+                    </div>
+                    
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0 animate-pulse">
+                        <Clock className="h-5 w-5 text-warning" />
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <p className="font-medium">Under Review</p>
+                        <p className="text-sm text-muted-foreground">Our team is verifying your details</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 border-warning text-warning">In Progress</Badge>
+                    </div>
+                    
+                    <div className="flex items-start gap-4 opacity-60">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <Mail className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <p className="font-medium text-muted-foreground">Welcome Email</p>
+                        <p className="text-sm text-muted-foreground">You'll receive login credentials</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">Pending</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expected Timeframe */}
+                <div className="text-center py-4 px-6 bg-primary/5 rounded-xl max-w-md mx-auto">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <span className="font-semibold text-primary">Expected Approval Time</span>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">Within 24 hours</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Most applications are reviewed within a few hours during business days
+                  </p>
+                </div>
+
+                {/* Check Status Button */}
+                <div className="flex flex-col items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={checkStatus}
+                    disabled={checking}
+                  >
+                    {checking ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Check Status
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-refreshes every 30 seconds
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Approved State */}
+            {status === 'approved' && (
+              <div className="space-y-6">
+                <div className="text-center py-4 px-6 bg-success/10 rounded-xl max-w-md mx-auto">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Sparkles className="h-5 w-5 text-success" />
+                    <span className="font-semibold text-success">7-Day Free Trial Started!</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Check your inbox for the welcome email with login instructions
+                  </p>
+                </div>
+                
+                <div className="flex items-center justify-center gap-3">
+                  <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-muted-foreground">Redirecting to sign in...</span>
+                </div>
+                
+                <div className="text-center">
+                  <Button size="lg" onClick={() => navigate('/auth')}>
+                    Sign In Now
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Rejected State */}
+            {status === 'rejected' && (
+              <div className="space-y-6">
+                {rejectionReason && (
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-5 max-w-md mx-auto">
+                    <p className="text-sm font-medium text-destructive mb-1">Reason:</p>
+                    <p className="text-muted-foreground">{rejectionReason}</p>
+                  </div>
+                )}
+                
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Button variant="outline" size="lg" onClick={() => navigate('/signup')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Submit New Application
+                  </Button>
+                  <Button variant="ghost" size="lg" asChild>
+                    <a href="mailto:support@globalyos.com">
+                      Contact Support
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Features Preview (only show when pending) */}
+          {status === 'pending' && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-center mb-6">
+                Here's what you'll get access to
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {features.map((feature, index) => (
+                  <Card key={index} className="p-5 text-center hover:shadow-md transition-shadow">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                      <feature.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-medium mb-1">{feature.label}</h3>
+                    <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Back to Home */}
+          <div className="text-center">
+            <Button variant="ghost" onClick={() => navigate('/')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Try Again
+              Back to Home
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Need help? Contact{" "}
-              <a href="mailto:support@globalyos.com" className="text-primary hover:underline">
-                support@globalyos.com
-              </a>
-            </p>
           </div>
-        )}
-
-        {/* Back to Home */}
-        <div className="mt-6 pt-6 border-t text-center">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

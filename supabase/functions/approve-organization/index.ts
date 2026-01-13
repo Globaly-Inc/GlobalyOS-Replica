@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import React from 'https://esm.sh/react@18.3.1'
+import { Resend } from 'https://esm.sh/resend@4.0.0'
+import { render } from 'https://esm.sh/@react-email/render@0.0.12'
+import { WelcomeEmail } from './_templates/welcome-email.tsx'
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
+const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://www.globalyos.com'
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,6 +80,7 @@ serve(async (req) => {
     // Calculate trial end date (7 days from now)
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+    const trialDays = 7;
 
     // Create the auth user for the owner
     const { data: authUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
@@ -103,8 +111,9 @@ serve(async (req) => {
       await setupOrganization(supabaseAdmin, org, authUser.user.id, trialEndsAt, user.id);
     }
 
-    // Send welcome email (optional - you can implement this later)
-    // await sendWelcomeEmail(org.owner_email, org.name);
+    // Send welcome email
+    const ownerName = org.owner_name || org.owner_email.split('@')[0];
+    await sendWelcomeEmail(org.owner_email, ownerName, org.name, trialDays);
 
     return new Response(
       JSON.stringify({ success: true, message: "Organization approved successfully" }),
@@ -118,6 +127,37 @@ serve(async (req) => {
     );
   }
 });
+
+async function sendWelcomeEmail(email: string, ownerName: string, organizationName: string, trialDays: number) {
+  try {
+    const loginUrl = `${APP_BASE_URL}/auth`;
+    
+    const html = render(
+      React.createElement(WelcomeEmail, {
+        ownerName,
+        organizationName,
+        email,
+        trialDays,
+        loginUrl,
+      })
+    );
+
+    const { data, error } = await resend.emails.send({
+      from: 'GlobalyOS <onboarding@resend.dev>',
+      to: [email],
+      subject: `Welcome to GlobalyOS! Your organization has been approved 🎉`,
+      html,
+    });
+
+    if (error) {
+      console.error('Error sending welcome email:', error);
+    } else {
+      console.log('Welcome email sent successfully:', data);
+    }
+  } catch (err) {
+    console.error('Failed to send welcome email:', err);
+  }
+}
 
 async function setupOrganization(
   supabaseAdmin: any, 
