@@ -97,7 +97,11 @@ serve(async (req) => {
   });
 
   try {
-    const { email, code, turnstileToken } = await req.json();
+    const { email: rawEmail, code: rawCode, turnstileToken } = await req.json();
+
+    // Normalize inputs
+    const email = rawEmail?.trim().toLowerCase();
+    const code = rawCode?.trim();
 
     if (!email || !code) {
       console.error('Missing email or code');
@@ -108,7 +112,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Verifying OTP for:', email, 'IP:', clientIP);
+    console.log('Verifying OTP for:', email, 'code length:', code.length, 'IP:', clientIP);
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
@@ -136,11 +140,11 @@ serve(async (req) => {
       }
     }
 
-    // Find the most recent unverified OTP record for this email
+    // Find the most recent unverified OTP record for this email (already normalized)
     const { data: otpRecord, error: fetchError } = await supabase
       .from('otp_codes')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .eq('email', email)
       .eq('verified', false)
       .order('created_at', { ascending: false })
       .limit(1)

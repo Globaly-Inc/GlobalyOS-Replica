@@ -140,6 +140,18 @@ serve(async (req) => {
 
     console.log(`Rate limit check passed for email: ${emailCount || 0}/${MAX_REQUESTS_PER_EMAIL_PER_HOUR}, IP: ${clientIP}`);
 
+    // Delete any previous unverified OTPs for this email to ensure only the latest code works
+    const { error: deleteError } = await supabase
+      .from('otp_codes')
+      .delete()
+      .eq('email', normalizedEmail)
+      .eq('verified', false);
+
+    if (deleteError) {
+      console.error('Failed to delete previous OTPs:', deleteError);
+      // Continue anyway - this is not critical
+    }
+
     // Generate 6-digit OTP
     const otpCode = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes

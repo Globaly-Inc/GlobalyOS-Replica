@@ -78,33 +78,54 @@ const Auth = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
+  // Helper to parse error from edge function response (handles non-2xx)
+  const parseFunctionError = async (response: any): Promise<{ error?: string; data?: any }> => {
+    // If we got data directly, use it
+    if (response.data) {
+      return { data: response.data };
+    }
+    
+    // If there's an error, try to extract the JSON body from the response
+    if (response.error) {
+      try {
+        // The actual response body is in response (the Response object)
+        if (response.error.context?.body) {
+          const body = JSON.parse(response.error.context.body);
+          return { data: body };
+        }
+      } catch {
+        // Fallback to error message
+      }
+      return { error: response.error.message };
+    }
+    
+    return {};
+  };
+
   const sendOtpRequest = async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
     const response = await supabase.functions.invoke('send-otp', {
       body: {
-        email
+        email: normalizedEmail
       }
     });
-    if (response.error) {
+    
+    const parsed = await parseFunctionError(response);
+    
+    if (parsed.data?.error || parsed.error) {
       toast({
         title: "Failed to send OTP",
-        description: response.error.message || "Please try again",
+        description: parsed.data?.error || parsed.error || "Please try again",
         variant: "destructive"
       });
       return false;
-    } else if (response.data?.error) {
-      toast({
-        title: "Failed to send OTP",
-        description: response.data.error,
-        variant: "destructive"
-      });
-      return false;
-    } else {
-      toast({
-        title: "OTP Sent!",
-        description: "Check your email for the 6-digit code."
-      });
-      return true;
     }
+    
+    toast({
+      title: "OTP Sent!",
+      description: "Check your email for the 6-digit code."
+    });
+    return true;
   };
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,29 +191,38 @@ const Auth = () => {
     setLoading(true);
     setErrors({});
     try {
+      const normalizedEmail = otpEmail.trim().toLowerCase();
+      const normalizedCode = otpCode.trim();
+      
       const response = await supabase.functions.invoke('verify-otp', {
         body: {
-          email: otpEmail,
-          code: otpCode,
+          email: normalizedEmail,
+          code: normalizedCode,
           turnstileToken: turnstileToken
         }
       });
 
-      // Handle error responses - check data.error first since edge function returns errors in body
-      const errorMessage = response.data?.error || response.error?.message;
+      // Parse the response - handles both 2xx and non-2xx responses
+      const parsed = await parseFunctionError(response);
+      const responseData = parsed.data || {};
+      const errorMessage = responseData.error || parsed.error;
+
       if (errorMessage) {
-        // Check if this is an "account not found" error (explicit flag or message content)
-        const isAccountNotFound = response.data?.accountNotFound || errorMessage.toLowerCase().includes('no account found') || errorMessage.toLowerCase().includes('user not found');
+        // Check if this is an "account not found" error
+        const isAccountNotFound = responseData.accountNotFound || 
+          errorMessage.toLowerCase().includes('no account found') || 
+          errorMessage.toLowerCase().includes('user not found');
+        
         if (isAccountNotFound) {
           setAccountNotFound(true);
         } else {
           // Check if CAPTCHA is now required
-          if (response.data?.captchaRequired) {
+          if (responseData.captchaRequired) {
             setShowCaptcha(true);
             setTurnstileToken(null);
           }
-          if (response.data?.failedAttempts !== undefined) {
-            setFailedAttempts(response.data.failedAttempts);
+          if (responseData.failedAttempts !== undefined) {
+            setFailedAttempts(responseData.failedAttempts);
           }
           toast({
             title: "Verification failed",
@@ -200,10 +230,10 @@ const Auth = () => {
             variant: "destructive"
           });
         }
-      } else if (response.data?.session) {
+      } else if (responseData.session) {
         await supabase.auth.setSession({
-          access_token: response.data.session.access_token,
-          refresh_token: response.data.session.refresh_token
+          access_token: responseData.session.access_token,
+          refresh_token: responseData.session.refresh_token
         });
         toast({
           title: "Success!",
