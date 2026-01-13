@@ -8666,8 +8666,10 @@ export type Database = {
       user_error_logs: {
         Row: {
           action_attempted: string | null
+          breadcrumbs: Json | null
           browser_info: string | null
           component_name: string | null
+          console_logs: Json | null
           created_at: string
           device_type: string | null
           error_message: string
@@ -8675,11 +8677,15 @@ export type Database = {
           error_type: string
           id: string
           metadata: Json | null
+          network_requests: Json | null
           organization_id: string | null
           page_url: string
+          performance_metrics: Json | null
           resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
+          route_history: Json | null
+          session_duration_ms: number | null
           severity: string
           status: string
           user_agent: string | null
@@ -8687,8 +8693,10 @@ export type Database = {
         }
         Insert: {
           action_attempted?: string | null
+          breadcrumbs?: Json | null
           browser_info?: string | null
           component_name?: string | null
+          console_logs?: Json | null
           created_at?: string
           device_type?: string | null
           error_message: string
@@ -8696,11 +8704,15 @@ export type Database = {
           error_type: string
           id?: string
           metadata?: Json | null
+          network_requests?: Json | null
           organization_id?: string | null
           page_url: string
+          performance_metrics?: Json | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          route_history?: Json | null
+          session_duration_ms?: number | null
           severity?: string
           status?: string
           user_agent?: string | null
@@ -8708,8 +8720,10 @@ export type Database = {
         }
         Update: {
           action_attempted?: string | null
+          breadcrumbs?: Json | null
           browser_info?: string | null
           component_name?: string | null
+          console_logs?: Json | null
           created_at?: string
           device_type?: string | null
           error_message?: string
@@ -8717,11 +8731,15 @@ export type Database = {
           error_type?: string
           id?: string
           metadata?: Json | null
+          network_requests?: Json | null
           organization_id?: string | null
           page_url?: string
+          performance_metrics?: Json | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          route_history?: Json | null
+          session_duration_ms?: number | null
           severity?: string
           status?: string
           user_agent?: string | null

@@ -10,6 +10,7 @@ import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
 import { UpdatePrompt } from '@/components/ui/UpdatePrompt';
 import { AppVersionBadge } from '@/components/ui/AppVersionBadge';
+import RouteTracker from '@/components/RouteTracker';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 
@@ -112,6 +113,7 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <RouteTracker />
         <TimezoneProvider>
           <OrganizationProvider>
             <FeatureFlagsProvider>
