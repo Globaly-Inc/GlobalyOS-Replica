@@ -2995,6 +2995,41 @@ export type Database = {
           },
         ]
       }
+      error_notification_throttle: {
+        Row: {
+          created_at: string
+          error_type: string
+          id: string
+          last_notified_at: string
+          notification_count: number
+          organization_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_type: string
+          id?: string
+          last_notified_at?: string
+          notification_count?: number
+          organization_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_type?: string
+          id?: string
+          last_notified_at?: string
+          notification_count?: number
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_notification_throttle_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exit_interviews: {
         Row: {
           conducted_at: string | null
@@ -8621,6 +8656,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_error_logs: {
+        Row: {
+          action_attempted: string | null
+          browser_info: string | null
+          component_name: string | null
+          created_at: string
+          device_type: string | null
+          error_message: string
+          error_stack: string | null
+          error_type: string
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          page_url: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_attempted?: string | null
+          browser_info?: string | null
+          component_name?: string | null
+          created_at?: string
+          device_type?: string | null
+          error_message: string
+          error_stack?: string | null
+          error_type: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          page_url: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_attempted?: string | null
+          browser_info?: string | null
+          component_name?: string | null
+          created_at?: string
+          device_type?: string | null
+          error_message?: string
+          error_stack?: string | null
+          error_type?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          page_url?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_error_logs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
