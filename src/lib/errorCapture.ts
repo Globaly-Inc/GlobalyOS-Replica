@@ -329,6 +329,12 @@ function setupGlobalErrorHandlers(): void {
         ? reason 
         : 'Unhandled Promise Rejection';
     
+    // Skip ServiceWorker update failures - these are expected during network issues
+    if (errorMessage.includes('ServiceWorker') && (errorMessage.includes('update') || errorMessage.includes('fetch'))) {
+      console.warn('[ErrorCapture] Suppressing SW update error (expected during network issues)');
+      return;
+    }
+    
     const fingerprint = generateErrorFingerprint('runtime', errorMessage);
     
     if (isDuplicateError(fingerprint)) {

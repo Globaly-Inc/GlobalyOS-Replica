@@ -15,11 +15,13 @@ export const useServiceWorkerUpdate = () => {
       registrationRef.current = r || null;
       console.log(`[SW] Registered. App version: ${APP_VERSION}`);
       
-      // Check for updates every 30 seconds
+      // Check for updates every 60 seconds (with error handling for network issues)
       if (r) {
         setInterval(() => {
-          r.update();
-        }, 30 * 1000);
+          r.update().catch(err => {
+            console.warn('[SW] Background update check failed (likely network issue):', err.message);
+          });
+        }, 60 * 1000);
       }
     },
     onRegisterError(error) {
@@ -32,7 +34,9 @@ export const useServiceWorkerUpdate = () => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && registrationRef.current) {
         console.log('[SW] App visible, checking for updates...');
-        registrationRef.current.update();
+        registrationRef.current.update().catch(err => {
+          console.warn('[SW] Visibility update check failed:', err.message);
+        });
       }
     };
 
@@ -40,7 +44,9 @@ export const useServiceWorkerUpdate = () => {
     const handleOnline = () => {
       if (registrationRef.current) {
         console.log('[SW] Back online, checking for updates...');
-        registrationRef.current.update();
+        registrationRef.current.update().catch(err => {
+          console.warn('[SW] Online update check failed:', err.message);
+        });
       }
     };
 
