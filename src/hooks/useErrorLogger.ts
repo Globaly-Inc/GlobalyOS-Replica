@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { LogErrorParams } from '@/types/errorLogs';
 
 /**
@@ -45,7 +46,7 @@ export const useErrorLogger = () => {
         browser_info: browserInfo,
         device_type: deviceType,
         user_agent: userAgent,
-        metadata: params.metadata || {},
+        metadata: (params.metadata || {}) as Json,
       }]);
     } catch (error) {
       // Silent fail - don't cause more errors while logging errors
@@ -92,7 +93,7 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
       browser_info: browserInfo,
       device_type: deviceType,
       user_agent: userAgent,
-      metadata: params.metadata || {},
+      metadata: (params.metadata || {}) as Json,
     }]);
   } catch (error) {
     console.error('Failed to log error to database:', error);
