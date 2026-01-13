@@ -26,9 +26,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Search, 
-  Filter, 
   MoreHorizontal, 
   CheckCircle, 
   XCircle, 
@@ -248,14 +248,29 @@ const ErrorLogsTable = () => {
                           {format(new Date(log.created_at), 'MMM d, HH:mm')}
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">
-                            {log.profiles?.full_name || 'Anonymous'}
-                          </div>
-                          {log.profiles?.email && (
-                            <div className="text-xs text-muted-foreground">
-                              {log.profiles.email}
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage 
+                                src={log.profiles?.avatar_url || undefined} 
+                                alt={log.profiles?.full_name || 'User'} 
+                              />
+                              <AvatarFallback className="text-xs">
+                                {log.profiles?.full_name
+                                  ? log.profiles.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                                  : 'AN'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="text-sm font-medium">
+                                {log.profiles?.full_name || 'Anonymous'}
+                              </div>
+                              {log.profiles?.email && (
+                                <div className="text-xs text-muted-foreground">
+                                  {log.profiles.email}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {log.organizations?.name || '-'}

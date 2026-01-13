@@ -97,6 +97,27 @@ function parseErrorMessage(message: string): string {
  * @param options - Additional options (log: whether to console.error, logToDb: whether to log to database)
  * @returns The displayed error message
  */
+// Marker interface for errors that have already been logged to database
+interface LoggedError extends Error {
+  __alreadyLoggedToDb?: boolean;
+}
+
+/**
+ * Mark an error as already logged to database.
+ * Use this when invokeEdgeFunction already logged the error.
+ */
+export function markErrorAsLogged(error: Error): LoggedError {
+  (error as LoggedError).__alreadyLoggedToDb = true;
+  return error as LoggedError;
+}
+
+/**
+ * Check if an error was already logged to database
+ */
+export function isErrorAlreadyLogged(error: unknown): boolean {
+  return !!(error && typeof error === 'object' && '__alreadyLoggedToDb' in error);
+}
+
 export function showErrorToast(
   error: unknown,
   fallback: string,
@@ -115,8 +136,11 @@ export function showErrorToast(
     console.error(`${fallback}:`, error);
   }
   
-  // Log to database if enabled (default: true for production errors)
-  if (options?.logToDb !== false) {
+  // Log to database if enabled (default: true) AND not already logged
+  // Skip if the error was already logged by invokeEdgeFunction or similar
+  const shouldLogToDb = options?.logToDb !== false && !isErrorAlreadyLogged(error);
+  
+  if (shouldLogToDb) {
     logErrorToDatabase({
       errorType: options?.errorType || 'runtime',
       errorMessage: message,

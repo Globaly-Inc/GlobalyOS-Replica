@@ -2,9 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { logErrorToDatabase } from "@/hooks/useErrorLogger";
 import type { ErrorType } from "@/types/errorLogs";
 
+// Marker interface for errors that have already been logged to database
+interface LoggedError extends Error {
+  __alreadyLoggedToDb?: boolean;
+}
+
 interface EdgeFunctionResult<T> {
   data: T | null;
-  error: Error | null;
+  error: LoggedError | null;
 }
 
 interface EdgeFunctionOptions {
@@ -42,7 +47,7 @@ export async function invokeEdgeFunction<T = unknown>(
         }
       }
 
-      const error = new Error(errorMessage);
+      const error = new Error(errorMessage) as LoggedError;
       
       if (logErrors) {
         await logErrorToDatabase({
@@ -55,6 +60,8 @@ export async function invokeEdgeFunction<T = unknown>(
             originalError: response.error.message,
           },
         });
+        // Mark as already logged to prevent double-logging in showErrorToast
+        error.__alreadyLoggedToDb = true;
       }
       
       return { data: null, error };
@@ -62,7 +69,7 @@ export async function invokeEdgeFunction<T = unknown>(
 
     // Handle application-level errors in response body
     if (response.data?.error) {
-      const error = new Error(response.data.error);
+      const error = new Error(response.data.error) as LoggedError;
       
       if (logErrors) {
         await logErrorToDatabase({
@@ -75,6 +82,8 @@ export async function invokeEdgeFunction<T = unknown>(
             responseData: response.data,
           },
         });
+        // Mark as already logged to prevent double-logging in showErrorToast
+        error.__alreadyLoggedToDb = true;
       }
       
       return { data: null, error };
@@ -82,7 +91,7 @@ export async function invokeEdgeFunction<T = unknown>(
 
     return { data: response.data as T, error: null };
   } catch (err) {
-    const error = err instanceof Error ? err : new Error("Unknown error occurred");
+    const error = (err instanceof Error ? err : new Error("Unknown error occurred")) as LoggedError;
     
     if (logErrors) {
       await logErrorToDatabase({
@@ -95,6 +104,8 @@ export async function invokeEdgeFunction<T = unknown>(
           rawError: String(err),
         },
       });
+      // Mark as already logged to prevent double-logging in showErrorToast
+      error.__alreadyLoggedToDb = true;
     }
     
     return { data: null, error };

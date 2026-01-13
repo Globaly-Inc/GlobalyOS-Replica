@@ -23,7 +23,7 @@ export interface ErrorLog {
   resolution_notes: string | null;
   created_at: string;
   // Joined fields
-  profiles?: { full_name: string | null; email: string | null };
+  profiles?: { full_name: string | null; email: string | null; avatar_url: string | null };
   organizations?: { name: string | null };
 }
 
