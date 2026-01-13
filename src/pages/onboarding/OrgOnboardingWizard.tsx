@@ -77,7 +77,7 @@ export default function OrgOnboardingWizard() {
   const handleNext = async (stepData?: Record<string, unknown>) => {
     if (currentStep >= TOTAL_STEPS) {
       // Complete onboarding
-      await completeOnboarding.mutateAsync();
+      await completeOnboarding.mutateAsync(false);
       navigate(`/org/${currentOrg?.slug}`);
       return;
     }

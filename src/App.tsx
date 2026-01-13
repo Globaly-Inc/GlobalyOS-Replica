@@ -73,6 +73,8 @@ const Workflows = lazy(() => import('./pages/Workflows'));
 const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'));
 const WorkflowSettings = lazy(() => import('./pages/WorkflowSettings'));
 const ManageOffices = lazy(() => import('./pages/ManageOffices'));
+const OrgOnboardingWizard = lazy(() => import('./pages/onboarding/OrgOnboardingWizard'));
+const EmployeeOnboardingWizard = lazy(() => import('./pages/onboarding/EmployeeOnboardingWizard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Support pages
@@ -143,6 +145,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                 
                 {/* Organization-scoped routes - uses orgCode (slug) not orgId */}
                 <Route path="/org/:orgCode">
+                  {/* Onboarding wizards */}
+                  <Route path="onboarding/org" element={<OrgProtectedRoute withLayout={false}><OrgOnboardingWizard /></OrgProtectedRoute>} />
+                  <Route path="onboarding/team" element={<OrgProtectedRoute withLayout={false}><EmployeeOnboardingWizard /></OrgProtectedRoute>} />
+                  
                   {/* Team section */}
                   <Route index element={<OrgProtectedRoute><Home /></OrgProtectedRoute>} />
                   <Route path="team" element={<OrgProtectedRoute><Team /></OrgProtectedRoute>} />

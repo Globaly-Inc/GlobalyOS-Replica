@@ -37,22 +37,21 @@ export default function EmployeeOnboardingWizard() {
   
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Fetch employee data for welcome screen
+  // Fetch employee data for welcome screen (join with profiles for name/email)
   const { data: employee } = useQuery({
     queryKey: ['employee-for-onboarding', employeeId],
     queryFn: async () => {
       if (!employeeId) return null;
       
-      const { data, error } = await supabase
+      // First get employee with office
+      const { data: empData, error: empError } = await supabase
         .from('employees')
         .select(`
           id,
-          first_name,
-          last_name,
-          work_email,
-          avatar_url,
+          user_id,
           position,
           department,
+          personal_email,
           office_id,
           offices (
             name,
@@ -61,10 +60,32 @@ export default function EmployeeOnboardingWizard() {
           )
         `)
         .eq('id', employeeId)
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
-      return data;
+      if (empError) throw empError;
+      if (!empData) return null;
+      
+      // Get profile info for name
+      let fullName = '';
+      let avatarUrl: string | null = null;
+      if (empData.user_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', empData.user_id)
+          .maybeSingle();
+        
+        if (profileData) {
+          fullName = profileData.full_name || '';
+          avatarUrl = profileData.avatar_url;
+        }
+      }
+      
+      return {
+        ...empData,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      };
     },
     enabled: !!employeeId,
   });
@@ -104,7 +125,7 @@ export default function EmployeeOnboardingWizard() {
   const handleNext = async (stepData?: Record<string, unknown>) => {
     if (currentStep >= TOTAL_STEPS) {
       // Complete onboarding
-      await completeOnboarding.mutateAsync();
+      await completeOnboarding.mutateAsync(false);
       navigate(`/org/${currentOrg?.slug}`);
       return;
     }
@@ -120,20 +141,21 @@ export default function EmployeeOnboardingWizard() {
 
   const stepName = getEmployeeStepName(currentStep - 1);
   
-  const employeeFullName = employee ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() : '';
+  const firstName = employee?.full_name?.split(' ')[0] || 'there';
+  const office = employee?.offices as { name?: string; city?: string; country?: string } | null;
 
   const renderStep = () => {
     switch (stepName) {
       case 'welcome':
         return (
           <EmployeeWelcomeStep
-            employeeName={employee?.first_name || 'there'}
+            employeeName={firstName}
             orgName={currentOrg?.name || 'the team'}
             position={employee?.position || undefined}
             department={employee?.department || undefined}
-            officeName={(employee?.offices as { name?: string })?.name}
-            officeLocation={(employee?.offices as { city?: string; country?: string })?.city && (employee?.offices as { city?: string; country?: string })?.country 
-              ? `${(employee?.offices as { city?: string; country?: string }).city}, ${(employee?.offices as { city?: string; country?: string }).country}` 
+            officeName={office?.name}
+            officeLocation={office?.city && office?.country 
+              ? `${office.city}, ${office.country}` 
               : undefined}
             avatarUrl={employee?.avatar_url}
             onContinue={() => handleNext()}
@@ -145,8 +167,8 @@ export default function EmployeeOnboardingWizard() {
             employeeId={employeeId!}
             initialData={onboardingData?.personal_info}
             prefillData={{
-              full_name: employeeFullName,
-              email: employee?.work_email || undefined,
+              full_name: employee?.full_name || '',
+              email: employee?.personal_email || undefined,
             }}
             onSave={(personal_info) => handleNext({ personal_info })}
             isSaving={saveStep.isPending}
@@ -161,7 +183,7 @@ export default function EmployeeOnboardingWizard() {
       case 'complete':
         return (
           <EmployeeCompleteStep
-            employeeName={employee?.first_name || 'there'}
+            employeeName={firstName}
             orgName={currentOrg?.name || 'the team'}
             onFinish={() => handleNext()}
             isCompleting={completeOnboarding.isPending}
