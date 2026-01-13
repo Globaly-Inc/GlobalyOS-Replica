@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { List, BarChart3, Bug } from 'lucide-react';
+import { List, BarChart3, Bug, TrendingUp } from 'lucide-react';
 import SuperAdminLayout from '@/components/super-admin/SuperAdminLayout';
 import ErrorLogsTable from '@/components/super-admin/ErrorLogsTable';
 import ErrorAnalyticsDashboard from '@/components/super-admin/ErrorAnalyticsDashboard';
+import ErrorPatternsDashboard from '@/components/super-admin/ErrorPatternsDashboard';
 import { Button } from '@/components/ui/button';
 import { logErrorToDatabase } from '@/hooks/useErrorLogger';
 import { toast } from 'sonner';
@@ -68,6 +69,10 @@ const SuperAdminErrorLogs = () => {
               <List className="h-4 w-4" />
               Error Logs
             </TabsTrigger>
+            <TabsTrigger value="patterns" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Patterns
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Analytics
@@ -76,6 +81,10 @@ const SuperAdminErrorLogs = () => {
 
           <TabsContent value="logs" className="mt-6">
             <ErrorLogsTable />
+          </TabsContent>
+
+          <TabsContent value="patterns" className="mt-6">
+            <ErrorPatternsDashboard />
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-6">

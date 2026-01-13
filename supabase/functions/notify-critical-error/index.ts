@@ -14,6 +14,93 @@ interface ErrorNotificationPayload {
   organization_id: string | null;
   page_url: string;
   error_stack: string | null;
+  component_name?: string | null;
+  action_attempted?: string | null;
+  console_logs?: any[] | null;
+  network_requests?: any[] | null;
+  breadcrumbs?: any[] | null;
+  browser_info?: string | null;
+  device_type?: string | null;
+}
+
+function formatConsoleLogs(logs: any[] | null): string {
+  if (!logs || logs.length === 0) return 'No console logs captured.';
+  
+  return logs.slice(-10).map(entry => 
+    `[${entry.level?.toUpperCase() || 'LOG'}] ${entry.message || ''}`
+  ).join('\n');
+}
+
+function formatNetworkRequests(requests: any[] | null): string {
+  if (!requests || requests.length === 0) return 'No network requests captured.';
+  
+  const failed = requests.filter(r => !r.success);
+  if (failed.length === 0) return 'All network requests succeeded.';
+  
+  return failed.slice(-5).map(req => 
+    `${req.method} ${req.url} - Status: ${req.status || 'Failed'}${req.error ? ` (${req.error})` : ''}`
+  ).join('\n');
+}
+
+function formatBreadcrumbs(crumbs: any[] | null): string {
+  if (!crumbs || crumbs.length === 0) return 'No user actions captured.';
+  
+  return crumbs.slice(-10).map(crumb => 
+    `[${crumb.type?.toUpperCase() || 'ACTION'}] ${crumb.message || crumb.path || crumb.target || 'Action'}`
+  ).join('\n');
+}
+
+function generateAIResolutionPrompt(payload: ErrorNotificationPayload, userName: string, orgName: string): string {
+  const consoleLogs = Array.isArray(payload.console_logs) ? payload.console_logs : [];
+  const networkRequests = Array.isArray(payload.network_requests) ? payload.network_requests : [];
+  const breadcrumbs = Array.isArray(payload.breadcrumbs) ? payload.breadcrumbs : [];
+  const failedRequests = networkRequests.filter(r => !r.success);
+
+  return `## Error Analysis Request
+
+You are an expert software engineer debugging a production error in GlobalyOS (React/TypeScript SaaS).
+
+### Error Details
+- **Error Type:** ${payload.error_type}
+- **Severity:** ${payload.severity.toUpperCase()}
+- **Error Message:** ${payload.error_message}
+- **Component:** ${payload.component_name || 'Unknown'}
+- **User Action:** ${payload.action_attempted || 'Unknown'}
+- **Page URL:** ${payload.page_url}
+
+### Stack Trace
+\`\`\`
+${payload.error_stack || 'No stack trace available.'}
+\`\`\`
+
+### Console Logs (last entries)
+\`\`\`
+${formatConsoleLogs(consoleLogs)}
+\`\`\`
+
+### Failed Network Requests
+\`\`\`
+${failedRequests.length > 0 ? formatNetworkRequests(failedRequests) : 'No failed requests.'}
+\`\`\`
+
+### User Action Trail
+\`\`\`
+${formatBreadcrumbs(breadcrumbs)}
+\`\`\`
+
+### Context
+- **User:** ${userName}
+- **Organization:** ${orgName}
+- **Browser:** ${payload.browser_info || 'Unknown'}
+- **Device:** ${payload.device_type || 'Unknown'}
+
+---
+
+Please provide:
+1. **Root Cause Analysis** - Most likely cause and supporting evidence
+2. **Recommended Fix** - Specific code changes needed
+3. **Prevention** - How to prevent this in the future
+4. **Priority** - P0-P3 rating with justification`;
 }
 
 Deno.serve(async (req) => {
@@ -123,6 +210,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Generate AI resolution prompt
+    const aiResolutionPrompt = generateAIResolutionPrompt(payload, userName, orgName);
+
     // Format timestamp
     const timestamp = new Date().toLocaleString('en-US', {
       dateStyle: 'medium',
@@ -173,6 +263,22 @@ Deno.serve(async (req) => {
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                    <strong style="color: #6b7280;">Component:</strong>
+                  </td>
+                  <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">
+                    ${payload.component_name || 'Unknown'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                    <strong style="color: #6b7280;">Action:</strong>
+                  </td>
+                  <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">
+                    ${payload.action_attempted || 'Unknown'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
                     <strong style="color: #6b7280;">User:</strong>
                   </td>
                   <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">
@@ -207,15 +313,24 @@ Deno.serve(async (req) => {
               
               ${payload.error_stack ? `
               <!-- Stack Trace -->
-              <details style="margin-bottom: 20px;">
-                <summary style="cursor: pointer; color: #6b7280; font-weight: 500; margin-bottom: 10px;">View Stack Trace</summary>
-                <pre style="background-color: #1f2937; color: #e5e7eb; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; white-space: pre-wrap;">${escapeHtml(payload.error_stack)}</pre>
-              </details>
+              <div style="margin-bottom: 20px;">
+                <p style="font-weight: 600; color: #374151; margin-bottom: 8px;">Stack Trace:</p>
+                <pre style="background-color: #1f2937; color: #e5e7eb; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; max-height: 200px;">${escapeHtml(payload.error_stack)}</pre>
+              </div>
               ` : ''}
+              
+              <!-- AI Resolution Prompt -->
+              <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #f3e8ff; padding: 12px 15px; border-bottom: 1px solid #e5e7eb;">
+                  <p style="margin: 0; font-weight: 600; color: #7c3aed; font-size: 14px;">🤖 AI Resolution Prompt</p>
+                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">Copy this prompt to get AI-powered analysis</p>
+                </div>
+                <pre style="background-color: #faf5ff; color: #374151; padding: 15px; margin: 0; overflow-x: auto; font-size: 11px; white-space: pre-wrap; max-height: 300px; line-height: 1.5;">${escapeHtml(aiResolutionPrompt)}</pre>
+              </div>
               
               <!-- Action Button -->
               <div style="text-align: center; margin-top: 20px;">
-                <a href="https://preview--gos-office-hub.lovable.app/super-admin/error-logs" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">View Error Logs</a>
+                <a href="https://preview--gos-office-hub.lovable.app/super-admin/error-logs/${payload.error_log_id}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">View Error Details</a>
               </div>
             </td>
           </tr>
