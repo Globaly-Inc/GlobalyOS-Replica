@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/edgeFunctionUtils";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface EditProfileInfoDialogProps {
   userId: string;
@@ -24,7 +26,6 @@ export const EditProfileInfoDialog = ({
   const [name, setName] = useState(currentName);
   const [email, setEmail] = useState(currentEmail);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleSave = async () => {
     setLoading(true);
@@ -41,26 +42,27 @@ export const EditProfileInfoDialog = ({
 
       // Update email via edge function if changed
       if (email !== currentEmail) {
-        const response = await supabase.functions.invoke("update-user-email", {
-          body: { userId, newEmail: email },
+        const { error } = await invokeEdgeFunction("update-user-email", {
+          userId,
+          newEmail: email,
+        }, {
+          componentName: "EditProfileInfoDialog",
+          actionAttempted: "Update profile email",
         });
 
-        if (response.error) {
-          throw new Error(response.error.message);
-        }
-        if (response.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw error;
         }
       }
 
-      toast({ title: "Profile updated successfully" });
+      toast.success("Profile updated successfully");
       setOpen(false);
       onSuccess();
-    } catch (error: any) {
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive",
+    } catch (error) {
+      showErrorToast(error, "Failed to update profile", {
+        componentName: "EditProfileInfoDialog",
+        actionAttempted: "Update profile information",
+        errorType: "edge_function",
       });
     } finally {
       setLoading(false);
