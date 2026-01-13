@@ -134,13 +134,13 @@ export const OnboardingChecklist = ({ userRole, variant = 'floating' }: Onboardi
           supabase.from('wiki_pages').select('id').eq('organization_id', currentOrg.id).limit(1),
         ]);
 
-        // Get saved progress
+        // Get saved progress (use maybeSingle to avoid 406 when no row exists)
         const { data: progress } = await supabase
           .from('onboarding_progress')
           .select('checklist_items, is_completed')
           .eq('user_id', user.id)
           .eq('organization_id', currentOrg.id)
-          .single();
+          .maybeSingle();
 
         if (progress?.is_completed) {
           setIsDismissed(true);

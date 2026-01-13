@@ -1638,11 +1638,37 @@ export const useUnacknowledgedPostsCount = () => {
   });
 };
 
-export const useTargetEmployeesCount = (postId: string, authorId?: string) => {
+// Cached hook for org-wide active employee count (prevents N+1 queries)
+export const useActiveEmployeeCount = () => {
   const { currentOrg } = useOrganization();
 
   return useQuery({
-    queryKey: ['post-target-employees-count', postId, authorId],
+    queryKey: ['org-active-employee-count', currentOrg?.id],
+    queryFn: async (): Promise<number> => {
+      if (!currentOrg?.id) return 0;
+
+      const { count, error } = await supabase
+        .from('employees')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active');
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!currentOrg?.id,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes - employee count doesn't change often
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+// Optimized hook that reuses cached employee count instead of N+1 queries
+export const useTargetEmployeesCount = (postId: string, authorId?: string) => {
+  const { currentOrg } = useOrganization();
+  const { data: totalCount = 0 } = useActiveEmployeeCount();
+
+  return useQuery({
+    queryKey: ['post-target-employees-count', postId, authorId, totalCount],
     queryFn: async (): Promise<number> => {
       if (!currentOrg?.id || !postId) return 0;
 
@@ -1651,27 +1677,20 @@ export const useTargetEmployeesCount = (postId: string, authorId?: string) => {
         .from('posts')
         .select('access_scope, employee_id')
         .eq('id', postId)
-        .single();
+        .maybeSingle();
 
       if (postError) throw postError;
+      if (!post) return 0;
 
-      const postAuthorId = authorId || post.employee_id;
-
-      // For company-wide scope, count all active employees excluding the author
+      // For company-wide scope, use cached count minus 1 (author)
+      // This eliminates the N+1 HEAD requests issue
       if (post.access_scope === 'company') {
-        const { count, error } = await supabase
-          .from('employees')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentOrg.id)
-          .eq('status', 'active')
-          .neq('id', postAuthorId);
-
-        if (error) throw error;
-        return count || 0;
+        return Math.max(0, totalCount - 1); // Subtract author
       }
 
-      // For scoped posts, this would need more complex logic
-      // For now, return a rough count excluding the author
+      // For scoped posts (office/project/member-specific), we still need to calculate
+      // But this is much less common than company-wide posts
+      const postAuthorId = authorId || post.employee_id;
       const { count, error } = await supabase
         .from('employees')
         .select('id', { count: 'exact', head: true })
@@ -1682,6 +1701,7 @@ export const useTargetEmployeesCount = (postId: string, authorId?: string) => {
       if (error) throw error;
       return count || 0;
     },
-    enabled: !!currentOrg?.id && !!postId,
+    enabled: !!currentOrg?.id && !!postId && totalCount > 0,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
   });
 };
