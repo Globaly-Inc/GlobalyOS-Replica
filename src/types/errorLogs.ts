@@ -2,6 +2,40 @@ export type ErrorType = 'runtime' | 'network' | 'edge_function' | 'database' | '
 export type ErrorSeverity = 'warning' | 'error' | 'critical';
 export type ErrorLogStatus = 'new' | 'investigating' | 'resolved' | 'ignored';
 
+// Enhanced context types for engineering debugging
+export interface ConsoleEntry {
+  timestamp: string;
+  level: 'log' | 'warn' | 'error';
+  message: string;
+  stack?: string;
+}
+
+export interface NetworkRequest {
+  timestamp: string;
+  url: string;
+  method: string;
+  status: number;
+  duration: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface Breadcrumb {
+  timestamp: number;
+  type: 'click' | 'navigation' | 'input' | 'api_error' | 'error';
+  message?: string;
+  path?: string;
+  target?: string;
+}
+
+export interface PerformanceMetrics {
+  usedJSHeapSize?: number;
+  totalJSHeapSize?: number;
+  connectionType?: string;
+  downlink?: number;
+  rtt?: number;
+}
+
 export interface ErrorLog {
   id: string;
   user_id: string | null;
@@ -22,6 +56,13 @@ export interface ErrorLog {
   resolved_by: string | null;
   resolution_notes: string | null;
   created_at: string;
+  // Enhanced context fields
+  console_logs: ConsoleEntry[] | null;
+  network_requests: NetworkRequest[] | null;
+  breadcrumbs: Breadcrumb[] | null;
+  session_duration_ms: number | null;
+  route_history: string[] | null;
+  performance_metrics: PerformanceMetrics | null;
   // Joined fields
   profiles?: { full_name: string | null; email: string | null; avatar_url: string | null };
   organizations?: { name: string | null };
@@ -35,6 +76,13 @@ export interface LogErrorParams {
   componentName?: string;
   actionAttempted?: string;
   metadata?: Record<string, unknown>;
+  // Enhanced context
+  consoleLogs?: ConsoleEntry[];
+  networkRequests?: NetworkRequest[];
+  breadcrumbs?: Breadcrumb[];
+  sessionDurationMs?: number;
+  routeHistory?: string[];
+  performanceMetrics?: PerformanceMetrics;
 }
 
 export interface ErrorLogFilters {

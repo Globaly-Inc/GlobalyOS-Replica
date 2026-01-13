@@ -2,14 +2,38 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import type { LogErrorParams } from '@/types/errorLogs';
+import {
+  generateErrorFingerprint,
+  isDuplicateError,
+  getRecentConsoleLogs,
+  getRecentNetworkRequests,
+  getBreadcrumbs,
+  getSessionDuration,
+  getRouteHistory,
+  getPerformanceMetrics,
+} from '@/lib/errorCapture';
 
 /**
  * Hook for logging errors to the database
  * Captures browser info, page URL, and associates with current user/org
+ * Includes deduplication to prevent duplicate entries within 5 seconds
  */
 export const useErrorLogger = () => {
   const logError = useCallback(async (params: LogErrorParams) => {
     try {
+      // Check for duplicate errors
+      const fingerprint = generateErrorFingerprint(
+        params.errorType,
+        params.errorMessage,
+        params.componentName,
+        params.actionAttempted
+      );
+      
+      if (isDuplicateError(fingerprint)) {
+        console.debug('[ErrorLogger] Skipping duplicate error:', params.errorMessage.substring(0, 50));
+        return;
+      }
+      
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -36,6 +60,14 @@ export const useErrorLogger = () => {
       // Get browser info
       const browserInfo = getBrowserInfo(userAgent);
       
+      // Get enhanced context
+      const consoleLogs = params.consoleLogs || getRecentConsoleLogs();
+      const networkRequests = params.networkRequests || getRecentNetworkRequests();
+      const breadcrumbs = params.breadcrumbs || getBreadcrumbs();
+      const sessionDurationMs = params.sessionDurationMs || getSessionDuration();
+      const routeHistory = params.routeHistory || getRouteHistory();
+      const performanceMetrics = params.performanceMetrics || getPerformanceMetrics();
+      
       // Insert error log and check for errors
       const { error: insertError } = await supabase.from('user_error_logs').insert([{
         user_id: user?.id || null,
@@ -51,6 +83,13 @@ export const useErrorLogger = () => {
         device_type: deviceType,
         user_agent: userAgent,
         metadata: (params.metadata || {}) as Json,
+        // Enhanced context
+        console_logs: consoleLogs as unknown as Json,
+        network_requests: networkRequests as unknown as Json,
+        breadcrumbs: breadcrumbs as unknown as Json,
+        session_duration_ms: sessionDurationMs,
+        route_history: routeHistory as unknown as Json,
+        performance_metrics: performanceMetrics as unknown as Json,
       }]);
       
       if (insertError) {
@@ -71,6 +110,19 @@ export const useErrorLogger = () => {
  */
 export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> => {
   try {
+    // Check for duplicate errors
+    const fingerprint = generateErrorFingerprint(
+      params.errorType,
+      params.errorMessage,
+      params.componentName,
+      params.actionAttempted
+    );
+    
+    if (isDuplicateError(fingerprint)) {
+      console.debug('[ErrorLogger] Skipping duplicate error:', params.errorMessage.substring(0, 50));
+      return;
+    }
+    
     const { data: { user } } = await supabase.auth.getUser();
     
     let organizationId: string | null = null;
@@ -92,6 +144,14 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
     const deviceType = /Mobile|Android|iPhone|iPad/i.test(userAgent) ? 'mobile' : 'desktop';
     const browserInfo = getBrowserInfo(userAgent);
     
+    // Get enhanced context
+    const consoleLogs = params.consoleLogs || getRecentConsoleLogs();
+    const networkRequests = params.networkRequests || getRecentNetworkRequests();
+    const breadcrumbs = params.breadcrumbs || getBreadcrumbs();
+    const sessionDurationMs = params.sessionDurationMs || getSessionDuration();
+    const routeHistory = params.routeHistory || getRouteHistory();
+    const performanceMetrics = params.performanceMetrics || getPerformanceMetrics();
+    
     const { error: insertError } = await supabase.from('user_error_logs').insert([{
       user_id: user?.id || null,
       organization_id: organizationId,
@@ -106,6 +166,13 @@ export const logErrorToDatabase = async (params: LogErrorParams): Promise<void> 
       device_type: deviceType,
       user_agent: userAgent,
       metadata: (params.metadata || {}) as Json,
+      // Enhanced context
+      console_logs: consoleLogs as unknown as Json,
+      network_requests: networkRequests as unknown as Json,
+      breadcrumbs: breadcrumbs as unknown as Json,
+      session_duration_ms: sessionDurationMs,
+      route_history: routeHistory as unknown as Json,
+      performance_metrics: performanceMetrics as unknown as Json,
     }]);
     
     if (insertError) {
