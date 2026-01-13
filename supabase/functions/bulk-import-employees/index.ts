@@ -338,6 +338,7 @@ Deno.serve(async (req) => {
             emergency_contact_phone: emp.emergency_contact_phone || null,
             emergency_contact_relationship: emp.emergency_contact_relationship || null,
             personal_email: emp.personal_email || null,
+            employment_type: 'employee', // Must match CHECK constraint (trainee, intern, contract, employee)
             status: 'active' // Set as active since account is confirmed
           })
           .select('id')
