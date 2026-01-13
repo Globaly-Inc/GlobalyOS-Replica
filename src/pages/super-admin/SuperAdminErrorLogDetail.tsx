@@ -572,6 +572,12 @@ const SuperAdminErrorLogDetail = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Linked Support Tickets */}
+            <LinkedTicketsCard 
+              errorLogId={log.id} 
+              onLinkClick={() => setLinkTicketDialogOpen(true)} 
+            />
           </div>
         </div>
       </div>
@@ -582,6 +588,13 @@ const SuperAdminErrorLogDetail = () => {
         open={aiDialogOpen}
         onOpenChange={setAiDialogOpen}
         onApplyToNotes={handleApplyAIToNotes}
+      />
+
+      {/* Link Ticket Dialog */}
+      <LinkErrorToTicketDialog
+        log={log}
+        open={linkTicketDialogOpen}
+        onOpenChange={setLinkTicketDialogOpen}
       />
     </SuperAdminLayout>
   );
