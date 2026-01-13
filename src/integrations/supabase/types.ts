@@ -2294,6 +2294,70 @@ export type Database = {
           },
         ]
       }
+      employee_onboarding_data: {
+        Row: {
+          completed_at: string | null
+          completed_slides: boolean | null
+          created_at: string | null
+          current_step: number | null
+          employee_id: string
+          id: string
+          organization_id: string
+          personal_info: Json | null
+          skipped: boolean | null
+          tour_completed: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_slides?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          personal_info?: Json | null
+          skipped?: boolean | null
+          tour_completed?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_slides?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          personal_info?: Json | null
+          skipped?: boolean | null
+          tour_completed?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_onboarding_data_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_data_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_data_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_projects: {
         Row: {
           created_at: string
@@ -2661,6 +2725,8 @@ export type Database = {
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
+          employee_onboarding_completed: boolean | null
+          employee_onboarding_step: number | null
           employment_type: string | null
           gender: string | null
           id: string
@@ -2705,6 +2771,8 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
+          employee_onboarding_completed?: boolean | null
+          employee_onboarding_step?: number | null
           employment_type?: string | null
           gender?: string | null
           id?: string
@@ -2749,6 +2817,8 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
+          employee_onboarding_completed?: boolean | null
+          employee_onboarding_step?: number | null
           employment_type?: string | null
           gender?: string | null
           id?: string
@@ -4921,6 +4991,62 @@ export type Database = {
           },
         ]
       }
+      org_onboarding_data: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          current_step: number | null
+          enabled_features: Json | null
+          hr_settings: Json | null
+          id: string
+          offices: Json | null
+          organization_id: string
+          organization_info: Json | null
+          owner_user_id: string | null
+          skipped: boolean | null
+          team_members: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          enabled_features?: Json | null
+          hr_settings?: Json | null
+          id?: string
+          offices?: Json | null
+          organization_id: string
+          organization_info?: Json | null
+          owner_user_id?: string | null
+          skipped?: boolean | null
+          team_members?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          enabled_features?: Json | null
+          hr_settings?: Json | null
+          id?: string
+          offices?: Json | null
+          organization_id?: string
+          organization_info?: Json | null
+          owner_user_id?: string | null
+          skipped?: boolean | null
+          team_members?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_onboarding_data_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_coupons: {
         Row: {
           applied_at: string
@@ -5047,6 +5173,8 @@ export type Database = {
           max_sessions_per_day: number | null
           multi_session_enabled: boolean | null
           name: string
+          org_onboarding_completed: boolean | null
+          org_onboarding_step: number | null
           owner_email: string | null
           owner_name: string | null
           plan: string
@@ -5074,6 +5202,8 @@ export type Database = {
           max_sessions_per_day?: number | null
           multi_session_enabled?: boolean | null
           name: string
+          org_onboarding_completed?: boolean | null
+          org_onboarding_step?: number | null
           owner_email?: string | null
           owner_name?: string | null
           plan?: string
@@ -5101,6 +5231,8 @@ export type Database = {
           max_sessions_per_day?: number | null
           multi_session_enabled?: boolean | null
           name?: string
+          org_onboarding_completed?: boolean | null
+          org_onboarding_step?: number | null
           owner_email?: string | null
           owner_name?: string | null
           plan?: string
