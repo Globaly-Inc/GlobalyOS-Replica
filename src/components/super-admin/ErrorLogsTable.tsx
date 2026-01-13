@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   Table,
@@ -41,7 +42,6 @@ import {
 import { useAllErrorLogs, useUpdateErrorLogStatus, useBulkUpdateErrorLogStatus, useErrorLogsRealtime } from '@/services/useErrorLogs';
 import type { ErrorLogFilters, ErrorLogStatus, ErrorSeverity, ErrorType } from '@/types/errorLogs';
 import { toast } from 'sonner';
-import ErrorLogDetailDialog from './ErrorLogDetailDialog';
 
 const severityConfig: Record<ErrorSeverity, { label: string; icon: React.ElementType; className: string }> = {
   critical: { label: 'Critical', icon: AlertCircle, className: 'bg-destructive text-destructive-foreground' },
@@ -57,9 +57,9 @@ const statusConfig: Record<ErrorLogStatus, { label: string; className: string }>
 };
 
 const ErrorLogsTable = () => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<ErrorLogFilters>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [detailLogId, setDetailLogId] = useState<string | null>(null);
   
   const { data: logs, isLoading } = useAllErrorLogs(filters);
   const updateStatus = useUpdateErrorLogStatus();
@@ -111,8 +111,6 @@ const ErrorLogsTable = () => {
       toast.error('Failed to update error');
     }
   };
-
-  const selectedLog = logs?.find(l => l.id === detailLogId);
 
   return (
     <div className="space-y-4">
@@ -305,7 +303,7 @@ const ErrorLogsTable = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setDetailLogId(log.id)}>
+                              <DropdownMenuItem onClick={() => navigate(`/super-admin/error-logs/${log.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
@@ -330,15 +328,6 @@ const ErrorLogsTable = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Detail Dialog */}
-      {selectedLog && (
-        <ErrorLogDetailDialog
-          log={selectedLog}
-          open={!!detailLogId}
-          onOpenChange={(open) => !open && setDetailLogId(null)}
-        />
-      )}
     </div>
   );
 };

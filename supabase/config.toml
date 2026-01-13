@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.notify-critical-error]
 verify_jwt = false
+
+[functions.analyze-error]
+verify_jwt = false
