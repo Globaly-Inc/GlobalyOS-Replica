@@ -39,15 +39,18 @@ serve(async (req) => {
       });
     }
 
-    // Check if requesting user is admin or HR
+    // Check if requesting user is admin, HR, or super_admin
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id);
     
-    const isAdminOrHR = roles?.some(r => r.role === "admin" || r.role === "hr");
-    if (!isAdminOrHR) {
-      return new Response(JSON.stringify({ error: "Forbidden: Admin or HR role required" }), {
+    const isAuthorized = roles?.some(r => 
+      r.role === "admin" || r.role === "hr" || r.role === "super_admin"
+    );
+    if (!isAuthorized) {
+      console.log("Authorization failed for user:", requestingUser.id, "Roles:", roles);
+      return new Response(JSON.stringify({ error: "Forbidden: Admin, HR, or Super Admin role required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
