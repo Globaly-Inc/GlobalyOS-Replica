@@ -338,7 +338,7 @@ export default function Landing() {
                 Go to Dashboard <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             ) : (
-              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8" onClick={() => navigate("/auth")}>
+              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8" onClick={() => navigate("/signup")}>
                 Start Free Trial <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             )}

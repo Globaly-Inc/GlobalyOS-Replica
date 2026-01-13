@@ -281,7 +281,7 @@ export default function Pricing() {
               size="lg"
               variant="secondary"
               className="bg-white text-primary hover:bg-white/90 text-lg px-8"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/signup")}
             >
               Start Free Trial
               <ArrowRight className="w-5 h-5 ml-2" />

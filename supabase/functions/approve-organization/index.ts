@@ -126,6 +126,12 @@ async function setupOrganization(
   trialEndsAt: Date,
   approvedBy: string
 ) {
+  // Parse owner name into first/last
+  const ownerName = org.owner_name || '';
+  const nameParts = ownerName.trim().split(' ');
+  const firstName = nameParts[0] || org.owner_email?.split('@')[0] || 'Owner';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
   // Update the organization
   const { error: updateError } = await supabaseAdmin
     .from('organizations')
@@ -139,6 +145,23 @@ async function setupOrganization(
 
   if (updateError) {
     throw new Error(`Failed to update organization: ${updateError.message}`);
+  }
+
+  // Create profile for owner
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .upsert({
+      id: userId,
+      email: org.owner_email,
+      full_name: ownerName || firstName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'id'
+    });
+
+  if (profileError) {
+    console.error("Error creating profile:", profileError);
   }
 
   // Add the owner as organization member
@@ -162,6 +185,8 @@ async function setupOrganization(
     .upsert({
       organization_id: org.id,
       user_id: userId,
+      first_name: firstName,
+      last_name: lastName,
       position: 'Owner',
       department: 'Management',
       join_date: new Date().toISOString().split('T')[0],

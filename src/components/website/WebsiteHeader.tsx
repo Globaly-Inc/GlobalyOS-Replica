@@ -68,7 +68,7 @@ export const WebsiteHeader = () => {
                 <Button variant="ghost" onClick={() => navigate("/auth")}>
                   Sign In
                 </Button>
-                <Button onClick={() => navigate("/auth")}>
+                <Button onClick={() => navigate("/signup")}>
                   Get Started Free
                 </Button>
               </>
@@ -117,7 +117,7 @@ export const WebsiteHeader = () => {
                     <Button variant="ghost" onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}>
                       Sign In
                     </Button>
-                    <Button onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}>
+                    <Button onClick={() => { navigate("/signup"); setMobileMenuOpen(false); }}>
                       Get Started Free
                     </Button>
                   </>
