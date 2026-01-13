@@ -23,6 +23,7 @@ export const useAllErrorLogs = (filters?: ErrorLogFilters) => {
         .from('user_error_logs')
         .select(`
           *,
+          profiles(full_name, email, avatar_url),
           organizations(name)
         `)
         .order('created_at', { ascending: false });
