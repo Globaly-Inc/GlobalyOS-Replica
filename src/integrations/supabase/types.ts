@@ -3030,6 +3030,111 @@ export type Database = {
           },
         ]
       }
+      error_patterns: {
+        Row: {
+          action_attempted: string | null
+          affected_orgs_count: number
+          affected_users_count: number
+          component_name: string | null
+          created_at: string
+          error_type: string
+          first_occurrence_at: string
+          id: string
+          is_trending: boolean | null
+          last_occurrence_at: string
+          notes: string | null
+          occurrence_count: number
+          pattern_key: string
+          sample_error_id: string | null
+          sample_error_message: string | null
+          status: string
+          trending_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          action_attempted?: string | null
+          affected_orgs_count?: number
+          affected_users_count?: number
+          component_name?: string | null
+          created_at?: string
+          error_type: string
+          first_occurrence_at?: string
+          id?: string
+          is_trending?: boolean | null
+          last_occurrence_at?: string
+          notes?: string | null
+          occurrence_count?: number
+          pattern_key: string
+          sample_error_id?: string | null
+          sample_error_message?: string | null
+          status?: string
+          trending_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          action_attempted?: string | null
+          affected_orgs_count?: number
+          affected_users_count?: number
+          component_name?: string | null
+          created_at?: string
+          error_type?: string
+          first_occurrence_at?: string
+          id?: string
+          is_trending?: boolean | null
+          last_occurrence_at?: string
+          notes?: string | null
+          occurrence_count?: number
+          pattern_key?: string
+          sample_error_id?: string | null
+          sample_error_message?: string | null
+          status?: string
+          trending_score?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      error_support_links: {
+        Row: {
+          created_at: string
+          error_log_id: string
+          id: string
+          linked_by: string | null
+          notes: string | null
+          support_request_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_log_id: string
+          id?: string
+          linked_by?: string | null
+          notes?: string | null
+          support_request_id: string
+        }
+        Update: {
+          created_at?: string
+          error_log_id?: string
+          id?: string
+          linked_by?: string | null
+          notes?: string | null
+          support_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_support_links_error_log_id_fkey"
+            columns: ["error_log_id"]
+            isOneToOne: false
+            referencedRelation: "user_error_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "error_support_links_support_request_id_fkey"
+            columns: ["support_request_id"]
+            isOneToOne: false
+            referencedRelation: "support_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exit_interviews: {
         Row: {
           conducted_at: string | null
@@ -8673,9 +8778,11 @@ export type Database = {
           created_at: string
           device_type: string | null
           error_message: string
+          error_pattern_id: string | null
           error_stack: string | null
           error_type: string
           id: string
+          linked_support_request_id: string | null
           metadata: Json | null
           network_requests: Json | null
           organization_id: string | null
@@ -8700,9 +8807,11 @@ export type Database = {
           created_at?: string
           device_type?: string | null
           error_message: string
+          error_pattern_id?: string | null
           error_stack?: string | null
           error_type: string
           id?: string
+          linked_support_request_id?: string | null
           metadata?: Json | null
           network_requests?: Json | null
           organization_id?: string | null
@@ -8727,9 +8836,11 @@ export type Database = {
           created_at?: string
           device_type?: string | null
           error_message?: string
+          error_pattern_id?: string | null
           error_stack?: string | null
           error_type?: string
           id?: string
+          linked_support_request_id?: string | null
           metadata?: Json | null
           network_requests?: Json | null
           organization_id?: string | null
@@ -8747,10 +8858,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "user_error_logs_linked_support_request_id_fkey"
+            columns: ["linked_support_request_id"]
+            isOneToOne: false
+            referencedRelation: "support_requests"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_error_logs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_error_logs_pattern_fk"
+            columns: ["error_pattern_id"]
+            isOneToOne: false
+            referencedRelation: "error_patterns"
             referencedColumns: ["id"]
           },
           {
@@ -10773,6 +10898,7 @@ export type Database = {
         }
         Returns: number
       }
+      calculate_trending_scores: { Args: never; Returns: undefined }
       can_edit_wiki_item: {
         Args: { _item_id: string; _item_type: string; _user_id?: string }
         Returns: boolean
@@ -10864,6 +10990,14 @@ export type Database = {
       delete_wiki_folder_recursive: {
         Args: { _folder_id: string }
         Returns: boolean
+      }
+      generate_error_pattern_key: {
+        Args: {
+          p_action_attempted: string
+          p_component_name: string
+          p_error_type: string
+        }
+        Returns: string
       }
       generate_invoice_number: { Args: never; Returns: string }
       get_accessible_ai_content: {
