@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase } from 'lucide-react';
+import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
@@ -24,6 +24,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { name: 'Home', href: '/', icon: Home, adminOnly: false },
   { name: 'Team', href: '/team', icon: Users, adminOnly: false },
+  { name: 'KPIs', href: '/kpi-dashboard', icon: Target, adminOnly: false },
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
   { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
@@ -63,15 +64,17 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
       return location.pathname === basePath || location.pathname === `${basePath}/`;
     }
     if (href === '/team') {
-      // Team is active for /team/*, /kpi-dashboard, /calendar, etc.
+      // Team is active for /team/*, /calendar, etc. (not KPIs - they have their own nav item now)
       return location.pathname.startsWith(`${basePath}/team`) ||
-             location.pathname === `${basePath}/kpi-dashboard` ||
-             location.pathname.startsWith(`${basePath}/kpi-dashboard/`) ||
              location.pathname === `${basePath}/calendar` ||
              location.pathname === `${basePath}/leave-history` ||
              location.pathname === `${basePath}/attendance-history` ||
              location.pathname === `${basePath}/payroll` ||
              location.pathname.startsWith(`${basePath}/payroll/`);
+    }
+    if (href === '/kpi-dashboard') {
+      return location.pathname === `${basePath}/kpi-dashboard` ||
+             location.pathname.startsWith(`${basePath}/kpi-dashboard/`);
     }
     return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
   };
