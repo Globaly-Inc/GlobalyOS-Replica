@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { FormInputField } from "@/components/FormInputField";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 
 interface InviteTeamMemberDialogProps {
   open: boolean;
@@ -60,6 +61,7 @@ const inviteSchema = z.object({
   country: z.string().trim().min(2, "Country is required").max(100),
   department: z.string().trim().min(2, "Please select a department").max(100),
   position: z.string().trim().min(2, "Position is required").max(100),
+  employmentType: z.string().min(1, "Please select an employment type"),
   joinDate: z.string().min(1, "Join date is required"),
   idNumber: z.string().trim().max(50).optional(),
   taxNumber: z.string().trim().max(50).optional(),
@@ -109,10 +111,12 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
   const [newPosition, setNewPosition] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { data: employmentTypes = [], isLoading: loadingEmploymentTypes } = useEmploymentTypes(true);
+
   const [formData, setFormData] = useState<FormDataType & { isNewHire?: string }>({
     email: "", personalEmail: "", phone: "", firstName: "", lastName: "",
     dateOfBirth: "", street: "", city: "", postcode: "", state: "", country: "",
-    department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
+    department: "", position: "", employmentType: "", joinDate: "", idNumber: "", taxNumber: "",
     remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
     emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
     managerId: "", officeId: "", isNewHire: "true",
@@ -137,7 +141,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
     setFormData({
       email: "", personalEmail: "", phone: "", firstName: "", lastName: "",
       dateOfBirth: "", street: "", city: "", postcode: "", state: "", country: "",
-      department: "", position: "", joinDate: "", idNumber: "", taxNumber: "",
+      department: "", position: "", employmentType: "", joinDate: "", idNumber: "", taxNumber: "",
       remuneration: "", remunerationCurrency: "USD", emergencyContactName: "",
       emergencyContactPhone: "", emergencyContactRelationship: "", role: "member",
       managerId: "", officeId: "", isNewHire: "true",
@@ -232,7 +236,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
     const sectionFields: Record<Section, string[]> = {
       personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'email', 'personalEmail'],
       address: ['street', 'city', 'state', 'country', 'postcode'],
-      employment: ['department', 'position', 'managerId', 'officeId', 'joinDate', 'idNumber', 'taxNumber', 'remuneration'],
+      employment: ['department', 'position', 'employmentType', 'managerId', 'officeId', 'joinDate', 'idNumber', 'taxNumber', 'remuneration'],
       emergency: ['emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelationship'],
       role: ['role'],
     };
@@ -246,7 +250,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       case 'address':
         return !!(formData.street && formData.city && formData.state && formData.country);
       case 'employment':
-        return !!(formData.department && formData.position && formData.managerId && formData.officeId && formData.joinDate);
+        return !!(formData.department && formData.position && formData.employmentType && formData.managerId && formData.officeId && formData.joinDate);
       case 'emergency':
         return true; // Optional section
       case 'role':
@@ -332,7 +336,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         avatarUrl,
         organizationId: currentOrg?.id,
         isNewHire: formData.isNewHire !== 'false',
-        employmentType: 'employee',
+        employmentType: validated.employmentType,
       }, {
         componentName: 'InviteTeamMemberDialog',
         actionAttempted: `Invite team member: ${validated.firstName} ${validated.lastName}`,
@@ -530,6 +534,24 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
+                    <Label>Employment Type <span className="text-destructive">*</span></Label>
+                    <Select 
+                      value={formData.employmentType} 
+                      onValueChange={(v) => { handleChange('employmentType', v); setTouched(p => ({ ...p, employmentType: true })); }}
+                      disabled={loadingEmploymentTypes}
+                    >
+                      <SelectTrigger className={cn(touched.employmentType && errors.employmentType && "border-destructive")}>
+                        <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select employment type"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        {employmentTypes.map(type => (
+                          <SelectItem key={type.id} value={type.name}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {touched.employmentType && errors.employmentType && <p className="text-sm text-destructive">{errors.employmentType}</p>}
+                  </div>
+                  <div className="space-y-2">
                     <Label>Manager <span className="text-destructive">*</span></Label>
                     <Select value={formData.managerId} onValueChange={(v) => handleChange('managerId', v)}>
                       <SelectTrigger className={cn(touched.managerId && errors.managerId && "border-destructive")}><SelectValue placeholder="Select manager" /></SelectTrigger>
@@ -537,6 +559,8 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                     </Select>
                     {touched.managerId && errors.managerId && <p className="text-sm text-destructive">{errors.managerId}</p>}
                   </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Office <span className="text-destructive">*</span></Label>
                     <Select value={formData.officeId} onValueChange={(v) => handleChange('officeId', v)}>
@@ -545,13 +569,13 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                     </Select>
                     {touched.officeId && errors.officeId && <p className="text-sm text-destructive">{errors.officeId}</p>}
                   </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Join Date <span className="text-destructive">*</span></Label>
                     <Input type="date" value={formData.joinDate} onChange={(e) => handleChange('joinDate', e.target.value)} className={cn(touched.joinDate && errors.joinDate && "border-destructive")} />
                     {touched.joinDate && errors.joinDate && <p className="text-sm text-destructive">{errors.joinDate}</p>}
                   </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <FormInputField id="idNumber" label="ID Number" value={formData.idNumber || ""} onChange={(v) => handleChange('idNumber', v)} onBlur={() => handleBlur('idNumber')} placeholder="Employee ID" />
                   <FormInputField id="taxNumber" label="Tax Number" value={formData.taxNumber || ""} onChange={(v) => handleChange('taxNumber', v)} onBlur={() => handleBlur('taxNumber')} placeholder="Tax ID" />
                 </div>
