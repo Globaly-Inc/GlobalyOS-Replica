@@ -29,11 +29,40 @@ export interface DirectReport {
   avatar_url: string | null;
 }
 
+export interface LedProject {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  role: 'lead' | 'secondary';
+}
+
+export interface IndividualKpi {
+  id: string;
+  title: string;
+  status: string;
+  quarter: number;
+  year: number;
+}
+
+export interface OwnedKpi {
+  id: string;
+  title: string;
+  status: string;
+  scope_type: string;
+  is_primary: boolean;
+  quarter: number;
+  year: number;
+}
+
 export interface OffboardData {
   wiki_pages: WikiPage[];
   wiki_folders: WikiFolder[];
   pending_tasks: PendingTask[];
   direct_reports: DirectReport[];
+  led_projects: LedProject[];
+  individual_kpis: IndividualKpi[];
+  owned_kpis: OwnedKpi[];
 }
 
 export function useEmployeeOffboardData(employeeId: string | null) {
@@ -105,5 +134,64 @@ export function useOffboardTransferActions() {
     return true;
   };
 
-  return { transferWikiItems, reassignTasks, reassignDirectReports };
+  const transferProjectLeads = async (
+    projectIds: string[],
+    role: 'lead' | 'secondary',
+    newLeadId: string | null
+  ) => {
+    if (!currentOrg?.id) throw new Error("No organization");
+    
+    const { error } = await supabase.rpc("bulk_transfer_project_leads", {
+      p_project_ids: projectIds,
+      p_role: role,
+      p_new_lead_id: newLeadId,
+      p_organization_id: currentOrg.id,
+    });
+    
+    if (error) throw error;
+    return true;
+  };
+
+  const transferIndividualKpis = async (
+    kpiIds: string[],
+    newOwnerId: string
+  ) => {
+    if (!currentOrg?.id) throw new Error("No organization");
+    
+    const { error } = await supabase.rpc("bulk_transfer_individual_kpis", {
+      p_kpi_ids: kpiIds,
+      p_new_owner_id: newOwnerId,
+      p_organization_id: currentOrg.id,
+    });
+    
+    if (error) throw error;
+    return true;
+  };
+
+  const transferKpiOwnership = async (
+    kpiIds: string[],
+    oldOwnerId: string,
+    newOwnerId: string
+  ) => {
+    if (!currentOrg?.id) throw new Error("No organization");
+    
+    const { error } = await supabase.rpc("bulk_transfer_kpi_ownership", {
+      p_kpi_ids: kpiIds,
+      p_old_owner_id: oldOwnerId,
+      p_new_owner_id: newOwnerId,
+      p_organization_id: currentOrg.id,
+    });
+    
+    if (error) throw error;
+    return true;
+  };
+
+  return { 
+    transferWikiItems, 
+    reassignTasks, 
+    reassignDirectReports,
+    transferProjectLeads,
+    transferIndividualKpis,
+    transferKpiOwnership,
+  };
 }

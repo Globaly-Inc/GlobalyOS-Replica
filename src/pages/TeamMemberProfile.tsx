@@ -40,6 +40,7 @@ import { format } from "date-fns";
 import AIKPIInsights from "@/components/AIKPIInsights";
 import ManageKPIsDialog from "@/components/dialogs/ManageKPIsDialog";
 import { DeleteTeamMemberDialog } from "@/components/dialogs/DeleteTeamMemberDialog";
+import { TeamMemberOffboardTransferDialog } from "@/components/dialogs/TeamMemberOffboardTransferDialog";
 import { ProfileTimelineSheet } from "@/components/ProfileTimelineSheet";
 import { AddLeaveBalanceDialog } from "@/components/dialogs/AddLeaveBalanceDialog";
 import { ManageLeaveTypesDialog } from "@/components/dialogs/ManageLeaveTypesDialog";
@@ -115,6 +116,7 @@ const TeamMemberProfile = () => {
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
   const [editingCurrentPosition, setEditingCurrentPosition] = useState(false);
   const [resignationDialogOpen, setResignationDialogOpen] = useState(false);
+  const [showOffboardDialog, setShowOffboardDialog] = useState(false);
 
   // Get current position from position history (source of truth)
   const currentPosition = positionHistory.find(p => p.is_current);
@@ -128,7 +130,7 @@ const TeamMemberProfile = () => {
   // Determine display location (show WFH if office employee has approved WFH today)
   const displayLocation: WorkLocationDisplay = 
     workLocation === 'office' && hasApprovedWfhToday ? 'wfh' : (workLocation || 'office');
-  const isAdminOrHR = isAdmin || isHR;
+  const isAdminOrHR = isOwner || isAdmin || isHR;
 
   // Can view all details
   const canViewAllDetails = isAdminOrHR || isOwnProfile || isManagerOfEmployee;
@@ -632,7 +634,7 @@ const TeamMemberProfile = () => {
             </Button>
           </OrgLink>
           <div className="flex items-center gap-2">
-            {/* Set Resignation Button - Admin/HR for active employees without resignation date */}
+            {/* Set Resignation Button - Owner/Admin/HR for active employees without resignation date */}
             {isAdminOrHR && !isOwnProfile && employee.status === 'active' && !employee.last_working_day && (
               <Button 
                 variant="outline" 
@@ -644,7 +646,19 @@ const TeamMemberProfile = () => {
                 <span className="hidden sm:inline">Set Resignation</span>
               </Button>
             )}
-            {isAdmin && !isOwnProfile && <div className="hidden sm:block">
+            {/* Make Inactive Button - Owner/Admin/HR for active employees */}
+            {isAdminOrHR && !isOwnProfile && employee.status === 'active' && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowOffboardDialog(true)}
+                className="text-orange-600 hover:text-orange-600 hover:bg-orange-500/10 border-orange-500/30"
+              >
+                <UserX className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Make Inactive</span>
+              </Button>
+            )}
+            {(isOwner || isAdmin) && !isOwnProfile && <div className="hidden sm:block">
                 <DeleteTeamMemberDialog employeeId={id!} employeeName={employee.profiles.full_name} userId={employee.user_id} />
               </div>}
             <ProfileTimelineSheet employeeId={id!} employeeName={employee.profiles.full_name} />
@@ -1358,6 +1372,40 @@ const TeamMemberProfile = () => {
       {isAdminOrHR && employee?.organization_id && <EditScheduleDialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen} employeeId={id!} organizationId={employee.organization_id} currentSchedule={employeeSchedule} onSuccess={loadEmployeeSchedule} />}
 
       {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} onSuccess={loadEmployee} />}
+
+      {isAdminOrHR && (
+        <TeamMemberOffboardTransferDialog
+          open={showOffboardDialog}
+          onOpenChange={setShowOffboardDialog}
+          employeeId={id!}
+          employeeName={employee.profiles.full_name}
+          mode="deactivate"
+          onComplete={async () => {
+            const { error } = await supabase
+              .from('employees')
+              .update({ status: 'inactive' })
+              .eq('id', id);
+            if (error) {
+              toast({ title: "Update failed", description: error.message, variant: "destructive" });
+              return;
+            }
+            toast({ title: "Employee deactivated", description: `${employee.profiles.full_name} has been set to inactive.` });
+            loadEmployee();
+          }}
+          onSkip={async () => {
+            const { error } = await supabase
+              .from('employees')
+              .update({ status: 'inactive' })
+              .eq('id', id);
+            if (error) {
+              toast({ title: "Update failed", description: error.message, variant: "destructive" });
+              return;
+            }
+            toast({ title: "Employee deactivated", description: `${employee.profiles.full_name} has been set to inactive.` });
+            loadEmployee();
+          }}
+        />
+      )}
     </>;
 };
 export default TeamMemberProfile;

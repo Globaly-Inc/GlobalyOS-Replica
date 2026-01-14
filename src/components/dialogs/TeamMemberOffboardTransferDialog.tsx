@@ -5,7 +5,7 @@ import { useEmployeeOffboardData, useOffboardTransferActions, OffboardData } fro
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { Loader2, FileText, FolderOpen, ListTodo, Users, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, FileText, FolderOpen, ListTodo, Users, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, FolderKanban, Target } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,7 +23,7 @@ interface TeamMemberOffboardTransferDialogProps {
   onSkip: () => void;
 }
 
-type Step = "summary" | "wiki" | "tasks" | "reports" | "confirm";
+type Step = "summary" | "wiki" | "tasks" | "reports" | "projects" | "kpis" | "confirm";
 
 export function TeamMemberOffboardTransferDialog({
   open,
@@ -37,7 +37,14 @@ export function TeamMemberOffboardTransferDialog({
   const { data: offboardData, isLoading, refetch } = useEmployeeOffboardData(employeeId);
   const { currentOrg } = useOrganization();
   const { toast } = useToast();
-  const { transferWikiItems, reassignTasks, reassignDirectReports } = useOffboardTransferActions();
+  const { 
+    transferWikiItems, 
+    reassignTasks, 
+    reassignDirectReports,
+    transferProjectLeads,
+    transferIndividualKpis,
+    transferKpiOwnership,
+  } = useOffboardTransferActions();
 
   const [currentStep, setCurrentStep] = useState<Step>("summary");
   const [processing, setProcessing] = useState(false);
@@ -46,11 +53,15 @@ export function TeamMemberOffboardTransferDialog({
   const [wikiNewOwnerId, setWikiNewOwnerId] = useState<string>("");
   const [tasksNewAssigneeId, setTasksNewAssigneeId] = useState<string>("");
   const [reportsNewManagerId, setReportsNewManagerId] = useState<string>("");
+  const [projectsNewLeadId, setProjectsNewLeadId] = useState<string>("");
+  const [kpisNewOwnerId, setKpisNewOwnerId] = useState<string>("");
 
   // Track completed transfers
   const [wikiTransferred, setWikiTransferred] = useState(false);
   const [tasksReassigned, setTasksReassigned] = useState(false);
   const [reportsReassigned, setReportsReassigned] = useState(false);
+  const [projectsTransferred, setProjectsTransferred] = useState(false);
+  const [kpisTransferred, setKpisTransferred] = useState(false);
 
   // Fetch active employees for selection (excluding the one being offboarded)
   const { data: activeEmployees = [] } = useQuery({
@@ -81,16 +92,20 @@ export function TeamMemberOffboardTransferDialog({
   const hasWikiItems = (offboardData?.wiki_pages?.length || 0) + (offboardData?.wiki_folders?.length || 0) > 0;
   const hasTasks = (offboardData?.pending_tasks?.length || 0) > 0;
   const hasReports = (offboardData?.direct_reports?.length || 0) > 0;
-  const hasAnyItems = hasWikiItems || hasTasks || hasReports;
+  const hasProjects = (offboardData?.led_projects?.length || 0) > 0;
+  const hasKpis = (offboardData?.individual_kpis?.length || 0) + (offboardData?.owned_kpis?.length || 0) > 0;
+  const hasAnyItems = hasWikiItems || hasTasks || hasReports || hasProjects || hasKpis;
 
   const steps = useMemo(() => {
     const s: Step[] = ["summary"];
     if (hasWikiItems) s.push("wiki");
     if (hasTasks) s.push("tasks");
     if (hasReports) s.push("reports");
+    if (hasProjects) s.push("projects");
+    if (hasKpis) s.push("kpis");
     s.push("confirm");
     return s;
-  }, [hasWikiItems, hasTasks, hasReports]);
+  }, [hasWikiItems, hasTasks, hasReports, hasProjects, hasKpis]);
 
   const currentStepIndex = steps.indexOf(currentStep);
 
@@ -150,6 +165,56 @@ export function TeamMemberOffboardTransferDialog({
       goNext();
     } catch (err: any) {
       toast({ title: "Reassignment failed", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleTransferProjects = async () => {
+    if (!offboardData) return;
+    setProcessing(true);
+    try {
+      const leadProjects = offboardData.led_projects.filter(p => p.role === 'lead').map(p => p.id);
+      const secondaryProjects = offboardData.led_projects.filter(p => p.role === 'secondary').map(p => p.id);
+      
+      if (leadProjects.length > 0) {
+        await transferProjectLeads(leadProjects, 'lead', projectsNewLeadId || null);
+      }
+      if (secondaryProjects.length > 0) {
+        await transferProjectLeads(secondaryProjects, 'secondary', projectsNewLeadId || null);
+      }
+      
+      setProjectsTransferred(true);
+      toast({ title: "Project leadership transferred", description: projectsNewLeadId ? "Project leads have been transferred." : "Project leads have been removed." });
+      goNext();
+    } catch (err: any) {
+      toast({ title: "Transfer failed", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleTransferKpis = async () => {
+    if (!offboardData || !kpisNewOwnerId) return;
+    setProcessing(true);
+    try {
+      // Transfer individual KPIs
+      if (offboardData.individual_kpis.length > 0) {
+        const kpiIds = offboardData.individual_kpis.map(k => k.id);
+        await transferIndividualKpis(kpiIds, kpisNewOwnerId);
+      }
+      
+      // Transfer KPI ownership
+      if (offboardData.owned_kpis.length > 0) {
+        const kpiIds = offboardData.owned_kpis.map(k => k.id);
+        await transferKpiOwnership(kpiIds, employeeId, kpisNewOwnerId);
+      }
+      
+      setKpisTransferred(true);
+      toast({ title: "KPIs transferred", description: "All KPIs have been transferred to the new owner." });
+      goNext();
+    } catch (err: any) {
+      toast({ title: "Transfer failed", description: err.message, variant: "destructive" });
     } finally {
       setProcessing(false);
     }
@@ -276,6 +341,34 @@ export function TeamMemberOffboardTransferDialog({
                         </p>
                       </div>
                       {reportsReassigned && <Badge variant="secondary" className="bg-green-100 text-green-700">Reassigned</Badge>}
+                    </div>
+                  )}
+                  {hasProjects && (
+                    <div className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                        <FolderKanban className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">Project Leadership</p>
+                        <p className="text-sm text-muted-foreground">
+                          {offboardData?.led_projects?.length || 0} projects
+                        </p>
+                      </div>
+                      {projectsTransferred && <Badge variant="secondary" className="bg-green-100 text-green-700">Transferred</Badge>}
+                    </div>
+                  )}
+                  {hasKpis && (
+                    <div className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                        <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">KPIs</p>
+                        <p className="text-sm text-muted-foreground">
+                          {offboardData?.individual_kpis?.length || 0} individual, {offboardData?.owned_kpis?.length || 0} shared
+                        </p>
+                      </div>
+                      {kpisTransferred && <Badge variant="secondary" className="bg-green-100 text-green-700">Transferred</Badge>}
                     </div>
                   )}
                 </div>
@@ -468,6 +561,139 @@ export function TeamMemberOffboardTransferDialog({
           </div>
         )}
 
+        {/* Projects Transfer Step */}
+        {currentStep === "projects" && (
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Transfer project leadership to:</Label>
+              <Select value={projectsNewLeadId} onValueChange={setProjectsNewLeadId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new lead (or leave empty to remove)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Remove lead</SelectItem>
+                  {activeEmployees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                          <AvatarFallback>{getEmployeeName(emp).charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span>{getEmployeeName(emp)}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+              {offboardData?.led_projects?.map((project) => (
+                <div key={project.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4" style={{ color: project.color }} />
+                    <span>{project.name}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {project.role === 'lead' ? 'Lead' : 'Secondary Lead'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={goPrev}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button variant="outline" onClick={goNext}>
+                Skip
+              </Button>
+              <Button onClick={handleTransferProjects} disabled={processing} className="flex-1">
+                {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {projectsNewLeadId ? "Transfer All" : "Remove Leads"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* KPIs Transfer Step */}
+        {currentStep === "kpis" && (
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Transfer KPIs to:</Label>
+              <Select value={kpisNewOwnerId} onValueChange={setKpisNewOwnerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeEmployees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                          <AvatarFallback>{getEmployeeName(emp).charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span>{getEmployeeName(emp)}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-3">
+              {(offboardData?.individual_kpis?.length || 0) > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Individual KPIs</p>
+                  <div className="space-y-2">
+                    {offboardData?.individual_kpis?.map((kpi) => (
+                      <div key={kpi.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4 text-muted-foreground" />
+                          <span>{kpi.title}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">Q{kpi.quarter} {kpi.year}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(offboardData?.owned_kpis?.length || 0) > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Shared KPI Ownership</p>
+                  <div className="space-y-2">
+                    {offboardData?.owned_kpis?.map((kpi) => (
+                      <div key={kpi.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4 text-muted-foreground" />
+                          <span>{kpi.title}</span>
+                          {kpi.is_primary && <Badge className="text-xs bg-primary/10 text-primary">Primary</Badge>}
+                        </div>
+                        <Badge variant="outline" className="text-xs">{kpi.scope_type}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={goPrev}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button variant="outline" onClick={goNext}>
+                Skip
+              </Button>
+              <Button onClick={handleTransferKpis} disabled={!kpisNewOwnerId || processing} className="flex-1">
+                {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Transfer All
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Confirmation Step */}
         {currentStep === "confirm" && (
           <div className="space-y-4">
@@ -477,13 +703,13 @@ export function TeamMemberOffboardTransferDialog({
                 Ready to {mode === "delete" ? "delete" : "deactivate"} {employeeName}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {wikiTransferred || tasksReassigned || reportsReassigned
+                {wikiTransferred || tasksReassigned || reportsReassigned || projectsTransferred || kpisTransferred
                   ? "Transfers completed. You can now proceed."
                   : "You can proceed with the action."}
               </p>
             </div>
 
-            {(wikiTransferred || tasksReassigned || reportsReassigned) && (
+            {(wikiTransferred || tasksReassigned || reportsReassigned || projectsTransferred || kpisTransferred) && (
               <div className="grid gap-2">
                 {wikiTransferred && (
                   <div className="flex items-center gap-2 text-sm text-green-600">
@@ -501,6 +727,18 @@ export function TeamMemberOffboardTransferDialog({
                   <div className="flex items-center gap-2 text-sm text-green-600">
                     <CheckCircle2 className="h-4 w-4" />
                     Direct reports reassigned
+                  </div>
+                )}
+                {projectsTransferred && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Project leadership transferred
+                  </div>
+                )}
+                {kpisTransferred && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    KPIs transferred
                   </div>
                 )}
               </div>

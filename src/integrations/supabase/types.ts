@@ -10905,6 +10905,32 @@ export type Database = {
         }
         Returns: boolean
       }
+      bulk_transfer_individual_kpis: {
+        Args: {
+          p_kpi_ids: string[]
+          p_new_owner_id: string
+          p_organization_id: string
+        }
+        Returns: boolean
+      }
+      bulk_transfer_kpi_ownership: {
+        Args: {
+          p_kpi_ids: string[]
+          p_new_owner_id: string
+          p_old_owner_id: string
+          p_organization_id: string
+        }
+        Returns: boolean
+      }
+      bulk_transfer_project_leads: {
+        Args: {
+          p_new_lead_id: string
+          p_organization_id: string
+          p_project_ids: string[]
+          p_role: string
+        }
+        Returns: boolean
+      }
       bulk_transfer_wiki_items: {
         Args: {
           p_folder_ids: string[]
