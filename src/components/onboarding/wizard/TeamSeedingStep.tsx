@@ -9,11 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Users, Plus, Trash2, UserPlus, SkipForward } from 'lucide-react';
+import { useEmploymentTypes } from '@/hooks/useEmploymentTypes';
 
 interface TeamMember {
   email: string;
   full_name: string;
   position?: string;
+  employment_type?: string;
   role: 'admin' | 'hr' | 'manager' | 'member';
 }
 
@@ -36,10 +38,13 @@ const emptyMember: TeamMember = {
   email: '',
   full_name: '',
   position: '',
+  employment_type: '',
   role: 'member',
 };
 
 export function TeamSeedingStep({ initialMembers, onSave, onBack, onSkip, isSaving }: TeamSeedingStepProps) {
+  const { data: employmentTypes = [], isLoading: loadingEmploymentTypes } = useEmploymentTypes(true);
+  
   const [members, setMembers] = useState<TeamMember[]>(
     initialMembers.length > 0 ? initialMembers : []
   );
@@ -147,28 +152,48 @@ export function TeamSeedingStep({ initialMembers, onSave, onBack, onSkip, isSavi
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Role</Label>
+                      <Label>Employment Type *</Label>
                       <Select
-                        value={member.role}
-                        onValueChange={(value: TeamMember['role']) => updateMember(index, 'role', value)}
+                        value={member.employment_type || ''}
+                        onValueChange={(value) => updateMember(index, 'employment_type', value)}
+                        disabled={loadingEmploymentTypes}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select type"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {ROLES.map((role) => (
-                            <SelectItem key={role.value} value={role.value}>
-                              <div>
-                                <span className="font-medium">{role.label}</span>
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  {role.description}
-                                </span>
-                              </div>
+                          {employmentTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.name}>
+                              {type.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Select
+                      value={member.role}
+                      onValueChange={(value: TeamMember['role']) => updateMember(index, 'role', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            <div>
+                              <span className="font-medium">{role.label}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {role.description}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               ))}
