@@ -23,6 +23,7 @@ import {
   Clock,
   Calendar,
   Shield,
+  Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 import { 
@@ -35,6 +36,9 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveChat, ChatSpace } from "@/types/chat";
 import { cn } from "@/lib/utils";
+import SpaceMembersDialog from "./SpaceMembersDialog";
+import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
+import AddResourceDialog from "./AddResourceDialog";
 
 interface ChatRightPanelEnhancedProps {
   activeChat: ActiveChat;
@@ -70,6 +74,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
   const [spaceDetails, setSpaceDetails] = useState<SpaceDetails | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipantDetails | null>(null);
   const [sharedFiles, setSharedFiles] = useState<any[]>([]);
+  
+  // Dialog states
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showAddMembersDialog, setShowAddMembersDialog] = useState(false);
+  const [showAddResourceDialog, setShowAddResourceDialog] = useState(false);
   
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: favorites = [] } = useChatFavorites();
@@ -243,6 +252,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
   const members = spaceId ? spaceMembers : conversationParticipants;
   const memberCount = members.length;
 
+  // Check if current user is a space admin
+  const isSpaceAdmin = spaceId && spaceMembers.some(
+    m => m.employee_id === currentEmployee?.id && m.role === 'admin'
+  );
+
   return (
     <div className="flex flex-col h-full bg-card border-l border-border w-80">
       {/* Header */}
@@ -388,7 +402,22 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                 <span className="font-medium text-sm">Members</span>
                 <span className="text-xs text-muted-foreground">({memberCount})</span>
               </div>
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", membersOpen && "rotate-180")} />
+              <div className="flex items-center gap-1">
+                {isSpaceAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMembersDialog(true);
+                    }}
+                  >
+                    <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                )}
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", membersOpen && "rotate-180")} />
+              </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-4 pb-4">
               <div className="space-y-2">
@@ -415,9 +444,24 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                   );
                 })}
                 {memberCount > 10 && (
-                  <p className="text-xs text-muted-foreground text-center pt-2">
-                    +{memberCount - 10} more members
-                  </p>
+                  <Button 
+                    variant="link" 
+                    className="w-full text-xs text-primary p-0 h-auto"
+                    onClick={() => setShowMembersDialog(true)}
+                  >
+                    View all {memberCount} members
+                  </Button>
+                )}
+                {isSpaceAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setShowAddMembersDialog(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Members
+                  </Button>
                 )}
               </div>
             </CollapsibleContent>
@@ -514,12 +558,45 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
 
         {/* Add Resources */}
         <div className="px-4 py-3 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start gap-2 text-primary">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2 text-primary"
+            onClick={() => setShowAddResourceDialog(true)}
+          >
             <Plus className="h-4 w-4" />
             Add Resources
           </Button>
         </div>
       </ScrollArea>
+
+      {/* Dialogs */}
+      {spaceId && (
+        <>
+          <SpaceMembersDialog
+            open={showMembersDialog}
+            onOpenChange={setShowMembersDialog}
+            spaceId={spaceId}
+            spaceName={activeChat.name}
+            onAddMembers={() => {
+              setShowMembersDialog(false);
+              setShowAddMembersDialog(true);
+            }}
+          />
+          <AddSpaceMembersDialog
+            open={showAddMembersDialog}
+            onOpenChange={setShowAddMembersDialog}
+            spaceId={spaceId}
+            spaceName={activeChat.name}
+          />
+        </>
+      )}
+
+      <AddResourceDialog
+        open={showAddResourceDialog}
+        onOpenChange={setShowAddResourceDialog}
+        conversationId={conversationId}
+        spaceId={spaceId}
+      />
     </div>
   );
 };

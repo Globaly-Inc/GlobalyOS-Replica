@@ -21,8 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Users, Megaphone } from "lucide-react";
-import { useSpace, useUpdateSpace, useDeleteSpace } from "@/services/useChat";
+import { Loader2, Trash2, Users, Megaphone, Archive } from "lucide-react";
+import { useSpace, useUpdateSpace, useDeleteSpace, useArchiveSpace } from "@/services/useChat";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 
@@ -31,6 +31,7 @@ interface SpaceSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   spaceId: string;
   onDeleted?: () => void;
+  onArchived?: () => void;
 }
 
 const SpaceSettingsDialog = ({
@@ -38,10 +39,12 @@ const SpaceSettingsDialog = ({
   onOpenChange,
   spaceId,
   onDeleted,
+  onArchived,
 }: SpaceSettingsDialogProps) => {
   const { data: space, isLoading } = useSpace(spaceId);
   const updateSpace = useUpdateSpace();
   const deleteSpace = useDeleteSpace();
+  const archiveSpace = useArchiveSpace();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -89,6 +92,21 @@ const SpaceSettingsDialog = ({
       showErrorToast(error, "Failed to delete space", {
         componentName: "SpaceSettingsDialog",
         actionAttempted: "Delete space",
+        errorType: "database",
+      });
+    }
+  };
+
+  const handleArchive = async () => {
+    try {
+      await archiveSpace.mutateAsync(spaceId);
+      toast.success("Space archived");
+      onOpenChange(false);
+      onArchived?.();
+    } catch (error) {
+      showErrorToast(error, "Failed to archive space", {
+        componentName: "SpaceSettingsDialog",
+        actionAttempted: "Archive space",
         errorType: "database",
       });
     }
@@ -193,34 +211,68 @@ const SpaceSettingsDialog = ({
           </div>
 
           {/* Danger zone */}
-          <div className="pt-4 border-t">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Delete space
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this space?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete "{space?.name}" and all messages in it.
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+          <div className="pt-4 border-t space-y-4">
+            <h4 className="text-sm font-medium text-destructive">Danger zone</h4>
+            
+            <div className="flex flex-wrap gap-3">
+              {/* Archive button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-amber-500 text-amber-600 hover:bg-amber-50">
+                    <Archive className="h-4 w-4" />
+                    Archive space
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Archive this space?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Archiving "{space?.name}" will hide it from the sidebar and make it read-only.
+                      All messages will be preserved and the space can be restored later.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleArchive}
+                      className="bg-amber-500 text-white hover:bg-amber-600"
+                    >
+                      {archiveSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Archive
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Delete space
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete "{space?.name}" and all messages in it.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
 

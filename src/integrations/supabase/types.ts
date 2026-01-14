@@ -1863,6 +1863,8 @@ export type Database = {
             | Database["public"]["Enums"]["chat_space_access_scope"]
             | null
           access_type: Database["public"]["Enums"]["chat_space_access"]
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -1879,6 +1881,8 @@ export type Database = {
             | Database["public"]["Enums"]["chat_space_access_scope"]
             | null
           access_type?: Database["public"]["Enums"]["chat_space_access"]
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -1895,6 +1899,8 @@ export type Database = {
             | Database["public"]["Enums"]["chat_space_access_scope"]
             | null
           access_type?: Database["public"]["Enums"]["chat_space_access"]
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -1907,6 +1913,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_spaces_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_spaces_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_spaces_created_by_fkey"
             columns: ["created_by"]

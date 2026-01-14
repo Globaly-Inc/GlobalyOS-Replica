@@ -47,6 +47,8 @@ export interface ChatSpace {
   created_by: string;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
+  archived_by?: string | null;
   member_count?: number;
   last_message?: ChatMessage;
   unread_count?: number;

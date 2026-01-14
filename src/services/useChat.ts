@@ -120,15 +120,15 @@ export const useConversations = () => {
   });
 };
 
-export const useSpaces = () => {
+export const useSpaces = (includeArchived = false) => {
   const { currentOrg } = useOrganization();
 
   return useQuery({
-    queryKey: ['chat-spaces', currentOrg?.id],
+    queryKey: ['chat-spaces', currentOrg?.id, includeArchived],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('chat_spaces')
         .select(`
           *,
@@ -138,6 +138,13 @@ export const useSpaces = () => {
           )
         `)
         .eq('organization_id', currentOrg.id);
+
+      // Filter out archived spaces unless explicitly requested
+      if (!includeArchived) {
+        query = query.is('archived_at', null);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -1176,6 +1183,8 @@ export const useSpace = (spaceId: string | null) => {
         description: string | null;
         space_type: 'collaboration' | 'announcements';
         access_type: 'public' | 'private';
+        archived_at: string | null;
+        archived_by: string | null;
       };
     },
     enabled: !!spaceId,
@@ -1232,6 +1241,55 @@ export const useDeleteSpace = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+    },
+  });
+};
+
+// Archive space (soft delete)
+export const useArchiveSpace = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      if (!currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_spaces')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: currentEmployee.id,
+        })
+        .eq('id', spaceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+    },
+  });
+};
+
+// Restore archived space
+export const useRestoreSpace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      const { error } = await supabase
+        .from('chat_spaces')
+        .update({
+          archived_at: null,
+          archived_by: null,
+        })
+        .eq('id', spaceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space'] });
     },
   });
 };
