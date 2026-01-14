@@ -1,4 +1,4 @@
-import { Users, Target, Calendar, CalendarDays, Clock, DollarSign, GitBranch } from 'lucide-react';
+import { Users, Calendar, CalendarDays, Clock, DollarSign, GitBranch } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,6 @@ interface SubNavItem {
 
 const teamSubNavItems: SubNavItem[] = [
   { name: 'Directory', href: '/team', icon: Users },
-  { name: 'KPIs', href: '/kpi-dashboard', icon: Target },
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
   { name: 'Leave', href: '/leave-history', icon: CalendarDays },
   { name: 'Attendance', href: '/attendance-history', icon: Clock },
@@ -35,12 +34,10 @@ export const SubNav = () => {
     return true;
   });
   
-  // Show sub-nav on Team-related pages (not on Home which is now separate)
+  // Show sub-nav on Team-related pages (not on Home or KPIs which are now separate)
   const isTeamSection = 
     location.pathname === `${basePath}/team` || 
     location.pathname.startsWith(`${basePath}/team/`) ||
-    location.pathname === `${basePath}/kpi-dashboard` ||
-    location.pathname.startsWith(`${basePath}/kpi-dashboard/`) ||
     location.pathname === `${basePath}/calendar` ||
     location.pathname === `${basePath}/leave-history` ||
     location.pathname === `${basePath}/attendance-history` ||
