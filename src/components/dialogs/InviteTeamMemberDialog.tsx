@@ -323,19 +323,27 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
       }
 
       const validated = inviteSchema.parse(formData);
-      const { data, error } = await supabase.functions.invoke('invite-team-member', {
-        body: {
-          ...validated,
-          fullName: `${validated.firstName} ${validated.lastName}`,
-          avatarUrl,
-          organizationId: currentOrg?.id,
-          isNewHire: formData.isNewHire !== 'false',
-          employmentType: 'employee', // Default for new hires - must match CHECK constraint
-        },
+      
+      // Use invokeEdgeFunction for proper error logging
+      const { invokeEdgeFunction } = await import('@/lib/edgeFunctionUtils');
+      const { data, error } = await invokeEdgeFunction('invite-team-member', {
+        ...validated,
+        fullName: `${validated.firstName} ${validated.lastName}`,
+        avatarUrl,
+        organizationId: currentOrg?.id,
+        isNewHire: formData.isNewHire !== 'false',
+        employmentType: 'employee',
+      }, {
+        componentName: 'InviteTeamMemberDialog',
+        actionAttempted: `Invite team member: ${validated.firstName} ${validated.lastName}`,
       });
 
-      if (error || data?.error) {
-        toast({ title: "Error", description: error?.message || data?.error || "Failed to invite team member", variant: "destructive" });
+      if (error) {
+        toast({ 
+          title: "Failed to Add Team Member", 
+          description: error.message || "Please try again or contact support", 
+          variant: "destructive" 
+        });
         return;
       }
 
@@ -345,8 +353,9 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         onSuccess?.();
         onOpenChange(false);
       }, 1500);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Something went wrong", variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }

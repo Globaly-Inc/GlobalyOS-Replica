@@ -1,10 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logErrorToDatabase } from "@/hooks/useErrorLogger";
-import type { ErrorType } from "@/types/errorLogs";
+import { 
+  getRecentConsoleLogs, 
+  getRecentNetworkRequests, 
+  getBreadcrumbs, 
+  getSessionDuration, 
+  getRouteHistory, 
+  getPerformanceMetrics 
+} from "@/lib/errorCapture";
+import type { ErrorType, ErrorSeverity } from "@/types/errorLogs";
 
 // Marker interface for errors that have already been logged to database
 interface LoggedError extends Error {
   __alreadyLoggedToDb?: boolean;
+  code?: string;
+  statusCode?: number;
 }
 
 interface EdgeFunctionResult<T> {
@@ -19,8 +29,57 @@ interface EdgeFunctionOptions {
 }
 
 /**
+ * Get a user-friendly error message based on status code
+ */
+function getUserFriendlyMessage(statusCode: number, originalMessage: string): string {
+  switch (statusCode) {
+    case 401:
+      return "You need to be signed in to perform this action";
+    case 403:
+      if (originalMessage.toLowerCase().includes('admin') || originalMessage.toLowerCase().includes('hr')) {
+        return originalMessage; // Keep specific role messages
+      }
+      return "You don't have permission to perform this action";
+    case 404:
+      return "The requested resource was not found";
+    case 429:
+      return "Too many requests. Please wait a moment and try again";
+    case 500:
+    case 502:
+    case 503:
+      return "Something went wrong on our end. Please try again";
+    default:
+      return originalMessage || "An unexpected error occurred";
+  }
+}
+
+/**
+ * Determine error severity based on HTTP status code
+ */
+function getSeverityFromStatus(statusCode: number): ErrorSeverity {
+  if (statusCode === 401 || statusCode === 403) return 'warning';
+  if (statusCode === 429) return 'warning';
+  if (statusCode >= 500) return 'error';
+  return 'error';
+}
+
+/**
+ * Extract HTTP status code from Supabase error
+ */
+function extractStatusCode(error: { message?: string; status?: number }): number {
+  if (error.status) return error.status;
+  
+  // Try to extract from message
+  const match = error.message?.match(/status[: ]+(\d{3})/i);
+  if (match) return parseInt(match[1], 10);
+  
+  return 500; // Default to server error
+}
+
+/**
  * Invoke an edge function with proper error handling and logging.
  * Automatically extracts meaningful error messages from edge function responses.
+ * All errors are logged to the database with full context for debugging.
  */
 export async function invokeEdgeFunction<T = unknown>(
   functionName: string,
@@ -34,33 +93,53 @@ export async function invokeEdgeFunction<T = unknown>(
 
     // Handle HTTP-level errors (non-2xx status codes)
     if (response.error) {
+      // Extract status code
+      const statusCode = extractStatusCode(response.error);
+      
       // Try to extract a more meaningful message
       let errorMessage = response.error.message;
+      let errorCode: string | undefined;
       
       // Check if the error contains JSON with a more specific message
       if (response.error.message.includes("Edge Function returned a non-2xx status code")) {
         // The actual error might be in the response data
         if (response.data?.error) {
           errorMessage = response.data.error;
+          errorCode = response.data.code;
         } else if (response.data?.message) {
           errorMessage = response.data.message;
         }
       }
 
-      const error = new Error(errorMessage) as LoggedError;
+      const userFriendlyMessage = getUserFriendlyMessage(statusCode, errorMessage);
+      const error = new Error(userFriendlyMessage) as LoggedError;
+      error.code = errorCode;
+      error.statusCode = statusCode;
       
       if (logErrors) {
+        const severity = getSeverityFromStatus(statusCode);
         await logErrorToDatabase({
           errorType: "edge_function" as ErrorType,
-          errorMessage: error.message,
+          severity,
+          errorMessage: errorMessage, // Log original message for debugging
           componentName,
           actionAttempted: actionAttempted || `Invoke ${functionName}`,
           metadata: {
             functionName,
+            statusCode,
+            errorCode,
             originalError: response.error.message,
+            responseData: response.data,
+            userFriendlyMessage,
           },
+          consoleLogs: getRecentConsoleLogs(),
+          networkRequests: getRecentNetworkRequests(),
+          breadcrumbs: getBreadcrumbs(),
+          sessionDurationMs: getSessionDuration(),
+          routeHistory: getRouteHistory(),
+          performanceMetrics: getPerformanceMetrics(),
         });
-        // Mark as already logged to prevent double-logging in showErrorToast
+        // Mark as already logged to prevent double-logging
         error.__alreadyLoggedToDb = true;
       }
       
@@ -69,20 +148,37 @@ export async function invokeEdgeFunction<T = unknown>(
 
     // Handle application-level errors in response body
     if (response.data?.error) {
-      const error = new Error(response.data.error) as LoggedError;
+      const errorMessage = response.data.error;
+      const errorCode = response.data.code;
+      const statusCode = response.data.statusCode || 400;
+      
+      const userFriendlyMessage = getUserFriendlyMessage(statusCode, errorMessage);
+      const error = new Error(userFriendlyMessage) as LoggedError;
+      error.code = errorCode;
+      error.statusCode = statusCode;
       
       if (logErrors) {
+        const severity = getSeverityFromStatus(statusCode);
         await logErrorToDatabase({
           errorType: "edge_function" as ErrorType,
-          errorMessage: error.message,
+          severity,
+          errorMessage: errorMessage,
           componentName,
           actionAttempted: actionAttempted || `Invoke ${functionName}`,
           metadata: {
             functionName,
+            statusCode,
+            errorCode,
             responseData: response.data,
+            userFriendlyMessage,
           },
+          consoleLogs: getRecentConsoleLogs(),
+          networkRequests: getRecentNetworkRequests(),
+          breadcrumbs: getBreadcrumbs(),
+          sessionDurationMs: getSessionDuration(),
+          routeHistory: getRouteHistory(),
+          performanceMetrics: getPerformanceMetrics(),
         });
-        // Mark as already logged to prevent double-logging in showErrorToast
         error.__alreadyLoggedToDb = true;
       }
       
@@ -96,6 +192,7 @@ export async function invokeEdgeFunction<T = unknown>(
     if (logErrors) {
       await logErrorToDatabase({
         errorType: "edge_function" as ErrorType,
+        severity: 'error',
         errorMessage: error.message,
         componentName,
         actionAttempted: actionAttempted || `Invoke ${functionName}`,
@@ -103,8 +200,13 @@ export async function invokeEdgeFunction<T = unknown>(
           functionName,
           rawError: String(err),
         },
+        consoleLogs: getRecentConsoleLogs(),
+        networkRequests: getRecentNetworkRequests(),
+        breadcrumbs: getBreadcrumbs(),
+        sessionDurationMs: getSessionDuration(),
+        routeHistory: getRouteHistory(),
+        performanceMetrics: getPerformanceMetrics(),
       });
-      // Mark as already logged to prevent double-logging in showErrorToast
       error.__alreadyLoggedToDb = true;
     }
     
