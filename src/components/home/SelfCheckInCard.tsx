@@ -8,7 +8,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useCheckInStatus } from "@/services/useAttendance";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { format, differenceInMinutes } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
 
 interface EmployeeSchedule {
@@ -206,9 +206,16 @@ export const SelfCheckInCard = () => {
     if (!effectiveStartTime) return null;
     
     const now = new Date();
-    const [hours, minutes] = effectiveStartTime.split(":").map(Number);
-    const startTime = new Date();
-    startTime.setHours(hours, minutes, 0, 0);
+    
+    // Get today's date in the employee's schedule timezone
+    const todayInTz = formatInTimeZone(now, orgTimezone, 'yyyy-MM-dd');
+    
+    // Parse the time and combine with today's date
+    const [hours, minutes] = effectiveStartTime.split(":");
+    const localStartTimeStr = `${todayInTz}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
+    
+    // Convert from employee's timezone to a proper Date object for comparison
+    const startTime = fromZonedTime(localStartTimeStr, orgTimezone);
 
     if (now <= startTime) return null;
 
