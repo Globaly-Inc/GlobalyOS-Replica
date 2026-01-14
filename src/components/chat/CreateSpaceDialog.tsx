@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useCreateSpace } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { showErrorToast } from "@/lib/errorUtils";
 import { toast } from "sonner";
 import type { ActiveChat } from "@/types/chat";
 import SpaceImagePicker from "./SpaceImagePicker";
@@ -81,8 +82,11 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
       onOpenChange(false);
       toast.success("Space created");
     } catch (error) {
-      console.error("Error creating space:", error);
-      toast.error("Failed to create space");
+      showErrorToast(error, "Failed to create space", {
+        componentName: "CreateSpaceDialog",
+        actionAttempted: "Create space",
+        errorType: "database",
+      });
     }
   };
 
