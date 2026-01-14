@@ -5,6 +5,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   MessageSquarePlus,
   AtSign,
   Star,
@@ -16,21 +32,25 @@ import {
   Settings,
   BellOff,
   FolderCog,
+  MoreVertical,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces, useUnreadCounts, useCreateConversation } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChatConversation, ActiveChat } from "@/types/chat";
+import type { ChatConversation, ActiveChat, ChatSpace } from "@/types/chat";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import GlobalChatSearch from "./GlobalChatSearch";
 import BrowseSpacesDialog from "./BrowseSpacesDialog";
 import FavoritesSection from "./FavoritesSection";
 import ManageSpacesDialog from "./ManageSpacesDialog";
 import type { GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
+import { toast } from "sonner";
 
 interface ChatSidebarProps {
   activeChat: ActiveChat | null;
@@ -46,6 +66,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [browseSpacesOpen, setBrowseSpacesOpen] = useState(false);
   const [manageSpacesOpen, setManageSpacesOpen] = useState(false);
+  const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<ChatSpace | null>(null);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
@@ -55,6 +76,8 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const { isOwner, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const createConversation = useCreateConversation();
+  const archiveSpace = useArchiveSpace();
+  const deleteSpace = useDeleteSpace();
 
   // Fetch online statuses for all conversation participants
   useEffect(() => {
@@ -455,34 +478,79 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                 spaces.map((space) => {
                   const isActive = activeChat?.type === 'space' && activeChat.id === space.id;
                   const hasUnread = (unreadCounts?.spaces[space.id] || 0) > 0;
+                  const canManage = isOwner || isAdmin || 
+                    (space as any).chat_space_members?.some(
+                      (m: any) => m.employee_id === currentEmployee?.id && m.role === 'admin'
+                    );
                   
                   return (
-                    <button
-                      key={space.id}
-                      onClick={() => onSelectChat({ 
-                        type: 'space', 
-                        id: space.id, 
-                        name: space.name 
-                      })}
-                      className={cn(
-                        "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
-                        isActive 
-                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
-                          : "hover:bg-muted/60",
-                        hasUnread && !isActive && "font-semibold text-foreground"
+                    <div key={space.id} className="group relative flex items-center">
+                      <button
+                        onClick={() => onSelectChat({ 
+                          type: 'space', 
+                          id: space.id, 
+                          name: space.name 
+                        })}
+                        className={cn(
+                          "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors pr-8",
+                          isActive 
+                            ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
+                            : "hover:bg-muted/60",
+                          hasUnread && !isActive && "font-semibold text-foreground"
+                        )}
+                      >
+                        <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <span className="truncate flex-1 text-left">{space.name}</span>
+                        {hasUnread && (
+                          <Badge 
+                            variant="destructive" 
+                            className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                          >
+                            {unreadCounts?.spaces[space.id]}
+                          </Badge>
+                        )}
+                      </button>
+                      
+                      {/* Quick Actions - visible on hover for admins */}
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                archiveSpace.mutate(space.id, {
+                                  onSuccess: () => toast.success("Space archived"),
+                                  onError: () => toast.error("Failed to archive space")
+                                });
+                              }}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmSpace(space);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
-                    >
-                      <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <span className="truncate flex-1 text-left">{space.name}</span>
-                      {hasUnread && (
-                        <Badge 
-                          variant="destructive" 
-                          className="h-5 min-w-[20px] px-1.5 text-[10px]"
-                        >
-                          {unreadCounts?.spaces[space.id]}
-                        </Badge>
-                      )}
-                    </button>
+                    </div>
                   );
                 })
               )}
@@ -529,6 +597,41 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           onSelectChat={onSelectChat}
         />
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmSpace} onOpenChange={() => setDeleteConfirmSpace(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteConfirmSpace?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All messages, files, and members will be permanently removed from this space.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmSpace) {
+                  deleteSpace.mutate(deleteConfirmSpace.id, {
+                    onSuccess: () => {
+                      toast.success("Space deleted");
+                      setDeleteConfirmSpace(null);
+                      // If we deleted the active chat, clear selection
+                      if (activeChat?.type === 'space' && activeChat.id === deleteConfirmSpace.id) {
+                        onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' });
+                      }
+                    },
+                    onError: () => toast.error("Failed to delete space")
+                  });
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
