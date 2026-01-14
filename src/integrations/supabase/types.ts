@@ -10908,6 +10908,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_space_member: {
+        Args: { _employee_id: string; _role?: string; _space_id: string }
+        Returns: string
+      }
       admin_exists: { Args: never; Returns: boolean }
       bulk_reassign_direct_reports: {
         Args: {
