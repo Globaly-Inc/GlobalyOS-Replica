@@ -14,6 +14,7 @@ import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -209,8 +210,11 @@ export const AddLeaveForEmployeeDialog = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error("Error adding leave:", error);
-      toast.error(error.message || "Failed to add leave");
+      showErrorToast(error, "Failed to add leave", {
+        componentName: "AddLeaveForEmployeeDialog",
+        actionAttempted: "Add leave for employee",
+        errorType: "database",
+      });
     } finally {
       setLoading(false);
     }

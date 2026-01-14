@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { FileText, Plus, Trash2, Users, Send, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -125,7 +126,11 @@ export const KPITemplatesDialog = ({ children }: KPITemplatesDialogProps) => {
       resetForm();
       setView("list");
     },
-    onError: () => toast.error("Failed to create template"),
+    onError: (error) => showErrorToast(error, "Failed to create template", {
+      componentName: "KPITemplatesDialog",
+      actionAttempted: "Create KPI template",
+      errorType: "database",
+    }),
   });
 
   const updateTemplateMutation = useMutation({
@@ -148,7 +153,11 @@ export const KPITemplatesDialog = ({ children }: KPITemplatesDialogProps) => {
       resetForm();
       setView("list");
     },
-    onError: () => toast.error("Failed to update template"),
+    onError: (error) => showErrorToast(error, "Failed to update template", {
+      componentName: "KPITemplatesDialog",
+      actionAttempted: "Update KPI template",
+      errorType: "database",
+    }),
   });
 
   const deleteTemplateMutation = useMutation({
@@ -160,7 +169,11 @@ export const KPITemplatesDialog = ({ children }: KPITemplatesDialogProps) => {
       queryClient.invalidateQueries({ queryKey: ["kpi-templates"] });
       toast.success("Template deleted");
     },
-    onError: () => toast.error("Failed to delete template"),
+    onError: (error) => showErrorToast(error, "Failed to delete template", {
+      componentName: "KPITemplatesDialog",
+      actionAttempted: "Delete KPI template",
+      errorType: "database",
+    }),
   });
 
   const assignKPIsMutation = useMutation({
@@ -193,7 +206,11 @@ export const KPITemplatesDialog = ({ children }: KPITemplatesDialogProps) => {
       setSelectedTemplate(null);
       setView("list");
     },
-    onError: () => toast.error("Failed to assign KPIs"),
+    onError: (error) => showErrorToast(error, "Failed to assign KPIs", {
+      componentName: "KPITemplatesDialog",
+      actionAttempted: "Assign KPI to employees",
+      errorType: "database",
+    }),
   });
 
   const resetForm = () => {

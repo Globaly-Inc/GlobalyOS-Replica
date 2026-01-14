@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { cn } from "@/lib/utils";
 import { AIKPIAssist } from "@/components/AIKPIAssist";
 
@@ -117,7 +118,11 @@ const ManageKPIsDialog = ({ employeeId, organizationId, employeeRole, department
       resetForm();
       toast.success("KPI added");
     },
-    onError: () => toast.error("Failed to add KPI"),
+    onError: (error) => showErrorToast(error, "Failed to add KPI", {
+      componentName: "ManageKPIsDialog",
+      actionAttempted: "Add KPI",
+      errorType: "database",
+    }),
   });
 
   const updateMutation = useMutation({
@@ -142,7 +147,11 @@ const ManageKPIsDialog = ({ employeeId, organizationId, employeeRole, department
       resetForm();
       toast.success("KPI updated");
     },
-    onError: () => toast.error("Failed to update KPI"),
+    onError: (error) => showErrorToast(error, "Failed to update KPI", {
+      componentName: "ManageKPIsDialog",
+      actionAttempted: "Update KPI",
+      errorType: "database",
+    }),
   });
 
   const deleteMutation = useMutation({
@@ -155,7 +164,11 @@ const ManageKPIsDialog = ({ employeeId, organizationId, employeeRole, department
       queryClient.invalidateQueries({ queryKey: ["kpis", employeeId] });
       toast.success("KPI deleted");
     },
-    onError: () => toast.error("Failed to delete KPI"),
+    onError: (error) => showErrorToast(error, "Failed to delete KPI", {
+      componentName: "ManageKPIsDialog",
+      actionAttempted: "Delete KPI",
+      errorType: "database",
+    }),
   });
 
   const resetForm = () => {

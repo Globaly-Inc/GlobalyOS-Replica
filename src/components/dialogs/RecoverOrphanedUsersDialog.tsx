@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { Loader2, UserPlus, AlertCircle, RefreshCw, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -67,15 +68,21 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       });
 
       if (response.error) {
-        console.error('Error fetching orphaned users:', response.error);
-        toast.error("Failed to fetch orphaned users");
+        showErrorToast(response.error, "Failed to fetch orphaned users", {
+          componentName: "RecoverOrphanedUsersDialog",
+          actionAttempted: "Fetch orphaned users",
+          errorType: "network",
+        });
         return;
       }
 
       setOrphanedUsers(response.data.users || []);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error("Failed to fetch orphaned users");
+      showErrorToast(error, "Failed to fetch orphaned users", {
+        componentName: "RecoverOrphanedUsersDialog",
+        actionAttempted: "Fetch orphaned users",
+        errorType: "network",
+      });
     } finally {
       setLoading(false);
     }
@@ -120,8 +127,11 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       });
 
       if (response.error) {
-        console.error('Recovery error:', response.error);
-        toast.error(response.error.message || "Failed to recover user");
+        showErrorToast(response.error, "Failed to recover user", {
+          componentName: "RecoverOrphanedUsersDialog",
+          actionAttempted: "Recover orphaned user",
+          errorType: "network",
+        });
         return;
       }
 
@@ -130,8 +140,11 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       resetForm();
       fetchOrphanedUsers();
     } catch (error: any) {
-      console.error('Error:', error);
-      toast.error(error.message || "Failed to recover user");
+      showErrorToast(error, "Failed to recover user", {
+        componentName: "RecoverOrphanedUsersDialog",
+        actionAttempted: "Recover orphaned user",
+        errorType: "network",
+      });
     } finally {
       setRecovering(null);
     }
@@ -155,8 +168,11 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       });
 
       if (response.error) {
-        console.error('Delete error:', response.error);
-        toast.error(response.error.message || "Failed to delete user");
+        showErrorToast(response.error, "Failed to delete user", {
+          componentName: "RecoverOrphanedUsersDialog",
+          actionAttempted: "Delete orphaned user",
+          errorType: "network",
+        });
         return;
       }
 
@@ -168,8 +184,11 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       }
       fetchOrphanedUsers();
     } catch (error: any) {
-      console.error('Error:', error);
-      toast.error(error.message || "Failed to delete user");
+      showErrorToast(error, "Failed to delete user", {
+        componentName: "RecoverOrphanedUsersDialog",
+        actionAttempted: "Delete orphaned user",
+        errorType: "network",
+      });
     } finally {
       setDeleting(null);
     }
@@ -212,8 +231,11 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
       resetForm();
       fetchOrphanedUsers();
     } catch (error: any) {
-      console.error('Error:', error);
-      toast.error("Failed to delete all users");
+      showErrorToast(error, "Failed to delete all users", {
+        componentName: "RecoverOrphanedUsersDialog",
+        actionAttempted: "Delete all orphaned users",
+        errorType: "network",
+      });
     } finally {
       setDeletingAll(false);
     }

@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings, Mail, Users, User, Sparkles, Send, LayoutGrid, Plus, Trash2 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -221,8 +222,11 @@ export const AttendanceReportScheduleDialog = ({
       queryClient.invalidateQueries({ queryKey: ["attendance-report-schedule"] });
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error saving schedule:", error);
-      toast.error(error.message || "Failed to save schedule");
+      showErrorToast(error, "Failed to save schedule", {
+        componentName: "AttendanceReportScheduleDialog",
+        actionAttempted: "Save attendance report schedule",
+        errorType: "database",
+      });
     } finally {
       setSaving(false);
     }
@@ -246,8 +250,11 @@ export const AttendanceReportScheduleDialog = ({
       if (error) throw error;
       toast.success("Test report sent! Check your email.");
     } catch (error: any) {
-      console.error("Error sending test report:", error);
-      toast.error(error.message || "Failed to send test report");
+      showErrorToast(error, "Failed to send test report", {
+        componentName: "AttendanceReportScheduleDialog",
+        actionAttempted: "Send test attendance report",
+        errorType: "network",
+      });
     } finally {
       setSendingTest(false);
     }

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface WikiFavorite {
   id: string;
@@ -97,8 +98,11 @@ export const useWikiFavorites = () => {
           toast.success("Added to favorites");
         }
       } catch (error) {
-        console.error("Error toggling favorite:", error);
-        toast.error("Failed to update favorite");
+        showErrorToast(error, "Failed to update favorite", {
+          componentName: "useWikiFavorites",
+          actionAttempted: "Toggle wiki favorite",
+          errorType: "database",
+        });
       }
     },
     [user, currentOrg, favorites]
