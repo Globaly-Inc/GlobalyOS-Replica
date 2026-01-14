@@ -360,10 +360,28 @@ export function getSessionDuration(): number {
 
 // ============= Global Error Handlers =============
 
+/**
+ * Check if an error message is related to ServiceWorker
+ * These errors are expected during network issues (device sleep/wake, offline periods)
+ */
+function isServiceWorkerError(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  return lowerMessage.includes('serviceworker') ||
+         lowerMessage.includes('service worker') ||
+         lowerMessage.includes('sw.js');
+}
+
 function setupGlobalErrorHandlers(): void {
   // Handle uncaught errors
   window.onerror = (message, source, lineno, colno, error) => {
     const errorMessage = typeof message === 'string' ? message : 'Unknown error';
+    
+    // Skip ServiceWorker errors - expected during network issues (device sleep/wake)
+    if (isServiceWorkerError(errorMessage)) {
+      console.debug('[ErrorCapture] Suppressing SW error (expected during network issues)');
+      return;
+    }
+    
     const fingerprint = generateErrorFingerprint('runtime', errorMessage);
     
     if (isDuplicateError(fingerprint)) {
@@ -395,9 +413,9 @@ function setupGlobalErrorHandlers(): void {
         ? reason 
         : 'Unhandled Promise Rejection';
     
-    // Skip ServiceWorker update failures - these are expected during network issues
-    if (errorMessage.includes('ServiceWorker') && (errorMessage.includes('update') || errorMessage.includes('fetch'))) {
-      console.warn('[ErrorCapture] Suppressing SW update error (expected during network issues)');
+    // Skip ServiceWorker errors - expected during network issues (device sleep/wake)
+    if (isServiceWorkerError(errorMessage)) {
+      console.debug('[ErrorCapture] Suppressing SW error (expected during network issues)');
       return;
     }
     
