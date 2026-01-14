@@ -111,7 +111,12 @@ serve(async (req: Request) => {
     if (!roleData || roleData.length === 0) {
       console.log(`User ${user.id} does not have admin or hr role`);
       return new Response(
-        JSON.stringify({ error: 'Admin or HR access required' }),
+        JSON.stringify({ 
+          error: 'You need Admin or HR permissions to add team members. Please contact your administrator.',
+          code: 'ROLE_REQUIRED',
+          requiredRoles: ['admin', 'hr'],
+          statusCode: 403
+        }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

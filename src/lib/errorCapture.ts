@@ -145,6 +145,23 @@ function captureNetworkRequest(request: NetworkRequest): void {
   }
 }
 
+/**
+ * Extract function name from edge function URL
+ */
+function extractFunctionName(url: string): string | null {
+  const match = url.match(/\/functions\/v1\/([^/?]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Determine error severity based on HTTP status code
+ */
+function getSeverityFromStatus(status: number): 'warning' | 'error' {
+  if (status === 401 || status === 403) return 'warning';
+  if (status >= 500) return 'error';
+  return 'error';
+}
+
 function interceptFetch(): void {
   originalFetch = window.fetch;
   
@@ -155,15 +172,64 @@ function interceptFetch(): void {
     
     try {
       const response = await originalFetch(input, init);
+      const duration = Math.round(performance.now() - startTime);
       
       captureNetworkRequest({
         timestamp: new Date().toISOString(),
         url,
         method,
         status: response.status,
-        duration: Math.round(performance.now() - startTime),
+        duration,
         success: response.ok,
       });
+      
+      // Auto-detect and log edge function errors
+      const isEdgeFunction = url.includes('/functions/v1/');
+      if (isEdgeFunction && !response.ok) {
+        const functionName = extractFunctionName(url);
+        const severity = getSeverityFromStatus(response.status);
+        
+        // Clone response to read body without consuming it
+        const clonedResponse = response.clone();
+        let errorMessage = `Edge function ${functionName || 'unknown'} failed with status ${response.status}`;
+        let errorDetails: Record<string, unknown> = {};
+        
+        try {
+          const responseBody = await clonedResponse.json();
+          if (responseBody?.error) {
+            errorMessage = responseBody.error;
+            errorDetails = responseBody;
+          }
+        } catch {
+          // Response is not JSON, use default message
+        }
+        
+        const fingerprint = generateErrorFingerprint('edge_function', errorMessage, functionName || undefined);
+        
+        if (!isDuplicateError(fingerprint)) {
+          logErrorToDatabase({
+            errorType: 'edge_function',
+            severity,
+            errorMessage,
+            componentName: functionName || undefined,
+            actionAttempted: `${method} ${functionName || url}`,
+            metadata: {
+              functionName,
+              status: response.status,
+              duration,
+              method,
+              url,
+              ...errorDetails,
+            },
+            consoleLogs: getRecentConsoleLogs(),
+            networkRequests: getRecentNetworkRequests(),
+            breadcrumbs: getBreadcrumbs(),
+            sessionDurationMs: getSessionDuration(),
+            routeHistory: getRouteHistory(),
+            performanceMetrics: getPerformanceMetrics(),
+          });
+        }
+      }
       
       return response;
     } catch (error) {
