@@ -200,3 +200,6 @@ verify_jwt = false
 
 [functions.test-error-scenario]
 verify_jwt = false
+
+[functions.initialize-yearly-leave-balances]
+verify_jwt = false
