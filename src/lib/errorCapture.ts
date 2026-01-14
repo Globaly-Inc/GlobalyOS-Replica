@@ -162,6 +162,21 @@ function getSeverityFromStatus(status: number): 'warning' | 'error' {
   return 'error';
 }
 
+/**
+ * Check if URL is a Supabase REST API call
+ */
+function isSupabaseRestApi(url: string): boolean {
+  return url.includes('/rest/v1/');
+}
+
+/**
+ * Extract table name from Supabase REST API URL
+ */
+function extractTableName(url: string): string | null {
+  const match = url.match(/\/rest\/v1\/([^/?]+)/);
+  return match ? match[1] : null;
+}
+
 function interceptFetch(): void {
   originalFetch = window.fetch;
   
@@ -183,8 +198,10 @@ function interceptFetch(): void {
         success: response.ok,
       });
       
-      // Auto-detect and log edge function errors
       const isEdgeFunction = url.includes('/functions/v1/');
+      const isSupabaseRest = isSupabaseRestApi(url);
+      
+      // Auto-detect and log edge function errors
       if (isEdgeFunction && !response.ok) {
         const functionName = extractFunctionName(url);
         const severity = getSeverityFromStatus(response.status);
@@ -215,6 +232,56 @@ function interceptFetch(): void {
             actionAttempted: `${method} ${functionName || url}`,
             metadata: {
               functionName,
+              status: response.status,
+              duration,
+              method,
+              url,
+              ...errorDetails,
+            },
+            consoleLogs: getRecentConsoleLogs(),
+            networkRequests: getRecentNetworkRequests(),
+            breadcrumbs: getBreadcrumbs(),
+            sessionDurationMs: getSessionDuration(),
+            routeHistory: getRouteHistory(),
+            performanceMetrics: getPerformanceMetrics(),
+          });
+        }
+      }
+      
+      // Auto-detect and log Supabase REST API errors (direct database operations)
+      if (isSupabaseRest && !response.ok) {
+        const tableName = extractTableName(url);
+        const severity = getSeverityFromStatus(response.status);
+        
+        // Clone response to read body without consuming it
+        const clonedResponse = response.clone();
+        let errorMessage = `Database operation on ${tableName || 'unknown'} failed with status ${response.status}`;
+        let errorDetails: Record<string, unknown> = {};
+        
+        try {
+          const responseBody = await clonedResponse.json();
+          if (responseBody?.message) {
+            errorMessage = responseBody.message;
+            errorDetails = responseBody;
+          } else if (responseBody?.error) {
+            errorMessage = responseBody.error;
+            errorDetails = responseBody;
+          }
+        } catch {
+          // Response is not JSON, use default message
+        }
+        
+        const fingerprint = generateErrorFingerprint('database', errorMessage, tableName || undefined, `${method} ${tableName}`);
+        
+        if (!isDuplicateError(fingerprint)) {
+          logErrorToDatabase({
+            errorType: 'database',
+            severity,
+            errorMessage,
+            componentName: tableName || undefined,
+            actionAttempted: `${method} ${tableName || url}`,
+            metadata: {
+              tableName,
               status: response.status,
               duration,
               method,

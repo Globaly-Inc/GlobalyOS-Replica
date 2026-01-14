@@ -24,6 +24,7 @@ import {
 import { Loader2, Trash2, Users, Megaphone } from "lucide-react";
 import { useSpace, useUpdateSpace, useDeleteSpace } from "@/services/useChat";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface SpaceSettingsDialogProps {
   open: boolean;
@@ -70,7 +71,11 @@ const SpaceSettingsDialog = ({
       toast.success("Space settings updated");
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to update space settings");
+      showErrorToast(error, "Failed to update space settings", {
+        componentName: "SpaceSettingsDialog",
+        actionAttempted: "Update space settings",
+        errorType: "database",
+      });
     }
   };
 
@@ -81,7 +86,11 @@ const SpaceSettingsDialog = ({
       onOpenChange(false);
       onDeleted?.();
     } catch (error) {
-      toast.error("Failed to delete space");
+      showErrorToast(error, "Failed to delete space", {
+        componentName: "SpaceSettingsDialog",
+        actionAttempted: "Delete space",
+        errorType: "database",
+      });
     }
   };
 
