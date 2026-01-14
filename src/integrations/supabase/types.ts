@@ -11205,6 +11205,12 @@ export type Database = {
         }[]
       }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
+      get_user_space_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          space_id: string
+        }[]
+      }
       get_wiki_folder_contents_count: {
         Args: { _folder_id: string }
         Returns: {
