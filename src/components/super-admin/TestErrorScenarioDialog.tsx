@@ -380,8 +380,11 @@ ${testResult.error ? `Error: ${testResult.error}` : ''}
 
         <DialogFooter>
           {testResult && (
-            <Button variant="outline" onClick={handleMarkAsVerified}>
-              Add Verification Notes
+            <Button 
+              variant={testResult.success ? "default" : "outline"} 
+              onClick={handleMarkAsVerified}
+            >
+              {testResult.success ? 'Resolve Error' : 'Add Verification Notes'}
             </Button>
           )}
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

@@ -137,9 +137,33 @@ const SuperAdminErrorLogDetail = () => {
     setNotes(prev => prev ? `${prev}\n\n---\n\nAI Analysis:\n${text}` : `AI Analysis:\n${text}`);
   };
 
-  const handleVerificationComplete = (verified: boolean, verificationNotes: string) => {
-    setNotes(prev => prev ? `${prev}\n\n${verificationNotes}` : verificationNotes);
-    setHasChanges(true);
+  const handleVerificationComplete = async (verified: boolean, verificationNotes: string) => {
+    const updatedNotes = notes ? `${notes}\n\n${verificationNotes}` : verificationNotes;
+    
+    if (verified) {
+      // Test passed - auto-resolve and save
+      try {
+        await updateStatus.mutateAsync({
+          id: log.id,
+          status: 'resolved',
+          resolutionNotes: updatedNotes,
+        });
+        setStatus('resolved');
+        setNotes(updatedNotes);
+        setHasChanges(false);
+        toast.success('Test passed - Error automatically marked as resolved');
+      } catch (error) {
+        toast.error('Failed to auto-resolve error');
+        // Still update local state so user can save manually
+        setNotes(updatedNotes);
+        setHasChanges(true);
+      }
+    } else {
+      // Test failed - just update notes, let user decide status
+      setNotes(updatedNotes);
+      setHasChanges(true);
+      toast.info('Test failed - review and update status manually');
+    }
   };
 
   if (isLoading) {
@@ -564,16 +588,13 @@ const SuperAdminErrorLogDetail = () => {
                   variant="outline"
                   onClick={() => setTestDialogOpen(true)}
                   className="w-full"
-                  disabled={status !== 'resolved'}
                 >
                   <FlaskConical className="h-4 w-4 mr-2" />
                   Test Error Scenario
                 </Button>
-                {status !== 'resolved' && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Mark as resolved to enable testing
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Test will auto-resolve the error if passed
+                </p>
               </CardContent>
             </Card>
 
