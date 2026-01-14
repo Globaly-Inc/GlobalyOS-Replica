@@ -408,7 +408,7 @@ const OrgLeaveHistory = () => {
           )
         `)
         .eq("organization_id", currentOrg.id)
-        .in("action", ["manual_adjustment", "year_init", "year_allocation", "carry_forward_in", "carry_forward_out"])
+        .in("action", ["manual_adjustment", "year_init", "year_allocation", "carry_forward_in", "carry_forward_out", "balance_deleted", "proration_adjustment"])
         .gte("effective_date", startOfRange)
         .lte("effective_date", endOfRange)
         .order("effective_date", { ascending: false });
@@ -466,7 +466,7 @@ const OrgLeaveHistory = () => {
       // logsData now contains both manual_adjustment and system (init/carry-forward) entries
       const adjustmentTransactions: LeaveTransaction[] = (logsData || []).map((l: any) => {
         // System actions that should be classified as 'auto'
-        const systemActions = ['year_init', 'year_allocation', 'carry_forward_in', 'carry_forward_out'];
+        const systemActions = ['year_init', 'year_allocation', 'carry_forward_in', 'carry_forward_out', 'balance_deleted', 'proration_adjustment'];
         const isSystemAction = systemActions.includes(l.action);
         
         return {
