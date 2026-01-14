@@ -16,6 +16,7 @@ import { useTeamFilters } from "@/hooks/useTeamFilters";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { InviteTeamMemberDialog } from "@/components/dialogs/InviteTeamMemberDialog";
+import { QuickInviteDialog } from "@/components/dialogs/QuickInviteDialog";
 import { RecoverOrphanedUsersDialog } from "@/components/dialogs/RecoverOrphanedUsersDialog";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +103,7 @@ const Team = () => {
   const [loading, setLoading] = useState(true);
   
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [quickInviteDialogOpen, setQuickInviteDialogOpen] = useState(false);
   const [recoverDialogOpen, setRecoverDialogOpen] = useState(false);
   const { isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
@@ -499,9 +501,14 @@ const Team = () => {
                 <Upload className="h-4 w-4" />
                 Bulk Import
               </Button>
-              <Button onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2 tour-add-team-member">
+              <Button onClick={() => setQuickInviteDialogOpen(true)} className="gap-2 tour-add-team-member">
                 <UserPlus className="h-4 w-4" />
-                Add Team Member
+                <span className="hidden sm:inline">Invite Team Member</span>
+                <span className="sm:hidden">Invite</span>
+              </Button>
+              <Button variant="outline" onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2">
+                <UserCog className="h-4 w-4" />
+                Add with Details
               </Button>
             </>
           )}
@@ -790,6 +797,12 @@ const Team = () => {
         )}
       </div>
 
+
+      <QuickInviteDialog
+        open={quickInviteDialogOpen}
+        onOpenChange={setQuickInviteDialogOpen}
+        onSuccess={loadEmployees}
+      />
 
       <InviteTeamMemberDialog
         open={inviteDialogOpen}
