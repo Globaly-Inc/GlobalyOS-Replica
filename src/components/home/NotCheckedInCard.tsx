@@ -70,6 +70,41 @@ export const NotCheckedInCard = () => {
       // Use organization's local date for consistency
       const today = formatInTimeZone(new Date(), timezone, 'yyyy-MM-dd');
 
+      // Get today's holidays (both global and office-specific)
+      const { data: holidaysToday } = await supabase
+        .from('calendar_events')
+        .select(`
+          id,
+          title,
+          applies_to_all_offices,
+          calendar_event_offices(office_id)
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('event_type', 'holiday')
+        .lte('start_date', today)
+        .gte('end_date', today);
+
+      // Build a set of office IDs that are on holiday today
+      const holidayOfficeIds = new Set<string>();
+      let isOrgWideHoliday = false;
+
+      (holidaysToday || []).forEach(holiday => {
+        if (holiday.applies_to_all_offices) {
+          isOrgWideHoliday = true;
+        } else {
+          holiday.calendar_event_offices?.forEach((ceo: { office_id: string }) => {
+            holidayOfficeIds.add(ceo.office_id);
+          });
+        }
+      });
+
+      // If org-wide holiday, no one should be flagged as not checked in
+      if (isOrgWideHoliday) {
+        setNotCheckedIn([]);
+        setLoading(false);
+        return;
+      }
+
       // Get active employees WITH a schedule (inner join)
       const { data: employeesWithSchedule, error: empError } = await supabase
         .from('employees')
@@ -77,6 +112,7 @@ export const NotCheckedInCard = () => {
           id,
           position,
           checkin_exempt,
+          office_id,
           profiles:profiles!inner(full_name, avatar_url),
           employee_schedules!inner(
             work_start_time,
@@ -142,6 +178,11 @@ export const NotCheckedInCard = () => {
       const filtered = (employeesWithSchedule || []).filter(emp => {
         // Already checked in - exclude
         if (checkedInIds.has(emp.id)) {
+          return false;
+        }
+
+        // Employee's office is on holiday today - exclude
+        if (emp.office_id && holidayOfficeIds.has(emp.office_id)) {
           return false;
         }
 
