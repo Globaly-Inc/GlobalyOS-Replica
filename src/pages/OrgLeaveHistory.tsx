@@ -43,7 +43,7 @@ import { LeaveHistoryPendingTab } from "@/components/leave/LeaveHistoryPendingTa
 import { AddLeaveForEmployeeDialog } from "@/components/dialogs/AddLeaveForEmployeeDialog";
 import { useLeaveHistoryFilters, DATE_RANGE_OPTIONS, DateRangeOption, getPreviousPeriodRange, getComparisonLabel, getDateRangeDisplayLabel } from "@/hooks/useLeaveHistoryFilters";
 import { useEmployees } from "@/services/useEmployees";
-import { InitializeYearBalancesButton } from "@/components/leave/InitializeYearBalancesButton";
+
 
 type LeaveHistoryTab = 'analytics' | 'records' | 'pending';
 
@@ -886,13 +886,6 @@ const OrgLeaveHistory = () => {
 
   return (
     <div className="space-y-6 pt-4 md:pt-6">
-      {/* Year Balance Initialization Banner (for admins) */}
-      {canEditAll && (
-        <InitializeYearBalancesButton
-          year={new Date().getFullYear()}
-          onComplete={loadData}
-        />
-      )}
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
