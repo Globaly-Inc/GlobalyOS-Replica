@@ -653,10 +653,30 @@ export const useCreateSpace = () => {
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
+      // Pre-validate: verify the employee is active in this organization
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: verifyEmployee, error: verifyError } = await supabase
+        .from('employees')
+        .select('id, status')
+        .eq('user_id', user?.id)
+        .eq('organization_id', currentOrg.id)
+        .single();
+
+      if (verifyError || !verifyEmployee) {
+        throw new Error('Your employee profile was not found in this organization');
+      }
+      
+      if (verifyEmployee.status !== 'active') {
+        throw new Error('Your employee profile is not active in this organization');
+      }
+
+      // Ensure we're using the correct employee ID from the verification
+      const employeeId = verifyEmployee.id;
+
       // Determine access_type based on access_scope
       const accessType = accessScope === 'company' ? 'public' : 'private';
 
-      // Create space
+      // Create space using the verified employee ID
       const { data: space, error: spaceError } = await supabase
         .from('chat_spaces')
         .insert({
@@ -667,7 +687,7 @@ export const useCreateSpace = () => {
           space_type: spaceType,
           access_type: accessType,
           access_scope: accessScope,
-          created_by: currentEmployee.id
+          created_by: employeeId
         })
         .select()
         .single();
@@ -679,7 +699,7 @@ export const useCreateSpace = () => {
         .from('chat_space_members')
         .insert({
           space_id: space.id,
-          employee_id: currentEmployee.id,
+          employee_id: employeeId,
           organization_id: currentOrg.id,
           role: 'admin'
         });
