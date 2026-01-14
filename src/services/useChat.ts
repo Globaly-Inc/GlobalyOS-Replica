@@ -701,7 +701,7 @@ export const useCreateSpace = () => {
 
       if (spaceError) throw spaceError;
 
-      // Add creator as admin
+      // Add creator as admin with rollback on failure
       const { error: memberError } = await supabase
         .from('chat_space_members')
         .insert({
@@ -711,7 +711,11 @@ export const useCreateSpace = () => {
           role: 'admin'
         });
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        // Rollback: delete the orphan space to prevent duplicates
+        await supabase.from('chat_spaces').delete().eq('id', space.id);
+        throw new Error(`Failed to add creator as member: ${memberError.message}`);
+      }
 
       // Add office associations if office-wise access
       if (accessScope === 'offices' && officeIds && officeIds.length > 0) {
