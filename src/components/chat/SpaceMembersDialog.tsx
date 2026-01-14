@@ -20,6 +20,7 @@ import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2 } from "lucide-
 import { useSpaceMembers, useUpdateSpaceMemberRole, useRemoveSpaceMember } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import type { ChatSpaceMember } from "@/types/chat";
 
 interface SpaceMembersDialogProps {
@@ -69,7 +70,11 @@ const SpaceMembersDialog = ({
       });
       toast.success(`${member.employee?.profiles?.full_name} is now an admin`);
     } catch (error) {
-      toast.error("Failed to promote member");
+      showErrorToast(error, "Failed to promote member", {
+        componentName: "SpaceMembersDialog",
+        actionAttempted: "Promote space member",
+        errorType: "database",
+      });
     }
   };
 
@@ -82,7 +87,11 @@ const SpaceMembersDialog = ({
       });
       toast.success(`${member.employee?.profiles?.full_name} is now a member`);
     } catch (error) {
-      toast.error("Failed to demote member");
+      showErrorToast(error, "Failed to demote member", {
+        componentName: "SpaceMembersDialog",
+        actionAttempted: "Demote space member",
+        errorType: "database",
+      });
     }
   };
 
@@ -94,7 +103,11 @@ const SpaceMembersDialog = ({
       });
       toast.success(`${member.employee?.profiles?.full_name} has been removed`);
     } catch (error) {
-      toast.error("Failed to remove member");
+      showErrorToast(error, "Failed to remove member", {
+        componentName: "SpaceMembersDialog",
+        actionAttempted: "Remove space member",
+        errorType: "database",
+      });
     }
   };
 

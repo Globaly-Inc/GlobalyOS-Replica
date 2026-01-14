@@ -68,6 +68,7 @@ import EditGroupChatDialog from "./EditGroupChatDialog";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface OtherParticipant {
   id: string;
@@ -203,14 +204,22 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
 
   // Handle leave conversation/space
   const handleLeave = async () => {
-    if (conversationId) {
-      await leaveConversation.mutateAsync(conversationId);
-      onBack();
-    } else if (spaceId) {
-      await leaveSpace.mutateAsync(spaceId);
-      onBack();
+    try {
+      if (conversationId) {
+        await leaveConversation.mutateAsync(conversationId);
+        onBack();
+      } else if (spaceId) {
+        await leaveSpace.mutateAsync(spaceId);
+        onBack();
+      }
+      setShowLeaveConfirm(false);
+    } catch (error) {
+      showErrorToast(error, "Failed to leave chat", {
+        componentName: "ConversationView",
+        actionAttempted: activeChat.type === 'space' ? "Leave space" : "Leave conversation",
+        errorType: "database",
+      });
     }
-    setShowLeaveConfirm(false);
   };
 
   const handleFilesDropped = useCallback((files: File[]) => {

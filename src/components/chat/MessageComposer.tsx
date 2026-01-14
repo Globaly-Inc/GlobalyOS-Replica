@@ -33,6 +33,7 @@ import { useSendMessage, useTypingIndicator, useSaveMentions } from "@/services/
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import UploadProgress, { UploadingFile } from "./UploadProgress";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -264,8 +265,11 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       setUploadingFiles([]);
       setMentionedMembers([]);
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      showErrorToast(error, "Failed to send message", {
+        componentName: "MessageComposer",
+        actionAttempted: "Send message",
+        errorType: "database",
+      });
     } finally {
       setIsUploading(false);
     }

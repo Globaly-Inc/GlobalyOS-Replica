@@ -16,6 +16,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface AddSpaceMembersDialogProps {
   open: boolean;
@@ -112,7 +113,11 @@ const AddSpaceMembersDialog = ({
       setSearch("");
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to add members");
+      showErrorToast(error, "Failed to add members", {
+        componentName: "AddSpaceMembersDialog",
+        actionAttempted: "Add space members",
+        errorType: "database",
+      });
     }
   };
 

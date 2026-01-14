@@ -4,6 +4,7 @@ import { Camera, Loader2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface SpaceImagePickerProps {
   value: string | null;
@@ -48,8 +49,11 @@ const SpaceImagePicker = ({ value, onChange }: SpaceImagePickerProps) => {
 
       onChange(publicUrl);
     } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Failed to upload image");
+      showErrorToast(error, "Failed to upload image", {
+        componentName: "SpaceImagePicker",
+        actionAttempted: "Upload space icon",
+        errorType: "network",
+      });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

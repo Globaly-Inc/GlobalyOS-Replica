@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Hash, Users, Lock, Globe } from "lucide-react";
 import { usePublicSpaces, useJoinSpace } from "@/services/useChat";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import type { ActiveChat, ChatSpace } from "@/types/chat";
 
 interface BrowseSpacesDialogProps {
@@ -41,7 +42,11 @@ const BrowseSpacesDialog = ({ open, onOpenChange, onSpaceJoined }: BrowseSpacesD
       });
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to join space");
+      showErrorToast(error, "Failed to join space", {
+        componentName: "BrowseSpacesDialog",
+        actionAttempted: "Join space",
+        errorType: "database",
+      });
     }
   };
 

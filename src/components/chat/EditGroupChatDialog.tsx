@@ -17,6 +17,7 @@ import { useEmployees } from "@/services/useEmployees";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -138,8 +139,11 @@ const EditGroupChatDialog = ({
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       toast.success("Member added");
     } catch (error) {
-      console.error("Error adding member:", error);
-      toast.error("Failed to add member");
+      showErrorToast(error, "Failed to add member", {
+        componentName: "EditGroupChatDialog",
+        actionAttempted: "Add group member",
+        errorType: "database",
+      });
     } finally {
       setAddingMember(null);
     }
@@ -161,8 +165,11 @@ const EditGroupChatDialog = ({
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       toast.success("Member removed");
     } catch (error) {
-      console.error("Error removing member:", error);
-      toast.error("Failed to remove member");
+      showErrorToast(error, "Failed to remove member", {
+        componentName: "EditGroupChatDialog",
+        actionAttempted: "Remove group member",
+        errorType: "database",
+      });
     } finally {
       setRemovingMember(null);
     }
@@ -205,8 +212,11 @@ const EditGroupChatDialog = ({
       onOpenChange(false);
       toast.success("Group updated");
     } catch (error) {
-      console.error("Error updating group:", error);
-      toast.error("Failed to update group");
+      showErrorToast(error, "Failed to update group", {
+        componentName: "EditGroupChatDialog",
+        actionAttempted: "Update group chat",
+        errorType: "database",
+      });
     } finally {
       setIsUploading(false);
     }

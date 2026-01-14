@@ -17,6 +17,7 @@ import { useCreateConversation } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import type { ActiveChat } from "@/types/chat";
 
 interface NewChatDialogProps {
@@ -176,8 +177,11 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
       onOpenChange(false);
       toast.success("Chat created");
     } catch (error) {
-      console.error("Error creating chat:", error);
-      toast.error("Failed to create chat");
+      showErrorToast(error, "Failed to create chat", {
+        componentName: "NewChatDialog",
+        actionAttempted: "Create chat",
+        errorType: "database",
+      });
     } finally {
       setIsUploading(false);
     }
