@@ -10958,27 +10958,16 @@ export type Database = {
         Args: { _folder_id?: string; _organization_id: string; _title?: string }
         Returns: string
       }
-      create_workflow_from_template:
-        | {
-            Args: {
-              p_created_by?: string
-              p_employee_id: string
-              p_organization_id: string
-              p_target_date: string
-              p_workflow_type: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_created_by?: string
-              p_employee_id: string
-              p_organization_id: string
-              p_target_date: string
-              p_workflow_type: string
-            }
-            Returns: string
-          }
+      create_workflow_from_template: {
+        Args: {
+          p_created_by?: string
+          p_employee_id: string
+          p_organization_id: string
+          p_target_date: string
+          p_workflow_type: string
+        }
+        Returns: string
+      }
       debug_can_insert_post: {
         Args: {
           _employee_id: string
