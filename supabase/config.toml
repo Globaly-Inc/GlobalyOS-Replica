@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.analyze-error]
 verify_jwt = false
+
+[functions.test-error-scenario]
+verify_jwt = false
