@@ -10889,6 +10889,31 @@ export type Database = {
     }
     Functions: {
       admin_exists: { Args: never; Returns: boolean }
+      bulk_reassign_direct_reports: {
+        Args: {
+          p_employee_ids: string[]
+          p_new_manager_id: string
+          p_organization_id: string
+        }
+        Returns: boolean
+      }
+      bulk_reassign_tasks: {
+        Args: {
+          p_new_assignee_id: string
+          p_organization_id: string
+          p_task_ids: string[]
+        }
+        Returns: boolean
+      }
+      bulk_transfer_wiki_items: {
+        Args: {
+          p_folder_ids: string[]
+          p_new_owner_id: string
+          p_organization_id: string
+          p_page_ids: string[]
+        }
+        Returns: boolean
+      }
       calculate_kpi_rollup: { Args: { parent_id: string }; Returns: number }
       calculate_prorated_leave_monthly: {
         Args: {
@@ -11102,6 +11127,10 @@ export type Database = {
               emp_user_id: string
             }[]
           }
+      get_employee_offboard_data: {
+        Args: { p_employee_id: string; p_organization_id: string }
+        Returns: Json
+      }
       get_organization_usage:
         | {
             Args: { _billing_period?: string; _organization_id: string }

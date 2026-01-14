@@ -38,16 +38,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if requesting user is admin
-    const { data: adminRole } = await supabase
+    // Check if requesting user has admin-level access (owner, admin, hr, or super_admin)
+    const { data: userRole } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id)
-      .eq("role", "admin")
-      .single();
+      .in("role", ["owner", "admin", "hr", "super_admin"])
+      .maybeSingle();
 
-    if (!adminRole) {
-      return new Response(JSON.stringify({ error: "Only admins can delete team members" }), {
+    if (!userRole) {
+      return new Response(JSON.stringify({ 
+        error: "Only Owner, Admin, or HR can delete team members",
+        code: "ROLE_REQUIRED"
+      }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
