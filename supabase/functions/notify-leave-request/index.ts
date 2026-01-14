@@ -134,12 +134,12 @@ serve(async (req: Request) => {
       console.error("Error fetching employee:", empError);
     }
 
-    // Get HR users in the organization
+    // Get Owner, Admin, and HR users in the organization
     const { data: hrUsers, error: hrError } = await supabaseClient
       .from("user_roles")
       .select("user_id")
       .eq("organization_id", organization_id)
-      .in("role", ["hr", "admin"]);
+      .in("role", ["owner", "admin", "hr"]);
 
     if (hrError) {
       console.error("Error fetching HR users:", hrError);

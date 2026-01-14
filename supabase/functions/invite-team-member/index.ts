@@ -101,20 +101,20 @@ serve(async (req: Request) => {
       );
     }
 
-    // Verify user has HR or admin role
+    // Verify user has Owner, Admin, or HR role
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .in('role', ['admin', 'hr']);
+      .in('role', ['owner', 'admin', 'hr']);
 
     if (!roleData || roleData.length === 0) {
-      console.log(`User ${user.id} does not have admin or hr role`);
+      console.log(`User ${user.id} does not have owner, admin, or hr role`);
       return new Response(
         JSON.stringify({ 
-          error: 'You need Admin or HR permissions to add team members. Please contact your administrator.',
+          error: 'You need Owner, Admin, or HR permissions to add team members. Please contact your administrator.',
           code: 'ROLE_REQUIRED',
-          requiredRoles: ['admin', 'hr'],
+          requiredRoles: ['owner', 'admin', 'hr'],
           statusCode: 403
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
