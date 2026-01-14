@@ -6,11 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { TeamMemberOffboardTransferDialog } from "./TeamMemberOffboardTransferDialog";
 
 interface EditStatusDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employeeId: string;
+  employeeName?: string;
   currentStatus: string;
   onSuccess: () => void;
 }
@@ -24,17 +26,29 @@ const STATUS_OPTIONS = [
 export function EditStatusDialog({ 
   open, 
   onOpenChange, 
-  employeeId, 
+  employeeId,
+  employeeName = "this employee",
   currentStatus, 
   onSuccess 
 }: EditStatusDialogProps) {
   const [status, setStatus] = useState(currentStatus);
   const [saving, setSaving] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
   const { toast } = useToast();
 
   const handleSave = async () => {
     if (!status) return;
     
+    // If changing to inactive, show transfer wizard first
+    if (status === 'inactive' && currentStatus !== 'inactive') {
+      setShowTransferDialog(true);
+      return;
+    }
+    
+    await performStatusChange();
+  };
+
+  const performStatusChange = async () => {
     setSaving(true);
     try {
       const { error } = await supabase
@@ -62,50 +76,72 @@ export function EditStatusDialog({
     }
   };
 
+  const handleTransferComplete = () => {
+    // After transfer wizard completes, perform the status change
+    performStatusChange();
+  };
+
+  const handleTransferSkip = () => {
+    // User chose to skip transfers, proceed with status change
+    performStatusChange();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Change Employee Status</DialogTitle>
-          <DialogDescription>
-            Update the employment status for this team member.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Employee Status</DialogTitle>
+            <DialogDescription>
+              Update the employment status for this team member.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving || status === currentStatus}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving || status === currentStatus}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <TeamMemberOffboardTransferDialog
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        employeeId={employeeId}
+        employeeName={employeeName}
+        mode="deactivate"
+        onComplete={handleTransferComplete}
+        onSkip={handleTransferSkip}
+      />
+    </>
   );
 }
