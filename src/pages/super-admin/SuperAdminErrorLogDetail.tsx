@@ -40,7 +40,8 @@ import {
   Route,
   Sparkles,
   Loader2,
-  Save
+  Save,
+  FlaskConical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ import ErrorResolutionAIDialog from '@/components/super-admin/ErrorResolutionAID
 import ErrorLogPDFExport from '@/components/super-admin/ErrorLogPDFExport';
 import LinkedTicketsCard from '@/components/super-admin/LinkedTicketsCard';
 import LinkErrorToTicketDialog from '@/components/super-admin/LinkErrorToTicketDialog';
+import TestErrorScenarioDialog from '@/components/super-admin/TestErrorScenarioDialog';
 import type { ErrorLogStatus, ErrorSeverity, ConsoleEntry, NetworkRequest, Breadcrumb } from '@/types/errorLogs';
 
 const severityConfig: Record<ErrorSeverity, { label: string; icon: React.ElementType; className: string }> = {
@@ -96,6 +98,7 @@ const SuperAdminErrorLogDetail = () => {
   const [metadataSectionOpen, setMetadataSectionOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [linkTicketDialogOpen, setLinkTicketDialogOpen] = useState(false);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
 
   // Initialize form when log loads
   useEffect(() => {
@@ -132,6 +135,11 @@ const SuperAdminErrorLogDetail = () => {
 
   const handleApplyAIToNotes = (text: string) => {
     setNotes(prev => prev ? `${prev}\n\n---\n\nAI Analysis:\n${text}` : `AI Analysis:\n${text}`);
+  };
+
+  const handleVerificationComplete = (verified: boolean, verificationNotes: string) => {
+    setNotes(prev => prev ? `${prev}\n\n${verificationNotes}` : verificationNotes);
+    setHasChanges(true);
   };
 
   if (isLoading) {
@@ -549,6 +557,23 @@ const SuperAdminErrorLogDetail = () => {
                     </>
                   )}
                 </Button>
+
+                <Separator className="my-4" />
+
+                <Button 
+                  variant="outline"
+                  onClick={() => setTestDialogOpen(true)}
+                  className="w-full"
+                  disabled={status !== 'resolved'}
+                >
+                  <FlaskConical className="h-4 w-4 mr-2" />
+                  Test Error Scenario
+                </Button>
+                {status !== 'resolved' && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Mark as resolved to enable testing
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -595,6 +620,14 @@ const SuperAdminErrorLogDetail = () => {
         log={log}
         open={linkTicketDialogOpen}
         onOpenChange={setLinkTicketDialogOpen}
+      />
+
+      {/* Test Error Scenario Dialog */}
+      <TestErrorScenarioDialog
+        log={log}
+        open={testDialogOpen}
+        onOpenChange={setTestDialogOpen}
+        onVerificationComplete={handleVerificationComplete}
       />
     </SuperAdminLayout>
   );
