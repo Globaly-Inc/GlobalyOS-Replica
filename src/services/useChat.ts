@@ -1241,6 +1241,7 @@ export const useDeleteSpace = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-all-spaces'] });
     },
   });
 };
@@ -1267,6 +1268,7 @@ export const useArchiveSpace = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
       queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-all-spaces'] });
     },
   });
 };
@@ -1290,6 +1292,98 @@ export const useRestoreSpace = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
       queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-all-spaces'] });
+    },
+  });
+};
+
+// Hook for org admins/owners to see ALL spaces in the organization
+export const useAllSpaces = (includeArchived = false) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['chat-all-spaces', currentOrg?.id, includeArchived],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+
+      let query = supabase
+        .from('chat_spaces')
+        .select(`
+          *,
+          chat_space_members (
+            id,
+            employee_id,
+            role
+          ),
+          creator:created_by (
+            id,
+            user_id,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .order('created_at', { ascending: false });
+
+      if (!includeArchived) {
+        query = query.is('archived_at', null);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((space: any) => ({
+        ...space,
+        member_count: space.chat_space_members?.length || 0,
+        creator_name: space.creator?.profiles?.full_name || 'Unknown',
+        creator_avatar: space.creator?.profiles?.avatar_url || null,
+      })) as (ChatSpace & { creator_name: string; creator_avatar: string | null })[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+// Hook to join a space as admin (for org admins/owners viewing spaces they're not members of)
+export const useJoinSpaceAsAdmin = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Check if already a member
+      const { data: existing } = await supabase
+        .from('chat_space_members')
+        .select('id')
+        .eq('space_id', spaceId)
+        .eq('employee_id', currentEmployee.id)
+        .maybeSingle();
+
+      if (existing) {
+        // Already a member, no action needed
+        return { alreadyMember: true };
+      }
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .insert({
+          space_id: spaceId,
+          employee_id: currentEmployee.id,
+          organization_id: currentOrg.id,
+          role: 'admin'
+        });
+
+      if (error) throw error;
+      return { alreadyMember: false };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-all-spaces'] });
     },
   });
 };

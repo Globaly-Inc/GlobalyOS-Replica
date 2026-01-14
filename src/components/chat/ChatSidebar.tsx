@@ -15,11 +15,13 @@ import {
   Plus,
   Settings,
   BellOff,
+  FolderCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConversations, useSpaces, useUnreadCounts, useCreateConversation } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChatConversation, ActiveChat } from "@/types/chat";
@@ -27,6 +29,7 @@ import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import GlobalChatSearch from "./GlobalChatSearch";
 import BrowseSpacesDialog from "./BrowseSpacesDialog";
 import FavoritesSection from "./FavoritesSection";
+import ManageSpacesDialog from "./ManageSpacesDialog";
 import type { GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
 
 interface ChatSidebarProps {
@@ -42,12 +45,14 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [browseSpacesOpen, setBrowseSpacesOpen] = useState(false);
+  const [manageSpacesOpen, setManageSpacesOpen] = useState(false);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
   const { data: unreadCounts } = useUnreadCounts();
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
+  const { isOwner, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const createConversation = useCreateConversation();
 
@@ -491,6 +496,19 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                 <Plus className="h-4 w-4" />
                 Browse spaces
               </Button>
+
+              {/* Manage All Spaces - Only for Owner/Admin */}
+              {(isOwner || isAdmin) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setManageSpacesOpen(true)}
+                >
+                  <FolderCog className="h-4 w-4" />
+                  Manage all spaces
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -502,6 +520,15 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
         onOpenChange={setBrowseSpacesOpen}
         onSpaceJoined={onSelectChat}
       />
+
+      {/* Manage All Spaces Dialog - Owner/Admin only */}
+      {(isOwner || isAdmin) && (
+        <ManageSpacesDialog
+          open={manageSpacesOpen}
+          onOpenChange={setManageSpacesOpen}
+          onSelectChat={onSelectChat}
+        />
+      )}
     </div>
   );
 };
