@@ -72,7 +72,45 @@ Deno.serve(async (req) => {
 
       console.log(`[capture-not-checked-in] Processing org ${org.id} for date ${dateInOrgTz}, day ${dayOfWeek}`);
 
-      // Get all active employees with schedules for this org
+      // Get holidays for this date in this organization
+      const { data: holidaysToday, error: holidayError } = await supabase
+        .from("calendar_events")
+        .select(`
+          id,
+          applies_to_all_offices,
+          calendar_event_offices(office_id)
+        `)
+        .eq("organization_id", org.id)
+        .eq("event_type", "holiday")
+        .lte("start_date", dateInOrgTz)
+        .gte("end_date", dateInOrgTz);
+
+      if (holidayError) {
+        console.error(`[capture-not-checked-in] Error fetching holidays for org ${org.id}:`, holidayError);
+      }
+
+      // Build a set of office IDs that are on holiday today
+      const holidayOfficeIds = new Set<string>();
+      let isOrgWideHoliday = false;
+
+      for (const holiday of holidaysToday || []) {
+        if (holiday.applies_to_all_offices) {
+          isOrgWideHoliday = true;
+          break;
+        } else {
+          for (const ceo of holiday.calendar_event_offices || []) {
+            holidayOfficeIds.add(ceo.office_id);
+          }
+        }
+      }
+
+      // Skip this org entirely if it's an org-wide holiday
+      if (isOrgWideHoliday) {
+        console.log(`[capture-not-checked-in] Org ${org.id} has org-wide holiday on ${dateInOrgTz}, skipping`);
+        continue;
+      }
+
+      // Get all active employees with schedules for this org (including office_id)
       const { data: schedules, error: schedError } = await supabase
         .from("employee_schedules")
         .select(`
@@ -87,7 +125,8 @@ Deno.serve(async (req) => {
           employees!inner (
             id,
             organization_id,
-            status
+            status,
+            office_id
           )
         `)
         .eq("employees.organization_id", org.id)
@@ -163,6 +202,13 @@ Deno.serve(async (req) => {
 
       for (const schedule of employeesScheduledToday) {
         const empId = schedule.employee_id;
+        const employeeData = (schedule as any).employees;
+        const employeeOfficeId = employeeData?.office_id;
+
+        // Skip if employee's office is on holiday today
+        if (employeeOfficeId && holidayOfficeIds.has(employeeOfficeId)) {
+          continue;
+        }
 
         // Skip if on full day leave
         if (fullDayLeaveSet.has(empId)) {
