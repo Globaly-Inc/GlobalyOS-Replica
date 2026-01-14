@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import type {
   Workflow,
   WorkflowTask,
@@ -285,7 +286,11 @@ export const useArchiveWorkflowTask = () => {
       toast.success(variables.isArchived ? "Task archived" : "Task unarchived");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update task");
+      showErrorToast(error, "Failed to update task", {
+        componentName: "useArchiveWorkflowTask",
+        actionAttempted: "Archive/unarchive workflow task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -378,7 +383,11 @@ export const useCompleteWorkflowTask = () => {
       toast.success("Task completed");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to complete task");
+      showErrorToast(error, "Failed to complete task", {
+        componentName: "useCompleteWorkflowTask",
+        actionAttempted: "Complete workflow task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -401,7 +410,11 @@ export const useDeleteWorkflowTask = () => {
       toast.success("Task deleted");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete task");
+      showErrorToast(error, "Failed to delete task", {
+        componentName: "useDeleteWorkflowTask",
+        actionAttempted: "Delete workflow template task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -430,7 +443,11 @@ export const useUpdateWorkflowTemplateTask = () => {
       toast.success("Task updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update task");
+      showErrorToast(error, "Failed to update task", {
+        componentName: "useUpdateWorkflowTemplateTask",
+        actionAttempted: "Update workflow template task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -569,7 +586,11 @@ export const useUpdateWorkflowTask = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update task");
+      showErrorToast(error, "Failed to update task", {
+        componentName: "useUpdateWorkflowTask",
+        actionAttempted: "Update workflow task status",
+        errorType: "database",
+      });
     },
   });
 };
@@ -688,7 +709,11 @@ export const useMoveToNextStage = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to move to next stage");
+      showErrorToast(error, "Failed to move to next stage", {
+        componentName: "useMoveToNextStage",
+        actionAttempted: "Move workflow to next stage",
+        errorType: "database",
+      });
     },
   });
 };
@@ -757,7 +782,11 @@ export const useAddWorkflowTask = () => {
       toast.success("Task added successfully");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add task");
+      showErrorToast(error, "Failed to add task", {
+        componentName: "useAddWorkflowTask",
+        actionAttempted: "Add workflow task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -822,7 +851,11 @@ export const useEditWorkflowTask = () => {
       toast.success("Task updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update task");
+      showErrorToast(error, "Failed to update task", {
+        componentName: "useEditWorkflowTask",
+        actionAttempted: "Edit workflow task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -847,7 +880,11 @@ export const useDeleteEmployeeWorkflowTask = () => {
       toast.success("Task deleted");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete task");
+      showErrorToast(error, "Failed to delete task", {
+        componentName: "useDeleteEmployeeWorkflowTask",
+        actionAttempted: "Delete employee workflow task",
+        errorType: "database",
+      });
     },
   });
 };
@@ -917,7 +954,11 @@ export const useCompleteStage = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to complete stage");
+      showErrorToast(error, "Failed to complete stage", {
+        componentName: "useCompleteStage",
+        actionAttempted: "Complete workflow stage",
+        errorType: "database",
+      });
     },
   });
 };
@@ -965,7 +1006,11 @@ export const useUpdateExitInterview = () => {
       toast.success("Exit interview updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update exit interview");
+      showErrorToast(error, "Failed to update exit interview", {
+        componentName: "useUpdateExitInterview",
+        actionAttempted: "Update exit interview",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1035,7 +1080,11 @@ export const useUpdateAssetHandover = () => {
       toast.success("Asset status updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update asset");
+      showErrorToast(error, "Failed to update asset", {
+        componentName: "useUpdateAssetHandover",
+        actionAttempted: "Update asset handover status",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1079,7 +1128,11 @@ export const useAddAssetHandover = () => {
       toast.success("Asset added");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add asset");
+      showErrorToast(error, "Failed to add asset", {
+        componentName: "useAddAssetHandover",
+        actionAttempted: "Add asset handover",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1145,7 +1198,11 @@ export const useUpdateKnowledgeTransfer = () => {
       toast.success("Knowledge transfer updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update knowledge transfer");
+      showErrorToast(error, "Failed to update knowledge transfer", {
+        componentName: "useUpdateKnowledgeTransfer",
+        actionAttempted: "Update knowledge transfer",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1192,7 +1249,11 @@ export const useAddKnowledgeTransfer = () => {
       toast.success("Knowledge transfer scheduled");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to schedule knowledge transfer");
+      showErrorToast(error, "Failed to schedule knowledge transfer", {
+        componentName: "useAddKnowledgeTransfer",
+        actionAttempted: "Schedule knowledge transfer",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1278,7 +1339,11 @@ export const useUploadTaskAttachment = () => {
       toast.success("Attachment uploaded");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to upload attachment");
+      showErrorToast(error, "Failed to upload attachment", {
+        componentName: "useUploadTaskAttachment",
+        actionAttempted: "Upload task attachment",
+        errorType: "network",
+      });
     },
   });
 };
@@ -1329,7 +1394,11 @@ export const useDeleteTaskAttachment = () => {
       toast.success("Attachment deleted");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete attachment");
+      showErrorToast(error, "Failed to delete attachment", {
+        componentName: "useDeleteTaskAttachment",
+        actionAttempted: "Delete task attachment",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1352,7 +1421,11 @@ export const useUpdateTaskTitle = () => {
       toast.success("Title updated");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update title");
+      showErrorToast(error, "Failed to update title", {
+        componentName: "useUpdateTaskTitle",
+        actionAttempted: "Update task title",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1436,7 +1509,11 @@ export const useAddTaskChecklist = () => {
       queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add checklist item");
+      showErrorToast(error, "Failed to add checklist item", {
+        componentName: "useAddTaskChecklist",
+        actionAttempted: "Add task checklist item",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1498,7 +1575,11 @@ export const useUpdateTaskChecklist = () => {
       queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update checklist item");
+      showErrorToast(error, "Failed to update checklist item", {
+        componentName: "useUpdateTaskChecklist",
+        actionAttempted: "Update task checklist item",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1550,7 +1631,11 @@ export const useDeleteTaskChecklist = () => {
       queryClient.invalidateQueries({ queryKey: ["task-activity-logs", data.taskId] });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete checklist item");
+      showErrorToast(error, "Failed to delete checklist item", {
+        componentName: "useDeleteTaskChecklist",
+        actionAttempted: "Delete task checklist item",
+        errorType: "database",
+      });
     },
   });
 };
@@ -1683,8 +1768,11 @@ export const useCancelWorkflow = () => {
       toast.success("Workflow cancelled successfully");
     },
     onError: (error: Error) => {
-      console.error("Failed to cancel workflow:", error);
-      toast.error("Failed to cancel workflow");
+      showErrorToast(error, "Failed to cancel workflow", {
+        componentName: "useCancelWorkflow",
+        actionAttempted: "Cancel workflow",
+        errorType: "database",
+      });
     }
   });
 };
@@ -1759,8 +1847,11 @@ export const useReactivateWorkflow = () => {
       toast.success("Workflow reactivated successfully");
     },
     onError: (error: Error) => {
-      console.error("Failed to reactivate workflow:", error);
-      toast.error("Failed to reactivate workflow");
+      showErrorToast(error, "Failed to reactivate workflow", {
+        componentName: "useReactivateWorkflow",
+        actionAttempted: "Reactivate workflow",
+        errorType: "database",
+      });
     }
   });
 };
@@ -1783,8 +1874,11 @@ export const useDeleteWorkflow = () => {
       toast.success("Workflow deleted permanently");
     },
     onError: (error: Error) => {
-      console.error("Failed to delete workflow:", error);
-      toast.error("Failed to delete workflow");
+      showErrorToast(error, "Failed to delete workflow", {
+        componentName: "useDeleteWorkflow",
+        actionAttempted: "Delete workflow permanently",
+        errorType: "database",
+      });
     }
   });
 };
@@ -1849,8 +1943,11 @@ export const useCloseApplication = () => {
       toast.success("Application closed successfully");
     },
     onError: (error: Error) => {
-      console.error("Failed to close application:", error);
-      toast.error(error.message || "Failed to close application");
+      showErrorToast(error, "Failed to close application", {
+        componentName: "useCloseApplication",
+        actionAttempted: "Close application",
+        errorType: "database",
+      });
     },
   });
 };

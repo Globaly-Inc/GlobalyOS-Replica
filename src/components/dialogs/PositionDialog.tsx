@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { Plus, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
@@ -269,8 +270,11 @@ export const PositionDialog = ({
         });
         setErrors(fieldErrors);
       } else {
-        console.error("Error saving position:", error);
-        toast.error(error.message || "Failed to save position");
+        showErrorToast(error, "Failed to save position", {
+          componentName: "PositionDialog",
+          actionAttempted: "Save position",
+          errorType: "database",
+        });
       }
     }
   };
@@ -325,8 +329,11 @@ export const PositionDialog = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error("Error saving position:", error);
-      toast.error(error.message || "Failed to save position");
+      showErrorToast(error, "Failed to save position", {
+        componentName: "PositionDialog",
+        actionAttempted: "Save position history entry",
+        errorType: "database",
+      });
     } finally {
       setLoading(false);
     }

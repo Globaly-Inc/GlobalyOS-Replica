@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 export interface EmploymentType {
   id: string;
@@ -81,7 +82,11 @@ export const useCreateEmploymentType = () => {
       toast.success("Employment type created");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to create employment type");
+      showErrorToast(error, "Failed to create employment type", {
+        componentName: "useCreateEmploymentType",
+        actionAttempted: "Create employment type",
+        errorType: "database",
+      });
     },
   });
 };
@@ -111,7 +116,11 @@ export const useUpdateEmploymentType = () => {
       toast.success("Employment type updated");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to update employment type");
+      showErrorToast(error, "Failed to update employment type", {
+        componentName: "useUpdateEmploymentType",
+        actionAttempted: "Update employment type",
+        errorType: "database",
+      });
     },
   });
 };
@@ -133,7 +142,11 @@ export const useDeleteEmploymentType = () => {
       toast.success("Employment type deleted");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to delete employment type");
+      showErrorToast(error, "Failed to delete employment type", {
+        componentName: "useDeleteEmploymentType",
+        actionAttempted: "Delete employment type",
+        errorType: "database",
+      });
     },
   });
 };

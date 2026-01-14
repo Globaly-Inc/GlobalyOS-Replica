@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 interface PushNotificationState {
   isSupported: boolean;
@@ -152,8 +153,11 @@ export const usePushNotifications = () => {
       );
 
       if (error) {
-        console.error("Error saving subscription:", error);
-        toast.error("Failed to save notification subscription");
+        showErrorToast(error, "Failed to save notification subscription", {
+          componentName: "usePushNotifications",
+          actionAttempted: "Save push subscription",
+          errorType: "database",
+        });
         setState((prev) => ({ ...prev, loading: false }));
         return false;
       }
@@ -167,8 +171,11 @@ export const usePushNotifications = () => {
       }));
       return true;
     } catch (error) {
-      console.error("Error subscribing to push notifications:", error);
-      toast.error("Failed to enable push notifications");
+      showErrorToast(error, "Failed to enable push notifications", {
+        componentName: "usePushNotifications",
+        actionAttempted: "Subscribe to push notifications",
+        errorType: "network",
+      });
       setState((prev) => ({ ...prev, loading: false }));
       return false;
     }
@@ -203,8 +210,11 @@ export const usePushNotifications = () => {
       }));
       return true;
     } catch (error) {
-      console.error("Error unsubscribing from push notifications:", error);
-      toast.error("Failed to disable push notifications");
+      showErrorToast(error, "Failed to disable push notifications", {
+        componentName: "usePushNotifications",
+        actionAttempted: "Unsubscribe from push notifications",
+        errorType: "network",
+      });
       setState((prev) => ({ ...prev, loading: false }));
       return false;
     }

@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { useOrganization } from "@/hooks/useOrganization";
 
 interface LeaveAdjustment {
@@ -165,8 +166,11 @@ export const EditLeaveAdjustmentDialog = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error("Error updating leave adjustment:", error);
-      toast.error(error.message || "Failed to update leave adjustment");
+      showErrorToast(error, "Failed to update leave adjustment", {
+        componentName: "EditLeaveAdjustmentDialog",
+        actionAttempted: "Update leave adjustment",
+        errorType: "database",
+      });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 
 export type ParentTaskStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold';
 
@@ -82,7 +83,11 @@ export const useAddWorkflowTaskStatus = () => {
       toast.success("Status added");
     },
     onError: (error) => {
-      toast.error("Failed to add status: " + error.message);
+      showErrorToast(error, "Failed to add status", {
+        componentName: "useAddWorkflowTaskStatus",
+        actionAttempted: "Add workflow task status",
+        errorType: "database",
+      });
     },
   });
 };
@@ -111,7 +116,11 @@ export const useUpdateWorkflowTaskStatus = () => {
       toast.success("Status updated");
     },
     onError: (error) => {
-      toast.error("Failed to update status: " + error.message);
+      showErrorToast(error, "Failed to update status", {
+        componentName: "useUpdateWorkflowTaskStatus",
+        actionAttempted: "Update workflow task status",
+        errorType: "database",
+      });
     },
   });
 };
@@ -133,7 +142,11 @@ export const useDeleteWorkflowTaskStatus = () => {
       toast.success("Status deleted");
     },
     onError: (error) => {
-      toast.error("Failed to delete status: " + error.message);
+      showErrorToast(error, "Failed to delete status", {
+        componentName: "useDeleteWorkflowTaskStatus",
+        actionAttempted: "Delete workflow task status",
+        errorType: "database",
+      });
     },
   });
 };
@@ -188,7 +201,11 @@ export const useAddWorkflowTaskCategory = () => {
       toast.success("Category added");
     },
     onError: (error) => {
-      toast.error("Failed to add category: " + error.message);
+      showErrorToast(error, "Failed to add category", {
+        componentName: "useAddWorkflowTaskCategory",
+        actionAttempted: "Add workflow task category",
+        errorType: "database",
+      });
     },
   });
 };
@@ -217,7 +234,11 @@ export const useUpdateWorkflowTaskCategory = () => {
       toast.success("Category updated");
     },
     onError: (error) => {
-      toast.error("Failed to update category: " + error.message);
+      showErrorToast(error, "Failed to update category", {
+        componentName: "useUpdateWorkflowTaskCategory",
+        actionAttempted: "Update workflow task category",
+        errorType: "database",
+      });
     },
   });
 };
@@ -239,7 +260,11 @@ export const useDeleteWorkflowTaskCategory = () => {
       toast.success("Category deleted");
     },
     onError: (error) => {
-      toast.error("Failed to delete category: " + error.message);
+      showErrorToast(error, "Failed to delete category", {
+        componentName: "useDeleteWorkflowTaskCategory",
+        actionAttempted: "Delete workflow task category",
+        errorType: "database",
+      });
     },
   });
 };
@@ -264,7 +289,11 @@ export const useSeedWorkflowTaskDefaults = () => {
       toast.success("Default statuses and categories seeded");
     },
     onError: (error) => {
-      toast.error("Failed to seed defaults: " + error.message);
+      showErrorToast(error, "Failed to seed defaults", {
+        componentName: "useSeedWorkflowTaskDefaults",
+        actionAttempted: "Seed workflow task defaults",
+        errorType: "database",
+      });
     },
   });
 };
