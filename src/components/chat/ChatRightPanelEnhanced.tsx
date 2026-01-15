@@ -80,7 +80,7 @@ interface OtherParticipantDetails {
   office_name?: string | null;
 }
 
-const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedProps) => {
+const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
   const navigate = useNavigate();
   const { orgCode } = useParams();
   
