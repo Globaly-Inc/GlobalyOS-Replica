@@ -37,6 +37,7 @@ import {
   BellOff,
   Bell,
   LogOut,
+  Info,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
