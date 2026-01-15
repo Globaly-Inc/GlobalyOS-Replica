@@ -1192,20 +1192,26 @@ export const useUpdateSpace = () => {
       name,
       description,
       spaceType,
+      iconUrl,
     }: {
       spaceId: string;
-      name: string;
+      name?: string;
       description?: string | null;
-      spaceType: 'collaboration' | 'announcements';
+      spaceType?: 'collaboration' | 'announcements';
+      iconUrl?: string | null;
     }) => {
+      const updateData: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (spaceType !== undefined) updateData.space_type = spaceType;
+      if (iconUrl !== undefined) updateData.icon_url = iconUrl;
+
       const { error } = await supabase
         .from('chat_spaces')
-        .update({
-          name,
-          description,
-          space_type: spaceType,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', spaceId);
 
       if (error) throw error;

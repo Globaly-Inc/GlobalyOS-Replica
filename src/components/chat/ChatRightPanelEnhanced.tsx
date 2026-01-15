@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,6 +49,8 @@ import {
   Bell,
   BellOff,
   LogOut,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -63,6 +65,7 @@ import {
   useLeaveConversation,
   useLeaveSpace,
   useUpdateSpaceNotification,
+  useUpdateSpace,
 } from "@/services/useChat";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -106,6 +109,7 @@ interface OtherParticipantDetails {
 const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
   const navigate = useNavigate();
   const { orgCode } = useParams();
+  const spaceIconInputRef = useRef<HTMLInputElement>(null);
   
   const [aboutOpen, setAboutOpen] = useState(true);
   const [membersOpen, setMembersOpen] = useState(true);
@@ -115,6 +119,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [spaceDetails, setSpaceDetails] = useState<SpaceDetails | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipantDetails | null>(null);
   const [sharedFiles, setSharedFiles] = useState<any[]>([]);
+  const [spaceIconUrl, setSpaceIconUrl] = useState<string | null>(activeChat.iconUrl || null);
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
   
   // Dialog states
   const [showMembersDialog, setShowMembersDialog] = useState(false);
@@ -132,6 +138,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const leaveConversation = useLeaveConversation();
   const leaveSpace = useLeaveSpace();
   const updateSpaceNotification = useUpdateSpaceNotification();
+  const updateSpace = useUpdateSpace();
   const { data: favorites = [] } = useChatFavorites();
   const toggleFavorite = useToggleFavorite();
 
@@ -143,6 +150,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const { data: conversationParticipants = [] } = useConversationParticipants(
     activeChat.isGroup ? conversationId : null
   );
+  
+  // Update local icon URL when activeChat changes
+  useEffect(() => {
+    setSpaceIconUrl(activeChat.iconUrl || null);
+  }, [activeChat.id, activeChat.iconUrl]);
 
   const isFavorited = favorites.some(f => 
     (conversationId && f.conversation_id === conversationId) ||
@@ -356,6 +368,64 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
     }
   };
 
+  // Handle space icon upload
+  const handleSpaceIconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !spaceId || !currentEmployee?.organization_id) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please upload a valid image file (JPG, PNG, WebP, or GIF)");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be smaller than 2MB");
+      return;
+    }
+
+    setIsUploadingIcon(true);
+    try {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `space-icons/${spaceId}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(fileName);
+
+      // Update space with new icon URL
+      await updateSpace.mutateAsync({
+        spaceId,
+        iconUrl: publicUrl,
+      });
+
+      setSpaceIconUrl(publicUrl);
+      toast.success("Space icon updated");
+    } catch (error) {
+      showErrorToast(error, "Failed to upload icon", {
+        componentName: "ChatRightPanelEnhanced",
+        actionAttempted: "Upload space icon",
+        errorType: "network",
+      });
+    } finally {
+      setIsUploadingIcon(false);
+      // Reset input
+      if (spaceIconInputRef.current) {
+        spaceIconInputRef.current.value = '';
+      }
+    }
+  };
+
   // Member management handlers
   const handleViewMember = (employeeId: string) => {
     navigate(`/org/${orgCode}/team/${employeeId}`);
@@ -420,13 +490,38 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               )}
             </div>
           ) : activeChat.type === 'space' ? (
-            <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold">
-              {activeChat.iconUrl ? (
-                <img src={activeChat.iconUrl} alt={activeChat.name} className="h-10 w-10 rounded object-cover" />
-              ) : (
-                activeChat.name.charAt(0).toUpperCase()
-              )}
-            </div>
+            <>
+              {/* Hidden file input for space icon upload */}
+              <input
+                ref={spaceIconInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleSpaceIconUpload}
+              />
+              <div 
+                className={cn(
+                  "relative flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold",
+                  isSpaceAdmin && "cursor-pointer group"
+                )}
+                onClick={() => isSpaceAdmin && spaceIconInputRef.current?.click()}
+                title={isSpaceAdmin ? "Click to change space icon" : undefined}
+              >
+                {isUploadingIcon ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : spaceIconUrl ? (
+                  <img src={spaceIconUrl} alt={activeChat.name} className="h-10 w-10 rounded object-cover" />
+                ) : (
+                  activeChat.name.charAt(0).toUpperCase()
+                )}
+                {/* Camera overlay for admins on hover */}
+                {isSpaceAdmin && !isUploadingIcon && (
+                  <div className="absolute inset-0 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-4 w-4 text-white" />
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <Avatar className="h-10 w-10">
               <AvatarImage src={activeChat.iconUrl || undefined} />
