@@ -63,6 +63,7 @@ interface OtherParticipantDetails {
   avatar_url: string | null;
   is_online: boolean;
   timezone?: string;
+  office_name?: string | null;
 }
 
 const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedProps) => {
@@ -161,7 +162,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
 
       const { data: employee } = await supabase
         .from('employees')
-        .select('id, position, user_id')
+        .select('id, position, user_id, office_id, offices:office_id(name)')
         .eq('id', otherEmployeeId)
         .single();
 
@@ -183,6 +184,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
         ? (new Date().getTime() - new Date(presence.last_seen_at).getTime()) < 60000
         : false;
 
+      const officeName = (employee as any).offices?.name || null;
+
       setOtherParticipant({
         id: employee.id,
         position: employee.position,
@@ -191,6 +194,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
         avatar_url: profile?.avatar_url || null,
         is_online: isOnline,
         timezone: profile?.timezone || undefined,
+        office_name: officeName,
       });
     };
 
@@ -342,10 +346,10 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                       <span className="truncate">{otherParticipant.email}</span>
                     </div>
                   )}
-                  {otherParticipant.position && (
+                  {otherParticipant.office_name && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4 flex-shrink-0" />
-                      <span>{otherParticipant.position}</span>
+                      <span>{otherParticipant.office_name}</span>
                     </div>
                   )}
                   {otherParticipant.timezone && (
