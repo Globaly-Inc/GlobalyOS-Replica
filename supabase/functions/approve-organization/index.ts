@@ -288,4 +288,63 @@ async function setupOrganization(
   if (onboardingError) {
     console.error("Error creating onboarding progress:", onboardingError);
   }
+
+  // Seed default data for the organization
+  await seedDefaultData(supabaseAdmin, org.id);
+}
+
+async function seedDefaultData(supabaseAdmin: any, orgId: string) {
+  console.log(`Seeding default data for organization: ${orgId}`);
+
+  // Seed employment types
+  const employmentTypes = [
+    { name: 'trainee', label: 'Trainee', display_order: 1, is_system: true },
+    { name: 'intern', label: 'Intern', display_order: 2, is_system: true },
+    { name: 'contract', label: 'Contract', display_order: 3, is_system: true },
+    { name: 'employee', label: 'Employee', display_order: 4, is_system: true },
+  ];
+
+  const { error: etError } = await supabaseAdmin
+    .from('employment_types')
+    .insert(employmentTypes.map(et => ({
+      ...et,
+      organization_id: orgId,
+      is_active: true,
+    })));
+
+  if (etError) {
+    console.error("Error seeding employment types:", etError);
+  } else {
+    console.log("Employment types seeded successfully");
+  }
+
+  // Seed default positions
+  const positions = [
+    { name: 'CEO', department: 'Management' },
+    { name: 'Manager', department: 'Management' },
+    { name: 'Team Lead', department: 'Engineering' },
+    { name: 'Senior Developer', department: 'Engineering' },
+    { name: 'Developer', department: 'Engineering' },
+    { name: 'HR Manager', department: 'Human Resources' },
+    { name: 'HR Specialist', department: 'Human Resources' },
+    { name: 'Marketing Manager', department: 'Marketing' },
+    { name: 'Sales Representative', department: 'Sales' },
+    { name: 'Operations Manager', department: 'Operations' },
+    { name: 'Accountant', department: 'Finance' },
+    { name: 'Support Specialist', department: 'Customer Support' },
+  ];
+
+  const { error: posError } = await supabaseAdmin
+    .from('positions')
+    .insert(positions.map(pos => ({
+      organization_id: orgId,
+      name: pos.name,
+      department: pos.department,
+    })));
+
+  if (posError) {
+    console.error("Error seeding positions:", posError);
+  } else {
+    console.log("Positions seeded successfully");
+  }
 }
