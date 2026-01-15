@@ -123,7 +123,7 @@ async function sendRejectionEmail(email: string, ownerName: string, organization
     );
 
     const { data, error } = await resend.emails.send({
-      from: 'GlobalyOS <hello@globalyhub.com>',
+      from: 'GlobalyOS <hello@globalyos.com>',
       to: [email],
       subject: `Update on your GlobalyOS application`,
       html,

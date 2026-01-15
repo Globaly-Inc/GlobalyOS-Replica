@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         );
 
         const emailResult = await resend.emails.send({
-          from: 'GlobalyOS <hello@globalyhub.com>',
+          from: 'GlobalyOS <hello@globalyos.com>',
           to: [ownerEmail],
           subject: `Application Received - ${organizationName}`,
           html,
