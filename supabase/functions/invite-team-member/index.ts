@@ -151,8 +151,8 @@ serve(async (req: Request) => {
       isNewHire = true, employmentType = 'employee', gender
     } = data;
 
-    // Validate required fields (postcode is now optional)
-    if (!email || !phone || !firstName || !lastName || !street || !city || !state || !country || !position || !department || !role || !organizationId) {
+    // Validate required fields (phone, address fields are optional for quick invites)
+    if (!email || !firstName || !lastName || !position || !department || !role || !organizationId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
