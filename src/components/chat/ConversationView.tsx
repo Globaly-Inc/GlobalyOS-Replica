@@ -52,6 +52,7 @@ import {
   useDeleteMessage,
   useMessageReactions,
   useToggleReaction,
+  useSpace,
   useSpaceMembers,
   useConversationParticipants,
   useMessageReplyCounts,
@@ -155,6 +156,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const { data: messages = [], isLoading } = useMessages(conversationId, spaceId);
   const { data: typingUsers = [] } = useTypingUsers(conversationId, spaceId);
   const { data: reactions = {} } = useMessageReactions(conversationId, spaceId);
+  const { data: space } = useSpace(spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
   const { data: replyCounts = {} } = useMessageReplyCounts(conversationId, spaceId);
@@ -616,8 +618,12 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </div>
             ) : (
               // Space
-              <div className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0">
-                {activeChat.name.charAt(0).toUpperCase()}
+              <div className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
+                {space?.icon_url ? (
+                  <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
+                ) : (
+                  activeChat.name.charAt(0).toUpperCase()
+                )}
               </div>
             )}
             

@@ -1174,6 +1174,7 @@ export const useSpace = (spaceId: string | null) => {
         description: string | null;
         space_type: 'collaboration' | 'announcements';
         access_type: 'public' | 'private';
+        icon_url: string | null;
         archived_at: string | null;
         archived_by: string | null;
       };
