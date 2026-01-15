@@ -142,8 +142,10 @@ export const OrgProtectedRoute = ({
   }
 
   // Check onboarding status - redirect to onboarding if not complete
+  // Skip onboarding enforcement for GlobalyHub demo organization
   const isOnboardingRoute = location.pathname.includes('/onboarding');
-  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOnboardingRoute) {
+  const isDemoOrg = currentOrg.slug === 'globalyhub';
+  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOnboardingRoute && !isDemoOrg) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding`} replace />;
   }
 
