@@ -14,6 +14,16 @@ import {
   SheetContent,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Search,
   MoreVertical,
@@ -1268,31 +1278,29 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
         </Sheet>
         
         {/* Leave Confirmation Dialog */}
-        {showLeaveConfirm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-background rounded-lg p-6 max-w-sm w-full shadow-xl">
-              <h3 className="text-lg font-semibold mb-2">
+        <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
                 Leave {activeChat.type === 'space' ? 'space' : 'group'}?
-              </h3>
-              <p className="text-muted-foreground text-sm mb-4">
+              </AlertDialogTitle>
+              <AlertDialogDescription>
                 You won't receive any more messages from this {activeChat.type === 'space' ? 'space' : 'group'}. 
-                You can rejoin later if it's a public space.
-              </p>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleLeave}
-                  disabled={leaveConversation.isPending || leaveSpace.isPending}
-                >
-                  Leave
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+                {activeChat.type === 'space' && " You can rejoin later if it's a public space."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLeave}
+                disabled={leaveConversation.isPending || leaveSpace.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {(leaveConversation.isPending || leaveSpace.isPending) ? "Leaving..." : "Leave"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         
         {/* Transfer Admin Dialog */}
         {spaceId && (
