@@ -56,6 +56,7 @@ import AddResourceDialog from "./AddResourceDialog";
 interface ChatRightPanelEnhancedProps {
   activeChat: ActiveChat;
   onClose: () => void;
+  isMobileOverlay?: boolean;
 }
 
 interface SpaceDetails {
@@ -79,7 +80,7 @@ interface OtherParticipantDetails {
   office_name?: string | null;
 }
 
-const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedProps) => {
+const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
   const navigate = useNavigate();
   const { orgCode } = useParams();
   
@@ -383,9 +384,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
           >
             <Star className={cn("h-4 w-4", isFavorited && "fill-yellow-500 text-yellow-500")} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          {isMobileOverlay && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

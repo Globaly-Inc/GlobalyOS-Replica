@@ -16,11 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Chat = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
   const [highlightMessageId, setHighlightMessageId] = useState<string | undefined>(undefined);
-  const [showRightPanel, setShowRightPanel] = useState(() => {
-    // Default to showing right panel on desktop
-    const stored = localStorage.getItem('chat-right-panel-visible');
-    return stored !== null ? stored === 'true' : true;
-  });
+  const [showMobileRightPanel, setShowMobileRightPanel] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
@@ -35,10 +31,10 @@ const Chat = () => {
     enabled: !isMobile,
   });
 
-  // Persist right panel preference
+  // Reset mobile right panel when chat changes
   useEffect(() => {
-    localStorage.setItem('chat-right-panel-visible', String(showRightPanel));
-  }, [showRightPanel]);
+    setShowMobileRightPanel(false);
+  }, [activeChat]);
 
   // Track recent chats
   useEffect(() => {
@@ -82,7 +78,7 @@ const Chat = () => {
         <ConversationView
           activeChat={activeChat}
           onBack={handleBack}
-          onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+          onToggleRightPanel={() => {}}
           highlightMessageId={highlightMessageId}
         />
       );
@@ -99,7 +95,6 @@ const Chat = () => {
   const showRightPanelCondition = activeChat && 
     activeChat.type !== 'mentions' && 
     activeChat.type !== 'starred' && 
-    showRightPanel && 
     !isMobile;
 
   // Mobile view
@@ -121,14 +116,26 @@ const Chat = () => {
             <StarredView onNavigateToChat={handleSelectChat} onBack={handleBack} />
           </div>
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ConversationView
-              activeChat={activeChat}
-              onBack={handleBack}
-              onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-              highlightMessageId={highlightMessageId}
-            />
-          </div>
+          <>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <ConversationView
+                activeChat={activeChat}
+                onBack={handleBack}
+                onToggleRightPanel={() => setShowMobileRightPanel(true)}
+                highlightMessageId={highlightMessageId}
+              />
+            </div>
+            {/* Mobile Right Panel Overlay */}
+            {showMobileRightPanel && (
+              <div className="absolute inset-0 z-50 bg-background">
+                <ChatRightPanelEnhanced
+                  activeChat={activeChat}
+                  onClose={() => setShowMobileRightPanel(false)}
+                  isMobileOverlay
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Dialogs */}
@@ -164,11 +171,11 @@ const Chat = () => {
         {renderMainContent()}
       </div>
 
-      {/* Right Panel - Enhanced with all info */}
+      {/* Right Panel - Enhanced with all info (always visible on desktop) */}
       {showRightPanelCondition && (
         <ChatRightPanelEnhanced
           activeChat={activeChat}
-          onClose={() => setShowRightPanel(false)}
+          onClose={() => {}}
         />
       )}
 
