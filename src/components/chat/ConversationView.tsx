@@ -690,12 +690,6 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </Button>
             )}
             
-            {/* Desktop: Show action buttons */}
-            {!isMobile && (
-              <Button variant="ghost" size="icon" onClick={onToggleRightPanel}>
-                <Pin className="h-4 w-4" />
-              </Button>
-            )}
             
             {/* Desktop: Space management menu */}
             {!isMobile && activeChat.type === 'space' && (
