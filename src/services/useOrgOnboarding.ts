@@ -278,7 +278,10 @@ export function useCompleteOrgOnboarding() {
   const { currentOrg, refreshOrganizations } = useOrganization();
 
   return useMutation({
-    mutationFn: async (skipped: boolean = false) => {
+    mutationFn: async ({ skipped = false, onComplete }: { 
+      skipped?: boolean; 
+      onComplete?: () => void;
+    }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
       // Mark onboarding data as complete
@@ -304,12 +307,17 @@ export function useCompleteOrgOnboarding() {
 
       if (orgError) throw orgError;
 
-      return { success: true, skipped };
+      return { success: true, skipped, onComplete };
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['org-onboarding-data'] });
-      queryClient.invalidateQueries({ queryKey: ['org-onboarding-status'] });
-      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    onSuccess: async (result) => {
+      // Invalidate all queries first and wait for them
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['org-onboarding-data'] }),
+        queryClient.invalidateQueries({ queryKey: ['org-onboarding-status'] }),
+        queryClient.invalidateQueries({ queryKey: ['org-onboarding-check'] }),
+        queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+      ]);
+      
       refreshOrganizations();
       
       toast({
@@ -318,6 +326,9 @@ export function useCompleteOrgOnboarding() {
           ? 'You can complete setup anytime from Settings.' 
           : 'Your organization is ready to use.',
       });
+
+      // Call navigation callback AFTER queries are invalidated
+      result.onComplete?.();
     },
     onError: (error) => {
       console.error('Failed to complete org onboarding:', error);

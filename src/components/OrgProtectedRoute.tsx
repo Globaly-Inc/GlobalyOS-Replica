@@ -41,6 +41,7 @@ export const OrgProtectedRoute = ({
       return data;
     },
     enabled: !!currentOrg?.id,
+    staleTime: 0, // Always refetch to get latest onboarding status
   });
 
   // Handle organization switching when URL orgCode differs from current org's slug

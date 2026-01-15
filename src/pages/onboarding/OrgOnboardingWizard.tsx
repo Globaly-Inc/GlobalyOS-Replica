@@ -91,9 +91,11 @@ export default function OrgOnboardingWizard() {
 
   const handleNext = async (stepData?: Record<string, unknown>) => {
     if (currentStep >= TOTAL_STEPS) {
-      // Complete onboarding
-      await completeOnboarding.mutateAsync(false);
-      navigate(`/org/${currentOrg?.slug}`);
+      // Complete onboarding - pass navigation as callback
+      await completeOnboarding.mutateAsync({
+        skipped: false,
+        onComplete: () => navigate(`/org/${currentOrg?.slug}`),
+      });
       return;
     }
 
@@ -113,10 +115,11 @@ export default function OrgOnboardingWizard() {
   };
 
   const handleSkip = async () => {
-    await completeOnboarding.mutateAsync(true);
-    navigate(`/org/${currentOrg?.slug}`);
+    await completeOnboarding.mutateAsync({
+      skipped: true,
+      onComplete: () => navigate(`/org/${currentOrg?.slug}`),
+    });
   };
-
 
   const stepName = getStepName(currentStep - 1);
 
