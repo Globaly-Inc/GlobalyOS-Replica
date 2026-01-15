@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import React from 'https://esm.sh/react@18.3.1'
 import { Resend } from 'https://esm.sh/resend@4.0.0'
-import { render } from 'https://esm.sh/@react-email/render@0.0.12'
+import { render } from 'https://esm.sh/@react-email/components@0.0.22?deps=react@18.3.1'
 import { RejectionEmail } from './_templates/rejection-email.tsx'
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)

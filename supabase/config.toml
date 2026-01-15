@@ -1,5 +1,17 @@
 project_id = "rygowmzkvxgnxagqlyxf"
 
+[functions.signup-organization]
+verify_jwt = false
+
+[functions.approve-organization]
+verify_jwt = false
+
+[functions.reject-organization]
+verify_jwt = false
+
+[functions.delete-organization]
+verify_jwt = false
+
 [functions.transcribe-call]
 verify_jwt = false
 
