@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'not_found';
 
 const PendingApproval = () => {
   const navigate = useNavigate();
@@ -34,7 +34,10 @@ const PendingApproval = () => {
   const [organizationName, setOrganizationName] = useState<string | null>(null);
 
   const checkStatus = async () => {
-    if (!email) return;
+    if (!email) {
+      setStatus('not_found');
+      return;
+    }
     
     setChecking(true);
     try {
@@ -45,22 +48,27 @@ const PendingApproval = () => {
         .eq('owner_email', email)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (data) {
-        setStatus(data.approval_status as ApprovalStatus);
-        setRejectionReason(data.rejection_reason);
-        setOrganizationName(data.name);
+      if (!data) {
+        // No organization found for this email
+        setStatus('not_found');
+        return;
+      }
 
-        // If approved, redirect to auth
-        if (data.approval_status === 'approved') {
-          setTimeout(() => {
-            navigate('/auth');
-          }, 2000);
-        }
+      setStatus(data.approval_status as ApprovalStatus);
+      setRejectionReason(data.rejection_reason);
+      setOrganizationName(data.name);
+
+      // If approved, redirect to auth
+      if (data.approval_status === 'approved') {
+        setTimeout(() => {
+          navigate('/auth');
+        }, 2000);
       }
     } catch (error) {
       console.error('Error checking status:', error);
+      setStatus('not_found');
     } finally {
       setChecking(false);
     }
@@ -133,6 +141,32 @@ const PendingApproval = () => {
 
   const config = getStatusConfig();
   const StatusIcon = config.icon;
+
+  // Show not found state
+  if (status === 'not_found') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+        <Card className="p-8 max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <XCircle className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">No Application Found</h1>
+          <p className="text-muted-foreground mb-6">
+            We couldn't find a pending application for this email address. The application may have been deleted or the link is invalid.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => navigate('/signup')}>
+              Start New Application
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/')}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   const features = [
     { icon: Users, label: "Team Management", desc: "Org chart, profiles, departments" },
