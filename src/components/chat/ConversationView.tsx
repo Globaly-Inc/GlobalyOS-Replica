@@ -65,7 +65,8 @@ import SpaceMembersDialog from "./SpaceMembersDialog";
 import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
 import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import EditGroupChatDialog from "./EditGroupChatDialog";
-import type { ActiveChat, ChatMessage } from "@/types/chat";
+import TransferAdminDialog from "./TransferAdminDialog";
+import type { ActiveChat, ChatMessage, ChatSpaceMember } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { showErrorToast } from "@/lib/errorUtils";
@@ -133,6 +134,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   
@@ -181,10 +183,19 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
     threshold: 200,
   });
   
-  // Check if current user is a space admin
+  // Check if current user is a space admin and calculate admin count
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
   const isSpaceAdmin = currentMembership?.role === 'admin';
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
+  
+  // Count admins and get non-admin members for transfer
+  const adminCount = spaceMembers.filter(m => m.role === 'admin').length;
+  const nonAdminMembers = spaceMembers.filter(m => 
+    m.role !== 'admin' && m.employee_id !== currentEmployee?.id
+  ) as ChatSpaceMember[];
+  
+  // Can admin leave: either there are 2+ admins, or they transfer first
+  const canAdminLeaveDirectly = adminCount >= 2;
 
   // Handle mute toggle for conversations
   const handleToggleMute = async () => {
@@ -716,7 +727,34 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                       </>
                     )}
                   </DropdownMenuItem>
-                  {!isSpaceAdmin && (
+                  {/* Leave space option - conditional based on admin status */}
+                  {isSpaceAdmin ? (
+                    canAdminLeaveDirectly ? (
+                      <DropdownMenuItem 
+                        onClick={() => setShowLeaveConfirm(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave space
+                      </DropdownMenuItem>
+                    ) : nonAdminMembers.length > 0 ? (
+                      <DropdownMenuItem 
+                        onClick={() => setShowTransferAdminDialog(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave space (transfer admin)
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem 
+                        disabled 
+                        className="text-muted-foreground"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Cannot leave (only member)
+                      </DropdownMenuItem>
+                    )
+                  ) : (
                     <DropdownMenuItem 
                       onClick={() => setShowLeaveConfirm(true)}
                       className="text-destructive focus:text-destructive"
@@ -1165,8 +1203,8 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                 </button>
               )}
               
-              {/* Leave option for group chats and non-admin space members */}
-              {(activeChat.isGroup || (activeChat.type === 'space' && !isSpaceAdmin)) && (
+              {/* Leave option for group chats and space members */}
+              {activeChat.isGroup && (
                 <button 
                   onClick={() => { 
                     setShowLeaveConfirm(true); 
@@ -1175,10 +1213,55 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
                   className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left text-destructive"
                 >
                   <LogOut className="h-5 w-5" />
-                  <span className="font-medium">
-                    {activeChat.type === 'space' ? 'Leave space' : 'Leave group'}
-                  </span>
+                  <span className="font-medium">Leave group</span>
                 </button>
+              )}
+              
+              {activeChat.type === 'space' && (
+                isSpaceAdmin ? (
+                  canAdminLeaveDirectly ? (
+                    <button 
+                      onClick={() => { 
+                        setShowLeaveConfirm(true); 
+                        setShowMobileMenu(false); 
+                      }}
+                      className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left text-destructive"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      <span className="font-medium">Leave space</span>
+                    </button>
+                  ) : nonAdminMembers.length > 0 ? (
+                    <button 
+                      onClick={() => { 
+                        setShowTransferAdminDialog(true); 
+                        setShowMobileMenu(false); 
+                      }}
+                      className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left text-destructive"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      <span className="font-medium">Leave space (transfer admin)</span>
+                    </button>
+                  ) : (
+                    <button 
+                      disabled
+                      className="flex items-center gap-4 w-full px-4 py-3 text-left text-muted-foreground cursor-not-allowed"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      <span className="font-medium">Cannot leave (only member)</span>
+                    </button>
+                  )
+                ) : (
+                  <button 
+                    onClick={() => { 
+                      setShowLeaveConfirm(true); 
+                      setShowMobileMenu(false); 
+                    }}
+                    className="flex items-center gap-4 w-full px-4 py-3 hover:bg-muted active:bg-muted text-left text-destructive"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span className="font-medium">Leave space</span>
+                  </button>
+                )
               )}
             </div>
           </SheetContent>
@@ -1209,6 +1292,21 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               </div>
             </div>
           </div>
+        )}
+        
+        {/* Transfer Admin Dialog */}
+        {spaceId && (
+          <TransferAdminDialog
+            open={showTransferAdminDialog}
+            onOpenChange={setShowTransferAdminDialog}
+            spaceId={spaceId}
+            spaceName={activeChat.name}
+            members={nonAdminMembers}
+            onTransferComplete={() => {
+              setShowTransferAdminDialog(false);
+              onBack();
+            }}
+          />
         )}
       </div>
     </ChatDropZone>
