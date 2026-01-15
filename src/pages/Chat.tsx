@@ -131,6 +131,7 @@ const Chat = () => {
                 <ChatRightPanelEnhanced
                   activeChat={activeChat}
                   onClose={() => setShowMobileRightPanel(false)}
+                  onBack={handleBack}
                   isMobileOverlay
                 />
               </div>
@@ -176,6 +177,7 @@ const Chat = () => {
         <ChatRightPanelEnhanced
           activeChat={activeChat}
           onClose={() => {}}
+          onBack={handleBack}
         />
       )}
 

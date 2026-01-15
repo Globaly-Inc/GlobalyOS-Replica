@@ -12,8 +12,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   X,
   Pin,
@@ -33,6 +44,11 @@ import {
   UserCircle,
   Crown,
   UserMinus,
+  Settings,
+  UserPlus,
+  Bell,
+  BellOff,
+  LogOut,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -43,19 +59,26 @@ import {
   useConversationParticipants,
   useUpdateSpaceMemberRole,
   useRemoveSpaceMember,
+  useMuteConversation,
+  useLeaveConversation,
+  useLeaveSpace,
+  useUpdateSpaceNotification,
 } from "@/services/useChat";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
-import type { ActiveChat, ChatSpace } from "@/types/chat";
+import type { ActiveChat, ChatSpace, ChatSpaceMember } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import SpaceMembersDialog from "./SpaceMembersDialog";
 import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
 import AddResourceDialog from "./AddResourceDialog";
+import SpaceSettingsDialog from "./SpaceSettingsDialog";
+import TransferAdminDialog from "./TransferAdminDialog";
 
 interface ChatRightPanelEnhancedProps {
   activeChat: ActiveChat;
   onClose: () => void;
+  onBack: () => void;
   isMobileOverlay?: boolean;
 }
 
@@ -80,7 +103,7 @@ interface OtherParticipantDetails {
   office_name?: string | null;
 }
 
-const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
+const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
   const navigate = useNavigate();
   const { orgCode } = useParams();
   
@@ -97,10 +120,18 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showAddMembersDialog, setShowAddMembersDialog] = useState(false);
   const [showAddResourceDialog, setShowAddResourceDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
   const { data: currentEmployee } = useCurrentEmployee();
   const updateRole = useUpdateSpaceMemberRole();
   const removeMember = useRemoveSpaceMember();
+  const muteConversation = useMuteConversation();
+  const leaveConversation = useLeaveConversation();
+  const leaveSpace = useLeaveSpace();
+  const updateSpaceNotification = useUpdateSpaceNotification();
   const { data: favorites = [] } = useChatFavorites();
   const toggleFavorite = useToggleFavorite();
 
@@ -276,9 +307,54 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }
   const memberCount = members.length;
 
   // Check if current user is a space admin
-  const isSpaceAdmin = spaceId && spaceMembers.some(
-    m => m.employee_id === currentEmployee?.id && m.role === 'admin'
-  );
+  const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
+  const isSpaceAdmin = currentMembership?.role === 'admin';
+  const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
+  
+  // Count admins and get non-admin members for transfer
+  const adminCount = spaceMembers.filter(m => m.role === 'admin').length;
+  const nonAdminMembers = spaceMembers.filter(m => 
+    m.role !== 'admin' && m.employee_id !== currentEmployee?.id
+  ) as ChatSpaceMember[];
+  
+  // Can admin leave: either there are 2+ admins, or they transfer first
+  const canAdminLeaveDirectly = adminCount >= 2;
+
+  // Handle mute toggle for conversations
+  const handleToggleMute = async () => {
+    if (conversationId) {
+      await muteConversation.mutateAsync({ conversationId, mute: !isMuted });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Handle space notification toggle (mute = 'mute', unmute = 'all')
+  const handleToggleSpaceMute = async () => {
+    if (spaceId) {
+      const newSetting = spaceNotificationSetting === 'mute' ? 'all' : 'mute';
+      await updateSpaceNotification.mutateAsync({ spaceId, setting: newSetting });
+    }
+  };
+
+  // Handle leave conversation/space
+  const handleLeave = async () => {
+    try {
+      if (conversationId) {
+        await leaveConversation.mutateAsync(conversationId);
+        onBack();
+      } else if (spaceId) {
+        await leaveSpace.mutateAsync(spaceId);
+        onBack();
+      }
+      setShowLeaveConfirm(false);
+    } catch (error) {
+      showErrorToast(error, "Failed to leave chat", {
+        componentName: "ChatRightPanelEnhanced",
+        actionAttempted: activeChat.type === 'space' ? "Leave space" : "Leave conversation",
+        errorType: "database",
+      });
+    }
+  };
 
   // Member management handlers
   const handleViewMember = (employeeId: string) => {
@@ -384,6 +460,125 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }
           >
             <Star className={cn("h-4 w-4", isFavorited && "fill-yellow-500 text-yellow-500")} />
           </Button>
+          
+          {/* 3-dot dropdown menu for spaces */}
+          {activeChat.type === 'space' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={() => setShowMembersDialog(true)}>
+                  <Users className="h-4 w-4 mr-2" />
+                  View members
+                </DropdownMenuItem>
+                {isSpaceAdmin && (
+                  <>
+                    <DropdownMenuItem onClick={() => setShowAddMembersDialog(true)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add members
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Space settings
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleToggleSpaceMute}>
+                  {spaceNotificationSetting === 'mute' ? (
+                    <>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Unmute notifications
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-4 w-4 mr-2" />
+                      Mute notifications
+                    </>
+                  )}
+                </DropdownMenuItem>
+                {/* Leave space option - conditional based on admin status */}
+                {isSpaceAdmin ? (
+                  canAdminLeaveDirectly ? (
+                    <DropdownMenuItem 
+                      onClick={() => setShowLeaveConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Leave space
+                    </DropdownMenuItem>
+                  ) : nonAdminMembers.length > 0 ? (
+                    <DropdownMenuItem 
+                      onClick={() => setShowTransferAdminDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Leave space (transfer admin)
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem 
+                      disabled 
+                      className="text-muted-foreground"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Cannot leave (only member)
+                    </DropdownMenuItem>
+                  )
+                ) : (
+                  <DropdownMenuItem 
+                    onClick={() => setShowLeaveConfirm(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Leave space
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
+          {/* 3-dot dropdown menu for conversations */}
+          {activeChat.type === 'conversation' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={handleToggleMute}>
+                  {isMuted ? (
+                    <>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Unmute chat
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-4 w-4 mr-2" />
+                      Mute chat
+                    </>
+                  )}
+                </DropdownMenuItem>
+                {activeChat.isGroup && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setShowLeaveConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Leave group
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
           {isMobileOverlay && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -701,6 +896,24 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }
             spaceId={spaceId}
             spaceName={activeChat.name}
           />
+          <SpaceSettingsDialog
+            open={showSettingsDialog}
+            onOpenChange={setShowSettingsDialog}
+            spaceId={spaceId}
+            onDeleted={onBack}
+            onArchived={onBack}
+          />
+          <TransferAdminDialog
+            open={showTransferAdminDialog}
+            onOpenChange={setShowTransferAdminDialog}
+            spaceId={spaceId}
+            spaceName={activeChat.name}
+            members={nonAdminMembers}
+            onTransferComplete={() => {
+              setShowTransferAdminDialog(false);
+              onBack();
+            }}
+          />
         </>
       )}
 
@@ -710,6 +923,31 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, isMobileOverlay = false }
         conversationId={conversationId}
         spaceId={spaceId}
       />
+      
+      {/* Leave Confirmation Dialog */}
+      <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Leave {activeChat.type === 'space' ? 'space' : 'group'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You won't receive any more messages from this {activeChat.type === 'space' ? 'space' : 'group'}. 
+              {activeChat.type === 'space' && " You can rejoin later if it's a public space."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeave}
+              disabled={leaveConversation.isPending || leaveSpace.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {(leaveConversation.isPending || leaveSpace.isPending) ? "Leaving..." : "Leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
