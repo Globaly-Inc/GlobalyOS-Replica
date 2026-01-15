@@ -56,6 +56,7 @@ import AddResourceDialog from "./AddResourceDialog";
 interface ChatRightPanelEnhancedProps {
   activeChat: ActiveChat;
   onClose: () => void;
+  isMobileOverlay?: boolean;
 }
 
 interface SpaceDetails {

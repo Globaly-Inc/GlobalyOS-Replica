@@ -78,7 +78,7 @@ const Chat = () => {
         <ConversationView
           activeChat={activeChat}
           onBack={handleBack}
-          onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+          onToggleRightPanel={() => {}}
           highlightMessageId={highlightMessageId}
         />
       );
