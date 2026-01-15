@@ -47,6 +47,9 @@ const businessInfoSchema = z.object({
 const userDetailsSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string()
+    .min(10, "Phone number must be at least 10 digits")
+    .regex(/^\+[1-9]\d{1,14}$/, "Please enter a valid phone number with country code (e.g., +1234567890)"),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the terms" }) }),
 });
 
@@ -116,6 +119,7 @@ const Signup = () => {
   // Step 3: User details
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Pre-fill plan from URL if provided
@@ -156,7 +160,7 @@ const Signup = () => {
 
   const validateStep3 = () => {
     try {
-      userDetailsSchema.parse({ fullName, email, acceptTerms });
+      userDetailsSchema.parse({ fullName, email, phone, acceptTerms });
       setErrors({});
       return true;
     } catch (error) {
@@ -206,6 +210,7 @@ const Signup = () => {
           country,
           ownerName: fullName,
           ownerEmail: email,
+          ownerPhone: phone,
           plan: selectedPlan,
           billingCycle,
         },
@@ -545,6 +550,21 @@ const Signup = () => {
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 234 567 8900"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US, +44 for UK)</p>
+                {errors.phone && (
+                  <p className="text-sm text-destructive">{errors.phone}</p>
                 )}
               </div>
 

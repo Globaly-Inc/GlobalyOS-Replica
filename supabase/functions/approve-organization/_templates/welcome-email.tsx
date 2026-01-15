@@ -37,7 +37,7 @@ export const WelcomeEmail = ({
         {/* Logo */}
         <Section style={logoSection}>
           <Img
-            src="https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets/globalyos-logo.png"
+            src="https://globalyos.lovable.app/images/globalyos-logo-email.png"
             width="180"
             height="40"
             alt="GlobalyOS"

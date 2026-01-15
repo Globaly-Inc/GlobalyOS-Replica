@@ -9,7 +9,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://globalyos.com';
+const rawBaseUrl = Deno.env.get('APP_BASE_URL') || 'https://globalyos.com';
+const APP_BASE_URL = rawBaseUrl.replace(/\/$/, ''); // Remove trailing slash if present
 
 interface SignupRequest {
   organizationName: string;
@@ -18,6 +19,7 @@ interface SignupRequest {
   country: string;
   ownerName: string;
   ownerEmail: string;
+  ownerPhone: string;
   plan: 'starter' | 'growth' | 'enterprise';
   billingCycle: 'monthly' | 'annual';
 }
@@ -43,13 +45,14 @@ Deno.serve(async (req) => {
       companySize, 
       country, 
       ownerName, 
-      ownerEmail, 
+      ownerEmail,
+      ownerPhone,
       plan, 
       billingCycle 
     } = body;
 
     // Validate required fields
-    if (!organizationName || !ownerName || !ownerEmail || !plan) {
+    if (!organizationName || !ownerName || !ownerEmail || !ownerPhone || !plan) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -111,6 +114,7 @@ Deno.serve(async (req) => {
         approval_status: 'pending',
         owner_email: ownerEmail,
         owner_name: ownerName,
+        owner_phone: ownerPhone,
         company_size: companySize,
         industry,
       })
