@@ -50,12 +50,19 @@ export default function OrgOnboardingWizard() {
   const [showSkipDialog, setShowSkipDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Initialize onboarding data on mount
+  // Redirect GlobalyHub demo org away from onboarding
   useEffect(() => {
-    if (currentOrg?.id && session && !dataLoading && !onboardingData) {
+    if (currentOrg?.slug === 'globalyhub') {
+      navigate(`/org/${currentOrg.slug}`, { replace: true });
+    }
+  }, [currentOrg?.slug, navigate]);
+
+  // Initialize onboarding data on mount (skip for demo org)
+  useEffect(() => {
+    if (currentOrg?.id && currentOrg?.slug !== 'globalyhub' && session && !dataLoading && !onboardingData) {
       initOnboarding.mutate();
     }
-  }, [currentOrg?.id, session, dataLoading, onboardingData]);
+  }, [currentOrg?.id, currentOrg?.slug, session, dataLoading, onboardingData]);
 
   // Sync current step from data (resume functionality)
   useEffect(() => {
