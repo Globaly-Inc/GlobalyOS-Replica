@@ -506,12 +506,21 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                           {getInitials(profile?.full_name || "U")}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm flex-1 truncate">{profile?.full_name || "Unknown"}</span>
-                      {isAdmin && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                          Admin
-                        </span>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm truncate">{profile?.full_name || "Unknown"}</span>
+                          {isAdmin && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                        {profile?.email && (
+                          <span className="text-xs text-muted-foreground truncate block">
+                            {profile.email}
+                          </span>
+                        )}
+                      </div>
                       
                       {/* 3-dot menu - visible on hover for admins, cannot modify self */}
                       {isSpaceAdmin && !isSelf && (
