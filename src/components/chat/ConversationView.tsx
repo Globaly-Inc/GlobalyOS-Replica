@@ -678,16 +678,26 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
               <Search className="h-4 w-4" />
             </Button>
             
-            {/* Mobile: Show more menu button */}
+            {/* Mobile: Show info button and more menu button */}
             {isMobile && (
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setShowMobileMenu(true)}
-                className="h-9 w-9"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={onToggleRightPanel}
+                  className="h-9 w-9"
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setShowMobileMenu(true)}
+                  className="h-9 w-9"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </>
             )}
             
             
