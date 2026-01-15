@@ -57,23 +57,61 @@ const Auth = () => {
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+  // Check onboarding status and redirect accordingly
+  const checkOnboardingAndRedirect = async (userId: string) => {
+    try {
+      // Get user's organization and onboarding status
+      const { data: memberData } = await supabase
+        .from('organization_members')
+        .select(`
+          organization:organizations (
+            slug,
+            org_onboarding_completed,
+            org_onboarding_step
+          )
+        `)
+        .eq('user_id', userId)
+        .single();
+
+      const org = memberData?.organization as { 
+        slug: string; 
+        org_onboarding_completed: boolean; 
+        org_onboarding_step: number;
+      } | null;
+      
+      if (org && !org.org_onboarding_completed) {
+        // Redirect to onboarding page - will resume from current step
+        navigate(`/org/${org.slug}/onboarding`);
+      } else if (org) {
+        // Onboarding complete - go to dashboard
+        navigate(`/org/${org.slug}`);
+      } else {
+        // No organization - go to landing
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      navigate('/');
+    }
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({
+    supabase.auth.getSession().then(async ({
       data: {
         session
       }
     }) => {
       if (session) {
-        navigate("/");
+        await checkOnboardingAndRedirect(session.user.id);
       }
     });
     const {
       data: {
         subscription
       }
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
-        navigate("/");
+        await checkOnboardingAndRedirect(session.user.id);
       }
     });
     return () => subscription.unsubscribe();
@@ -239,6 +277,11 @@ const Auth = () => {
           title: "Success!",
           description: "You have been signed in."
         });
+        // Redirect based on onboarding status
+        const userId = responseData.session.user?.id;
+        if (userId) {
+          await checkOnboardingAndRedirect(userId);
+        }
       } else {
         toast({
           title: "Verified!",

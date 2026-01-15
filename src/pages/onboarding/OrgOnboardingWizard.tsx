@@ -1,6 +1,7 @@
 /**
  * Organization Onboarding Wizard
  * Guides new organization owners through initial setup
+ * Supports resume from where user left off
  */
 
 import { useEffect, useState } from 'react';
@@ -15,7 +16,7 @@ import {
   useCompleteOrgOnboarding,
   getStepName,
 } from '@/services/useOrgOnboarding';
-import { WizardProgress } from '@/components/onboarding/wizard/WizardProgress';
+import { OnboardingHeader } from '@/components/onboarding/wizard/OnboardingHeader';
 import { OrgWelcomeStep } from '@/components/onboarding/wizard/OrgWelcomeStep';
 import { OrgInfoStep } from '@/components/onboarding/wizard/OrgInfoStep';
 import { OfficesStep } from '@/components/onboarding/wizard/OfficesStep';
@@ -23,11 +24,18 @@ import { TeamSeedingStep } from '@/components/onboarding/wizard/TeamSeedingStep'
 import { FeatureSelectionStep } from '@/components/onboarding/wizard/FeatureSelectionStep';
 import { HrSettingsStep } from '@/components/onboarding/wizard/HrSettingsStep';
 import { OrgCompleteStep } from '@/components/onboarding/wizard/OrgCompleteStep';
-import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { X } from 'lucide-react';
 
 const TOTAL_STEPS = 7;
+const STEP_NAMES = [
+  'Welcome',
+  'Organization',
+  'Offices',
+  'Team',
+  'Features',
+  'HR Settings',
+  'Complete'
+];
 
 export default function OrgOnboardingWizard() {
   const navigate = useNavigate();
@@ -49,7 +57,7 @@ export default function OrgOnboardingWizard() {
     }
   }, [currentOrg?.id, session, dataLoading, onboardingData]);
 
-  // Sync current step from data
+  // Sync current step from data (resume functionality)
   useEffect(() => {
     if (onboardingData?.current_step) {
       setCurrentStep(onboardingData.current_step);
@@ -141,6 +149,7 @@ export default function OrgOnboardingWizard() {
             onBack={handleBack}
             onSkip={() => handleNext({ team_members: [] })}
             isSaving={saveStep.isPending}
+            organizationId={currentOrg?.id || ''}
           />
         );
       case 'features':
@@ -177,36 +186,15 @@ export default function OrgOnboardingWizard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
-      {/* Header with skip option */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">G</span>
-            </div>
-            <span className="font-semibold text-foreground">GlobalyOS Setup</span>
-          </div>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowSkipDialog(true)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Skip for now
-          </Button>
-        </div>
-      </div>
+      {/* Header with progress indicator */}
+      <OnboardingHeader
+        currentStep={currentStep}
+        totalSteps={TOTAL_STEPS}
+        stepNames={STEP_NAMES}
+        onSkip={() => setShowSkipDialog(true)}
+      />
 
-      {/* Progress bar */}
-      <div className="fixed top-[57px] left-0 right-0 z-40 bg-background border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <WizardProgress currentStep={currentStep} totalSteps={TOTAL_STEPS} />
-        </div>
-      </div>
-
-      {/* Main content */}
+      {/* Main content - adjust top padding for fixed header */}
       <main className="pt-32 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
           {renderStep()}
@@ -219,7 +207,7 @@ export default function OrgOnboardingWizard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Skip setup?</AlertDialogTitle>
             <AlertDialogDescription>
-              You can complete the setup wizard anytime from Settings. Some features may not work optimally until setup is complete.
+              Your progress is automatically saved. You can continue setup anytime from Settings → Organization Setup. Some features may not work optimally until setup is complete.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

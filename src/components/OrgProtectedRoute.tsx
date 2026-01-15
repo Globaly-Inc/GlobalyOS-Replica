@@ -2,6 +2,7 @@
  * Organization-scoped protected route component
  * Validates both authentication and organization access
  * Resolves orgCode (slug) to orgId server-side for security
+ * Enforces mandatory onboarding before accessing dashboard
  */
 
 import { useEffect } from 'react';
@@ -9,6 +10,8 @@ import { Navigate, useParams, useLocation } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/hooks/useAuth';
 import { Layout } from './Layout';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrgProtectedRouteProps {
   children: React.ReactNode;
@@ -24,6 +27,21 @@ export const OrgProtectedRoute = ({
   const { orgCode } = useParams<{ orgCode: string }>();
   const location = useLocation();
   const { currentOrg, organizations, loading: orgLoading, switchOrganization } = useOrganization();
+
+  // Check onboarding status for the current organization
+  const { data: onboardingStatus, isLoading: onboardingLoading } = useQuery({
+    queryKey: ['org-onboarding-check', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return null;
+      const { data } = await supabase
+        .from('organizations')
+        .select('org_onboarding_completed')
+        .eq('id', currentOrg.id)
+        .single();
+      return data;
+    },
+    enabled: !!currentOrg?.id,
+  });
 
   // Handle organization switching when URL orgCode differs from current org's slug
   useEffect(() => {
@@ -61,7 +79,7 @@ export const OrgProtectedRoute = ({
   }, [authLoading, orgLoading, session, currentOrg?.id, organizations, switchOrganization]);
 
   // Show loading while auth or org data is being fetched
-  if (authLoading || orgLoading) {
+  if (authLoading || orgLoading || onboardingLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -121,6 +139,12 @@ export const OrgProtectedRoute = ({
   if (!orgCode && currentOrg) {
     const targetPath = `/org/${currentOrg.slug}${location.pathname}`;
     return <Navigate to={targetPath} replace />;
+  }
+
+  // Check onboarding status - redirect to onboarding if not complete
+  const isOnboardingRoute = location.pathname.includes('/onboarding');
+  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOnboardingRoute) {
+    return <Navigate to={`/org/${currentOrg.slug}/onboarding`} replace />;
   }
 
   // Everything is valid - render children

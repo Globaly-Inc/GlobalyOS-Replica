@@ -413,7 +413,7 @@ serve(async (req: Request) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'GlobalyOS <hello@globalyhub.com>',
+          from: 'GlobalyOS <hello@globalyos.com>',
           to: [normalizedEmail],
           subject: 'Welcome to GlobalyOS - Your Account is Ready!',
           html: emailHtml,
