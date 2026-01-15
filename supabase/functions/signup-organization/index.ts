@@ -3,6 +3,7 @@ import React from 'https://esm.sh/react@18.3.1';
 import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { render } from 'https://esm.sh/@react-email/components@0.0.22?deps=react@18.3.1';
 import { ConfirmationEmail } from './_templates/confirmation-email.tsx';
+import { SuperAdminNotificationEmail } from './_templates/super-admin-notification.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -132,11 +133,13 @@ Deno.serve(async (req) => {
     console.log(`Organization created: ${organization.id} - ${organizationName} (pending approval)`);
 
     // Send confirmation email to the applicant
-    try {
-      const resendApiKey = Deno.env.get('RESEND_API_KEY');
-      
-      if (resendApiKey) {
-        const resend = new Resend(resendApiKey);
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+
+      // Send confirmation to applicant
+      try {
         const statusUrl = `${APP_BASE_URL}/pending-approval?email=${encodeURIComponent(ownerEmail)}`;
 
         const html = render(
@@ -157,12 +160,61 @@ Deno.serve(async (req) => {
         });
 
         console.log('Confirmation email sent successfully:', emailResult);
-      } else {
-        console.warn('RESEND_API_KEY not configured, skipping confirmation email');
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
       }
-    } catch (emailError) {
-      // Don't fail the signup if email fails - just log the error
-      console.error('Failed to send confirmation email:', emailError);
+
+      // Send notification to Super Admin(s)
+      try {
+        // Get all super admin emails from user_roles joined with profiles
+        const { data: superAdmins, error: adminError } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles!inner(email)')
+          .eq('role', 'super_admin');
+
+        if (adminError) {
+          console.error('Error fetching super admins:', adminError);
+        } else if (superAdmins && superAdmins.length > 0) {
+          const superAdminEmails = superAdmins
+            .map((sa: any) => sa.profiles?.email)
+            .filter((email: string | null) => email);
+
+          if (superAdminEmails.length > 0) {
+            const reviewUrl = `${APP_BASE_URL}/super-admin/organisations`;
+
+            const adminHtml = render(
+              React.createElement(SuperAdminNotificationEmail, {
+                organizationName,
+                ownerName,
+                ownerEmail,
+                ownerPhone,
+                plan,
+                industry: industry || '',
+                companySize: companySize || '',
+                country: country || '',
+                reviewUrl,
+              })
+            );
+
+            const adminEmailResult = await resend.emails.send({
+              from: 'GlobalyOS <hello@globalyos.com>',
+              to: superAdminEmails,
+              subject: `New Signup: ${organizationName} - Review Required`,
+              html: adminHtml,
+            });
+
+            console.log('Super admin notification sent to:', superAdminEmails, adminEmailResult);
+          } else {
+            console.warn('No super admin emails found');
+          }
+        } else {
+          console.warn('No super admins found in database');
+        }
+      } catch (adminEmailError) {
+        console.error('Failed to send super admin notification:', adminEmailError);
+      }
+    } else {
+      console.warn('RESEND_API_KEY not configured, skipping all emails');
     }
 
     return new Response(

@@ -37,7 +37,6 @@ export const ConfirmationEmail = ({
         <Img
           src="https://globalyos.lovable.app/images/globalyos-logo-email.png"
           width="180"
-          height="50"
           alt="GlobalyOS"
           style={logo}
         />
