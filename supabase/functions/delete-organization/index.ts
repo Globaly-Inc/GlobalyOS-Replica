@@ -66,7 +66,34 @@ Deno.serve(async (req) => {
 
     console.log(`Starting deletion of organization: ${organizationId}`);
 
-    // Delete all related data in order (respecting foreign key constraints)
+    // Step 1: Find users who ONLY belong to this organization (before we delete org_members)
+    console.log('Finding single-org users to delete...');
+    const { data: orgMembers } = await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', organizationId);
+
+    const userIdsInOrg = orgMembers?.map(m => m.user_id) || [];
+    const usersToDelete: string[] = [];
+
+    // Check each user to see if they belong to any other org
+    for (const userId of userIdsInOrg) {
+      const { count } = await supabase
+        .from('organization_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .neq('organization_id', organizationId);
+      
+      if (count === 0) {
+        // User only belongs to this org - mark for deletion
+        usersToDelete.push(userId);
+        console.log(`User ${userId} will be deleted (single-org user)`);
+      }
+    }
+
+    console.log(`Found ${usersToDelete.length} single-org users to delete`);
+
+    // Step 2: Delete all related data in order (respecting foreign key constraints)
     const tablesToDelete = [
       // Feed & Social
       'feed_reactions',
@@ -154,8 +181,38 @@ Deno.serve(async (req) => {
 
     console.log(`Organization ${organizationId} deleted successfully`);
 
+    // Step 3: Delete single-org users (after org deletion)
+    console.log('Deleting single-org users...');
+    let deletedUsersCount = 0;
+    for (const userId of usersToDelete) {
+      try {
+        // Delete profile first (foreign key constraint)
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', userId);
+        
+        if (profileError) {
+          console.error(`Failed to delete profile for user ${userId}:`, profileError);
+        }
+        
+        // Delete auth user using admin API
+        const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
+        if (deleteUserError) {
+          console.error(`Failed to delete auth user ${userId}:`, deleteUserError);
+        } else {
+          console.log(`Deleted user ${userId}`);
+          deletedUsersCount++;
+        }
+      } catch (err) {
+        console.error(`Error deleting user ${userId}:`, err);
+      }
+    }
+
+    console.log(`Deleted ${deletedUsersCount} users along with organization`);
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, deletedUsers: deletedUsersCount }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {

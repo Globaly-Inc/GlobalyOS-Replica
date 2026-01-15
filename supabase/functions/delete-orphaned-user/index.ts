@@ -40,16 +40,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if user is owner or admin
+    // Check if user is owner, admin, or super_admin
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .in('role', ['owner', 'admin']);
+      .in('role', ['owner', 'admin', 'super_admin']);
 
     if (!roleData || roleData.length === 0) {
-      console.log(`User ${user.id} is not an owner or admin`);
-      return new Response(JSON.stringify({ error: 'Owner or Admin access required' }), {
+      console.log(`User ${user.id} is not an owner, admin, or super_admin`);
+      return new Response(JSON.stringify({ error: 'Owner, Admin, or Super Admin access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
