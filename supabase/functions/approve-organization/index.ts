@@ -6,7 +6,7 @@ import { render } from 'https://esm.sh/@react-email/components@0.0.22?deps=react
 import { WelcomeEmail } from './_templates/welcome-email.tsx'
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
-const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://www.globalyos.com'
+const APP_BASE_URL = (Deno.env.get('APP_BASE_URL') || 'https://www.globalyos.com').replace(/\/+$/, '')
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
