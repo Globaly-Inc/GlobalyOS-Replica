@@ -149,8 +149,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                 
                 {/* Organization-scoped routes - uses orgCode (slug) not orgId */}
                 <Route path="/org/:orgCode">
-                  {/* Onboarding wizards */}
-                  <Route path="onboarding/org" element={<OrgProtectedRoute withLayout={false}><OrgOnboardingWizard /></OrgProtectedRoute>} />
+                  {/* Onboarding wizard - mandatory before accessing dashboard */}
+                  <Route path="onboarding" element={<OrgProtectedRoute withLayout={false}><OrgOnboardingWizard /></OrgProtectedRoute>} />
                   <Route path="onboarding/team" element={<OrgProtectedRoute withLayout={false}><EmployeeOnboardingWizard /></OrgProtectedRoute>} />
                   
                   {/* Team section */}

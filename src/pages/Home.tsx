@@ -15,7 +15,7 @@ import { AdminSetup } from "@/components/AdminSetup";
 import { useHomeFilters } from "@/hooks/useHomeFilters";
 
 import { useUserRole } from "@/hooks/useUserRole";
-import { OnboardingChecklist } from "@/components/onboarding";
+
 import { useOrganization } from "@/hooks/useOrganization";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
@@ -682,7 +682,7 @@ const Home = () => {
               <SelfCheckInCard />
             </div>
             
-            <OnboardingChecklist userRole={role} variant="inline" />
+            
             
             {hasEmployeeProfile && (
               <div className="mb-6">
