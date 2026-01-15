@@ -67,10 +67,36 @@ const PendingApproval = () => {
   };
 
   useEffect(() => {
+    if (!email) return;
+
+    // Initial status check
     checkStatus();
-    // Poll for status updates every 30 seconds
+
+    // Subscribe to realtime changes for instant updates
+    const channel = supabase
+      .channel(`org-status-${email}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'organizations',
+          filter: `owner_email=eq.${email}`
+        },
+        (payload) => {
+          console.log('Organization status changed:', payload);
+          checkStatus();
+        }
+      )
+      .subscribe();
+
+    // Keep polling as fallback (every 30 seconds)
     const interval = setInterval(checkStatus, 30000);
-    return () => clearInterval(interval);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [email]);
 
   const getStatusConfig = () => {
