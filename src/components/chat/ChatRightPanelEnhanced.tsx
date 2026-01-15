@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,6 +8,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   X,
   Pin,
@@ -18,18 +25,24 @@ import {
   FileText,
   Star,
   Mail,
-  Phone,
   MapPin,
   Clock,
   Calendar,
   Shield,
-  Settings,
+  MoreVertical,
+  UserCircle,
+  Crown,
+  UserMinus,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { showErrorToast } from "@/lib/errorUtils";
 import { 
   usePinnedMessages, 
   useSpaceMembers,
   useConversationParticipants,
+  useUpdateSpaceMemberRole,
+  useRemoveSpaceMember,
 } from "@/services/useChat";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -67,6 +80,9 @@ interface OtherParticipantDetails {
 }
 
 const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedProps) => {
+  const navigate = useNavigate();
+  const { orgCode } = useParams();
+  
   const [aboutOpen, setAboutOpen] = useState(true);
   const [membersOpen, setMembersOpen] = useState(true);
   const [pinnedOpen, setPinnedOpen] = useState(true);
@@ -82,6 +98,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
   const [showAddResourceDialog, setShowAddResourceDialog] = useState(false);
   
   const { data: currentEmployee } = useCurrentEmployee();
+  const updateRole = useUpdateSpaceMemberRole();
+  const removeMember = useRemoveSpaceMember();
   const { data: favorites = [] } = useChatFavorites();
   const toggleFavorite = useToggleFavorite();
 
@@ -261,6 +279,52 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
     m => m.employee_id === currentEmployee?.id && m.role === 'admin'
   );
 
+  // Member management handlers
+  const handleViewMember = (employeeId: string) => {
+    navigate(`/org/${orgCode}/team/${employeeId}`);
+  };
+
+  const handlePromote = async (member: any) => {
+    const profile = member.employee?.profiles || member.employees?.profiles;
+    try {
+      await updateRole.mutateAsync({
+        spaceId: spaceId!,
+        employeeId: member.employee_id,
+        role: 'admin'
+      });
+      toast.success(`${profile?.full_name || 'Member'} is now an admin`);
+    } catch (error) {
+      showErrorToast(error, "Failed to promote member");
+    }
+  };
+
+  const handleDemote = async (member: any) => {
+    const profile = member.employee?.profiles || member.employees?.profiles;
+    try {
+      await updateRole.mutateAsync({
+        spaceId: spaceId!,
+        employeeId: member.employee_id,
+        role: 'member'
+      });
+      toast.success(`${profile?.full_name || 'Member'} is now a regular member`);
+    } catch (error) {
+      showErrorToast(error, "Failed to change member role");
+    }
+  };
+
+  const handleRemove = async (member: any) => {
+    const profile = member.employee?.profiles || member.employees?.profiles;
+    try {
+      await removeMember.mutateAsync({
+        spaceId: spaceId!,
+        employeeId: member.employee_id
+      });
+      toast.success(`${profile?.full_name || 'Member'} has been removed from the space`);
+    } catch (error) {
+      showErrorToast(error, "Failed to remove member");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-card border-l border-border w-80">
       {/* Header */}
@@ -414,24 +478,28 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                     className="h-6 w-6"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowMembersDialog(true);
+                      setShowAddMembersDialog(true);
                     }}
                   >
-                    <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                 )}
                 <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", membersOpen && "rotate-180")} />
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-4 pb-4">
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {members.slice(0, 10).map((member: any) => {
                   const employee = member.employee || member.employees;
                   const profile = employee?.profiles;
                   const isAdmin = member.role === 'admin';
+                  const isSelf = member.employee_id === currentEmployee?.id;
 
                   return (
-                    <div key={member.id} className="flex items-center gap-2">
+                    <div 
+                      key={member.id} 
+                      className="flex items-center gap-2 p-1.5 -mx-1.5 rounded-lg group hover:bg-accent/50 transition-colors"
+                    >
                       <Avatar className="h-7 w-7">
                         <AvatarImage src={profile?.avatar_url || undefined} />
                         <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
@@ -444,27 +512,56 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose }: ChatRightPanelEnhancedP
                           Admin
                         </span>
                       )}
+                      
+                      {/* 3-dot menu - visible on hover for admins, cannot modify self */}
+                      {isSpaceAdmin && !isSelf && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
+                            <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
+                              <UserCircle className="h-4 w-4 mr-2" />
+                              View Profile
+                            </DropdownMenuItem>
+                            {isAdmin ? (
+                              <DropdownMenuItem onClick={() => handleDemote(member)}>
+                                <UserMinus className="h-4 w-4 mr-2" />
+                                Remove Admin
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handlePromote(member)}>
+                                <Crown className="h-4 w-4 mr-2" />
+                                Make Admin
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              onClick={() => handleRemove(member)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <UserMinus className="h-4 w-4 mr-2" />
+                              Remove from Space
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   );
                 })}
                 {memberCount > 10 && (
                   <Button 
                     variant="link" 
-                    className="w-full text-xs text-primary p-0 h-auto"
+                    className="w-full text-xs text-primary p-0 h-auto mt-2"
                     onClick={() => setShowMembersDialog(true)}
                   >
                     View all {memberCount} members
-                  </Button>
-                )}
-                {isSpaceAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2"
-                    onClick={() => setShowAddMembersDialog(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    Add Members
                   </Button>
                 )}
               </div>
