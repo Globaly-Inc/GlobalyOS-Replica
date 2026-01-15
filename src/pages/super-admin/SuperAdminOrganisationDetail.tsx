@@ -35,6 +35,7 @@ import {
   XCircle,
   MapPin,
   Mail,
+  Phone,
   Briefcase,
   Power,
   Trash2,
@@ -577,26 +578,35 @@ export default function SuperAdminOrganisationDetail() {
                       <CardTitle className="text-lg">Contact Information</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <dl className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-muted">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <dt className="text-xs text-muted-foreground">Owner Email</dt>
-                            <dd className="font-medium">{org.owner_email || "-"}</dd>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-muted">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <dt className="text-xs text-muted-foreground">Owner Name</dt>
-                            <dd className="font-medium">{org.owner_name || "-"}</dd>
-                          </div>
-                        </div>
-                      </dl>
+                <dl className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Owner Name</dt>
+                      <dd className="font-medium">{org.owner_name || "-"}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Owner Email</dt>
+                      <dd className="font-medium">{org.owner_email || "-"}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Owner Phone</dt>
+                      <dd className="font-medium">{org.owner_phone || "-"}</dd>
+                    </div>
+                  </div>
+                </dl>
                     </CardContent>
                   </Card>
 
