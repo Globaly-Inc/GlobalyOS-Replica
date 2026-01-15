@@ -90,8 +90,8 @@ const PendingApproval = () => {
       )
       .subscribe();
 
-    // Keep polling as fallback (every 30 seconds)
-    const interval = setInterval(checkStatus, 30000);
+    // Keep polling as fallback (every 5 seconds for faster updates)
+    const interval = setInterval(checkStatus, 5000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -257,7 +257,7 @@ const PendingApproval = () => {
                     )}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Auto-refreshes every 30 seconds
+                    Auto-refreshes every 5 seconds
                   </p>
                 </div>
               </div>
@@ -334,13 +334,6 @@ const PendingApproval = () => {
             </div>
           )}
 
-          {/* Back to Home */}
-          <div className="text-center">
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-          </div>
         </div>
       </div>
     </div>

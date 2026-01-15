@@ -5337,6 +5337,7 @@ export type Database = {
           org_onboarding_step: number | null
           owner_email: string | null
           owner_name: string | null
+          owner_phone: string | null
           plan: string
           rejected_at: string | null
           rejection_reason: string | null
@@ -5366,6 +5367,7 @@ export type Database = {
           org_onboarding_step?: number | null
           owner_email?: string | null
           owner_name?: string | null
+          owner_phone?: string | null
           plan?: string
           rejected_at?: string | null
           rejection_reason?: string | null
@@ -5395,6 +5397,7 @@ export type Database = {
           org_onboarding_step?: number | null
           owner_email?: string | null
           owner_name?: string | null
+          owner_phone?: string | null
           plan?: string
           rejected_at?: string | null
           rejection_reason?: string | null
