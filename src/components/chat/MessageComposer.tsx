@@ -29,11 +29,12 @@ import {
   Upload,
   AtSign,
 } from "lucide-react";
-import { useSendMessage, useTypingIndicator, useSaveMentions } from "@/services/useChat";
+import { useSendMessage, useTypingIndicator, useSaveMentions, useSpaceMembers, useConversationParticipants } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import UploadProgress, { UploadingFile } from "./UploadProgress";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -94,6 +95,19 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const { currentOrg } = useOrganization();
   const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
   const isMobile = useIsMobile();
+  const { data: currentEmployee } = useCurrentEmployee();
+  
+  // Fetch members for @all mention
+  const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
+  const { data: conversationParticipants = [] } = useConversationParticipants(conversationId);
+  
+  // Get all member IDs (excluding current user) for @all mention
+  const allMemberIds = spaceId 
+    ? spaceMembers.filter(m => m.employee_id !== currentEmployee?.id).map(m => m.employee_id)
+    : conversationParticipants.filter(p => p.employee_id !== currentEmployee?.id).map(p => p.employee_id);
+  
+  // Hide @all for DMs (1-on-1 conversations with only 2 participants)
+  const isDM = !spaceId && conversationParticipants.length <= 2;
 
   // Expose addFiles method to parent component
   useImperativeHandle(ref, () => ({
@@ -171,7 +185,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   };
 
   // Handle mention selection
-  const handleMentionSelect = (member: { id: string; name: string }) => {
+  const handleMentionSelect = (member: { id: string; name: string; isAllMention?: boolean }) => {
     const cursorPosition = textareaRef.current?.selectionStart || 0;
     const textBeforeCursor = message.slice(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
@@ -181,7 +195,15 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       const newMessage = message.slice(0, lastAtIndex) + `@${member.name} ` + textAfterCursor;
       setMessage(newMessage);
       
-      if (!mentionedMembers.find(m => m.id === member.id)) {
+      // Handle @everyone - add all members
+      if (member.isAllMention && member.id === 'all') {
+        const allMembers = allMemberIds.map(id => ({ id, name: 'everyone' }));
+        setMentionedMembers(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newMembers = allMembers.filter(m => !existingIds.has(m.id));
+          return [...prev, ...newMembers];
+        });
+      } else if (!mentionedMembers.find(m => m.id === member.id)) {
         setMentionedMembers(prev => [...prev, { id: member.id, name: member.name }]);
       }
     }
@@ -502,6 +524,9 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               onSelect={handleMentionSelect}
               onClose={() => setShowMentions(false)}
               anchorRef={composerContainerRef}
+              allMemberIds={allMemberIds}
+              memberCount={allMemberIds.length}
+              hideAllOption={isDM}
             />
             
             <Textarea

@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { Users } from "lucide-react";
 
 interface TeamMember {
   id: string;
   name: string;
   position: string | null;
   avatar_url: string | null;
+  isAllMention?: boolean;
 }
 
 interface MentionAutocompleteProps {
@@ -19,6 +21,12 @@ interface MentionAutocompleteProps {
   onSelect: (member: TeamMember) => void;
   onClose: () => void;
   anchorRef?: React.RefObject<HTMLElement>;
+  /** All member IDs for @all mention - if provided, shows @everyone option */
+  allMemberIds?: string[];
+  /** Total member count for display */
+  memberCount?: number;
+  /** Hide @all option (e.g., for DMs) */
+  hideAllOption?: boolean;
 }
 
 const MentionAutocomplete = ({
@@ -27,6 +35,9 @@ const MentionAutocomplete = ({
   onSelect,
   onClose,
   anchorRef,
+  allMemberIds,
+  memberCount = 0,
+  hideAllOption = false,
 }: MentionAutocompleteProps) => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -35,6 +46,30 @@ const MentionAutocomplete = ({
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Check if search matches "all" or "everyone"
+  const showAllOption = useMemo(() => {
+    if (hideAllOption || !allMemberIds || allMemberIds.length === 0) return false;
+    const search = searchText.toLowerCase();
+    return search === '' || 'all'.startsWith(search) || 'everyone'.startsWith(search);
+  }, [searchText, allMemberIds, hideAllOption]);
+
+  // Create the @all option
+  const allMembersOption: TeamMember = useMemo(() => ({
+    id: 'all',
+    name: 'everyone',
+    position: `Notify all ${memberCount} member${memberCount !== 1 ? 's' : ''}`,
+    avatar_url: null,
+    isAllMention: true,
+  }), [memberCount]);
+
+  // Combine @all with regular members
+  const displayMembers = useMemo(() => {
+    if (showAllOption) {
+      return [allMembersOption, ...members];
+    }
+    return members;
+  }, [showAllOption, allMembersOption, members]);
 
   // Calculate position based on anchor element
   useEffect(() => {
@@ -122,13 +157,13 @@ const MentionAutocomplete = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % members.length);
+        setSelectedIndex((prev) => (prev + 1) % displayMembers.length);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + members.length) % members.length);
-      } else if ((e.key === 'Enter' || e.key === 'Tab') && members[selectedIndex]) {
+        setSelectedIndex((prev) => (prev - 1 + displayMembers.length) % displayMembers.length);
+      } else if ((e.key === 'Enter' || e.key === 'Tab') && displayMembers[selectedIndex]) {
         e.preventDefault();
-        onSelect(members[selectedIndex]);
+        onSelect(displayMembers[selectedIndex]);
       } else if (e.key === 'Escape') {
         onClose();
       }
@@ -136,7 +171,7 @@ const MentionAutocomplete = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, members, selectedIndex, onSelect, onClose]);
+  }, [isOpen, displayMembers, selectedIndex, onSelect, onClose]);
 
   // Click outside to close
   useEffect(() => {
@@ -177,32 +212,44 @@ const MentionAutocomplete = ({
         <div className="p-3 text-sm text-muted-foreground text-center">
           Loading...
         </div>
-      ) : members.length === 0 ? (
+      ) : displayMembers.length === 0 ? (
         <div className="p-3 text-sm text-muted-foreground text-center">
           {searchText ? `No members found for "${searchText}"` : 'No team members available'}
         </div>
       ) : (
         <ul className="py-1">
-          {members.map((member, index) => (
+          {displayMembers.map((member, index) => (
             <li
               key={member.id}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors",
                 index === selectedIndex
                   ? "bg-accent text-accent-foreground"
-                  : "hover:bg-muted"
+                  : "hover:bg-muted",
+                member.isAllMention && "border-b border-border"
               )}
               onClick={() => onSelect(member)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={member.avatar_url || undefined} />
-                <AvatarFallback className="text-xs">
-                  {getInitials(member.name)}
-                </AvatarFallback>
-              </Avatar>
+              {member.isAllMention ? (
+                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-primary" />
+                </div>
+              ) : (
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={member.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(member.name)}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{member.name}</p>
+                <p className={cn(
+                  "text-sm font-medium truncate",
+                  member.isAllMention && "text-primary"
+                )}>
+                  @{member.name}
+                </p>
                 {member.position && (
                   <p className="text-xs text-muted-foreground truncate">
                     {member.position}
