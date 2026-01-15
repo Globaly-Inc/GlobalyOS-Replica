@@ -390,12 +390,17 @@ export default function SuperAdminOrganisationDetail() {
                   <Trash2 className="h-4 w-4" />
                   Delete
                 </Button>
-                <Link to="/super-admin/organisations">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
+                {org.approval_status === "pending" && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => navigate("/super-admin/organisations?tab=pending")}
+                    className="gap-2"
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    Review
                   </Button>
-                </Link>
+                )}
               </div>
             </div>
           </CardContent>
