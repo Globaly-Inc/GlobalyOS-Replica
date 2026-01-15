@@ -41,27 +41,38 @@ const PendingApproval = () => {
     
     setChecking(true);
     try {
-      // Check organization status by owner email
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('approval_status, rejection_reason, name')
-        .eq('owner_email', email)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Use edge function to check status (bypasses RLS, returns minimal data)
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-approval-status`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
 
-      if (!data) {
-        // No organization found for this email
+      if (!response.ok) {
+        console.error('Failed to check approval status:', response.status);
         setStatus('not_found');
         return;
       }
 
-      setStatus(data.approval_status as ApprovalStatus);
-      setRejectionReason(data.rejection_reason);
-      setOrganizationName(data.name);
+      const data = await response.json();
+
+      if (data.status === 'not_found') {
+        setStatus('not_found');
+        return;
+      }
+
+      setStatus(data.status as ApprovalStatus);
+      setRejectionReason(data.rejectionReason || null);
+      setOrganizationName(data.name || null);
 
       // If approved, redirect to auth
-      if (data.approval_status === 'approved') {
+      if (data.status === 'approved') {
         setTimeout(() => {
           navigate('/auth');
         }, 2000);
