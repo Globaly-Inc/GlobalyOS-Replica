@@ -215,3 +215,6 @@ verify_jwt = false
 
 [functions.initialize-yearly-leave-balances]
 verify_jwt = false
+
+[functions.delete-user-super-admin]
+verify_jwt = false
