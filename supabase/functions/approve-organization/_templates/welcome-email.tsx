@@ -141,7 +141,7 @@ const container = {
 }
 
 const logoSection = {
-  backgroundColor: '#1a1a2e',
+  backgroundColor: '#ffffff',
   padding: '24px 32px',
   textAlign: 'center' as const,
 }
