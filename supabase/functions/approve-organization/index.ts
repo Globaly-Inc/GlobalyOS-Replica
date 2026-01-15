@@ -143,7 +143,7 @@ async function sendWelcomeEmail(email: string, ownerName: string, organizationNa
     );
 
     const { data, error } = await resend.emails.send({
-      from: 'GlobalyOS <hello@globalyhub.com>',
+      from: 'GlobalyOS <hello@globalyos.com>',
       to: [email],
       subject: `Welcome to GlobalyOS! Your organization has been approved 🎉`,
       html,
