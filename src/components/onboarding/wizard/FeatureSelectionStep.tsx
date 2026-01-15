@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, ArrowRight, Sparkles, Users, Calendar, FileText, MessageSquare, PieChart, DollarSign, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Users, Calendar, FileText, MessageSquare, PieChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FeatureSelectionStepProps {
@@ -57,20 +57,6 @@ const FEATURES = [
     name: 'KPIs & OKRs',
     description: 'Track goals, key results, and performance metrics',
     icon: PieChart,
-    recommended: false,
-  },
-  {
-    id: 'crm',
-    name: 'CRM',
-    description: 'Manage contacts, companies, and deals',
-    icon: ClipboardList,
-    recommended: false,
-  },
-  {
-    id: 'payroll',
-    name: 'Payroll',
-    description: 'Process payroll and generate payslips',
-    icon: DollarSign,
     recommended: false,
   },
 ];
