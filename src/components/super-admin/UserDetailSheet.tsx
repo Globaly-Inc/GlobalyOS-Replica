@@ -5,11 +5,23 @@ import {
   SheetContent,
   SheetHeader,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useToast } from "@/hooks/use-toast";
 import {
   Globe,
   MessageSquare,
@@ -29,6 +41,7 @@ import {
   User as UserIcon,
   Zap,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, startOfDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -62,6 +75,7 @@ interface UserDetailSheetProps {
     total_activities: number;
     last_active_at: string | null;
   } | null;
+  onUserDeleted?: () => void;
 }
 
 interface PageVisit {
@@ -152,7 +166,7 @@ const groupByDate = <T extends { visited_at?: string; created_at?: string }>(
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
-export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetProps) => {
+export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: UserDetailSheetProps) => {
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,6 +177,40 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
     uniquePages: 0,
     lastActive: null as string | null,
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  const handleDeleteUser = async () => {
+    if (!user) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user-super-admin', {
+        body: { userId: user.id }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "User deleted",
+        description: `${user.full_name} has been permanently deleted.`,
+      });
+      
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+      onUserDeleted?.();
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      toast({
+        title: "Failed to delete user",
+        description: err.message || "An error occurred while deleting the user.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredActivityCounts = useMemo(() => {
     const now = new Date();
@@ -451,6 +499,28 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
                   </div>
                 )}
               </div>
+
+              {/* Section 6: Danger Zone - Delete User */}
+              <div className="pt-4 border-t border-destructive/20">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <span className="text-sm font-medium text-destructive">Danger Zone</span>
+                </div>
+                <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Permanently delete this user and all associated data across all organisations. This action cannot be undone.
+                  </p>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Delete User Permanently
+                  </Button>
+                </div>
+              </div>
             </TabsContent>
 
             {/* Page Visits Tab */}
@@ -531,6 +601,53 @@ export const UserDetailSheet = ({ open, onOpenChange, user }: UserDetailSheetPro
           </Tabs>
         )}
       </SheetContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Delete User Permanently?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You are about to permanently delete <strong>{user?.full_name}</strong> ({user?.email}).
+              </p>
+              <p>
+                This will remove all their data including:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                <li>Employee records in all organisations</li>
+                <li>Attendance, leave, and KPI data</li>
+                <li>Posts, kudos, and chat messages</li>
+                <li>All activity and visit logs</li>
+                <li>The user account itself</li>
+              </ul>
+              <p className="font-medium text-destructive">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Permanently
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 };

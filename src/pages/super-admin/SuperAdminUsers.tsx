@@ -468,6 +468,10 @@ const SuperAdminUsers = () => {
           open={sheetOpen}
           onOpenChange={setSheetOpen}
           user={selectedUser}
+          onUserDeleted={() => {
+            fetchUsers();
+            setSheetOpen(false);
+          }}
         />
       </div>
     </SuperAdminLayout>
