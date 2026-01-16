@@ -28,7 +28,7 @@ import { GlobalSearch } from "./GlobalSearch";
 import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
-import { WelcomeSurvey, OnboardingChecklist } from "./onboarding";
+import { OnboardingChecklist } from "./onboarding";
 import { useUserRole } from "@/hooks/useUserRole";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
@@ -83,7 +83,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [elapsedTime, setElapsedTime] = useState<string>("");
   const [sessionCount, setSessionCount] = useState<number>(0);
   const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [showWelcomeSurvey, setShowWelcomeSurvey] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [getHelpDialogOpen, setGetHelpDialogOpen] = useState(false);
 
@@ -102,31 +101,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       setQrScannerOpen(true);
     }
   };
-
-  // Check if user needs to see welcome survey (owners only)
-  useEffect(() => {
-    const checkSurveyStatus = async () => {
-      if (!user?.id || !currentOrg?.id || role !== 'owner') {
-        setShowWelcomeSurvey(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('onboarding_progress')
-        .select('survey_completed')
-        .eq('user_id', user.id)
-        .eq('organization_id', currentOrg.id)
-        .maybeSingle();
-
-      // Show survey only for owners who haven't completed it
-      if (!data?.survey_completed) {
-        // Small delay to let the page load first
-        setTimeout(() => setShowWelcomeSurvey(true), 1000);
-      }
-    };
-
-    checkSurveyStatus();
-  }, [user?.id, currentOrg?.id, role]);
 
   // Global search keyboard shortcut (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -771,12 +745,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           />
         </>
       )}
-
-      {/* Welcome Survey Modal */}
-      <WelcomeSurvey 
-        open={showWelcomeSurvey} 
-        onComplete={() => setShowWelcomeSurvey(false)} 
-      />
 
       {/* Global Search Command Palette */}
       <GlobalSearch open={globalSearchOpen} onOpenChange={setGlobalSearchOpen} />
