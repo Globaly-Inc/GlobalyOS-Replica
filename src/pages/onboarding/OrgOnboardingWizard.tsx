@@ -18,6 +18,7 @@ import {
 } from '@/services/useOrgOnboarding';
 import { OnboardingHeader } from '@/components/onboarding/wizard/OnboardingHeader';
 import { OrgWelcomeStep } from '@/components/onboarding/wizard/OrgWelcomeStep';
+import { OwnerProfileStep } from '@/components/onboarding/wizard/OwnerProfileStep';
 import { OrgInfoStep } from '@/components/onboarding/wizard/OrgInfoStep';
 import { OfficesStep } from '@/components/onboarding/wizard/OfficesStep';
 import { TeamSeedingStep } from '@/components/onboarding/wizard/TeamSeedingStep';
@@ -26,9 +27,10 @@ import { HrSettingsStep } from '@/components/onboarding/wizard/HrSettingsStep';
 import { OrgCompleteStep } from '@/components/onboarding/wizard/OrgCompleteStep';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 const STEP_NAMES = [
   'Welcome',
+  'Your Profile',
   'Organization',
   'Offices',
   'Team',
@@ -131,6 +133,16 @@ export default function OrgOnboardingWizard() {
             ownerName={session?.user?.user_metadata?.full_name || 'there'}
             orgName={currentOrg?.name || 'your organization'}
             onContinue={() => handleNext()}
+          />
+        );
+      case 'owner-profile':
+        return (
+          <OwnerProfileStep
+            organizationId={currentOrg?.id || ''}
+            initialData={onboardingData?.owner_profile}
+            onSave={(data) => handleNext({ owner_profile: data })}
+            onBack={handleBack}
+            isSaving={saveStep.isPending}
           />
         );
       case 'organization-info':
