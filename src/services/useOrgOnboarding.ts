@@ -14,6 +14,12 @@ export interface OrgOnboardingData {
   organization_id: string;
   owner_user_id: string | null;
   current_step: number;
+  owner_profile?: {
+    position?: string;
+    department?: string;
+    phone?: string;
+    date_of_birth?: string | null;
+  };
   organization_info: {
     name?: string;
     logo_url?: string;
@@ -55,6 +61,7 @@ export interface OrgOnboardingData {
 
 const ORG_ONBOARDING_STEPS = [
   'welcome',
+  'owner-profile',
   'organization-info',
   'offices',
   'team-members',
@@ -290,7 +297,7 @@ export function useCompleteOrgOnboarding() {
         .update({
           completed_at: new Date().toISOString(),
           skipped,
-          current_step: 7,
+          current_step: 8,
         })
         .eq('organization_id', currentOrg.id);
 
@@ -301,7 +308,7 @@ export function useCompleteOrgOnboarding() {
         .from('organizations')
         .update({
           org_onboarding_completed: true,
-          org_onboarding_step: 7,
+          org_onboarding_step: 8,
         })
         .eq('id', currentOrg.id);
 
