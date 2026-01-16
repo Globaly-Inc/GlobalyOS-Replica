@@ -105,7 +105,6 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
   const [stepIndex, setStepIndex] = useState(0);
   const [steps, setSteps] = useState<TourStep[]>([]);
   const [loading, setLoading] = useState(true);
-  const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [waitingForNavigation, setWaitingForNavigation] = useState(false);
 
   // Owner is determined by actual owner role
@@ -157,20 +156,16 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
           completed_steps: [],
           is_completed: false,
           tour_completed: false,
-          survey_completed: false,
+          survey_completed: true, // No longer need survey
         });
         
-        // Don't start tour yet - wait for survey
-        setSurveyCompleted(false);
-      } else {
-        setSurveyCompleted(progress.survey_completed === true);
-        
-        // Only start tour if survey is completed and tour is not completed
-        if (progress.survey_completed && !progress.tour_completed) {
-          setStepIndex(progress.current_step || 0);
-          // Delay to let UI settle
-          setTimeout(() => setRun(true), 1000);
-        }
+        // Start tour after a delay
+        setTimeout(() => setRun(true), 1500);
+      } else if (!progress.tour_completed) {
+        // Start tour if not completed
+        setStepIndex(progress.current_step || 0);
+        // Delay to let UI settle
+        setTimeout(() => setRun(true), 1000);
       }
       
       setLoading(false);
@@ -178,36 +173,6 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
 
     checkOnboardingProgress();
   }, [user?.id, currentOrg?.id, isOwnerRole]);
-
-  // Watch for survey completion changes
-  useEffect(() => {
-    if (!user?.id || !currentOrg?.id) return;
-
-    const channel = supabase
-      .channel("onboarding-survey-status")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "onboarding_progress",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newData = payload.new as { survey_completed?: boolean; tour_completed?: boolean };
-          if (newData.survey_completed && !newData.tour_completed) {
-            setSurveyCompleted(true);
-            // Start tour after survey completes
-            setTimeout(() => setRun(true), 1000);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, currentOrg?.id]);
 
   // Handle external run prop
   useEffect(() => {
@@ -340,9 +305,8 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
     ? location.pathname.startsWith(currentStep.requiredRoute) 
     : true;
 
-  // Don't render if loading, no steps, waiting for navigation, survey not completed, 
-  // or if target doesn't exist when we're on the correct route
-  if (loading || steps.length === 0 || waitingForNavigation || !surveyCompleted) return null;
+  // Don't render if loading, no steps, or waiting for navigation
+  if (loading || steps.length === 0 || waitingForNavigation) return null;
   
   // Only run the tour if we're on the correct route and target exists
   const shouldRun = run && onCorrectRoute && targetExists;
