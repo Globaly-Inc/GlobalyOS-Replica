@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,15 @@ const Auth = () => {
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+  // Guard to prevent duplicate redirects
+  const isRedirecting = useRef(false);
+
   // Check onboarding status and redirect accordingly
   const checkOnboardingAndRedirect = async (userId: string) => {
+    // Guard against duplicate calls
+    if (isRedirecting.current) return;
+    isRedirecting.current = true;
+
     try {
       // Get user's organization and onboarding status
       const { data: memberData } = await supabase
@@ -109,9 +116,12 @@ const Auth = () => {
       data: {
         subscription
       }
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        await checkOnboardingAndRedirect(session.user.id);
+        // Defer async operation to prevent deadlock - per Supabase best practices
+        setTimeout(() => {
+          checkOnboardingAndRedirect(session.user.id);
+        }, 0);
       }
     });
     return () => subscription.unsubscribe();
@@ -269,19 +279,16 @@ const Auth = () => {
           });
         }
       } else if (responseData.session) {
-        await supabase.auth.setSession({
-          access_token: responseData.session.access_token,
-          refresh_token: responseData.session.refresh_token
-        });
         toast({
           title: "Success!",
           description: "You have been signed in."
         });
-        // Redirect based on onboarding status
-        const userId = responseData.session.user?.id;
-        if (userId) {
-          await checkOnboardingAndRedirect(userId);
-        }
+        // Set session - onAuthStateChange will handle the redirect
+        await supabase.auth.setSession({
+          access_token: responseData.session.access_token,
+          refresh_token: responseData.session.refresh_token
+        });
+        // Navigation is handled by onAuthStateChange listener
       } else {
         toast({
           title: "Verified!",
