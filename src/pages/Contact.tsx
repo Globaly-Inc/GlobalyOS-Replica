@@ -37,6 +37,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { supabase } from '@/integrations/supabase/client';
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -112,15 +113,32 @@ export default function Contact() {
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success('Message sent successfully!', {
-      description: 'We\'ll get back to you within 24 hours.'
-    });
-    
-    form.reset();
-    setIsSubmitting(false);
+    try {
+      const { data: response, error } = await supabase.functions.invoke('send-contact-email', {
+        body: data
+      });
+
+      if (error) {
+        console.error('Error sending contact email:', error);
+        toast.error('Failed to send message', {
+          description: 'Please try again or email us directly at hello@globalyos.com'
+        });
+        return;
+      }
+
+      toast.success('Message sent successfully!', {
+        description: 'We\'ll get back to you within 24 hours.'
+      });
+      
+      form.reset();
+    } catch (err) {
+      console.error('Error sending contact email:', err);
+      toast.error('Failed to send message', {
+        description: 'Please try again or email us directly at hello@globalyos.com'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
