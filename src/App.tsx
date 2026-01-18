@@ -16,6 +16,7 @@ import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 
 // Lazy load public website pages
 const Features = lazy(() => import('./pages/Features'));
+const About = lazy(() => import('./pages/About'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
@@ -130,6 +131,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 {/* Public website routes */}
                 <Route path="/landing" element={<Navigate to="/" replace />} />
                 <Route path="/features" element={<Features />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
