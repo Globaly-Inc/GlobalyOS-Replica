@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ArrowUp, Printer, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowUp, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -67,10 +66,6 @@ export function LegalDocumentLayout({
       const offsetPosition = elementPosition + window.pageYOffset - offset;
       window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   // Filter out current document from related documents
@@ -141,13 +136,7 @@ export function LegalDocumentLayout({
           <main className="flex-1 max-w-3xl">
             {/* Document Header */}
             <div className="mb-8 pb-8 border-b">
-              <div className="flex items-start justify-between gap-4">
-                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">{title}</h1>
-                <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden shrink-0">
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print
-                </Button>
-              </div>
+              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">{title}</h1>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-4">
                 <span>Last Updated: {lastUpdated}</span>
                 <span>•</span>
