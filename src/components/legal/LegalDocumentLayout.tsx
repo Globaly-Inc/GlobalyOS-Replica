@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ArrowUp, Printer, ArrowLeft, FileText } from 'lucide-react';
+import { ArrowUp, Printer, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'react-router-dom';
+import { WebsiteHeader } from '@/components/website/WebsiteHeader';
 
 interface LegalDocumentLayoutProps {
   title: string;
@@ -77,27 +78,15 @@ export function LegalDocumentLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm">Back to GlobalyOS</span>
-            </Link>
-          </div>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-        </div>
-      </header>
+      {/* Website Header */}
+      <WebsiteHeader />
 
-      <div className="container px-4 py-8 lg:py-12">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-          {/* Sidebar - Desktop */}
-          <aside className="hidden lg:block w-64 shrink-0 print:hidden">
-            <div className="sticky top-24">
+      <div className="pt-16">
+        <div className="container px-4 py-8 lg:py-12">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            {/* Sidebar - Desktop */}
+            <aside className="hidden lg:block w-64 shrink-0 print:hidden">
+              <div className="sticky top-24">
               {/* Table of Contents */}
               {tableOfContents.length > 0 && (
                 <>
@@ -152,8 +141,14 @@ export function LegalDocumentLayout({
           <main className="flex-1 max-w-3xl">
             {/* Document Header */}
             <div className="mb-8 pb-8 border-b">
-              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight mb-4">{title}</h1>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">{title}</h1>
+                <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden shrink-0">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-4">
                 <span>Last Updated: {lastUpdated}</span>
                 <span>•</span>
                 <span>Effective: {effectiveDate}</span>
@@ -182,6 +177,7 @@ export function LegalDocumentLayout({
               </div>
             </div>
           </main>
+          </div>
         </div>
       </div>
 
