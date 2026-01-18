@@ -86,6 +86,12 @@ const SupportFeatures = lazy(() => import('./pages/SupportFeatures'));
 const SupportModule = lazy(() => import('./pages/SupportModule'));
 const SupportArticle = lazy(() => import('./pages/SupportArticle'));
 const SupportAPI = lazy(() => import('./pages/SupportAPI'));
+
+// Legal pages
+const Terms = lazy(() => import('./pages/legal/Terms'));
+const Privacy = lazy(() => import('./pages/legal/Privacy'));
+const AcceptableUse = lazy(() => import('./pages/legal/AcceptableUse'));
+const DPA = lazy(() => import('./pages/legal/DPA'));
 const SupportGetHelp = lazy(() => import('./pages/SupportGetHelp'));
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminOrganisationDetail = lazy(() => import('./pages/super-admin/SuperAdminOrganisationDetail'));
@@ -126,6 +132,12 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
+                
+                {/* Legal pages */}
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/acceptable-use" element={<AcceptableUse />} />
+                <Route path="/dpa" element={<DPA />} />
                 
                 {/* Auth routes */}
                 <Route path="/auth" element={<Auth />} />
