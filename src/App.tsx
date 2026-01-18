@@ -92,6 +92,7 @@ const Terms = lazy(() => import('./pages/legal/Terms'));
 const Privacy = lazy(() => import('./pages/legal/Privacy'));
 const AcceptableUse = lazy(() => import('./pages/legal/AcceptableUse'));
 const DPA = lazy(() => import('./pages/legal/DPA'));
+const Cookies = lazy(() => import('./pages/legal/Cookies'));
 const SupportGetHelp = lazy(() => import('./pages/SupportGetHelp'));
 const SuperAdminOrganisations = lazy(() => import('./pages/super-admin/SuperAdminOrganisations'));
 const SuperAdminOrganisationDetail = lazy(() => import('./pages/super-admin/SuperAdminOrganisationDetail'));
@@ -138,6 +139,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/acceptable-use" element={<AcceptableUse />} />
                 <Route path="/dpa" element={<DPA />} />
+                <Route path="/cookies" element={<Cookies />} />
                 
                 {/* Auth routes */}
                 <Route path="/auth" element={<Auth />} />
