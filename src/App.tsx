@@ -18,6 +18,7 @@ import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 const Features = lazy(() => import('./pages/Features'));
 const About = lazy(() => import('./pages/About'));
 const Careers = lazy(() => import('./pages/Careers'));
+const Contact = lazy(() => import('./pages/Contact'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
@@ -134,6 +135,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/features" element={<Features />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/careers" element={<Careers />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
