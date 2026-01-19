@@ -23,8 +23,8 @@ export interface WorkdaysChipSelectorProps {
   onChange: (days: number[]) => void;
   /** Disable all chips */
   disabled?: boolean;
-  /** Size variant: 'sm' for compact/table use, 'md' for form use */
-  size?: 'sm' | 'md';
+  /** Size variant: 'sm' for compact/table use, 'md' for form use, 'lg' for alignment with taller inputs */
+  size?: 'sm' | 'md' | 'lg';
   /** Show tooltips with full day names */
   showTooltips?: boolean;
   /** Additional class names */
@@ -56,8 +56,18 @@ export function WorkdaysChipSelector({
     }
   };
 
-  const chipSize = size === 'sm' ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm';
-  const gap = size === 'sm' ? 'gap-0.5' : 'gap-1';
+  const chipSizeMap = {
+    sm: 'w-6 h-6 text-xs',
+    md: 'w-8 h-8 text-sm',
+    lg: 'w-9 h-8 text-sm',
+  };
+  const gapMap = {
+    sm: 'gap-0.5',
+    md: 'gap-1',
+    lg: 'gap-1.5',
+  };
+  const chipSize = chipSizeMap[size];
+  const gap = gapMap[size];
 
   const ChipButton = ({ day }: { day: typeof WEEKDAYS[number] }) => {
     const isSelected = value.includes(day.value);

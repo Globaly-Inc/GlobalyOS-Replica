@@ -651,6 +651,7 @@ export function OfficesStep({
                                     value={getSelectedWorkdays(office.day_schedules)}
                                     onChange={(days) => handleWorkdaysChange(index, days)}
                                     disabled={isLoading}
+                                    size="lg"
                                   />
                                 </div>
                                 <div className="space-y-2">
