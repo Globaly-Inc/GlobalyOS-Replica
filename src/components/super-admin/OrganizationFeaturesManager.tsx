@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -18,12 +18,25 @@ interface OrganizationFeaturesManagerProps {
   organizationName: string;
 }
 
+// These are Super Admin gated features - not available to orgs by default
 const AVAILABLE_FEATURES = [
   { 
     name: "chat", 
-    label: "Chat", 
-    description: "Team messaging and communication",
+    label: "Team Chat", 
+    description: "Real-time messaging with spaces and direct messages",
     icon: MessageSquare 
+  },
+  { 
+    name: "workflows", 
+    label: "Onboarding & Offboarding Workflows", 
+    description: "Automated workflows for employee lifecycle",
+    icon: GitBranch 
+  },
+  { 
+    name: "payroll", 
+    label: "Payroll", 
+    description: "Salary processing, payslips, and tax calculations",
+    icon: Wallet 
   },
   { 
     name: "tasks", 

@@ -189,7 +189,7 @@ export function useInitOrgOnboarding() {
           },
           offices: [],
           team_members: [],
-          enabled_features: ['hr', 'leave', 'feed', 'wiki', 'chat'],
+          enabled_features: ['hr', 'feed', 'attendance', 'leave', 'wiki'],
           hr_settings: {},
         })
         .select()
