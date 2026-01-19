@@ -43,7 +43,7 @@ interface FeatureDefinition {
   featureFlag?: string;
 }
 
-const FEATURES: FeatureDefinition[] = [
+export const FEATURES: FeatureDefinition[] = [
   // Core Features - Always enabled, cannot be toggled
   {
     id: 'hr',
