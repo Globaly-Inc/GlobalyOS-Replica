@@ -36,11 +36,15 @@ export interface OrgOnboardingData {
   offices: Array<{
     id?: string;
     name: string;
-    type: 'headquarters' | 'branch';
-    country: string;
-    city: string;
-    address?: string;
-    timezone?: string;
+    address: string;
+    address_components?: {
+      country?: string;
+      country_code?: string;
+      city?: string;
+      postal_code?: string;
+      lat?: number;
+      lng?: number;
+    };
   }>;
   departments_roles?: {
     departments: string[];
