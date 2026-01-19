@@ -1,15 +1,14 @@
 /**
- * Organization Onboarding - Offices Step (Table Layout)
- * Dynamic columns based on enabled features from Welcome step
+ * Organization Onboarding - Offices Step (Card Layout)
+ * Full-width cards with Attendance & Leave settings in sub-cards
  */
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import { 
   WorkdaysScheduleSelector, 
@@ -20,7 +19,18 @@ import {
 import { YearStartPicker } from '@/components/ui/year-start-picker';
 import { TimezoneSelector } from '@/components/ui/timezone-selector';
 import { LeaveTypesCustomizer, LeaveTypeConfig, getDefaultLeaveTypesConfig } from './LeaveTypesCustomizer';
-import { ArrowLeft, ArrowRight, Building, Plus, Trash2, Loader2, Crown, CalendarDays, Info } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Building, 
+  Plus, 
+  Trash2, 
+  Loader2, 
+  Crown, 
+  Clock, 
+  CalendarDays, 
+  PartyPopper 
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -73,8 +83,6 @@ interface OfficesStepProps {
 }
 
 // Helper to convert old format to new DaySchedulesMap
-
-// Helper to convert old format to new DaySchedulesMap
 const convertToDaySchedules = (
   workDays?: number[], 
   startTime?: string, 
@@ -92,6 +100,48 @@ const convertToDaySchedules = (
     };
   });
   return schedules;
+};
+
+// Helper to format work hours summary
+const formatWorkHoursSummary = (daySchedules?: DaySchedulesMap): string => {
+  if (!daySchedules) return '9:00 AM - 5:00 PM';
+  
+  const enabledSchedules = Object.values(daySchedules).filter(s => s.enabled);
+  if (enabledSchedules.length === 0) return 'No work days set';
+  
+  const firstDay = enabledSchedules[0];
+  if (!firstDay) return '9:00 AM - 5:00 PM';
+  
+  const formatTime = (time: string) => {
+    const [h, m] = time.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${m} ${ampm}`;
+  };
+  
+  return `${formatTime(firstDay.start || '09:00')} - ${formatTime(firstDay.end || '17:00')}`;
+};
+
+// Helper to format break time summary
+const formatBreakSummary = (daySchedules?: DaySchedulesMap): string | null => {
+  if (!daySchedules) return null;
+  
+  const enabledSchedules = Object.values(daySchedules).filter(s => s.enabled);
+  if (enabledSchedules.length === 0) return null;
+  
+  const firstDay = enabledSchedules[0];
+  if (!firstDay?.breakStart || !firstDay?.breakEnd) return null;
+  
+  const formatTime = (time: string) => {
+    const [h, m] = time.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${m} ${ampm}`;
+  };
+  
+  return `${formatTime(firstDay.breakStart)} - ${formatTime(firstDay.breakEnd)}`;
 };
 
 export function OfficesStep({ 
@@ -343,150 +393,160 @@ export function OfficesStep({
   const isValid = offices.some(o => o.name && o.address);
   const isLoading = isSaving || isPersisting;
 
-  // Calculate dynamic column count for responsive sizing
-  const extraColumns = (hasAttendance ? 3 : 0) + (hasLeave ? 1 : 0);
-
   return (
-    <TooltipProvider>
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Building className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle className="text-xl">Your Offices</CardTitle>
-          <CardDescription>
-            Configure your office locations{hasAttendance || hasLeave ? ' and quick settings' : ''}. You can adjust details later.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-[140px] min-w-[140px]">Office Name</TableHead>
-                    <TableHead className="w-[200px] min-w-[180px]">Location</TableHead>
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <Building className="h-6 w-6 text-primary" />
+        </div>
+        <CardTitle className="text-xl">Your Offices</CardTitle>
+        <CardDescription>
+          Configure your office locations{hasAttendance || hasLeave ? ' and their settings' : ''}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Office Cards */}
+          <div className="space-y-4">
+            {offices.map((office, index) => (
+              <div 
+                key={index}
+                className={cn(
+                  "rounded-lg border p-4 space-y-4 transition-colors",
+                  index === 0 && "border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/20"
+                )}
+              >
+                {/* Header Row - Name, Location, Timezone */}
+                <div className="grid grid-cols-12 gap-3 items-start">
+                  {/* Office Name */}
+                  <div className="col-span-12 sm:col-span-3">
+                    <Label className="text-xs text-muted-foreground mb-1.5 block">
+                      {index === 0 ? 'Headquarters' : 'Office Name'}
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {index === 0 && (
+                        <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+                      )}
+                      <Input
+                        value={office.name}
+                        onChange={(e) => updateOffice(index, 'name', e.target.value)}
+                        placeholder="e.g., Head Office"
+                        className="h-9"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="col-span-12 sm:col-span-4">
+                    <Label className="text-xs text-muted-foreground mb-1.5 block">Location</Label>
+                    <AddressAutocomplete
+                      value={office.address}
+                      onChange={(address, components) => handleAddressChange(index, address, components)}
+                      placeholder="Search address..."
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  {/* Timezone */}
+                  <div className="col-span-10 sm:col-span-4">
+                    <Label className="text-xs text-muted-foreground mb-1.5 block">Timezone</Label>
+                    <TimezoneSelector
+                      value={office.timezone || 'UTC'}
+                      onChange={(v) => updateOffice(index, 'timezone', v)}
+                      disabled={isLoading}
+                      countryCode={office.address_components?.country_code}
+                      placeholder="Select timezone"
+                    />
+                  </div>
+
+                  {/* Delete Button */}
+                  <div className="col-span-2 sm:col-span-1 flex justify-end pt-6">
+                    {index !== 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeOffice(index)}
+                        disabled={isLoading}
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Settings Row - Two Sub-Cards */}
+                {(hasAttendance || hasLeave) && (
+                  <div className={cn(
+                    "grid gap-4",
+                    hasAttendance && hasLeave ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+                  )}>
+                    {/* Attendance Settings Sub-Card */}
                     {hasAttendance && (
-                      <>
-                        <TableHead className="w-[160px] min-w-[150px]">
-                          <div className="flex items-center gap-1">
-                            Timezone
-                          </div>
-                        </TableHead>
-                        <TableHead className="w-[160px] min-w-[150px]">
-                          <div className="flex items-center gap-1">
-                            Workdays
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>Select working days for this office</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TableHead>
-                        <TableHead className="w-[90px] min-w-[80px]">
-                          <div className="flex items-center gap-1">
-                            Holidays
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>Auto-add public holidays to calendar</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TableHead>
-                      </>
-                    )}
-                    {hasLeave && (
-                      <TableHead className="w-[120px] min-w-[110px]">
-                        <div className="flex items-center gap-1">
-                          <CalendarDays className="h-3.5 w-3.5" />
-                          Year Start
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>Leave balance calculation starts on this date</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableHead>
-                    )}
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {offices.map((office, index) => (
-                    <TableRow 
-                      key={index}
-                      className={cn(
-                        index === 0 && "bg-amber-50/50 dark:bg-amber-950/20"
-                      )}
-                    >
-                      {/* Office Name */}
-                      <TableCell className="p-2">
+                      <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
                         <div className="flex items-center gap-2">
-                          {index === 0 && (
-                            <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                          )}
-                          <Input
-                            value={office.name}
-                            onChange={(e) => updateOffice(index, 'name', e.target.value)}
-                            placeholder="e.g., Head Office"
-                            className="h-8 text-sm"
-                            disabled={isLoading}
-                          />
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium">Attendance Settings</span>
                         </div>
-                      </TableCell>
 
-                      {/* Location */}
-                      <TableCell className="p-2">
-                        <AddressAutocomplete
-                          value={office.address}
-                          onChange={(address, components) => handleAddressChange(index, address, components)}
-                          placeholder="Search address..."
-                          disabled={isLoading}
-                        />
-                      </TableCell>
-
-                      {/* Timezone (Attendance) */}
-                      {hasAttendance && (
-                        <TableCell className="p-2">
-                          <TimezoneSelector
-                            value={office.timezone || 'UTC'}
-                            onChange={(v) => updateOffice(index, 'timezone', v)}
-                            disabled={isLoading}
-                            countryCode={office.address_components?.country_code}
-                          />
-                        </TableCell>
-                      )}
-
-                      {/* Workdays with Schedule (Attendance) */}
-                      {hasAttendance && (
-                        <TableCell className="p-2">
+                        {/* Workdays & Schedule Selector */}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Work Schedule</Label>
                           <WorkdaysScheduleSelector
                             value={office.day_schedules || DEFAULT_WEEKDAY_SCHEDULES}
                             onChange={(schedules) => updateOffice(index, 'day_schedules', schedules)}
                             disabled={isLoading}
                           />
-                        </TableCell>
-                      )}
+                        </div>
 
-                      {/* Public Holidays (Attendance) */}
-                      {hasAttendance && (
-                        <TableCell className="p-2">
-                          <div className="flex items-center justify-center">
-                            <Switch
-                              checked={office.public_holidays_enabled ?? true}
-                              onCheckedChange={(v) => updateOffice(index, 'public_holidays_enabled', v)}
-                              disabled={isLoading}
-                            />
+                        {/* Work Hours Summary */}
+                        <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                          <div className="flex justify-between">
+                            <span>Work Hours:</span>
+                            <span className="font-medium text-foreground">
+                              {formatWorkHoursSummary(office.day_schedules)}
+                            </span>
                           </div>
-                        </TableCell>
-                      )}
+                          {formatBreakSummary(office.day_schedules) && (
+                            <div className="flex justify-between">
+                              <span>Break:</span>
+                              <span className="font-medium text-foreground">
+                                {formatBreakSummary(office.day_schedules)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Year Start (Leave) */}
-                      {hasLeave && (
-                        <TableCell className="p-2">
+                        {/* Public Holidays Toggle */}
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <div className="flex items-center gap-2">
+                            <PartyPopper className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Public Holidays</span>
+                          </div>
+                          <Switch
+                            checked={office.public_holidays_enabled ?? true}
+                            onCheckedChange={(checked) => 
+                              updateOffice(index, 'public_holidays_enabled', checked)
+                            }
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Leave Settings Sub-Card */}
+                    {hasLeave && (
+                      <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium">Leave Settings</span>
+                        </div>
+
+                        {/* Year Start Picker */}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Leave Year Start</Label>
                           <YearStartPicker
                             month={office.leave_year_start_month || 1}
                             day={office.leave_year_start_day || 1}
@@ -496,72 +556,81 @@ export function OfficesStep({
                             }}
                             disabled={isLoading}
                           />
-                        </TableCell>
-                      )}
+                        </div>
 
-                      {/* Actions */}
-                      <TableCell className="p-2">
-                        {index !== 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeOffice(index)}
-                            disabled={isLoading}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addOffice}
-              className="w-full"
-              disabled={isLoading}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Another Office
-            </Button>
-
-            {/* Leave Types Customization (when Leave feature is enabled) */}
-            {hasLeave && (
-              <LeaveTypesCustomizer
-                value={leaveTypesConfig}
-                onChange={setLeaveTypesConfig}
-                disabled={isLoading}
-              />
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onBack} className="flex-1" disabled={isLoading}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button type="submit" disabled={isLoading || !isValid} className="flex-1">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
+                        {/* Leave Types Preview */}
+                        <div className="pt-3 border-t space-y-2">
+                          <Label className="text-xs text-muted-foreground">Default Leave Types</Label>
+                          <div className="space-y-1.5">
+                            {leaveTypesConfig.slice(0, 3).map((lt) => (
+                              <div 
+                                key={lt.name} 
+                                className="flex justify-between text-xs"
+                              >
+                                <span className="text-foreground">{lt.name}</span>
+                                <span className="text-muted-foreground">
+                                  {lt.default_days} days/year
+                                </span>
+                              </div>
+                            ))}
+                            {leaveTypesConfig.length > 3 && (
+                              <div className="text-xs text-muted-foreground">
+                                +{leaveTypesConfig.length - 3} more types
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </TooltipProvider>
+              </div>
+            ))}
+          </div>
+
+          {/* Add Office Button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addOffice}
+            className="w-full border-dashed"
+            disabled={isLoading}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Another Office
+          </Button>
+
+          {/* Leave Types Customization (when Leave feature is enabled) */}
+          {hasLeave && (
+            <LeaveTypesCustomizer
+              value={leaveTypesConfig}
+              onChange={setLeaveTypesConfig}
+              disabled={isLoading}
+            />
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onBack} className="flex-1" disabled={isLoading}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <Button type="submit" disabled={isLoading || !isValid} className="flex-1">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
