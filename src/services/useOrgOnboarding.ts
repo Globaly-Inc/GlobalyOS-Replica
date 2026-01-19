@@ -402,33 +402,8 @@ export function useCompleteOrgOnboarding() {
 
       if (orgError) throw orgError;
 
-      // Send invitation emails to all added team members (if not skipped and has members)
-      if (!skipped && teamMembers.length > 0) {
-        try {
-          console.log(`Sending invitation emails to ${teamMembers.length} team members...`);
-          const { data, error: emailError } = await supabase.functions.invoke('send-pending-invitations', {
-            body: {
-              organizationId: currentOrg.id,
-              teamMembers: teamMembers.map(m => ({
-                email: m.email,
-                fullName: m.full_name,
-                position: m.position,
-                department: m.department,
-                role: m.role,
-              })),
-            },
-          });
-
-          if (emailError) {
-            console.error('Failed to send invitation emails:', emailError);
-          } else {
-            console.log('Invitation emails result:', data);
-          }
-        } catch (emailErr) {
-          console.error('Failed to send invitation emails:', emailErr);
-          // Don't fail onboarding if emails fail - they can be resent later
-        }
-      }
+      // Note: Invitation emails are now sent from SetupProgressScreen component
+      // during the animated setup process, not here
 
       return { success: true, skipped, onComplete, teamMembersCount: teamMembers.length };
     },

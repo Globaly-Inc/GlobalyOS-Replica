@@ -11,10 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Check, AlertCircle, Loader2, Crown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown } from 'lucide-react';
 import { useEmploymentTypes } from '@/hooks/useEmploymentTypes';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 interface TeamMember {
   email: string;
@@ -87,15 +86,12 @@ export function TeamSeedingStep({
   organizationId 
 }: TeamSeedingStepProps) {
   const { data: employmentTypes = [], isLoading: loadingEmploymentTypes } = useEmploymentTypes(true);
-  const { toast } = useToast();
   
   const [members, setMembers] = useState<TeamMember[]>(
     initialMembers.length > 0 ? initialMembers : []
   );
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [sendingStatus, setSendingStatus] = useState<Record<string, 'pending' | 'success' | 'error' | 'skipped'>>({});
 
   // Get departments and positions from previous step
   const departments = departmentsRoles?.departments || [];
@@ -141,15 +137,7 @@ export function TeamSeedingStep({
   };
 
   const removeMember = (index: number) => {
-    const member = members[index];
     setMembers(members.filter((_, i) => i !== index));
-    if (member.email) {
-      setSendingStatus(prev => {
-        const newStatus = { ...prev };
-        delete newStatus[member.email];
-        return newStatus;
-      });
-    }
   };
 
   const updateMember = (index: number, field: keyof TeamMember, value: string) => {
@@ -174,111 +162,12 @@ export function TeamSeedingStep({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Just save valid members - invitations will be sent on final completion
     const validMembers = members.filter(m => m.email && m.full_name && isValidEmail(m.email));
-    
-    if (validMembers.length === 0) {
-      onSave([]);
-      return;
-    }
-    
-    setIsSending(true);
-    const results = { success: [] as string[], failed: [] as string[], skipped: [] as string[] };
-    
-    const initialStatus: Record<string, 'pending' | 'success' | 'error' | 'skipped'> = {};
-    validMembers.forEach(m => {
-      initialStatus[m.email] = 'pending';
-    });
-    setSendingStatus(initialStatus);
-    
-    for (let i = 0; i < validMembers.length; i += 3) {
-      const batch = validMembers.slice(i, i + 3);
-      
-      await Promise.all(batch.map(async (member) => {
-        try {
-          const nameParts = member.full_name.trim().split(' ');
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || '';
-          
-          const { invokeEdgeFunction } = await import('@/lib/edgeFunctionUtils');
-          const { data, error: inviteError } = await invokeEdgeFunction('invite-team-member', {
-            email: member.email.trim().toLowerCase(),
-            fullName: member.full_name.trim(),
-            firstName,
-            lastName,
-            position: member.position || 'Team Member',
-            department: member.department || 'General',
-            role: member.role,
-            employmentType: member.employment_type || 'employee',
-            organizationId,
-            officeId: member.office_id || null,
-            isNewHire: true,
-            phone: '',
-            street: '',
-            city: '',
-            state: '',
-            country: '',
-            skipEmail: true, // Skip email during onboarding - emails sent on completion
-          });
-          
-          // Check for user already exists (409 / USER_EXISTS) - handled gracefully
-          const responseData = data as { code?: string; skipped?: boolean; error?: string } | null;
-          if (responseData?.code === 'USER_EXISTS' || responseData?.skipped || 
-              inviteError?.message?.includes('USER_EXISTS') || inviteError?.message?.includes('already exists')) {
-            results.skipped.push(member.email);
-            setSendingStatus(prev => ({ ...prev, [member.email]: 'skipped' }));
-            return;
-          }
-          
-          if (inviteError) throw new Error(inviteError.message);
-          if (responseData?.error && !responseData?.skipped) throw new Error(responseData.error);
-          
-          results.success.push(member.email);
-          setSendingStatus(prev => ({ ...prev, [member.email]: 'success' }));
-        } catch (err) {
-          console.error('Failed to invite:', member.email, err);
-          results.failed.push(member.email);
-          setSendingStatus(prev => ({ ...prev, [member.email]: 'error' }));
-        }
-      }));
-    }
-    
-    if (results.success.length > 0) {
-      toast({
-        title: `${results.success.length} team member${results.success.length > 1 ? 's' : ''} added!`,
-        description: 'Invitation emails will be sent when you complete setup.',
-      });
-    }
-    
-    if (results.skipped.length > 0) {
-      toast({
-        title: `${results.skipped.length} user${results.skipped.length > 1 ? 's' : ''} already exist`,
-        description: 'These emails are already registered and were skipped.',
-      });
-    }
-    
-    if (results.failed.length > 0) {
-      toast({
-        title: `${results.failed.length} invitation${results.failed.length > 1 ? 's' : ''} failed`,
-        description: 'You can retry from the Team page later.',
-        variant: 'destructive',
-      });
-    }
-    
-    setIsSending(false);
     onSave(validMembers);
   };
 
   const hasValidMembers = members.some(m => m.email && m.full_name && isValidEmail(m.email));
-
-  const renderStatusIcon = (email: string) => {
-    const status = sendingStatus[email];
-    if (!status) return null;
-    if (status === 'pending') return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
-    if (status === 'success') return <Check className="h-4 w-4 text-green-500" />;
-    if (status === 'skipped') return <SkipForward className="h-4 w-4 text-amber-500" />;
-    if (status === 'error') return <AlertCircle className="h-4 w-4 text-destructive" />;
-    return null;
-  };
 
   return (
     <Card className="border-0 shadow-lg">
@@ -359,27 +248,22 @@ export function TeamSeedingStep({
                           onChange={(e) => updateMember(index, 'full_name', e.target.value)}
                           placeholder="Full name"
                           className="h-8 text-sm"
-                          disabled={isSending}
                         />
                       </TableCell>
                       <TableCell className="p-2">
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="email"
-                            value={member.email}
-                            onChange={(e) => updateMember(index, 'email', e.target.value)}
-                            placeholder="email@company.com"
-                            className="h-8 text-sm"
-                            disabled={isSending}
-                          />
-                          {renderStatusIcon(member.email)}
-                        </div>
+                        <Input
+                          type="email"
+                          value={member.email}
+                          onChange={(e) => updateMember(index, 'email', e.target.value)}
+                          placeholder="email@company.com"
+                          className="h-8 text-sm"
+                        />
                       </TableCell>
                       <TableCell className="p-2">
                         <Select
                           value={member.office_id || ''}
                           onValueChange={(v) => updateMember(index, 'office_id', v)}
-                          disabled={loadingOffices || isSending}
+                          disabled={loadingOffices}
                         >
                           <SelectTrigger className="h-8 text-sm">
                             <SelectValue placeholder="Select" />
@@ -397,7 +281,6 @@ export function TeamSeedingStep({
                         <Select
                           value={member.department || ''}
                           onValueChange={(v) => updateMember(index, 'department', v)}
-                          disabled={isSending}
                         >
                           <SelectTrigger className="h-8 text-sm">
                             <SelectValue placeholder="Select" />
@@ -423,7 +306,6 @@ export function TeamSeedingStep({
                         <Select
                           value={member.position || ''}
                           onValueChange={(v) => updateMember(index, 'position', v)}
-                          disabled={isSending}
                         >
                           <SelectTrigger className="h-8 text-sm">
                             <SelectValue placeholder="Select" />
@@ -449,7 +331,7 @@ export function TeamSeedingStep({
                         <Select
                           value={member.employment_type || ''}
                           onValueChange={(v) => updateMember(index, 'employment_type', v)}
-                          disabled={loadingEmploymentTypes || isSending}
+                          disabled={loadingEmploymentTypes}
                         >
                           <SelectTrigger className="h-8 text-sm">
                             <SelectValue placeholder="Select" />
@@ -467,7 +349,6 @@ export function TeamSeedingStep({
                         <Select
                           value={member.role}
                           onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}
-                          disabled={isSending}
                         >
                           <SelectTrigger className="h-8 text-sm">
                             <SelectValue />
@@ -488,7 +369,6 @@ export function TeamSeedingStep({
                           size="sm"
                           onClick={() => removeMember(index)}
                           className="h-8 w-8 p-0"
-                          disabled={isSending}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -506,42 +386,32 @@ export function TeamSeedingStep({
             variant="outline"
             onClick={addMember}
             className="w-full"
-            disabled={isSending}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Team Member
           </Button>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onBack} className="flex-1" disabled={isSending}>
+            <Button type="button" variant="outline" onClick={onBack} className="flex-1">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
             
             {members.length === 0 || !hasValidMembers ? (
-              <Button type="button" variant="secondary" onClick={onSkip} className="flex-1" disabled={isSending}>
+              <Button type="button" variant="secondary" onClick={onSkip} className="flex-1">
                 Skip for now
                 <SkipForward className="ml-2 h-4 w-4" />
               </Button>
             ) : (
-              <Button type="submit" disabled={isSaving || isSending} className="flex-1">
-                {isSending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending invites...
-                  </>
-                ) : (
-                  <>
-                    Send Invites & Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
+              <Button type="submit" disabled={isSaving} className="flex-1">
+                Continue
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            You can always invite more team members later from the Team page
+            Invitations will be sent when you complete setup
           </p>
         </form>
       </CardContent>
