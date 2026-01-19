@@ -5004,6 +5004,7 @@ export type Database = {
           organization_id: string
           timezone: string | null
           updated_at: string
+          work_days: number[] | null
           work_end_time: string
           work_start_time: string
         }
@@ -5017,6 +5018,7 @@ export type Database = {
           organization_id: string
           timezone?: string | null
           updated_at?: string
+          work_days?: number[] | null
           work_end_time?: string
           work_start_time?: string
         }
@@ -5030,6 +5032,7 @@ export type Database = {
           organization_id?: string
           timezone?: string | null
           updated_at?: string
+          work_days?: number[] | null
           work_end_time?: string
           work_start_time?: string
         }
@@ -5057,8 +5060,12 @@ export type Database = {
           country: string | null
           created_at: string
           id: string
+          leave_year_start_day: number | null
+          leave_year_start_month: number | null
           name: string
           organization_id: string
+          public_holidays_enabled: boolean | null
+          timezone: string | null
           updated_at: string
         }
         Insert: {
@@ -5067,8 +5074,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           id?: string
+          leave_year_start_day?: number | null
+          leave_year_start_month?: number | null
           name: string
           organization_id: string
+          public_holidays_enabled?: boolean | null
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
@@ -5077,8 +5088,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           id?: string
+          leave_year_start_day?: number | null
+          leave_year_start_month?: number | null
           name?: string
           organization_id?: string
+          public_holidays_enabled?: boolean | null
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: [
