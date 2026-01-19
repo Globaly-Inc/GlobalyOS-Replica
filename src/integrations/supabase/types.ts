@@ -4998,6 +4998,7 @@ export type Database = {
           break_end_time: string | null
           break_start_time: string | null
           created_at: string
+          day_schedules: Json | null
           id: string
           late_threshold_minutes: number
           office_id: string
@@ -5012,6 +5013,7 @@ export type Database = {
           break_end_time?: string | null
           break_start_time?: string | null
           created_at?: string
+          day_schedules?: Json | null
           id?: string
           late_threshold_minutes?: number
           office_id: string
@@ -5026,6 +5028,7 @@ export type Database = {
           break_end_time?: string | null
           break_start_time?: string | null
           created_at?: string
+          day_schedules?: Json | null
           id?: string
           late_threshold_minutes?: number
           office_id?: string
