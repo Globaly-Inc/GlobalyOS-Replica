@@ -1,6 +1,7 @@
 /**
  * Organization Onboarding - Organization Info Step
  * Pre-fills data from signup (country, industry, company_size) and adds Google Places address
+ * Includes logo upload and country-based auto-detection for timezone/currency
  */
 
 import { useState, useEffect } from 'react';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Building2 } from 'lucide-react';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
+import { LogoUpload } from './LogoUpload';
 
 interface OrgInfoStepProps {
   initialData?: {
@@ -75,12 +77,34 @@ const TIMEZONES = [
   { value: 'America/Chicago', label: 'Central Time (CT)' },
   { value: 'America/Denver', label: 'Mountain Time (MT)' },
   { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Toronto', label: 'Toronto (ET)' },
   { value: 'Europe/London', label: 'London (GMT/BST)' },
-  { value: 'Europe/Paris', label: 'Central European Time' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
   { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-  { value: 'Asia/Tokyo', label: 'Japan (JST)' },
+  { value: 'Europe/Madrid', label: 'Madrid (CET)' },
+  { value: 'Europe/Rome', label: 'Rome (CET)' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam (CET)' },
+  { value: 'Europe/Stockholm', label: 'Stockholm (CET)' },
+  { value: 'Europe/Oslo', label: 'Oslo (CET)' },
+  { value: 'Europe/Copenhagen', label: 'Copenhagen (CET)' },
+  { value: 'Europe/Helsinki', label: 'Helsinki (EET)' },
+  { value: 'Europe/Zurich', label: 'Zurich (CET)' },
+  { value: 'Europe/Vienna', label: 'Vienna (CET)' },
+  { value: 'Europe/Brussels', label: 'Brussels (CET)' },
+  { value: 'Europe/Dublin', label: 'Dublin (GMT/IST)' },
+  { value: 'Europe/Lisbon', label: 'Lisbon (WET)' },
+  { value: 'Europe/Warsaw', label: 'Warsaw (CET)' },
+  { value: 'Europe/Prague', label: 'Prague (CET)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Seoul', label: 'Seoul (KST)' },
   { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
   { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Riyadh', label: 'Riyadh (AST)' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg (SAST)' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo (BRT)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (CST)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
   { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
 ];
@@ -94,8 +118,20 @@ const CURRENCIES = [
   { code: 'JPY', name: 'Japanese Yen (¥)' },
   { code: 'CHF', name: 'Swiss Franc (CHF)' },
   { code: 'SGD', name: 'Singapore Dollar (S$)' },
-  { code: 'AED', name: 'UAE Dirham (د.إ)' },
+  { code: 'HKD', name: 'Hong Kong Dollar (HK$)' },
   { code: 'INR', name: 'Indian Rupee (₹)' },
+  { code: 'AED', name: 'UAE Dirham (د.إ)' },
+  { code: 'SAR', name: 'Saudi Riyal (﷼)' },
+  { code: 'ZAR', name: 'South African Rand (R)' },
+  { code: 'BRL', name: 'Brazilian Real (R$)' },
+  { code: 'MXN', name: 'Mexican Peso ($)' },
+  { code: 'NZD', name: 'New Zealand Dollar (NZ$)' },
+  { code: 'SEK', name: 'Swedish Krona (kr)' },
+  { code: 'NOK', name: 'Norwegian Krone (kr)' },
+  { code: 'DKK', name: 'Danish Krone (kr)' },
+  { code: 'PLN', name: 'Polish Złoty (zł)' },
+  { code: 'CZK', name: 'Czech Koruna (Kč)' },
+  { code: 'KRW', name: 'South Korean Won (₩)' },
 ];
 
 const INDUSTRIES = [
@@ -122,9 +158,45 @@ const COMPANY_SIZES = [
   { value: '1000+', label: '1000+ employees' },
 ];
 
+// Country to timezone and currency mapping for auto-detection
+const COUNTRY_DEFAULTS: Record<string, { timezone: string; currency: string }> = {
+  'US': { timezone: 'America/New_York', currency: 'USD' },
+  'GB': { timezone: 'Europe/London', currency: 'GBP' },
+  'CA': { timezone: 'America/Toronto', currency: 'CAD' },
+  'AU': { timezone: 'Australia/Sydney', currency: 'AUD' },
+  'DE': { timezone: 'Europe/Berlin', currency: 'EUR' },
+  'FR': { timezone: 'Europe/Paris', currency: 'EUR' },
+  'ES': { timezone: 'Europe/Madrid', currency: 'EUR' },
+  'IT': { timezone: 'Europe/Rome', currency: 'EUR' },
+  'NL': { timezone: 'Europe/Amsterdam', currency: 'EUR' },
+  'SE': { timezone: 'Europe/Stockholm', currency: 'SEK' },
+  'NO': { timezone: 'Europe/Oslo', currency: 'NOK' },
+  'DK': { timezone: 'Europe/Copenhagen', currency: 'DKK' },
+  'FI': { timezone: 'Europe/Helsinki', currency: 'EUR' },
+  'CH': { timezone: 'Europe/Zurich', currency: 'CHF' },
+  'AT': { timezone: 'Europe/Vienna', currency: 'EUR' },
+  'BE': { timezone: 'Europe/Brussels', currency: 'EUR' },
+  'IE': { timezone: 'Europe/Dublin', currency: 'EUR' },
+  'PT': { timezone: 'Europe/Lisbon', currency: 'EUR' },
+  'PL': { timezone: 'Europe/Warsaw', currency: 'PLN' },
+  'CZ': { timezone: 'Europe/Prague', currency: 'CZK' },
+  'JP': { timezone: 'Asia/Tokyo', currency: 'JPY' },
+  'KR': { timezone: 'Asia/Seoul', currency: 'KRW' },
+  'SG': { timezone: 'Asia/Singapore', currency: 'SGD' },
+  'HK': { timezone: 'Asia/Hong_Kong', currency: 'HKD' },
+  'IN': { timezone: 'Asia/Kolkata', currency: 'INR' },
+  'AE': { timezone: 'Asia/Dubai', currency: 'AED' },
+  'SA': { timezone: 'Asia/Riyadh', currency: 'SAR' },
+  'ZA': { timezone: 'Africa/Johannesburg', currency: 'ZAR' },
+  'BR': { timezone: 'America/Sao_Paulo', currency: 'BRL' },
+  'MX': { timezone: 'America/Mexico_City', currency: 'MXN' },
+  'NZ': { timezone: 'Pacific/Auckland', currency: 'NZD' },
+};
+
 export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving }: OrgInfoStepProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
+    logo_url: initialData?.logo_url || '',
     country: initialData?.country || signupData?.country || '',
     timezone: initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     currency: initialData?.currency || 'USD',
@@ -135,15 +207,27 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
     business_address_components: initialData?.business_address_components || null,
   });
 
-  // Update form when signup data becomes available
+  // Track if user has manually modified timezone/currency
+  const [userModifiedTimezone, setUserModifiedTimezone] = useState(false);
+  const [userModifiedCurrency, setUserModifiedCurrency] = useState(false);
+
+  // Update form when signup data becomes available and apply auto-detection
   useEffect(() => {
     if (signupData) {
-      setFormData((prev) => ({
-        ...prev,
-        country: prev.country || signupData.country || '',
-        industry: prev.industry || signupData.industry || '',
-        company_size: prev.company_size || signupData.company_size || '',
-      }));
+      setFormData((prev) => {
+        const newCountry = prev.country || signupData.country || '';
+        const defaults = COUNTRY_DEFAULTS[newCountry];
+        
+        return {
+          ...prev,
+          country: newCountry,
+          industry: prev.industry || signupData.industry || '',
+          company_size: prev.company_size || signupData.company_size || '',
+          // Auto-set timezone and currency if country has defaults
+          timezone: defaults?.timezone || prev.timezone,
+          currency: defaults?.currency || prev.currency,
+        };
+      });
     }
   }, [signupData]);
 
@@ -154,6 +238,31 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
 
   const updateField = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCountryChange = (countryCode: string) => {
+    updateField('country', countryCode);
+    
+    const defaults = COUNTRY_DEFAULTS[countryCode];
+    if (defaults) {
+      // Only auto-fill if user hasn't manually changed these
+      if (!userModifiedTimezone) {
+        updateField('timezone', defaults.timezone);
+      }
+      if (!userModifiedCurrency) {
+        updateField('currency', defaults.currency);
+      }
+    }
+  };
+
+  const handleTimezoneChange = (value: string) => {
+    setUserModifiedTimezone(true);
+    updateField('timezone', value);
+  };
+
+  const handleCurrencyChange = (value: string) => {
+    setUserModifiedCurrency(true);
+    updateField('currency', value);
   };
 
   const handleAddressChange = (address: string, components?: AddressComponents) => {
@@ -172,6 +281,10 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
     }));
   };
 
+  const handleLogoChange = (url: string | null) => {
+    updateField('logo_url', url || '');
+  };
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
@@ -185,6 +298,14 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Logo Upload */}
+          <div className="pb-2">
+            <LogoUpload
+              currentLogoUrl={formData.logo_url}
+              onLogoChange={handleLogoChange}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Organization Name *</Label>
             <Input
@@ -196,15 +317,16 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Country, Timezone, Currency in same row */}
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label htmlFor="country">Primary Country *</Label>
               <Select
                 value={formData.country}
-                onValueChange={(value) => updateField('country', value)}
+                onValueChange={handleCountryChange}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select country" />
+                  <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   {COUNTRIES.map((country) => (
@@ -217,18 +339,37 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone</Label>
+              <Label htmlFor="timezone">Default Timezone</Label>
               <Select
                 value={formData.timezone}
-                onValueChange={(value) => updateField('timezone', value)}
+                onValueChange={handleTimezoneChange}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
+                  <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   {TIMEZONES.map((tz) => (
                     <SelectItem key={tz.value} value={tz.value}>
                       {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="currency">Default Currency</Label>
+              <Select
+                value={formData.currency}
+                onValueChange={handleCurrencyChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -289,36 +430,15 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="currency">Default Currency</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value) => updateField('currency', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      {currency.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website">Website (optional)</Label>
-              <Input
-                id="website"
-                type="url"
-                value={formData.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="website">Website (optional)</Label>
+            <Input
+              id="website"
+              type="url"
+              value={formData.website}
+              onChange={(e) => updateField('website', e.target.value)}
+              placeholder="https://example.com"
+            />
           </div>
 
           <div className="flex gap-3 pt-4">
