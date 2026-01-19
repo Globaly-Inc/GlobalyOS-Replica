@@ -149,15 +149,6 @@ const INDUSTRIES = [
   'Other',
 ];
 
-const COMPANY_SIZES = [
-  { value: '1-10', label: '1-10 employees' },
-  { value: '11-50', label: '11-50 employees' },
-  { value: '51-200', label: '51-200 employees' },
-  { value: '201-500', label: '201-500 employees' },
-  { value: '501-1000', label: '501-1000 employees' },
-  { value: '1000+', label: '1000+ employees' },
-];
-
 // Country to timezone and currency mapping for auto-detection
 const COUNTRY_DEFAULTS: Record<string, { timezone: string; currency: string }> = {
   'US': { timezone: 'America/New_York', currency: 'USD' },
@@ -377,6 +368,21 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </div>
           </div>
 
+          {/* Business Address - after Country row */}
+          <div className="space-y-2">
+            <Label htmlFor="business_address">Business Address *</Label>
+            <AddressAutocomplete
+              value={formData.business_address}
+              onChange={handleAddressChange}
+              placeholder="Start typing your business address..."
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Search for your office or business location
+            </p>
+          </div>
+
+          {/* Industry and Website in same row - bottom */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
@@ -398,47 +404,15 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="company_size">Company Size</Label>
-              <Select
-                value={formData.company_size}
-                onValueChange={(value) => updateField('company_size', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANY_SIZES.map((size) => (
-                    <SelectItem key={size.value} value={size.value}>
-                      {size.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="website">Website (optional)</Label>
+              <Input
+                id="website"
+                type="url"
+                value={formData.website}
+                onChange={(e) => updateField('website', e.target.value)}
+                placeholder="https://example.com"
+              />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="business_address">Business Address *</Label>
-            <AddressAutocomplete
-              value={formData.business_address}
-              onChange={handleAddressChange}
-              placeholder="Start typing your business address..."
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Search for your office or business location
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="website">Website (optional)</Label>
-            <Input
-              id="website"
-              type="url"
-              value={formData.website}
-              onChange={(e) => updateField('website', e.target.value)}
-              placeholder="https://example.com"
-            />
           </div>
 
           <div className="flex gap-3 pt-4">
