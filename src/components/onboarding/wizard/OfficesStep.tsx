@@ -626,59 +626,32 @@ export function OfficesStep({
                         </div>
                       </div>
 
-                      {/* Feature Toggles */}
-                      {(hasAttendance || hasLeave) && (
-                        <div className="flex items-center gap-6 py-3 border-y">
-                          {hasAttendance && (
-                            <div className="flex items-center gap-2">
-                              <Switch 
-                                id={`attendance-${index}`}
-                                checked={office.attendance_enabled ?? true}
-                                onCheckedChange={(v) => updateOffice(index, 'attendance_enabled', v)}
-                                disabled={isLoading}
-                              />
-                              <Label 
-                                htmlFor={`attendance-${index}`} 
-                                className="text-sm font-medium cursor-pointer"
-                              >
-                                Attendance Tracking
-                              </Label>
-                            </div>
-                          )}
-                          {hasLeave && (
-                            <div className="flex items-center gap-2">
-                              <Switch 
-                                id={`leave-${index}`}
-                                checked={office.leave_enabled ?? true}
-                                onCheckedChange={(v) => updateOffice(index, 'leave_enabled', v)}
-                                disabled={isLoading}
-                              />
-                              <Label 
-                                htmlFor={`leave-${index}`} 
-                                className="text-sm font-medium cursor-pointer"
-                              >
-                                Leave Management
-                              </Label>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       {/* Settings Grid */}
-                      {(office.attendance_enabled || office.leave_enabled) && (
+                      {(hasAttendance || hasLeave) && (
                         <div className={cn(
                           "grid gap-4",
-                          office.attendance_enabled && office.leave_enabled 
+                          hasAttendance && hasLeave 
                             ? "grid-cols-1 md:grid-cols-2" 
                             : "grid-cols-1"
                         )}>
                           {/* Attendance Settings */}
-                          {office.attendance_enabled && (
+                          {hasAttendance && (
                             <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-primary" />
-                                <span className="text-sm font-medium">Attendance Settings</span>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                  <span className="text-sm font-medium">Attendance Settings</span>
+                                </div>
+                                <Switch 
+                                  id={`attendance-${index}`}
+                                  checked={office.attendance_enabled ?? true}
+                                  onCheckedChange={(v) => updateOffice(index, 'attendance_enabled', v)}
+                                  disabled={isLoading}
+                                />
                               </div>
+
+                              {office.attendance_enabled && (
+                                <>
 
                               {/* Work Days */}
                               <div className="space-y-2">
@@ -819,16 +792,29 @@ export function OfficesStep({
                                   Observe Public Holidays
                                 </Label>
                               </div>
+                              </>
+                              )}
                             </div>
                           )}
 
                           {/* Leave Settings */}
-                          {office.leave_enabled && (
+                          {hasLeave && (
                             <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
-                              <div className="flex items-center gap-2">
-                                <CalendarDays className="h-4 w-4 text-primary" />
-                                <span className="text-sm font-medium">Leave Settings</span>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <CalendarDays className="h-4 w-4 text-primary" />
+                                  <span className="text-sm font-medium">Leave Settings</span>
+                                </div>
+                                <Switch 
+                                  id={`leave-${index}`}
+                                  checked={office.leave_enabled ?? true}
+                                  onCheckedChange={(v) => updateOffice(index, 'leave_enabled', v)}
+                                  disabled={isLoading}
+                                />
                               </div>
+
+                              {office.leave_enabled && (
+                                <>
 
                               {/* Year Start Picker */}
                               <div className="space-y-2">
@@ -863,6 +849,8 @@ export function OfficesStep({
                                   )}
                                 </div>
                               </div>
+                              </>
+                              )}
                             </div>
                           )}
                         </div>
