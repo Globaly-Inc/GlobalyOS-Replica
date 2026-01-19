@@ -48,6 +48,7 @@ export function DepartmentsRolesStep({
   const { toast } = useToast();
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isSuggestingPositions, setIsSuggestingPositions] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>(initialData?.departments || []);
   const [selectedDepartments, setSelectedDepartments] = useState<Set<string>>(
     new Set(initialData?.departments || [])
@@ -216,6 +217,9 @@ export function DepartmentsRolesStep({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent double-clicks
+    if (isSubmitting || isSaving) return;
+
     const finalDepartments = Array.from(selectedDepartments);
     const finalPositions = positions.filter(p => p.selected && selectedDepartments.has(p.department));
 
@@ -228,8 +232,10 @@ export function DepartmentsRolesStep({
       return;
     }
 
-    // Persist positions to database (ignore duplicates from seeded data)
+    setIsSubmitting(true);
+
     try {
+      // Persist positions to database (ignore duplicates from seeded data)
       for (const position of finalPositions) {
         const { error } = await supabase
           .from('positions')
@@ -246,15 +252,15 @@ export function DepartmentsRolesStep({
           console.error('Failed to insert position:', position.name, error);
         }
       }
+
+      onSave({
+        departments: finalDepartments,
+        positions: finalPositions.map(({ name, department }) => ({ name, department })),
+      });
     } catch (err) {
       console.error('Failed to save positions:', err);
-      // Continue anyway - positions are also saved in onboarding data
+      setIsSubmitting(false);
     }
-
-    onSave({
-      departments: finalDepartments,
-      positions: finalPositions.map(({ name, department }) => ({ name, department })),
-    });
   };
 
   if (isLoadingSuggestions) {
@@ -474,10 +480,10 @@ export function DepartmentsRolesStep({
             </Button>
             <Button 
               type="submit" 
-              disabled={isSaving || selectedDepartments.size === 0} 
+              disabled={isSubmitting || isSaving || selectedDepartments.size === 0} 
               className="flex-1"
             >
-              {isSaving ? 'Saving...' : 'Continue'}
+              {(isSubmitting || isSaving) ? 'Saving...' : 'Continue'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
