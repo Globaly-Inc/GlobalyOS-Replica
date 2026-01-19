@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -19,7 +18,9 @@ import {
   scheduleMapToWorkDaysArray 
 } from '@/components/ui/workdays-schedule-selector';
 import { YearStartPicker } from '@/components/ui/year-start-picker';
-import { ArrowLeft, ArrowRight, Building, Plus, Trash2, Loader2, Crown, Globe, CalendarDays, Info } from 'lucide-react';
+import { TimezoneSelector } from '@/components/ui/timezone-selector';
+import { LeaveTypesCustomizer, LeaveTypeConfig, getDefaultLeaveTypesConfig } from './LeaveTypesCustomizer';
+import { ArrowLeft, ArrowRight, Building, Plus, Trash2, Loader2, Crown, CalendarDays, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -65,32 +66,13 @@ interface OfficesStepProps {
   organizationInfo?: OrganizationInfo;
   enabledFeatures?: string[];
   initialOffices: Office[];
-  onSave: (offices: Office[]) => void;
+  initialLeaveTypesConfig?: LeaveTypeConfig[];
+  onSave: (offices: Office[], leaveTypesConfig?: LeaveTypeConfig[]) => void;
   onBack: () => void;
   isSaving: boolean;
 }
 
-// Common timezones grouped by region
-const TIMEZONE_OPTIONS = [
-  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
-  { value: 'Australia/Melbourne', label: 'Melbourne (AEST/AEDT)' },
-  { value: 'Australia/Brisbane', label: 'Brisbane (AEST)' },
-  { value: 'Australia/Perth', label: 'Perth (AWST)' },
-  { value: 'Australia/Adelaide', label: 'Adelaide (ACST/ACDT)' },
-  { value: 'Pacific/Auckland', label: 'Auckland (NZST/NZDT)' },
-  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
-  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
-  { value: 'Asia/Kolkata', label: 'India (IST)' },
-  { value: 'Europe/London', label: 'London (GMT/BST)' },
-  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
-  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
-  { value: 'America/New_York', label: 'New York (EST/EDT)' },
-  { value: 'America/Chicago', label: 'Chicago (CST/CDT)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
-  { value: 'UTC', label: 'UTC' },
-];
+// Helper to convert old format to new DaySchedulesMap
 
 // Helper to convert old format to new DaySchedulesMap
 const convertToDaySchedules = (
@@ -116,7 +98,8 @@ export function OfficesStep({
   organizationId, 
   organizationInfo,
   enabledFeatures = [],
-  initialOffices, 
+  initialOffices,
+  initialLeaveTypesConfig,
   onSave, 
   onBack, 
   isSaving 
@@ -127,6 +110,11 @@ export function OfficesStep({
   // Check which features are enabled
   const hasAttendance = enabledFeatures.includes('attendance');
   const hasLeave = enabledFeatures.includes('leave');
+
+  // Leave types configuration state
+  const [leaveTypesConfig, setLeaveTypesConfig] = useState<LeaveTypeConfig[]>(
+    initialLeaveTypesConfig || getDefaultLeaveTypesConfig()
+  );
 
   // Initialize offices with defaults
   const getInitialOffices = (): Office[] => {
@@ -339,7 +327,7 @@ export function OfficesStep({
         description: `${insertedOffices.length} office${insertedOffices.length > 1 ? 's' : ''} saved successfully.`,
       });
 
-      onSave(insertedOffices);
+      onSave(insertedOffices, hasLeave ? leaveTypesConfig : undefined);
     } catch (err) {
       console.error('Failed to persist offices:', err);
       toast({
@@ -380,9 +368,8 @@ export function OfficesStep({
                     <TableHead className="w-[200px] min-w-[180px]">Location</TableHead>
                     {hasAttendance && (
                       <>
-                        <TableHead className="w-[140px] min-w-[130px]">
+                        <TableHead className="w-[160px] min-w-[150px]">
                           <div className="flex items-center gap-1">
-                            <Globe className="h-3.5 w-3.5" />
                             Timezone
                           </div>
                         </TableHead>
@@ -464,22 +451,12 @@ export function OfficesStep({
                       {/* Timezone (Attendance) */}
                       {hasAttendance && (
                         <TableCell className="p-2">
-                          <Select
+                          <TimezoneSelector
                             value={office.timezone || 'UTC'}
-                            onValueChange={(v) => updateOffice(index, 'timezone', v)}
+                            onChange={(v) => updateOffice(index, 'timezone', v)}
                             disabled={isLoading}
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {TIMEZONE_OPTIONS.map((tz) => (
-                                <SelectItem key={tz.value} value={tz.value}>
-                                  {tz.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            countryCode={office.address_components?.country_code}
+                          />
                         </TableCell>
                       )}
 
@@ -553,6 +530,15 @@ export function OfficesStep({
               <Plus className="mr-2 h-4 w-4" />
               Add Another Office
             </Button>
+
+            {/* Leave Types Customization (when Leave feature is enabled) */}
+            {hasLeave && (
+              <LeaveTypesCustomizer
+                value={leaveTypesConfig}
+                onChange={setLeaveTypesConfig}
+                disabled={isLoading}
+              />
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onBack} className="flex-1" disabled={isLoading}>
