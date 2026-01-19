@@ -12,7 +12,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ArrowLeft, ArrowRight, Building2, Check, ChevronsUpDown } from 'lucide-react';
+import { 
+  ArrowLeft, ArrowRight, Building2, Check, ChevronsUpDown,
+  // Category icons
+  Monitor, Scale, GraduationCap, Plane, Heart, Landmark, 
+  Home, ShoppingCart, Factory, Palette, Hotel, Users,
+  Leaf, Zap, Phone, Truck, Trophy, Church, HelpCircle,
+  Briefcase, BookOpen, Stethoscope, DollarSign, Building, 
+  Megaphone, Utensils, Calendar, Code, Shield, Database
+} from 'lucide-react';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import { LogoUpload } from './LogoUpload';
 import { cn } from '@/lib/utils';
@@ -144,82 +152,82 @@ const CURRENCIES = [
 
 const BUSINESS_CATEGORIES = [
   // Technology & IT
-  'Technology',
-  'IT Services & Consulting',
-  'Software Development',
-  'Cybersecurity',
-  'Data & Analytics',
+  { value: 'Technology', label: 'Technology', icon: Monitor },
+  { value: 'IT Services & Consulting', label: 'IT Services & Consulting', icon: Monitor },
+  { value: 'Software Development', label: 'Software Development', icon: Code },
+  { value: 'Cybersecurity', label: 'Cybersecurity', icon: Shield },
+  { value: 'Data & Analytics', label: 'Data & Analytics', icon: Database },
   
   // Professional Services
-  'Professional Services',
-  'Legal Firm',
-  'Tax & Accounting Firm',
-  'Management Consulting',
-  'HR Consulting',
-  'Business Consulting',
+  { value: 'Professional Services', label: 'Professional Services', icon: Briefcase },
+  { value: 'Legal Firm', label: 'Legal Firm', icon: Scale },
+  { value: 'Tax & Accounting Firm', label: 'Tax & Accounting Firm', icon: DollarSign },
+  { value: 'Management Consulting', label: 'Management Consulting', icon: Briefcase },
+  { value: 'HR Consulting', label: 'HR Consulting', icon: Users },
+  { value: 'Business Consulting', label: 'Business Consulting', icon: Briefcase },
   
   // Education
-  'Education',
-  'Education Consultancy',
-  'Training & Coaching',
-  'E-Learning',
+  { value: 'Education', label: 'Education', icon: GraduationCap },
+  { value: 'Education Consultancy', label: 'Education Consultancy', icon: GraduationCap },
+  { value: 'Training & Coaching', label: 'Training & Coaching', icon: BookOpen },
+  { value: 'E-Learning', label: 'E-Learning', icon: Monitor },
   
   // Immigration & Legal
-  'Migration Agency',
-  'Immigration Services',
+  { value: 'Migration Agency', label: 'Migration Agency', icon: Plane },
+  { value: 'Immigration Services', label: 'Immigration Services', icon: Plane },
   
   // Healthcare
-  'Healthcare',
-  'Medical Practice',
-  'Dental Practice',
-  'Allied Health Services',
-  'Pharmacy',
-  'Mental Health Services',
+  { value: 'Healthcare', label: 'Healthcare', icon: Heart },
+  { value: 'Medical Practice', label: 'Medical Practice', icon: Stethoscope },
+  { value: 'Dental Practice', label: 'Dental Practice', icon: Heart },
+  { value: 'Allied Health Services', label: 'Allied Health Services', icon: Heart },
+  { value: 'Pharmacy', label: 'Pharmacy', icon: Heart },
+  { value: 'Mental Health Services', label: 'Mental Health Services', icon: Heart },
   
   // Finance
-  'Finance & Banking',
-  'Insurance',
-  'Financial Advisory',
-  'Wealth Management',
-  'Fintech',
+  { value: 'Finance & Banking', label: 'Finance & Banking', icon: Landmark },
+  { value: 'Insurance', label: 'Insurance', icon: Shield },
+  { value: 'Financial Advisory', label: 'Financial Advisory', icon: DollarSign },
+  { value: 'Wealth Management', label: 'Wealth Management', icon: DollarSign },
+  { value: 'Fintech', label: 'Fintech', icon: Landmark },
   
   // Real Estate & Property
-  'Real Estate',
-  'Property Management',
-  'Construction',
-  'Architecture & Design',
+  { value: 'Real Estate', label: 'Real Estate', icon: Home },
+  { value: 'Property Management', label: 'Property Management', icon: Building },
+  { value: 'Construction', label: 'Construction', icon: Building },
+  { value: 'Architecture & Design', label: 'Architecture & Design', icon: Palette },
   
   // Retail & Commerce
-  'Retail & E-commerce',
-  'Wholesale & Distribution',
+  { value: 'Retail & E-commerce', label: 'Retail & E-commerce', icon: ShoppingCart },
+  { value: 'Wholesale & Distribution', label: 'Wholesale & Distribution', icon: ShoppingCart },
   
   // Manufacturing & Industry
-  'Manufacturing',
-  'Logistics & Supply Chain',
-  'Automotive',
+  { value: 'Manufacturing', label: 'Manufacturing', icon: Factory },
+  { value: 'Logistics & Supply Chain', label: 'Logistics & Supply Chain', icon: Truck },
+  { value: 'Automotive', label: 'Automotive', icon: Truck },
   
   // Creative & Media
-  'Media & Entertainment',
-  'Advertising & Marketing',
-  'Design Agency',
-  'Digital Marketing',
+  { value: 'Media & Entertainment', label: 'Media & Entertainment', icon: Palette },
+  { value: 'Advertising & Marketing', label: 'Advertising & Marketing', icon: Megaphone },
+  { value: 'Design Agency', label: 'Design Agency', icon: Palette },
+  { value: 'Digital Marketing', label: 'Digital Marketing', icon: Megaphone },
   
   // Hospitality & Travel
-  'Hospitality',
-  'Travel & Tourism',
-  'Food & Beverage',
-  'Event Management',
+  { value: 'Hospitality', label: 'Hospitality', icon: Hotel },
+  { value: 'Travel & Tourism', label: 'Travel & Tourism', icon: Plane },
+  { value: 'Food & Beverage', label: 'Food & Beverage', icon: Utensils },
+  { value: 'Event Management', label: 'Event Management', icon: Calendar },
   
   // Other Sectors
-  'Non-profit',
-  'Government',
-  'Agriculture',
-  'Energy & Utilities',
-  'Telecommunications',
-  'Transportation',
-  'Sports & Recreation',
-  'Religious Organization',
-  'Other',
+  { value: 'Non-profit', label: 'Non-profit', icon: Users },
+  { value: 'Government', label: 'Government', icon: Landmark },
+  { value: 'Agriculture', label: 'Agriculture', icon: Leaf },
+  { value: 'Energy & Utilities', label: 'Energy & Utilities', icon: Zap },
+  { value: 'Telecommunications', label: 'Telecommunications', icon: Phone },
+  { value: 'Transportation', label: 'Transportation', icon: Truck },
+  { value: 'Sports & Recreation', label: 'Sports & Recreation', icon: Trophy },
+  { value: 'Religious Organization', label: 'Religious Organization', icon: Church },
+  { value: 'Other', label: 'Other', icon: HelpCircle },
 ];
 
 // Country to timezone and currency mapping for auto-detection
@@ -276,6 +284,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
   const [userModifiedCurrency, setUserModifiedCurrency] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
+  const [businessCategoryOpen, setBusinessCategoryOpen] = useState(false);
 
   // Update form when signup data becomes available and apply auto-detection
   useEffect(() => {
@@ -536,21 +545,62 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="industry">Business Category</Label>
-              <Select
-                value={formData.industry}
-                onValueChange={(value) => updateField('industry', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BUSINESS_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={businessCategoryOpen} onOpenChange={setBusinessCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={businessCategoryOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.industry ? (
+                      <span className="flex items-center gap-2">
+                        {(() => {
+                          const category = BUSINESS_CATEGORIES.find(c => c.value === formData.industry);
+                          const IconComponent = category?.icon;
+                          return IconComponent && <IconComponent className="h-4 w-4 text-muted-foreground" />;
+                        })()}
+                        {BUSINESS_CATEGORIES.find(c => c.value === formData.industry)?.label || formData.industry}
+                      </span>
+                    ) : (
+                      'Select category...'
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search category..." />
+                    <CommandList className="max-h-[250px]">
+                      <CommandEmpty>No category found.</CommandEmpty>
+                      <CommandGroup>
+                        {BUSINESS_CATEGORIES.map((category) => {
+                          const IconComponent = category.icon;
+                          return (
+                            <CommandItem
+                              key={category.value}
+                              value={category.label}
+                              onSelect={() => {
+                                updateField('industry', category.value);
+                                setBusinessCategoryOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  formData.industry === category.value ? 'opacity-100' : 'opacity-0'
+                                )}
+                              />
+                              <IconComponent className="mr-2 h-4 w-4 text-muted-foreground" />
+                              {category.label}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
