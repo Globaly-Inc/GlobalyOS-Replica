@@ -4,9 +4,10 @@
  * Supports resume from where user left off
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useOrgOnboardingData,
@@ -51,6 +52,9 @@ export default function OrgOnboardingWizard() {
   
   const [showSkipDialog, setShowSkipDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [displayStep, setDisplayStep] = useState(1);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Redirect GlobalyHub demo org away from onboarding
   useEffect(() => {
@@ -70,8 +74,34 @@ export default function OrgOnboardingWizard() {
   useEffect(() => {
     if (onboardingData?.current_step) {
       setCurrentStep(onboardingData.current_step);
+      setDisplayStep(onboardingData.current_step);
     }
   }, [onboardingData?.current_step]);
+
+  // Handle step transition animations
+  useEffect(() => {
+    if (currentStep !== displayStep) {
+      // Clear any existing timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      
+      // Start exit animation
+      setIsTransitioning(true);
+      
+      // After exit animation, update display step and start enter animation
+      transitionTimeoutRef.current = setTimeout(() => {
+        setDisplayStep(currentStep);
+        setIsTransitioning(false);
+      }, 150);
+    }
+    
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, [currentStep, displayStep]);
 
   // Loading state
   if (authLoading || dataLoading || initOnboarding.isPending) {
@@ -123,9 +153,8 @@ export default function OrgOnboardingWizard() {
     });
   };
 
-  const stepName = getStepName(currentStep - 1);
-
-  const renderStep = () => {
+  const renderStep = (step: number) => {
+    const stepName = getStepName(step - 1);
     switch (stepName) {
       case 'welcome':
         return (
@@ -217,9 +246,18 @@ export default function OrgOnboardingWizard() {
       />
 
       {/* Main content - adjust top padding for fixed header */}
-      <main className="pt-32 pb-16 px-4">
+      <main className="pt-40 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
-          {renderStep()}
+          <div
+            className={cn(
+              "transition-all duration-300 ease-out",
+              isTransitioning 
+                ? "opacity-0 translate-y-2" 
+                : "opacity-100 translate-y-0"
+            )}
+          >
+            {renderStep(displayStep)}
+          </div>
         </div>
       </main>
 
