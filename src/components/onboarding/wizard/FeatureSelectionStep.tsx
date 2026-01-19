@@ -265,8 +265,10 @@ const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(() => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {FEATURES.map(renderFeatureItem)}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {FEATURES.map(renderFeatureItem)}
+          </div>
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onBack} className="flex-1">

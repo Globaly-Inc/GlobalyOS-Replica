@@ -275,7 +275,7 @@ export default function OrgOnboardingWizard() {
       <main className="pt-48 pb-16 px-4">
         <div className={cn(
           "mx-auto",
-          getStepName(displayStep - 1) === 'team-members' ? 'max-w-5xl' : 'max-w-2xl'
+          ['team-members', 'features'].includes(getStepName(displayStep - 1) || '') ? 'max-w-6xl' : 'max-w-2xl'
         )}>
           <div
             className={cn(
