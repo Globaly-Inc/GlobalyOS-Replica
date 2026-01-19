@@ -47,6 +47,7 @@ export function DepartmentsRolesStep({
 }: DepartmentsRolesStepProps) {
   const { toast } = useToast();
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isSuggestingPositions, setIsSuggestingPositions] = useState(false);
   const [departments, setDepartments] = useState<string[]>(initialData?.departments || []);
   const [selectedDepartments, setSelectedDepartments] = useState<Set<string>>(
     new Set(initialData?.departments || [])
@@ -141,6 +142,75 @@ export function DepartmentsRolesStep({
 
   const removePosition = (index: number) => {
     setPositions(positions.filter((_, i) => i !== index));
+  };
+
+  const suggestMorePositions = async () => {
+    if (selectedDepartments.size === 0) {
+      toast({
+        title: 'Select departments first',
+        description: 'Please select at least one department to get position suggestions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSuggestingPositions(true);
+    try {
+      const existingPositionNames = positions.map(p => p.name);
+      const { data, error } = await supabase.functions.invoke('suggest-positions', {
+        body: { 
+          departments: Array.from(selectedDepartments),
+          existingPositions: existingPositionNames,
+          industry: industry || 'General Business', 
+          companySize: companySize || 'small' 
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({
+          title: 'Suggestion failed',
+          description: data.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (data?.positions && data.positions.length > 0) {
+        // Filter out any duplicates and add new positions
+        const newPositions = data.positions.filter(
+          (p: Position) => !existingPositionNames.includes(p.name)
+        ).map((p: Position) => ({ ...p, selected: true }));
+
+        if (newPositions.length > 0) {
+          setPositions([...positions, ...newPositions]);
+          toast({
+            title: 'Positions suggested',
+            description: `Added ${newPositions.length} new position suggestions.`,
+          });
+        } else {
+          toast({
+            title: 'No new positions',
+            description: 'All suggested positions already exist.',
+          });
+        }
+      } else {
+        toast({
+          title: 'No suggestions',
+          description: 'Could not generate additional positions. Try adding custom positions.',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to suggest positions:', err);
+      toast({
+        title: 'Suggestion failed',
+        description: 'Could not generate position suggestions. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSuggestingPositions(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -262,11 +332,32 @@ export function DepartmentsRolesStep({
 
           {/* Positions Section */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Positions
-            </Label>
-            
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Positions
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={suggestMorePositions}
+                disabled={isSuggestingPositions || selectedDepartments.size === 0}
+                className="gap-1.5"
+              >
+                {isSuggestingPositions ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Suggesting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI Suggest
+                  </>
+                )}
+              </Button>
+            </div>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
               {positions.filter(p => selectedDepartments.has(p.department)).map((position, index) => (
                 <div 
