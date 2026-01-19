@@ -6,8 +6,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, ArrowRight, ArrowLeft, Users, Sparkles } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, Mail, Calendar, Clock, Sparkles, LogOut } from 'lucide-react';
 import { SetupProgressScreen } from './SetupProgressScreen';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TeamMember {
   email: string;
@@ -15,6 +16,7 @@ interface TeamMember {
   position?: string;
   department?: string;
   role?: string;
+  office_id?: string;
 }
 
 interface Office {
@@ -50,6 +52,11 @@ export function OrgCompleteStep({
   isCompleting 
 }: OrgCompleteStepProps) {
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const { signOut } = useAuth();
+
+  // Calculate what will happen during setup
+  const hasOfficesWithHolidays = offices?.some(o => o.public_holidays_enabled) ?? false;
+  const hasTeamMembersWithOffices = teamMembers.some(m => m.office_id);
 
   const handleCompleteSetup = () => {
     setIsSettingUp(true);
@@ -71,6 +78,7 @@ export function OrgCompleteStep({
   }
 
   return (
+  <>
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -83,16 +91,28 @@ export function OrgCompleteStep({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-medium">What's next:</p>
+          <p className="text-sm font-medium">When you click Complete Setup:</p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {teamMembersCount > 0 && (
               <li className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
+                <Mail className="h-4 w-4 text-primary flex-shrink-0" />
                 {teamMembersCount} team member{teamMembersCount > 1 ? 's' : ''} will receive invitation emails
               </li>
             )}
+            {hasOfficesWithHolidays && (
+              <li className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                Public holidays will be set up for your offices
+              </li>
+            )}
+            {hasTeamMembersWithOffices && (
+              <li className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                Work schedules will be assigned to team members
+              </li>
+            )}
             <li className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
+              <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
               Explore your new workspace and customize settings
             </li>
           </ul>
@@ -103,7 +123,8 @@ export function OrgCompleteStep({
             type="button" 
             variant="outline" 
             onClick={onBack} 
-            className="flex-1" 
+            className="flex-1 h-12" 
+            size="lg"
             disabled={isCompleting}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -112,7 +133,7 @@ export function OrgCompleteStep({
           <Button 
             onClick={handleCompleteSetup} 
             disabled={isCompleting} 
-            className="flex-1 h-12 text-base" 
+            className="flex-1 h-12" 
             size="lg"
           >
             {isCompleting ? 'Completing...' : 'Complete Setup'}
@@ -121,5 +142,18 @@ export function OrgCompleteStep({
         </div>
       </CardContent>
     </Card>
+
+    <div className="mt-6 text-center">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => signOut()}
+        className="text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="mr-2 h-4 w-4" />
+        Log out
+      </Button>
+    </div>
+  </>
   );
 }
