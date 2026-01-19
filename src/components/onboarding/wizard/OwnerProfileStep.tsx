@@ -205,7 +205,47 @@ export function OwnerProfileStep({
     }
 
     try {
-      // Check if employee record exists
+      // Step 1: Get or create Head Office for the organization
+      let headOfficeId: string | null = null;
+      
+      // Try to find existing head office
+      const { data: existingOffice } = await supabase
+        .from('offices')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .or('name.ilike.Head Office,name.ilike.Headquarters,is_headquarters.eq.true')
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingOffice) {
+        headOfficeId = existingOffice.id;
+      } else {
+        // Create head office - get country from organization
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('country')
+          .eq('id', organizationId)
+          .single();
+        
+        const { data: newOffice, error: officeError } = await supabase
+          .from('offices')
+          .insert({
+            organization_id: organizationId,
+            name: 'Head Office',
+            country: org?.country || null,
+            is_headquarters: true,
+          })
+          .select('id')
+          .single();
+        
+        if (officeError) {
+          console.warn('Could not create head office:', officeError);
+        } else {
+          headOfficeId = newOffice.id;
+        }
+      }
+
+      // Step 2: Check if employee record exists
       const { data: existingEmployee } = await supabase
         .from('employees')
         .select('id')
@@ -223,12 +263,14 @@ export function OwnerProfileStep({
             join_date: formData.join_date,
             date_of_birth: formData.date_of_birth || null,
             status: 'active',
+            employment_type: 'employee',
+            office_id: headOfficeId,
           })
           .eq('id', existingEmployee.id);
 
         if (updateError) throw updateError;
       } else {
-        // Create new employee record
+        // Create new employee record with is_new_hire = false for owner (skip onboarding workflow)
         const { data: newEmployee, error: insertError } = await supabase
           .from('employees')
           .insert({
@@ -239,6 +281,9 @@ export function OwnerProfileStep({
             join_date: formData.join_date,
             date_of_birth: formData.date_of_birth || null,
             status: 'active',
+            employment_type: 'employee',
+            office_id: headOfficeId,
+            is_new_hire: false, // Owner doesn't need onboarding workflow
           })
           .select('id')
           .single();
@@ -268,9 +313,10 @@ export function OwnerProfileStep({
       });
     } catch (error) {
       console.error('Failed to save owner profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: 'Error',
-        description: 'Failed to save your profile. Please try again.',
+        description: `Failed to save your profile: ${errorMessage}`,
         variant: 'destructive',
       });
     }
