@@ -576,9 +576,9 @@ const Signup = () => {
                 />
                 <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
                   I agree to the{" "}
-                  <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
                   {" "}and{" "}
-                  <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
                 </Label>
               </div>
               {errors.acceptTerms && (
