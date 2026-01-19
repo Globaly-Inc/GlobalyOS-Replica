@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, ArrowRight, ArrowLeft, Loader2, CalendarIcon, Check, ChevronsUpDown, Camera, Upload } from 'lucide-react';
+import { User, ArrowRight, ArrowLeft, Loader2, CalendarIcon, Check, ChevronsUpDown, Camera, Upload, Building2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -85,6 +85,11 @@ export function OwnerProfileStep({
   
   const [positionOpen, setPositionOpen] = useState(false);
   const [positionSearch, setPositionSearch] = useState('');
+  
+  // Office selection state
+  const [offices, setOffices] = useState<Array<{ id: string; name: string; city: string | null; country: string | null }>>([]);
+  const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
+  const [loadingOffices, setLoadingOffices] = useState(true);
 
   // Get departments and positions from previous step
   const departments = departmentsRoles?.departments || [];
@@ -138,6 +143,39 @@ export function OwnerProfileStep({
 
     fetchExistingData();
   }, [session?.user?.id, organizationId]);
+
+  // Fetch offices for selection
+  useEffect(() => {
+    async function fetchOffices() {
+      if (!organizationId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('offices')
+          .select('id, name, city, country')
+          .eq('organization_id', organizationId)
+          .order('name');
+        
+        if (error) throw error;
+        setOffices(data || []);
+        
+        // Auto-select first office or Head Office if available
+        if (data && data.length > 0) {
+          const headOffice = data.find(o => 
+            o.name.toLowerCase().includes('head office') || 
+            o.name.toLowerCase().includes('headquarters')
+          );
+          setSelectedOfficeId(headOffice?.id || data[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch offices:', error);
+      } finally {
+        setLoadingOffices(false);
+      }
+    }
+    
+    fetchOffices();
+  }, [organizationId]);
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -264,15 +302,6 @@ export function OwnerProfileStep({
     }
 
     try {
-      // Get head office for assignment
-      const { data: headOffice } = await supabase
-        .from('offices')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .or('name.ilike.%Head Office%,name.ilike.%Headquarters%')
-        .limit(1)
-        .maybeSingle();
-
       // Check if employee record exists
       const { data: existingEmployee } = await supabase
         .from('employees')
@@ -288,7 +317,7 @@ export function OwnerProfileStep({
         date_of_birth: formData.date_of_birth || null,
         status: 'active',
         employment_type: 'employee',
-        office_id: headOffice?.id || null,
+        office_id: selectedOfficeId,
       };
 
       // Update avatar_url in profiles table (separate from employees)
@@ -447,6 +476,56 @@ export function OwnerProfileStep({
             onCropComplete={handleCropComplete}
             cropShape="circle"
           />
+
+          {/* Office Selection */}
+          <div className="space-y-3">
+            <Label>Your Office *</Label>
+            {loadingOffices ? (
+              <div className="flex gap-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-20 flex-1 rounded-lg bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : offices.length > 0 ? (
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+                {offices.map((office) => {
+                  const isSelected = selectedOfficeId === office.id;
+                  return (
+                    <Card
+                      key={office.id}
+                      className={cn(
+                        "p-4 cursor-pointer transition-all hover:border-primary/50",
+                        isSelected && "border-primary bg-primary/5 ring-1 ring-primary"
+                      )}
+                      onClick={() => setSelectedOfficeId(office.id)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-3">
+                          <div className={cn(
+                            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
+                            isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          )}>
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{office.name}</p>
+                            {(office.city || office.country) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {[office.city, office.country].filter(Boolean).join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No offices found. Please add offices in the previous step.</p>
+            )}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Department Select */}
@@ -620,7 +699,7 @@ export function OwnerProfileStep({
             </Button>
             <Button 
               type="submit" 
-              disabled={isSaving || !formData.position || !formData.department} 
+              disabled={isSaving || !formData.position || !formData.department || !selectedOfficeId} 
               className="flex-1"
             >
               {isSaving ? 'Saving...' : 'Continue'}
