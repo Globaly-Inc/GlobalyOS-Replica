@@ -87,9 +87,6 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
 
   return (
     <div className="space-y-2">
-      <span className="text-xs text-muted-foreground px-1">
-        Default Leave Type and Days
-      </span>
 
         {/* System Leave Types */}
         <div className="space-y-1">
