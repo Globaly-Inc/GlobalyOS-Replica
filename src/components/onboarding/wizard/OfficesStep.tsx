@@ -164,7 +164,6 @@ export function OfficesStep({
               country,
               city,
               address: office.address,
-              is_headquarters: i === 0,
             })
             .eq('id', existing.id);
           
@@ -178,7 +177,6 @@ export function OfficesStep({
               country,
               city,
               address: office.address,
-              is_headquarters: i === 0,
             })
             .select('id')
             .single();

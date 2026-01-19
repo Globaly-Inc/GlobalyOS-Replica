@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
+import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import type { Office } from '@/pages/ManageOffices';
 
 interface AddOfficeDialogProps {
@@ -20,13 +21,23 @@ export const AddOfficeDialog = ({ open, onOpenChange, onOfficeCreated }: AddOffi
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    city: '',
-    country: '',
+    addressComponents: null as AddressComponents | null,
   });
+
+  const handleAddressChange = (address: string, components?: AddressComponents) => {
+    setFormData(prev => ({
+      ...prev,
+      address,
+      addressComponents: components || null,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentOrg?.id || !formData.name.trim()) return;
+
+    const city = formData.addressComponents?.locality || '';
+    const country = formData.addressComponents?.country_code || '';
 
     setSaving(true);
     const { data, error } = await supabase
@@ -35,8 +46,8 @@ export const AddOfficeDialog = ({ open, onOpenChange, onOfficeCreated }: AddOffi
         organization_id: currentOrg.id,
         name: formData.name.trim(),
         address: formData.address.trim() || null,
-        city: formData.city.trim() || null,
-        country: formData.country.trim() || null,
+        city: city || null,
+        country: country || null,
       })
       .select()
       .single();
@@ -51,7 +62,7 @@ export const AddOfficeDialog = ({ open, onOpenChange, onOfficeCreated }: AddOffi
 
     toast.success('Office created successfully');
     onOfficeCreated({ ...data, employee_count: 0 } as Office);
-    setFormData({ name: '', address: '', city: '', country: '' });
+    setFormData({ name: '', address: '', addressComponents: null });
     onOpenChange(false);
   };
 
@@ -74,32 +85,11 @@ export const AddOfficeDialog = ({ open, onOpenChange, onOfficeCreated }: AddOffi
           </div>
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
+            <AddressAutocomplete
               value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="Street address"
+              onChange={handleAddressChange}
+              placeholder="Start typing the office address..."
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                placeholder="City"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                placeholder="Country"
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
