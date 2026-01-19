@@ -3,20 +3,21 @@
  * Dynamic columns based on enabled features from Welcome step
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
+import { WorkdaysChipSelector, WEEKDAYS_MON_FRI } from '@/components/ui/workdays-chip-selector';
 import { ArrowLeft, ArrowRight, Building, Plus, Trash2, Loader2, Crown, Globe, CalendarDays, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getTimezoneForCountry, getTimezonesForCountry, hasMultipleTimezones } from '@/utils/countryTimezones';
 
 interface Office {
   id?: string;
@@ -86,16 +87,6 @@ const TIMEZONE_OPTIONS = [
   { value: 'UTC', label: 'UTC' },
 ];
 
-const WEEKDAYS = [
-  { value: 0, label: 'S', full: 'Sunday' },
-  { value: 1, label: 'M', full: 'Monday' },
-  { value: 2, label: 'T', full: 'Tuesday' },
-  { value: 3, label: 'W', full: 'Wednesday' },
-  { value: 4, label: 'T', full: 'Thursday' },
-  { value: 5, label: 'F', full: 'Friday' },
-  { value: 6, label: 'S', full: 'Saturday' },
-];
-
 const MONTHS = [
   { value: 1, label: 'Jan' },
   { value: 2, label: 'Feb' },
@@ -110,24 +101,6 @@ const MONTHS = [
   { value: 11, label: 'Nov' },
   { value: 12, label: 'Dec' },
 ];
-
-// Auto-detect timezone based on country code
-function getTimezoneForCountry(countryCode?: string): string {
-  const tzMap: Record<string, string> = {
-    AU: 'Australia/Sydney',
-    NZ: 'Pacific/Auckland',
-    US: 'America/New_York',
-    GB: 'Europe/London',
-    DE: 'Europe/Berlin',
-    FR: 'Europe/Paris',
-    SG: 'Asia/Singapore',
-    JP: 'Asia/Tokyo',
-    IN: 'Asia/Kolkata',
-    AE: 'Asia/Dubai',
-    HK: 'Asia/Hong_Kong',
-  };
-  return tzMap[countryCode || ''] || 'UTC';
-}
 
 export function OfficesStep({ 
   organizationId, 
@@ -239,15 +212,6 @@ export function OfficesStep({
         timezone: countryCode ? getTimezoneForCountry(countryCode) : office.timezone,
       };
     }));
-  };
-
-  const toggleWorkDay = (index: number, day: number) => {
-    const office = offices[index];
-    const currentDays = office.work_days || [1, 2, 3, 4, 5];
-    const newDays = currentDays.includes(day)
-      ? currentDays.filter(d => d !== day)
-      : [...currentDays, day].sort((a, b) => a - b);
-    updateOffice(index, 'work_days', newDays);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -504,28 +468,12 @@ export function OfficesStep({
                       {/* Workdays (Attendance) */}
                       {hasAttendance && (
                         <TableCell className="p-2">
-                          <div className="flex gap-0.5">
-                            {WEEKDAYS.map((day) => (
-                              <Tooltip key={day.value}>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleWorkDay(index, day.value)}
-                                    disabled={isLoading}
-                                    className={cn(
-                                      "w-6 h-6 text-xs font-medium rounded transition-colors",
-                                      (office.work_days || []).includes(day.value)
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                    )}
-                                  >
-                                    {day.label}
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent>{day.full}</TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </div>
+                          <WorkdaysChipSelector
+                            value={office.work_days || WEEKDAYS_MON_FRI}
+                            onChange={(days) => updateOffice(index, 'work_days', days)}
+                            disabled={isLoading}
+                            size="sm"
+                          />
                         </TableCell>
                       )}
 

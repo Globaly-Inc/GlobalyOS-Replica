@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { DEFAULT_LEAVE_TYPES } from '@/constants/defaultLeaveTypes';
 
 export interface OrgOnboardingData {
   id: string;
@@ -309,10 +310,10 @@ export function useCompleteOrgOnboarding() {
     }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
-      // Get pending team members from onboarding data
+      // Get pending team members and enabled features from onboarding data
       const { data: onboardingData } = await supabase
         .from('org_onboarding_data')
-        .select('team_members')
+        .select('team_members, enabled_features, offices')
         .eq('organization_id', currentOrg.id)
         .single();
 
@@ -323,12 +324,66 @@ export function useCompleteOrgOnboarding() {
         department?: string;
         role?: string;
       }>) || [];
+      
+      const enabledFeatures = (onboardingData?.enabled_features as string[]) || [];
+      const offices = (onboardingData?.offices as Array<{ id?: string }>) || [];
+
+      // Seed default leave types if Leave feature is enabled
+      if (!skipped && enabledFeatures.includes('leave')) {
+        try {
+          console.log('Seeding default leave types for organization...');
+          
+          // Check if leave types already exist
+          const { data: existingTypes } = await supabase
+            .from('leave_types')
+            .select('id')
+            .eq('organization_id', currentOrg.id)
+            .limit(1);
+          
+          // Only seed if no leave types exist yet
+          if (!existingTypes || existingTypes.length === 0) {
+            const leaveTypesToInsert = DEFAULT_LEAVE_TYPES.map(lt => ({
+              organization_id: currentOrg.id,
+              name: lt.name,
+              category: lt.category,
+              description: lt.description,
+              default_days: lt.default_days,
+              min_days_advance: lt.min_days_advance,
+              applies_to_all_offices: lt.applies_to_all_offices,
+              applies_to_employment_types: lt.applies_to_employment_types,
+              applies_to_gender: lt.applies_to_gender,
+              max_negative_days: lt.max_negative_days,
+              is_system: lt.is_system,
+              is_active: lt.is_active,
+            }));
+
+            const { data: insertedTypes, error: leaveError } = await supabase
+              .from('leave_types')
+              .insert(leaveTypesToInsert)
+              .select('id');
+
+            if (leaveError) {
+              console.error('Failed to seed leave types:', leaveError);
+            } else {
+              console.log(`Seeded ${insertedTypes?.length || 0} default leave types`);
+              
+              // Link leave types to all offices if not applies_to_all_offices
+              // For now, all default types apply to all offices, so we don't need office links
+            }
+          } else {
+            console.log('Leave types already exist, skipping seed');
+          }
+        } catch (leaveErr) {
+          console.error('Failed to seed leave types:', leaveErr);
+          // Don't fail onboarding if leave type seeding fails
+        }
+      }
 
       // Mark onboarding data as complete
       const { error: dataError } = await supabase
         .from('org_onboarding_data')
         .update({
-        completed_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
           skipped,
           current_step: 7,
         })
