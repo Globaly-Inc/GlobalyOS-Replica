@@ -236,7 +236,7 @@ export function OfficesStep({
                     {index === 0 ? 'Primary Office' : `Office ${index + 1}`}
                   </span>
                 </div>
-                {offices.length > 1 && (
+                {index !== 0 && offices.length > 1 && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -247,6 +247,9 @@ export function OfficesStep({
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                )}
+                {index === 0 && (
+                  <span className="text-xs text-muted-foreground">Headquarters</span>
                 )}
               </div>
 
