@@ -25,14 +25,14 @@ export function OnboardingHeader({
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
       <div className="max-w-6xl mx-auto px-4 py-3">
         {/* Top row: Logo */}
-        <div className="flex items-center justify-center mb-3">
+        <div className="flex items-center justify-center mt-4 mb-8">
           <div className="flex items-center gap-3">
             <img 
               src={globalyosIcon} 
               alt="GlobalyOS" 
-              className="h-8 w-8 rounded-lg"
+              className="h-10 w-10 rounded-lg"
             />
-            <span className="font-semibold text-foreground">GlobalyOS Setup</span>
+            <span className="font-semibold text-lg text-foreground">GlobalyOS Setup</span>
           </div>
         </div>
         
