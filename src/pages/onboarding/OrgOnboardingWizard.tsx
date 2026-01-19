@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import {
   useOrgOnboardingData,
   useInitOrgOnboarding,
@@ -42,6 +43,7 @@ export default function OrgOnboardingWizard() {
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
   const { session, loading: authLoading } = useAuth();
+  const { data: currentEmployee } = useCurrentEmployee();
   const { data: onboardingData, isLoading: dataLoading } = useOrgOnboardingData();
   const initOnboarding = useInitOrgOnboarding();
   const saveStep = useSaveOrgOnboardingStep();
@@ -243,6 +245,8 @@ export default function OrgOnboardingWizard() {
             orgName={currentOrg?.name || 'Your organization'}
             teamMembersCount={onboardingData?.team_members?.length || 0}
             teamMembers={onboardingData?.team_members || []}
+            offices={onboardingData?.offices || []}
+            employeeId={currentEmployee?.id}
             organizationId={currentOrg?.id || ''}
             onFinish={() => handleNext()}
             onBack={handleBack}
