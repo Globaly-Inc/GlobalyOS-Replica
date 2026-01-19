@@ -51,74 +51,169 @@ interface OrgInfoStepProps {
 }
 
 const COUNTRIES = [
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
+  { code: 'AF', name: 'Afghanistan' },
+  { code: 'AL', name: 'Albania' },
+  { code: 'DZ', name: 'Algeria' },
+  { code: 'AR', name: 'Argentina' },
+  { code: 'AM', name: 'Armenia' },
   { code: 'AU', name: 'Australia' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'NO', name: 'Norway' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'FI', name: 'Finland' },
-  { code: 'CH', name: 'Switzerland' },
   { code: 'AT', name: 'Austria' },
+  { code: 'AZ', name: 'Azerbaijan' },
+  { code: 'BH', name: 'Bahrain' },
+  { code: 'BD', name: 'Bangladesh' },
+  { code: 'BY', name: 'Belarus' },
   { code: 'BE', name: 'Belgium' },
-  { code: 'IE', name: 'Ireland' },
-  { code: 'PT', name: 'Portugal' },
-  { code: 'PL', name: 'Poland' },
-  { code: 'CZ', name: 'Czech Republic' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'KR', name: 'South Korea' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'HK', name: 'Hong Kong' },
-  { code: 'IN', name: 'India' },
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'ZA', name: 'South Africa' },
   { code: 'BR', name: 'Brazil' },
+  { code: 'BG', name: 'Bulgaria' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'CL', name: 'Chile' },
+  { code: 'CN', name: 'China' },
+  { code: 'CO', name: 'Colombia' },
+  { code: 'HR', name: 'Croatia' },
+  { code: 'CY', name: 'Cyprus' },
+  { code: 'CZ', name: 'Czech Republic' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'EE', name: 'Estonia' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'GE', name: 'Georgia' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'GH', name: 'Ghana' },
+  { code: 'GR', name: 'Greece' },
+  { code: 'HK', name: 'Hong Kong' },
+  { code: 'HU', name: 'Hungary' },
+  { code: 'IS', name: 'Iceland' },
+  { code: 'IN', name: 'India' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'IR', name: 'Iran' },
+  { code: 'IQ', name: 'Iraq' },
+  { code: 'IE', name: 'Ireland' },
+  { code: 'IL', name: 'Israel' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'JO', name: 'Jordan' },
+  { code: 'KZ', name: 'Kazakhstan' },
+  { code: 'KE', name: 'Kenya' },
+  { code: 'KW', name: 'Kuwait' },
+  { code: 'LV', name: 'Latvia' },
+  { code: 'LB', name: 'Lebanon' },
+  { code: 'LT', name: 'Lithuania' },
+  { code: 'LU', name: 'Luxembourg' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'MT', name: 'Malta' },
   { code: 'MX', name: 'Mexico' },
+  { code: 'MA', name: 'Morocco' },
+  { code: 'NP', name: 'Nepal' },
+  { code: 'NL', name: 'Netherlands' },
   { code: 'NZ', name: 'New Zealand' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'OM', name: 'Oman' },
+  { code: 'PK', name: 'Pakistan' },
+  { code: 'PA', name: 'Panama' },
+  { code: 'PE', name: 'Peru' },
+  { code: 'PH', name: 'Philippines' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'QA', name: 'Qatar' },
+  { code: 'RO', name: 'Romania' },
+  { code: 'RU', name: 'Russia' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'RS', name: 'Serbia' },
+  { code: 'SG', name: 'Singapore' },
+  { code: 'SK', name: 'Slovakia' },
+  { code: 'SI', name: 'Slovenia' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'LK', name: 'Sri Lanka' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'TW', name: 'Taiwan' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'UA', name: 'Ukraine' },
+  { code: 'AE', name: 'United Arab Emirates' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'US', name: 'United States' },
+  { code: 'UY', name: 'Uruguay' },
+  { code: 'UZ', name: 'Uzbekistan' },
+  { code: 'VE', name: 'Venezuela' },
+  { code: 'VN', name: 'Vietnam' },
 ];
 
 const TIMEZONES = [
-  { value: 'America/New_York', label: 'Eastern Time (ET)' },
-  { value: 'America/Chicago', label: 'Central Time (CT)' },
-  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HST)' },
+  { value: 'America/Anchorage', label: 'Alaska (AKST)' },
   { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
   { value: 'America/Toronto', label: 'Toronto (ET)' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo (BRT)' },
+  { value: 'America/Buenos_Aires', label: 'Buenos Aires (ART)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (CST)' },
+  { value: 'America/Bogota', label: 'Bogota (COT)' },
+  { value: 'America/Lima', label: 'Lima (PET)' },
+  { value: 'America/Santiago', label: 'Santiago (CLT)' },
+  { value: 'America/Caracas', label: 'Caracas (VET)' },
+  { value: 'Atlantic/Reykjavik', label: 'Reykjavik (GMT)' },
   { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Dublin', label: 'Dublin (GMT/IST)' },
+  { value: 'Europe/Lisbon', label: 'Lisbon (WET)' },
   { value: 'Europe/Paris', label: 'Paris (CET)' },
   { value: 'Europe/Berlin', label: 'Berlin (CET)' },
   { value: 'Europe/Madrid', label: 'Madrid (CET)' },
   { value: 'Europe/Rome', label: 'Rome (CET)' },
   { value: 'Europe/Amsterdam', label: 'Amsterdam (CET)' },
+  { value: 'Europe/Brussels', label: 'Brussels (CET)' },
+  { value: 'Europe/Zurich', label: 'Zurich (CET)' },
+  { value: 'Europe/Vienna', label: 'Vienna (CET)' },
   { value: 'Europe/Stockholm', label: 'Stockholm (CET)' },
   { value: 'Europe/Oslo', label: 'Oslo (CET)' },
   { value: 'Europe/Copenhagen', label: 'Copenhagen (CET)' },
   { value: 'Europe/Helsinki', label: 'Helsinki (EET)' },
-  { value: 'Europe/Zurich', label: 'Zurich (CET)' },
-  { value: 'Europe/Vienna', label: 'Vienna (CET)' },
-  { value: 'Europe/Brussels', label: 'Brussels (CET)' },
-  { value: 'Europe/Dublin', label: 'Dublin (GMT/IST)' },
-  { value: 'Europe/Lisbon', label: 'Lisbon (WET)' },
   { value: 'Europe/Warsaw', label: 'Warsaw (CET)' },
   { value: 'Europe/Prague', label: 'Prague (CET)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-  { value: 'Asia/Seoul', label: 'Seoul (KST)' },
-  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
-  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Europe/Budapest', label: 'Budapest (CET)' },
+  { value: 'Europe/Bucharest', label: 'Bucharest (EET)' },
+  { value: 'Europe/Athens', label: 'Athens (EET)' },
+  { value: 'Europe/Istanbul', label: 'Istanbul (TRT)' },
+  { value: 'Europe/Moscow', label: 'Moscow (MSK)' },
+  { value: 'Europe/Kiev', label: 'Kyiv (EET)' },
+  { value: 'Africa/Cairo', label: 'Cairo (EET)' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg (SAST)' },
+  { value: 'Africa/Lagos', label: 'Lagos (WAT)' },
+  { value: 'Africa/Nairobi', label: 'Nairobi (EAT)' },
+  { value: 'Africa/Casablanca', label: 'Casablanca (WET)' },
+  { value: 'Asia/Jerusalem', label: 'Jerusalem (IST)' },
   { value: 'Asia/Dubai', label: 'Dubai (GST)' },
   { value: 'Asia/Riyadh', label: 'Riyadh (AST)' },
-  { value: 'Africa/Johannesburg', label: 'Johannesburg (SAST)' },
-  { value: 'America/Sao_Paulo', label: 'São Paulo (BRT)' },
-  { value: 'America/Mexico_City', label: 'Mexico City (CST)' },
+  { value: 'Asia/Qatar', label: 'Qatar (AST)' },
+  { value: 'Asia/Kuwait', label: 'Kuwait (AST)' },
+  { value: 'Asia/Tehran', label: 'Tehran (IRST)' },
+  { value: 'Asia/Karachi', label: 'Karachi (PKT)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Kathmandu', label: 'Kathmandu (NPT)' },
+  { value: 'Asia/Dhaka', label: 'Dhaka (BST)' },
+  { value: 'Asia/Bangkok', label: 'Bangkok (ICT)' },
+  { value: 'Asia/Jakarta', label: 'Jakarta (WIB)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Kuala_Lumpur', label: 'Kuala Lumpur (MYT)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Asia/Taipei', label: 'Taipei (CST)' },
+  { value: 'Asia/Seoul', label: 'Seoul (KST)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Manila', label: 'Manila (PHT)' },
+  { value: 'Australia/Perth', label: 'Perth (AWST)' },
+  { value: 'Australia/Adelaide', label: 'Adelaide (ACST)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+  { value: 'Australia/Melbourne', label: 'Melbourne (AEST)' },
+  { value: 'Australia/Brisbane', label: 'Brisbane (AEST)' },
   { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
+  { value: 'Pacific/Fiji', label: 'Fiji (FJT)' },
 ];
 
 const CURRENCIES = [
@@ -214,6 +309,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
   const [userModifiedTimezone, setUserModifiedTimezone] = useState(false);
   const [userModifiedCurrency, setUserModifiedCurrency] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
 
   // Update form when signup data becomes available and apply auto-detection
   useEffect(() => {
@@ -378,21 +474,51 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
 
             <div className="space-y-2">
               <Label htmlFor="timezone">Default Timezone</Label>
-              <Select
-                value={formData.timezone}
-                onValueChange={handleTimezoneChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={timezoneOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.timezone ? (
+                      TIMEZONES.find(tz => tz.value === formData.timezone)?.label || formData.timezone
+                    ) : (
+                      'Select timezone...'
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search timezone..." />
+                    <CommandList className="max-h-[200px]">
+                      <CommandEmpty>No timezone found.</CommandEmpty>
+                      <CommandGroup>
+                        {TIMEZONES.map((tz) => (
+                          <CommandItem
+                            key={tz.value}
+                            value={tz.label}
+                            onSelect={() => {
+                              handleTimezoneChange(tz.value);
+                              setTimezoneOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                formData.timezone === tz.value ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            {tz.label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
