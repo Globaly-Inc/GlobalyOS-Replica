@@ -160,6 +160,59 @@ const formatWorkHoursSummary = (daySchedules?: DaySchedulesMap): string => {
   return `${formatTime(firstDay.start || '09:00')} - ${formatTime(firstDay.end || '17:00')}`;
 };
 
+// Helper to format break duration for summary
+const formatBreakSummary = (daySchedules?: DaySchedulesMap): string | null => {
+  if (!daySchedules) return null;
+  
+  const enabledSchedules = Object.values(daySchedules).filter(s => s.enabled);
+  if (enabledSchedules.length === 0) return null;
+  
+  const firstDay = enabledSchedules[0];
+  if (!firstDay?.breakStart || !firstDay?.breakEnd) return null;
+  
+  const [startH, startM] = firstDay.breakStart.split(':').map(Number);
+  const [endH, endM] = firstDay.breakEnd.split(':').map(Number);
+  const mins = endH * 60 + endM - (startH * 60 + startM);
+  
+  if (mins <= 0) return null;
+  
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  
+  if (hours > 0 && remainingMins > 0) return `${hours}h ${remainingMins}m break`;
+  if (hours > 0) return `${hours}h break`;
+  return `${mins}m break`;
+};
+
+// Helper to format net work hours for summary
+const formatNetWorkHours = (daySchedules?: DaySchedulesMap): string | null => {
+  if (!daySchedules) return null;
+  
+  const enabledSchedules = Object.values(daySchedules).filter(s => s.enabled);
+  if (enabledSchedules.length === 0) return null;
+  
+  const firstDay = enabledSchedules[0];
+  if (!firstDay?.start || !firstDay?.end) return null;
+  
+  const [startH, startM] = firstDay.start.split(':').map(Number);
+  const [endH, endM] = firstDay.end.split(':').map(Number);
+  let totalMins = endH * 60 + endM - (startH * 60 + startM);
+  
+  // Subtract break time if present
+  if (firstDay.breakStart && firstDay.breakEnd) {
+    const [bStartH, bStartM] = firstDay.breakStart.split(':').map(Number);
+    const [bEndH, bEndM] = firstDay.breakEnd.split(':').map(Number);
+    const breakMins = bEndH * 60 + bEndM - (bStartH * 60 + bStartM);
+    if (breakMins > 0) totalMins -= breakMins;
+  }
+  
+  if (totalMins <= 0) return null;
+  
+  const hours = totalMins / 60;
+  if (hours % 1 === 0) return `${hours}h net`;
+  return `${hours.toFixed(1)}h net`;
+};
+
 // Helper to format year start
 const formatYearStart = (office: Office): string => {
   const month = office.leave_year_start_month || 1;
@@ -552,7 +605,7 @@ export function OfficesStep({
                             {office.attendance_enabled && (
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {formatWorkdaysSummary(office.day_schedules)}, {formatWorkHoursSummary(office.day_schedules)}
+                                {formatWorkdaysSummary(office.day_schedules)}, {formatWorkHoursSummary(office.day_schedules)}{formatBreakSummary(office.day_schedules) && ` · ${formatBreakSummary(office.day_schedules)}`}{formatNetWorkHours(office.day_schedules) && ` · ${formatNetWorkHours(office.day_schedules)}`}
                               </span>
                             )}
                             {office.leave_enabled && (
