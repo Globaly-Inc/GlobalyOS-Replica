@@ -81,7 +81,7 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-muted-foreground">
-          Set default yearly allowances for each leave type.
+          Default Leave Type and Days
         </span>
         <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
           {enabledCount} enabled
