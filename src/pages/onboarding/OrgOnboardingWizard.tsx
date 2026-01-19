@@ -182,6 +182,7 @@ export default function OrgOnboardingWizard() {
         return (
           <OfficesStep
             organizationId={currentOrg?.id || ''}
+            organizationInfo={onboardingData?.organization_info}
             initialOffices={onboardingData?.offices || []}
             onSave={(offices) => handleNext({ offices })}
             onBack={handleBack}

@@ -1,15 +1,14 @@
 /**
  * Organization Onboarding - Offices Step
- * Persists offices to database immediately for use in subsequent steps
+ * Simplified with AddressAutocomplete and organization prefill
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CountrySelector } from '@/components/ui/country-selector';
+import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import { ArrowLeft, ArrowRight, Building, Plus, Trash2, MapPin, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,38 +16,84 @@ import { useToast } from '@/hooks/use-toast';
 interface Office {
   id?: string;
   name: string;
-  type: 'headquarters' | 'branch';
-  country: string;
-  city: string;
-  address?: string;
-  timezone?: string;
+  address: string;
+  address_components?: {
+    country?: string;
+    country_code?: string;
+    city?: string;
+    postal_code?: string;
+    lat?: number;
+    lng?: number;
+  };
+}
+
+interface OrganizationInfo {
+  name?: string;
+  business_address?: string;
+  business_address_components?: {
+    country?: string;
+    country_code?: string;
+    locality?: string;
+    postal_code?: string;
+    lat?: number;
+    lng?: number;
+  };
 }
 
 interface OfficesStepProps {
   organizationId: string;
+  organizationInfo?: OrganizationInfo;
   initialOffices: Office[];
   onSave: (offices: Office[]) => void;
   onBack: () => void;
   isSaving: boolean;
 }
 
-const emptyOffice: Office = {
-  name: '',
-  type: 'headquarters',
-  country: '',
-  city: '',
-  address: '',
-};
-
-export function OfficesStep({ organizationId, initialOffices, onSave, onBack, isSaving }: OfficesStepProps) {
+export function OfficesStep({ 
+  organizationId, 
+  organizationInfo,
+  initialOffices, 
+  onSave, 
+  onBack, 
+  isSaving 
+}: OfficesStepProps) {
   const { toast } = useToast();
-  const [offices, setOffices] = useState<Office[]>(
-    initialOffices.length > 0 ? initialOffices : [{ ...emptyOffice }]
-  );
   const [isPersisting, setIsPersisting] = useState(false);
 
+  // Initialize offices with prefill from organization
+  const getInitialOffices = (): Office[] => {
+    if (initialOffices.length > 0 && initialOffices[0].address) {
+      return initialOffices;
+    }
+    
+    const orgAddress = organizationInfo?.business_address || '';
+    const components = organizationInfo?.business_address_components;
+    
+    return [{
+      name: organizationInfo?.name ? `${organizationInfo.name} HQ` : 'Head Office',
+      address: orgAddress,
+      address_components: components ? {
+        country: components.country,
+        country_code: components.country_code,
+        city: components.locality,
+        postal_code: components.postal_code,
+        lat: components.lat,
+        lng: components.lng,
+      } : undefined,
+    }];
+  };
+
+  const [offices, setOffices] = useState<Office[]>(getInitialOffices);
+
+  // Update offices when organizationInfo changes (if not already set)
+  useEffect(() => {
+    if (organizationInfo && offices.length === 1 && !offices[0].address && organizationInfo.business_address) {
+      setOffices(getInitialOffices());
+    }
+  }, [organizationInfo]);
+
   const addOffice = () => {
-    setOffices([...offices, { ...emptyOffice, type: 'branch' }]);
+    setOffices([...offices, { name: '', address: '' }]);
   };
 
   const removeOffice = (index: number) => {
@@ -57,9 +102,26 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
     }
   };
 
-  const updateOffice = (index: number, field: keyof Office, value: string) => {
+  const updateOfficeName = (index: number, name: string) => {
     setOffices(offices.map((office, i) => 
-      i === index ? { ...office, [field]: value } : office
+      i === index ? { ...office, name } : office
+    ));
+  };
+
+  const handleAddressChange = (index: number, address: string, components?: AddressComponents) => {
+    setOffices(offices.map((office, i) => 
+      i === index ? { 
+        ...office, 
+        address,
+        address_components: components ? {
+          country: components.country,
+          country_code: components.country_code,
+          city: components.locality,
+          postal_code: components.postal_code,
+          lat: components.lat,
+          lng: components.lng,
+        } : office.address_components
+      } : office
     ));
   };
 
@@ -67,11 +129,11 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
     e.preventDefault();
     
     // Filter out incomplete offices
-    const validOffices = offices.filter(o => o.name && o.country && o.city);
+    const validOffices = offices.filter(o => o.name && o.address);
     if (validOffices.length === 0) {
       toast({
         title: 'At least one office required',
-        description: 'Please add at least one office with name, country, and city.',
+        description: 'Please add at least one office with name and address.',
         variant: 'destructive',
       });
       return;
@@ -80,10 +142,13 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
     setIsPersisting(true);
 
     try {
-      // Persist offices to database
       const insertedOffices: Office[] = [];
       
-      for (const office of validOffices) {
+      for (let i = 0; i < validOffices.length; i++) {
+        const office = validOffices[i];
+        const country = office.address_components?.country_code || '';
+        const city = office.address_components?.city || '';
+
         // Check if office already exists (by name in this org)
         const { data: existing } = await supabase
           .from('offices')
@@ -93,29 +158,27 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
           .maybeSingle();
 
         if (existing) {
-          // Update existing
           await supabase
             .from('offices')
             .update({
-              country: office.country,
-              city: office.city,
-              address: office.address || null,
-              is_headquarters: office.type === 'headquarters',
+              country,
+              city,
+              address: office.address,
+              is_headquarters: i === 0,
             })
             .eq('id', existing.id);
           
           insertedOffices.push({ ...office, id: existing.id });
         } else {
-          // Insert new
           const { data: newOffice, error } = await supabase
             .from('offices')
             .insert({
               organization_id: organizationId,
               name: office.name,
-              country: office.country,
-              city: office.city,
-              address: office.address || null,
-              is_headquarters: office.type === 'headquarters',
+              country,
+              city,
+              address: office.address,
+              is_headquarters: i === 0,
             })
             .select('id')
             .single();
@@ -147,7 +210,7 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
     }
   };
 
-  const isValid = offices.some(o => o.name && o.country && o.city);
+  const isValid = offices.some(o => o.name && o.address);
   const isLoading = isSaving || isPersisting;
 
   return (
@@ -189,66 +252,24 @@ export function OfficesStep({ organizationId, initialOffices, onSave, onBack, is
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Office Name *</Label>
-                  <Input
-                    value={office.name}
-                    onChange={(e) => updateOffice(index, 'name', e.target.value)}
-                    placeholder="e.g., Head Office"
-                    required={index === 0}
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select
-                    value={office.type}
-                    onValueChange={(value: 'headquarters' | 'branch') => updateOffice(index, 'type', value)}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="headquarters">Headquarters</SelectItem>
-                      <SelectItem value="branch">Branch</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Country *</Label>
-                  <CountrySelector
-                    value={office.country}
-                    onChange={(value) => updateOffice(index, 'country', value)}
-                    placeholder="Select country"
-                    valueType="code"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>City *</Label>
-                  <Input
-                    value={office.city}
-                    onChange={(e) => updateOffice(index, 'city', e.target.value)}
-                    placeholder="e.g., New York"
-                    required={index === 0}
-                    disabled={isLoading}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Office Name *</Label>
+                <Input
+                  value={office.name}
+                  onChange={(e) => updateOfficeName(index, e.target.value)}
+                  placeholder="e.g., Head Office, Sydney Branch"
+                  required={index === 0}
+                  disabled={isLoading}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>Street Address (optional)</Label>
-                <Input
-                  value={office.address || ''}
-                  onChange={(e) => updateOffice(index, 'address', e.target.value)}
-                  placeholder="123 Main Street, Suite 100"
+                <Label>Office Address *</Label>
+                <AddressAutocomplete
+                  value={office.address}
+                  onChange={(address, components) => handleAddressChange(index, address, components)}
+                  placeholder="Start typing the office address..."
+                  required={index === 0}
                   disabled={isLoading}
                 />
               </div>
