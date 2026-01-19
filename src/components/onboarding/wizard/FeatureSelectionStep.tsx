@@ -21,7 +21,9 @@ import {
   GitBranch,
   Wallet,
   Lock,
-  ListTodo
+  ListTodo,
+  Bot,
+  Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -125,6 +127,24 @@ export const FEATURES: FeatureDefinition[] = [
     icon: Wallet,
     comingSoon: true,
     featureFlag: 'payroll',
+    defaultEnabled: false,
+  },
+  {
+    id: 'ask-ai',
+    name: 'Ask AI',
+    description: 'AI-powered assistant for questions, summaries, and insights',
+    icon: Bot,
+    comingSoon: true,
+    featureFlag: 'ask-ai',
+    defaultEnabled: false,
+  },
+  {
+    id: 'mobile-app',
+    name: 'Mobile App',
+    description: 'Native iOS and Android apps for on-the-go access',
+    icon: Smartphone,
+    comingSoon: true,
+    featureFlag: 'mobile-app',
     defaultEnabled: false,
   },
 ];
