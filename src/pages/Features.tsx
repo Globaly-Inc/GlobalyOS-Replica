@@ -184,7 +184,7 @@ export default function Features() {
           <Button
             size="lg"
             className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-            onClick={() => navigate("/auth")}
+            onClick={() => navigate("/signup")}
           >
             Start Free Trial
             <ArrowRight className="w-5 h-5 ml-2" />
@@ -276,7 +276,7 @@ export default function Features() {
             <Button
               size="lg"
               className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/signup")}
             >
               Start Free Trial
               <ArrowRight className="w-5 h-5 ml-2" />
