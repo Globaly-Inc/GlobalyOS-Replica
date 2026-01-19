@@ -234,7 +234,17 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // Normalize website URL - add https:// if missing
+    let normalizedWebsite = formData.website.trim();
+    if (normalizedWebsite && !normalizedWebsite.match(/^https?:\/\//)) {
+      normalizedWebsite = `https://${normalizedWebsite}`;
+    }
+    
+    onSave({
+      ...formData,
+      website: normalizedWebsite,
+    });
   };
 
   const updateField = (field: string, value: unknown) => {
@@ -482,10 +492,10 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
               <Label htmlFor="website">Website (optional)</Label>
               <Input
                 id="website"
-                type="url"
+                type="text"
                 value={formData.website}
                 onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://example.com"
+                placeholder="example.com"
               />
             </div>
           </div>
