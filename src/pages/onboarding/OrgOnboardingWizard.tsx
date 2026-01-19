@@ -24,11 +24,10 @@ import { OrgInfoStep } from '@/components/onboarding/wizard/OrgInfoStep';
 import { OfficesStep } from '@/components/onboarding/wizard/OfficesStep';
 import { DepartmentsRolesStep } from '@/components/onboarding/wizard/DepartmentsRolesStep';
 import { TeamSeedingStep } from '@/components/onboarding/wizard/TeamSeedingStep';
-import { FeatureSelectionStep } from '@/components/onboarding/wizard/FeatureSelectionStep';
 import { OrgCompleteStep } from '@/components/onboarding/wizard/OrgCompleteStep';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 const STEP_NAMES = [
   'Welcome',
   'Organization',
@@ -36,7 +35,6 @@ const STEP_NAMES = [
   'Departments & Roles',
   'Your Profile',
   'Team',
-  'Features',
   'Complete'
 ];
 
@@ -171,7 +169,8 @@ export default function OrgOnboardingWizard() {
           <OrgWelcomeStep
             ownerName={session?.user?.user_metadata?.full_name || 'there'}
             orgName={currentOrg?.name || 'your organization'}
-            onContinue={() => handleNext()}
+            initialFeatures={onboardingData?.enabled_features || []}
+            onContinue={(enabled_features) => handleNext({ enabled_features })}
           />
         );
       case 'organization-info':
@@ -237,15 +236,6 @@ export default function OrgOnboardingWizard() {
             organizationId={currentOrg?.id || ''}
           />
         );
-      case 'features':
-        return (
-          <FeatureSelectionStep
-            initialFeatures={onboardingData?.enabled_features || []}
-            onSave={(enabled_features) => handleNext({ enabled_features })}
-            onBack={handleBack}
-            isSaving={saveStep.isPending || isAdvancing}
-          />
-        );
       case 'complete':
         return (
           <OrgCompleteStep
@@ -275,7 +265,7 @@ export default function OrgOnboardingWizard() {
       <main className="pt-48 pb-16 px-4">
         <div className={cn(
           "mx-auto",
-          ['team-members', 'features'].includes(getStepName(displayStep - 1) || '') ? 'max-w-6xl' : 'max-w-2xl'
+          ['welcome', 'team-members'].includes(getStepName(displayStep - 1) || '') ? 'max-w-5xl' : 'max-w-2xl'
         )}>
           <div
             className={cn(

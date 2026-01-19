@@ -72,7 +72,7 @@ export interface OrgOnboardingData {
   updated_at: string;
 }
 
-// New step order: Welcome, Org, Offices, Depts/Roles, Profile, Team, Features, Complete
+// New step order: Welcome+Features, Org, Offices, Depts/Roles, Profile, Team, Complete
 const ORG_ONBOARDING_STEPS = [
   'welcome',
   'organization-info',
@@ -80,7 +80,6 @@ const ORG_ONBOARDING_STEPS = [
   'departments-roles',
   'owner-profile',
   'team-members',
-  'features',
   'complete',
 ] as const;
 
@@ -329,9 +328,9 @@ export function useCompleteOrgOnboarding() {
       const { error: dataError } = await supabase
         .from('org_onboarding_data')
         .update({
-          completed_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
           skipped,
-          current_step: 8,
+          current_step: 7,
         })
         .eq('organization_id', currentOrg.id);
 
@@ -342,7 +341,7 @@ export function useCompleteOrgOnboarding() {
         .from('organizations')
         .update({
           org_onboarding_completed: true,
-          org_onboarding_step: 8,
+          org_onboarding_step: 7,
         })
         .eq('id', currentOrg.id);
 
