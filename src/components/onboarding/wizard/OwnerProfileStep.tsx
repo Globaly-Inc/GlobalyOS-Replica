@@ -286,11 +286,23 @@ export function OwnerProfileStep({
         department: formData.department,
         join_date: formData.join_date,
         date_of_birth: formData.date_of_birth || null,
-        avatar_url: formData.avatar_url || null,
         status: 'active',
         employment_type: 'employee',
         office_id: headOffice?.id || null,
       };
+
+      // Update avatar_url in profiles table (separate from employees)
+      if (formData.avatar_url) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: formData.avatar_url })
+          .eq('id', session.user.id);
+        
+        if (profileError) {
+          console.warn('Failed to update profile avatar:', profileError);
+          // Don't throw - avatar update is not critical to onboarding flow
+        }
+      }
 
       if (existingEmployee) {
         // Update existing employee
