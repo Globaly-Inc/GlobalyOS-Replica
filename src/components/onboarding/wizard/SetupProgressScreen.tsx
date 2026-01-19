@@ -25,17 +25,20 @@ interface Office {
   };
 }
 
+interface TeamMember {
+  email: string;
+  full_name: string;
+  position?: string;
+  department?: string;
+  role?: string;
+  office_id?: string;
+}
+
 interface SetupProgressScreenProps {
   orgName: string;
   teamMembersCount: number;
   organizationId: string;
-  teamMembers: Array<{
-    email: string;
-    full_name: string;
-    position?: string;
-    department?: string;
-    role?: string;
-  }>;
+  teamMembers: TeamMember[];
   offices?: Office[];
   employeeId?: string;
   onComplete: () => void;
@@ -57,6 +60,10 @@ export function SetupProgressScreen({
   // Check if any offices have public holidays enabled
   const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
   const hasOfficesWithPublicHolidays = officesWithHolidays.length > 0;
+  
+  // Check if any team members have an office assigned (for schedule assignment)
+  const teamMembersWithOffice = teamMembers.filter(m => m.office_id);
+  const hasTeamMembersWithOffice = teamMembersWithOffice.length > 0;
 
   // Setup public holidays for offices
   const setupPublicHolidays = useCallback(async () => {
@@ -85,6 +92,33 @@ export function SetupProgressScreen({
       // Non-blocking - continue with setup
     }
   }, [organizationId, officesWithHolidays, employeeId, hasOfficesWithPublicHolidays]);
+
+  // Setup employee schedules based on office schedules
+  const setupEmployeeSchedules = useCallback(async () => {
+    if (!hasTeamMembersWithOffice) return;
+
+    try {
+      console.log(`Setting up schedules for ${teamMembersWithOffice.length} team members...`);
+      const { data, error } = await supabase.functions.invoke('setup-employee-schedules', {
+        body: {
+          organizationId,
+          teamMembers: teamMembersWithOffice.map(m => ({
+            email: m.email,
+            officeId: m.office_id,
+          })),
+        },
+      });
+
+      if (error) {
+        console.error('Failed to setup employee schedules:', error);
+      } else {
+        console.log('Employee schedules setup result:', data);
+      }
+    } catch (err) {
+      console.error('Failed to setup employee schedules:', err);
+      // Non-blocking - continue with setup
+    }
+  }, [organizationId, teamMembersWithOffice, hasTeamMembersWithOffice]);
 
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
@@ -126,6 +160,13 @@ export function SetupProgressScreen({
           id: 'holidays',
           label: 'Setting up public holidays',
           action: setupPublicHolidays,
+        }]
+      : []),
+    ...(hasTeamMembersWithOffice
+      ? [{
+          id: 'schedules',
+          label: 'Assigning work schedules',
+          action: setupEmployeeSchedules,
         }]
       : []),
     ...(teamMembersCount > 0
